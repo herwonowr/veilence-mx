@@ -9,6 +9,7 @@ import {
   apiDeleteRule,
 } from "@/lib/api-client"
 import { toast } from "sonner"
+import { sanitizeErrorMessage } from "@/lib/utils"
 
 export const channelKeys = {
   all: ["channels"] as const,
@@ -41,7 +42,7 @@ export function useCreateChannel(orgId: number) {
       toast.success("Channel created")
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Failed to create channel")
+      toast.error(sanitizeErrorMessage(err, "Failed to create channel"))
     },
   })
 }
@@ -63,7 +64,7 @@ export function useUpdateChannel(orgId: number) {
       toast.success("Channel updated")
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Failed to update channel")
+      toast.error(sanitizeErrorMessage(err, "Failed to update channel"))
     },
   })
 }
@@ -77,7 +78,7 @@ export function useDeleteChannel(orgId: number) {
       toast.success("Channel deleted")
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Failed to delete channel")
+      toast.error(sanitizeErrorMessage(err, "Failed to delete channel"))
     },
   })
 }
@@ -101,7 +102,7 @@ export function useCreateRule(orgId: number) {
       toast.success("Rule created")
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Failed to create rule")
+      toast.error(sanitizeErrorMessage(err, "Failed to create rule"))
     },
   })
 }
@@ -115,7 +116,7 @@ export function useDeleteRule(orgId: number) {
       toast.success("Rule deleted")
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Failed to delete rule")
+      toast.error(sanitizeErrorMessage(err, "Failed to delete rule"))
     },
   })
 }

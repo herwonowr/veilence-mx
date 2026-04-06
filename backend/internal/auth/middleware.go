@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"github.com/veilence/veilence-mx/backend/internal/domain"
 )
 
 type contextKey string
@@ -15,6 +17,15 @@ const (
 	contextKeyUserID contextKey = "user_id"
 	// contextKeyEmail is the context key for the authenticated user's email.
 	contextKeyEmail contextKey = "email"
+	// contextKeyAuthMethod is the context key for the authentication method used.
+	contextKeyAuthMethod contextKey = "auth_method"
+	// contextKeyAPIKeyScope is the context key for the API key scope (only set for API key auth).
+	contextKeyAPIKeyScope contextKey = "api_key_scope"
+
+	// AuthMethodJWT indicates authentication via JWT Bearer token.
+	AuthMethodJWT = "jwt"
+	// AuthMethodAPIKey indicates authentication via X-API-Key header.
+	AuthMethodAPIKey = "api_key"
 )
 
 // authErrorResponse matches the existing APIResponse envelope for error responses.
@@ -35,7 +46,8 @@ func respondAuthError(w http.ResponseWriter, status int, msg string) {
 
 // Middleware returns a Chi middleware that authenticates requests via
 // Bearer JWT tokens or X-API-Key headers. On success, it sets user_id
-// and email in the request context.
+// and email in the request context. For API key auth, it also sets the
+// scope and checks that the key has sufficient scope for the HTTP method.
 func Middleware(svc *Service) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +63,7 @@ func Middleware(svc *Service) func(http.Handler) http.Handler {
 
 					ctx := context.WithValue(r.Context(), contextKeyUserID, claims.UserID)
 					ctx = context.WithValue(ctx, contextKeyEmail, claims.Email)
+					ctx = context.WithValue(ctx, contextKeyAuthMethod, AuthMethodJWT)
 					next.ServeHTTP(w, r.WithContext(ctx))
 					return
 				}
@@ -58,15 +71,24 @@ func Middleware(svc *Service) func(http.Handler) http.Handler {
 
 			// Try X-API-Key header
 			if apiKey := r.Header.Get("X-API-Key"); apiKey != "" {
-				userID, email, err := svc.ValidateAPIKey(apiKey)
+				userID, email, scope, err := svc.ValidateAPIKey(apiKey)
 				if err != nil {
 					slog.Debug("invalid API key", "error", err)
 					respondAuthError(w, http.StatusUnauthorized, "invalid or expired API key")
 					return
 				}
 
+				// Check scope against HTTP method
+				if !scope.ScopeAllows(r.Method) {
+					slog.Debug("API key scope insufficient", "scope", scope, "method", r.Method)
+					respondAuthError(w, http.StatusForbidden, "API key scope insufficient for this operation")
+					return
+				}
+
 				ctx := context.WithValue(r.Context(), contextKeyUserID, userID)
 				ctx = context.WithValue(ctx, contextKeyEmail, email)
+				ctx = context.WithValue(ctx, contextKeyAuthMethod, AuthMethodAPIKey)
+				ctx = context.WithValue(ctx, contextKeyAPIKeyScope, scope)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
@@ -89,6 +111,24 @@ func UserIDFromContext(ctx context.Context) uint {
 // Returns an empty string if no user is authenticated.
 func EmailFromContext(ctx context.Context) string {
 	if v, ok := ctx.Value(contextKeyEmail).(string); ok {
+		return v
+	}
+	return ""
+}
+
+// AuthMethodFromContext extracts the authentication method from the request context.
+// Returns an empty string if no auth method is set (unauthenticated request).
+func AuthMethodFromContext(ctx context.Context) string {
+	if v, ok := ctx.Value(contextKeyAuthMethod).(string); ok {
+		return v
+	}
+	return ""
+}
+
+// APIKeyScopeFromContext extracts the API key scope from the request context.
+// Returns empty string if the request was not authenticated via API key.
+func APIKeyScopeFromContext(ctx context.Context) domain.APIKeyScope {
+	if v, ok := ctx.Value(contextKeyAPIKeyScope).(domain.APIKeyScope); ok {
 		return v
 	}
 	return ""

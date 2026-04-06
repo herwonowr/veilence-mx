@@ -385,6 +385,7 @@ function ChannelConfigFields({
           <Label htmlFor="webhook-secret">Secret (optional)</Label>
           <Input
             id="webhook-secret"
+            type="password"
             placeholder="Signing secret for HMAC verification"
             value={parsed.secret ?? ""}
             onChange={(e) => updateField("secret", e.target.value)}

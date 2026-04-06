@@ -14,6 +14,7 @@ import {
 } from "@/lib/api-client"
 import type { ApiResponse, Package, Release } from "@/types"
 import { toast } from "sonner"
+import { sanitizeErrorMessage } from "@/lib/utils"
 
 export const packageKeys = {
   all: ["packages"] as const,
@@ -81,7 +82,7 @@ export function useCreatePackage() {
       toast.success("Package added")
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to add package")
+      toast.error(sanitizeErrorMessage(error, "Failed to add package"))
     },
   })
 }
@@ -96,7 +97,7 @@ export function useDeletePackage() {
       toast.success("Package deleted")
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to delete package")
+      toast.error(sanitizeErrorMessage(error, "Failed to delete package"))
     },
   })
 }
@@ -111,7 +112,7 @@ export function useSyncTopPackages() {
       toast.success("Top packages synced")
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to sync packages")
+      toast.error(sanitizeErrorMessage(error, "Failed to sync packages"))
     },
   })
 }

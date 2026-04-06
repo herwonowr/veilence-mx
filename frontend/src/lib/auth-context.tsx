@@ -6,9 +6,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import type { User, Organization } from "@/types"
 import {
   apiLogin,
@@ -24,6 +26,17 @@ import {
   storeOrgId,
   clearOrgId,
 } from "@/lib/api-client"
+
+// SEC-S4-10: Inactivity timeout constants (milliseconds)
+const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
+const INACTIVITY_WARNING_MS = 25 * 60 * 1000  // 25 minutes (warn 5 min before logout)
+const ACTIVITY_EVENTS: ReadonlyArray<keyof WindowEventMap> = [
+  "mousemove",
+  "keydown",
+  "touchstart",
+  "scroll",
+  "click",
+]
 
 interface AuthContextValue {
   user: User | null
@@ -186,6 +199,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // SEC-S3-002: Clear React Query cache to prevent stale data leaking between sessions
     queryClient.clear()
   }, [queryClient])
+
+  // SEC-S4-10: Auto-logout on inactivity
+  const warningToastId = useRef<string | number | undefined>(undefined)
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    let logoutTimer: ReturnType<typeof setTimeout>
+    let warningTimer: ReturnType<typeof setTimeout>
+
+    const resetTimers = () => {
+      clearTimeout(logoutTimer)
+      clearTimeout(warningTimer)
+
+      // Dismiss the warning toast if the user became active again
+      if (warningToastId.current !== undefined) {
+        toast.dismiss(warningToastId.current)
+        warningToastId.current = undefined
+      }
+
+      warningTimer = setTimeout(() => {
+        warningToastId.current = toast.warning(
+          "You will be logged out in 5 minutes due to inactivity.",
+          { duration: 5 * 60 * 1000, id: "inactivity-warning" }
+        )
+      }, INACTIVITY_WARNING_MS)
+
+      logoutTimer = setTimeout(() => {
+        toast.dismiss(warningToastId.current)
+        warningToastId.current = undefined
+        logout()
+      }, INACTIVITY_TIMEOUT_MS)
+    }
+
+    // Start timers immediately
+    resetTimers()
+
+    // Reset on user activity
+    for (const event of ACTIVITY_EVENTS) {
+      window.addEventListener(event, resetTimers, { passive: true })
+    }
+
+    return () => {
+      clearTimeout(logoutTimer)
+      clearTimeout(warningTimer)
+      for (const event of ACTIVITY_EVENTS) {
+        window.removeEventListener(event, resetTimers)
+      }
+      if (warningToastId.current !== undefined) {
+        toast.dismiss(warningToastId.current)
+        warningToastId.current = undefined
+      }
+    }
+  }, [isAuthenticated, logout])
 
   const setCurrentOrg = useCallback((org: Organization) => {
     setCurrentOrgState(org)

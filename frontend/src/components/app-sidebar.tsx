@@ -15,6 +15,7 @@ import {
   LogOut,
   User,
   ListOrdered,
+  Monitor,
 } from "lucide-react"
 import {
   Sidebar,
@@ -62,6 +63,7 @@ const settingsItems: NavItem[] = [
   { title: "Channels", href: "/settings/notifications", icon: Bell },
   { title: "Queue", href: "/settings/queue", icon: ListOrdered },
   { title: "API Keys", href: "/settings/api-keys", icon: Key },
+  { title: "Sessions", href: "/settings/sessions", icon: Monitor },
 ]
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {

@@ -5,6 +5,7 @@ import {
   apiSendVerificationEmail,
 } from "@/lib/api-client"
 import { toast } from "sonner"
+import { sanitizeErrorMessage } from "@/lib/utils"
 
 export function useUpdateProfile() {
   return useMutation({
@@ -14,7 +15,7 @@ export function useUpdateProfile() {
       toast.success("Profile updated")
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Failed to update profile")
+      toast.error(sanitizeErrorMessage(err, "Failed to update profile"))
     },
   })
 }
@@ -27,7 +28,7 @@ export function useChangePassword() {
       toast.success("Password changed successfully")
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Failed to change password")
+      toast.error(sanitizeErrorMessage(err, "Failed to change password"))
     },
   })
 }
@@ -39,7 +40,7 @@ export function useSendVerification() {
       toast.success("Verification email sent. Check your inbox.")
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Failed to send verification email")
+      toast.error(sanitizeErrorMessage(err, "Failed to send verification email"))
     },
   })
 }

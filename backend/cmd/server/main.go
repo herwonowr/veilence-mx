@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -150,7 +151,19 @@ func main() {
 	apiKeyRepo := repository.NewAPIKeyRepo(db)
 	passwordResetTokenRepo := repository.NewPasswordResetTokenRepo(db)
 	emailVerificationTokenRepo := repository.NewEmailVerificationTokenRepo(db)
-	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, jwtSecret)
+	sessionRepo := repository.NewSessionRepo(db)
+
+	// Parse previous JWT secrets for rotation support (comma-separated)
+	var previousSecrets []string
+	if prev := getEnv("JWT_SECRET_PREVIOUS", ""); prev != "" {
+		for _, s := range strings.Split(prev, ",") {
+			if trimmed := strings.TrimSpace(s); trimmed != "" {
+				previousSecrets = append(previousSecrets, trimmed)
+			}
+		}
+		slog.Info("JWT secret rotation enabled", "previous_secrets_count", len(previousSecrets))
+	}
+	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, jwtSecret, previousSecrets...)
 	rbacService := rbac.NewService(db)
 	auditService := audit.NewService(db)
 	notificationChannelRepo := repository.NewNotificationChannelRepo(db)

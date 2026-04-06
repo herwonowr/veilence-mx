@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { ProtectedRoute } from "@/components/protected-route"
-import type { ApiKeyInfo } from "@/types"
+import type { ApiKeyInfo, APIKeyScope } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -35,6 +35,23 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Key, Plus, Trash2, Copy, Check, Loader2 } from "lucide-react"
 import { useApiKeys, useCreateApiKey, useDeleteApiKey } from "@/features/account"
 
+const SCOPE_OPTIONS: { value: APIKeyScope; label: string; description: string }[] = [
+  { value: "read", label: "Read Only", description: "Can only read data (GET requests)" },
+  { value: "write", label: "Read/Write", description: "Can read and write, but not delete" },
+  { value: "admin", label: "Admin", description: "Full access to all operations" },
+]
+
+function scopeBadgeVariant(scope: APIKeyScope): "secondary" | "default" | "destructive" {
+  switch (scope) {
+    case "read":
+      return "secondary"
+    case "write":
+      return "default"
+    case "admin":
+      return "destructive"
+  }
+}
+
 function ApiKeysContent() {
   const { data: keysRes, isLoading } = useApiKeys()
   const keys = keysRes?.data ?? []
@@ -42,6 +59,7 @@ function ApiKeysContent() {
   // Create form
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [keyName, setKeyName] = useState("")
+  const [keyScope, setKeyScope] = useState<APIKeyScope>("read")
   const [expiresAt, setExpiresAt] = useState("")
   const [createError, setCreateError] = useState("")
 
@@ -59,12 +77,14 @@ function ApiKeysContent() {
     try {
       const { data } = await createMutation.mutateAsync({
         name: keyName,
+        scope: keyScope,
         expiresAt: expiresAt || undefined,
       })
       setNewKeyValue(data.apiKey)
       setCreateDialogOpen(false)
       setShowKeyDialogOpen(true)
       setKeyName("")
+      setKeyScope("read")
       setExpiresAt("")
     } catch (err) {
       setCreateError(
@@ -120,6 +140,39 @@ function ApiKeysContent() {
                     onChange={(e) => setKeyName(e.target.value)}
                     required
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label>Scope</Label>
+                  <div className="space-y-2">
+                    {SCOPE_OPTIONS.map((option) => (
+                      <label
+                        key={option.value}
+                        className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors ${
+                          keyScope === option.value
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:bg-muted/50"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="key-scope"
+                          value={option.value}
+                          checked={keyScope === option.value}
+                          onChange={() => setKeyScope(option.value)}
+                          className="sr-only"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{option.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {option.description}
+                          </p>
+                        </div>
+                        <Badge variant={scopeBadgeVariant(option.value)}>
+                          {option.value}
+                        </Badge>
+                      </label>
+                    ))}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="key-expiry">Expiration (optional)</Label>
@@ -203,6 +256,7 @@ function ApiKeysContent() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Key Prefix</TableHead>
+                  <TableHead>Scope</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Last Used</TableHead>
                   <TableHead>Expires</TableHead>
@@ -216,6 +270,11 @@ function ApiKeysContent() {
                     <TableCell className="font-medium">{key.name}</TableCell>
                     <TableCell className="font-mono text-sm">
                       {key.keyPrefix}...
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={scopeBadgeVariant(key.scope ?? "admin")}>
+                        {key.scope ?? "admin"}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -251,7 +310,7 @@ function ApiKeysContent() {
                 {keys.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="text-center py-8 text-muted-foreground"
                     >
                       No API keys yet. Create one to get started.

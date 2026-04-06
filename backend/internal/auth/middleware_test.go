@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/veilence/veilence-mx/backend/internal/auth"
+	"github.com/veilence/veilence-mx/backend/internal/domain"
 )
 
 // dummyHandler is a simple handler that returns 200 OK for testing middleware.
@@ -99,7 +100,7 @@ func TestMiddleware_ValidAPIKey(t *testing.T) {
 	user, err := svc.Register("mw-apikey@example.com", "Password123", "MW", "APIKey")
 	require.NoError(t, err)
 
-	_, rawKey, err := svc.CreateAPIKey(user.ID, "test-key", nil)
+	_, rawKey, err := svc.CreateAPIKey(user.ID, "test-key", domain.APIKeyScopeRead, nil)
 	require.NoError(t, err)
 
 	handler := auth.Middleware(svc)(dummyHandler())

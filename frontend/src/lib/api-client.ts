@@ -1,5 +1,7 @@
+import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
 import type {
   ApiResponse,
+  APIKeyScope,
   Package,
   Release,
   ReleaseDetail,
@@ -20,6 +22,7 @@ import type {
   Notification,
   NotificationChannel,
   NotificationRule,
+  Session,
 } from "@/types"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"
@@ -61,6 +64,15 @@ export function storeOrgId(orgId: number) {
 export function clearOrgId() {
   localStorage.removeItem(ORG_ID_KEY)
 }
+
+// SEC-S4-002: Read CSRF token from cookie set by backend CSRF middleware
+function getCsrfToken(): string {
+  if (typeof document === "undefined") return ""
+  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/)
+  return match ? match[1] : ""
+}
+
+const CSRF_METHODS = ["POST", "PUT", "PATCH", "DELETE"]
 
 let isRefreshing = false
 let refreshPromise: Promise<boolean> | null = null
@@ -122,6 +134,15 @@ async function fetchApi<T>(
     }
   }
 
+  // SEC-S4-002: Attach CSRF token for state-changing requests
+  const method = (fetchOptions?.method ?? "GET").toUpperCase()
+  if (CSRF_METHODS.includes(method)) {
+    const csrfToken = getCsrfToken()
+    if (csrfToken) {
+      headers["X-CSRF-Token"] = csrfToken
+    }
+  }
+
   let response = await fetch(`${API_BASE}${endpoint}`, {
     ...fetchOptions,
     headers,
@@ -154,7 +175,9 @@ async function fetchApi<T>(
   const body = (await response.json()) as ApiResponse<T>
 
   if (!response.ok) {
-    throw new Error(body.error ?? `API error: ${response.status}`)
+    // SEC-S4-10: Sanitize raw API error messages before they reach UI consumers
+    const rawMessage = body.error ?? `API error: ${response.status}`
+    throw new Error(sanitizeErrorMessage(rawMessage))
   }
 
   return body
@@ -262,6 +285,7 @@ export async function apiSendVerificationEmail(): Promise<
 
 export async function apiCreateApiKey(data: {
   name: string
+  scope?: APIKeyScope
   expiresAt?: string
 }): Promise<ApiResponse<ApiKeyInfo & { apiKey: string }>> {
   return fetchApi<ApiKeyInfo & { apiKey: string }>("/api/auth/api-keys", {
@@ -686,3 +710,17 @@ export async function apiMarkNotificationRead(
 // > {
 //   return fetchApi<null>("/api/notifications/read-all", { method: "PUT" })
 // }
+
+// ─── Sessions ──────────────────────────────────────────────────
+
+export async function apiGetSessions(): Promise<ApiResponse<Session[]>> {
+  return fetchApi<Session[]>("/api/auth/sessions")
+}
+
+export async function apiRevokeSession(
+  id: number
+): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi<{ message: string }>(`/api/auth/sessions/${id}`, {
+    method: "DELETE",
+  })
+}

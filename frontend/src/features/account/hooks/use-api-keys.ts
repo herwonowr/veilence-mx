@@ -9,8 +9,9 @@ import {
   apiCreateApiKey,
   apiDeleteApiKey,
 } from "@/lib/api-client"
-import type { ApiResponse, ApiKeyInfo } from "@/types"
+import type { ApiResponse, ApiKeyInfo, APIKeyScope } from "@/types"
 import { toast } from "sonner"
+import { sanitizeErrorMessage } from "@/lib/utils"
 
 export const apiKeyKeys = {
   all: ["api-keys"] as const,
@@ -31,13 +32,13 @@ export function useCreateApiKey() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: { name: string; expiresAt?: string }) =>
+    mutationFn: (data: { name: string; scope?: APIKeyScope; expiresAt?: string }) =>
       apiCreateApiKey(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: apiKeyKeys.list() })
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to create API key")
+      toast.error(sanitizeErrorMessage(error, "Failed to create API key"))
     },
   })
 }
@@ -52,7 +53,7 @@ export function useDeleteApiKey() {
       toast.success("API key deleted")
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to delete API key")
+      toast.error(sanitizeErrorMessage(error, "Failed to delete API key"))
     },
   })
 }

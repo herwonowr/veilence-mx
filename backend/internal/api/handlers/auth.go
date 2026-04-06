@@ -14,6 +14,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/api/validation"
 	"github.com/veilence/veilence-mx/backend/internal/apperror"
 	"github.com/veilence/veilence-mx/backend/internal/auth"
+	"github.com/veilence/veilence-mx/backend/internal/domain"
 )
 
 // registerRequest is the request body for user registration.
@@ -43,6 +44,7 @@ type logoutRequest struct {
 // createAPIKeyRequest is the request body for creating an API key.
 type createAPIKeyRequest struct {
 	Name      string `json:"name"`
+	Scope     string `json:"scope,omitempty"`
 	ExpiresAt string `json:"expiresAt,omitempty"`
 }
 
@@ -112,9 +114,14 @@ func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 
 	user, tokens, err := h.Auth.Login(req.Email, req.Password)
 	if err != nil {
+		// Log failed login attempt
+		h.Audit.LogAuthEvent(r.Context(), "login_failed", 0, fmt.Sprintf("failed login attempt for email %s", req.Email))
 		respondError(w, http.StatusUnauthorized, "invalid email or password")
 		return
 	}
+
+	// Log successful login
+	h.Audit.LogAuthEvent(r.Context(), "login", user.ID, fmt.Sprintf("user %s logged in", user.Email))
 
 	respondJSON(w, http.StatusOK, map[string]any{
 		"user":         user,
@@ -163,6 +170,10 @@ func (h *AuthHandlers) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Log logout event
+	userID := auth.UserIDFromContext(r.Context())
+	h.Audit.LogAuthEvent(r.Context(), "logout", userID, "user logged out")
+
 	respondJSON(w, http.StatusOK, map[string]string{"message": "logged out successfully"}, nil)
 }
 
@@ -207,6 +218,16 @@ func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate scope (default to "read" if not specified)
+	scope := domain.APIKeyScope(strings.TrimSpace(req.Scope))
+	if scope == "" {
+		scope = domain.APIKeyScopeRead
+	}
+	if !domain.IsValidAPIKeyScope(string(scope)) {
+		respondAppError(w, apperror.Validation("scope must be one of: read, write, admin"))
+		return
+	}
+
 	var expiresAt *time.Time
 	if req.ExpiresAt != "" {
 		t, err := time.Parse(time.RFC3339, req.ExpiresAt)
@@ -221,13 +242,13 @@ func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		expiresAt = &t
 	}
 
-	apiKey, rawKey, err := h.Auth.CreateAPIKey(userID, req.Name, expiresAt)
+	apiKey, rawKey, err := h.Auth.CreateAPIKey(userID, req.Name, scope, expiresAt)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to create API key")
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "create", "api_key", apiKey.ID, fmt.Sprintf("created API key %q", req.Name))
+	h.Audit.LogAction(r.Context(), "create", "api_key", apiKey.ID, fmt.Sprintf("created API key %q with scope %q", req.Name, scope))
 
 	respondJSON(w, http.StatusCreated, map[string]any{
 		"apiKey": apiKey,

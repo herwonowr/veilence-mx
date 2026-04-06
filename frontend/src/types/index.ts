@@ -194,15 +194,28 @@ export interface Permission {
   action: string
 }
 
+export type APIKeyScope = "read" | "write" | "admin"
+
 export interface ApiKeyInfo {
   id: number
   userId: number
   name: string
   keyPrefix: string
+  scope: APIKeyScope
   lastUsedAt: string | null
   expiresAt: string | null
   isActive: boolean
   createdAt: string
+}
+
+export interface Session {
+  id: number
+  userId: number
+  ipAddress: string
+  userAgent: string
+  createdAt: string
+  lastActive: string
+  expiresAt: string
 }
 
 export interface Notification {

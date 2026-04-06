@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
+import type { APIKeyScope } from "@/types"
 import {
   profileSchema,
   passwordChangeSchema,
@@ -41,6 +42,7 @@ import {
   Mail,
   User,
   Lock,
+  Monitor,
 } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import {
@@ -50,6 +52,8 @@ import {
   useApiKeys,
   useCreateApiKey,
   useDeleteApiKey,
+  useSessions,
+  useRevokeSession,
 } from "@/features/account"
 import { ZodError } from "zod"
 
@@ -88,6 +92,11 @@ function AccountContent() {
 
       {/* API Keys */}
       <ApiKeysSection />
+
+      <Separator />
+
+      {/* Active Sessions */}
+      <SessionsSection />
     </div>
   )
 }
@@ -344,6 +353,7 @@ function ApiKeysSection() {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [keyName, setKeyName] = useState("")
+  const [keyScope, setKeyScope] = useState<APIKeyScope>("read")
   const [newKeyValue, setNewKeyValue] = useState<string | null>(null)
 
   const keys = keysRes?.data ?? []
@@ -351,9 +361,13 @@ function ApiKeysSection() {
   const handleCreate = async () => {
     if (!keyName) return
     try {
-      const res = await createMutation.mutateAsync({ name: keyName })
+      const res = await createMutation.mutateAsync({
+        name: keyName,
+        scope: keyScope,
+      })
       setNewKeyValue(res.data.apiKey)
       setKeyName("")
+      setKeyScope("read")
       setCreateOpen(false)
     } catch {
       // Error handled by mutation
@@ -381,7 +395,7 @@ function ApiKeysSection() {
             <DialogHeader>
               <DialogTitle>Create API Key</DialogTitle>
               <DialogDescription>
-                Give your key a descriptive name.
+                Give your key a descriptive name and select a scope.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-2">
@@ -393,6 +407,27 @@ function ApiKeysSection() {
                   value={keyName}
                   onChange={(e) => setKeyName(e.target.value)}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Scope</Label>
+                <div className="flex gap-2">
+                  {(["read", "write", "admin"] as const).map((s) => (
+                    <Button
+                      key={s}
+                      type="button"
+                      variant={keyScope === s ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setKeyScope(s)}
+                    >
+                      {s === "read" ? "Read Only" : s === "write" ? "Read/Write" : "Admin"}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {keyScope === "read" && "Can only read data (GET requests)"}
+                  {keyScope === "write" && "Can read and write, but not delete"}
+                  {keyScope === "admin" && "Full access to all operations"}
+                </p>
               </div>
             </div>
             <DialogFooter>
@@ -442,6 +477,7 @@ function ApiKeysSection() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Key</TableHead>
+                <TableHead>Scope</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Last Used</TableHead>
                 <TableHead>Status</TableHead>
@@ -454,6 +490,19 @@ function ApiKeysSection() {
                   <TableCell className="font-medium">{key.name}</TableCell>
                   <TableCell className="font-mono text-xs">
                     {key.keyPrefix}...
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        key.scope === "admin"
+                          ? "destructive"
+                          : key.scope === "write"
+                            ? "default"
+                            : "secondary"
+                      }
+                    >
+                      {key.scope ?? "admin"}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {new Date(key.createdAt).toLocaleDateString()}
@@ -479,6 +528,96 @@ function ApiKeysSection() {
                         <Trash2 className="size-4 text-destructive" />
                       </Button>
                     )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+// ─── Sessions Section ──────────────────────────────────────────
+
+function SessionsSection() {
+  const { data: sessionsRes, isLoading } = useSessions()
+  const revokeMutation = useRevokeSession()
+
+  const sessions = sessionsRes?.data ?? []
+
+  function parseUserAgent(ua: string): string {
+    // Extract a short browser/device description from User-Agent
+    if (ua.includes("Chrome") && !ua.includes("Edg")) return "Chrome"
+    if (ua.includes("Edg")) return "Edge"
+    if (ua.includes("Firefox")) return "Firefox"
+    if (ua.includes("Safari") && !ua.includes("Chrome")) return "Safari"
+    if (ua.includes("curl")) return "curl"
+    if (ua.length > 50) return ua.slice(0, 50) + "..."
+    return ua || "Unknown"
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Monitor className="size-5" />
+          Active Sessions
+        </CardTitle>
+        <CardDescription>
+          Manage your active sessions. Revoke any session you don&apos;t recognize.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : sessions.length === 0 ? (
+          <p className="py-8 text-center text-muted-foreground">
+            No active sessions found.
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Browser / Client</TableHead>
+                <TableHead>IP Address</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead>Last Active</TableHead>
+                <TableHead>Expires</TableHead>
+                <TableHead className="w-16" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sessions.map((session) => (
+                <TableRow key={session.id}>
+                  <TableCell className="text-sm">
+                    {parseUserAgent(session.userAgent)}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {session.ipAddress}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {new Date(session.createdAt).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {new Date(session.lastActive).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {new Date(session.expiresAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => revokeMutation.mutate(session.id)}
+                      disabled={revokeMutation.isPending}
+                      title="Revoke session"
+                    >
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

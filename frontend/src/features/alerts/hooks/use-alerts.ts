@@ -7,6 +7,7 @@ import {
 import { getAlerts, updateAlertStatus } from "@/lib/api-client"
 import type { ApiResponse, Alert } from "@/types"
 import { toast } from "sonner"
+import { sanitizeErrorMessage } from "@/lib/utils"
 
 export const alertKeys = {
   all: ["alerts"] as const,
@@ -71,7 +72,7 @@ export function useUpdateAlert() {
           queryClient.setQueryData(queryKey, data)
         }
       }
-      toast.error(error.message || "Failed to update alert status")
+      toast.error(sanitizeErrorMessage(error, "Failed to update alert status"))
     },
     onSuccess: (_data, variables) => {
       toast.success(`Alert ${variables.status}`)

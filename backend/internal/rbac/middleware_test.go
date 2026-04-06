@@ -51,6 +51,7 @@ func setupMiddlewareEnv(t *testing.T) *middlewareTestEnv {
 		&models.APIKey{},
 		&models.PasswordResetToken{},
 		&models.EmailVerificationToken{},
+		&models.Session{},
 	)
 	require.NoError(t, err)
 
@@ -64,7 +65,7 @@ func setupMiddlewareEnv(t *testing.T) *middlewareTestEnv {
 
 	return &middlewareTestEnv{
 		DB:      db,
-		AuthSvc: auth.NewService(repository.NewUserRepo(db), repository.NewRefreshTokenRepo(db), repository.NewAPIKeyRepo(db), repository.NewPasswordResetTokenRepo(db), repository.NewEmailVerificationTokenRepo(db), testJWTSecret),
+		AuthSvc: auth.NewService(repository.NewUserRepo(db), repository.NewRefreshTokenRepo(db), repository.NewAPIKeyRepo(db), repository.NewPasswordResetTokenRepo(db), repository.NewEmailVerificationTokenRepo(db), repository.NewSessionRepo(db), testJWTSecret),
 		RBACSvc: rbac.NewService(db),
 	}
 }

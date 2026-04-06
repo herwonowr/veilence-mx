@@ -27,6 +27,7 @@ import type {
   AuditLog,
 } from "@/types"
 import { toast } from "sonner"
+import { sanitizeErrorMessage } from "@/lib/utils"
 
 export const orgKeys = {
   all: ["organizations"] as const,
@@ -71,7 +72,7 @@ export function useCreateOrganization() {
       queryClient.invalidateQueries({ queryKey: orgKeys.lists() })
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to create organization")
+      toast.error(sanitizeErrorMessage(error, "Failed to create organization"))
     },
   })
 }
@@ -93,7 +94,7 @@ export function useUpdateOrganization() {
       toast.success("Organization updated")
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to update organization")
+      toast.error(sanitizeErrorMessage(error, "Failed to update organization"))
     },
   })
 }
@@ -108,7 +109,7 @@ export function useDeleteOrganization() {
       toast.success("Organization deleted")
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to delete organization")
+      toast.error(sanitizeErrorMessage(error, "Failed to delete organization"))
     },
   })
 }
@@ -164,7 +165,7 @@ export function useInviteMember() {
       })
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to send invitation")
+      toast.error(sanitizeErrorMessage(error, "Failed to send invitation"))
     },
   })
 }
@@ -182,7 +183,7 @@ export function useRemoveMember() {
       toast.success("Member removed")
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to remove member")
+      toast.error(sanitizeErrorMessage(error, "Failed to remove member"))
     },
   })
 }
@@ -207,7 +208,7 @@ export function useUpdateMemberRole() {
       toast.success("Member role updated")
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to update role")
+      toast.error(sanitizeErrorMessage(error, "Failed to update role"))
     },
   })
 }

@@ -1,6 +1,9 @@
 package domain
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // UserRepository defines persistence operations for User entities.
 type UserRepository interface {
@@ -268,4 +271,26 @@ type EmailVerificationTokenRepository interface {
 	Delete(ctx context.Context, id uint) error
 	// DeleteByUserID removes all tokens for a user.
 	DeleteByUserID(ctx context.Context, userID uint) error
+}
+
+// SessionRepository defines persistence operations for Session entities.
+type SessionRepository interface {
+	// FindByID returns a session by its ID. Returns an error if not found.
+	FindByID(ctx context.Context, id uint) (*Session, error)
+	// FindByUserID returns all active sessions for a user.
+	FindByUserID(ctx context.Context, userID uint) ([]Session, error)
+	// FindByTokenHash returns a session by its token hash. Returns an error if not found.
+	FindByTokenHash(ctx context.Context, tokenHash string) (*Session, error)
+	// Create persists a new session.
+	Create(ctx context.Context, session *Session) error
+	// UpdateLastActive updates the last_active timestamp for a session.
+	UpdateLastActive(ctx context.Context, id uint, lastActive time.Time) error
+	// Delete removes a session by ID.
+	Delete(ctx context.Context, id uint) error
+	// DeleteExpired removes all sessions that have passed their expiration time.
+	DeleteExpired(ctx context.Context) (int64, error)
+	// CountByUserID returns the number of active sessions for a user.
+	CountByUserID(ctx context.Context, userID uint) (int64, error)
+	// DeleteOldestByUserID removes the oldest session for a user.
+	DeleteOldestByUserID(ctx context.Context, userID uint) error
 }

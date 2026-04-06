@@ -23,6 +23,8 @@ var (
 	ErrResetTokenInvalid      = errors.New("invalid or expired reset token")
 	ErrResetTokenUsed         = errors.New("reset token already used")
 	ErrVerificationInvalid    = errors.New("invalid or expired verification token")
+	ErrInsufficientScope      = errors.New("API key scope insufficient for this operation")
+	ErrSessionNotFound        = errors.New("session not found")
 )
 
 const (
@@ -34,6 +36,10 @@ const (
 	PasswordResetDuration = 1 * time.Hour
 	// EmailVerificationDuration is the lifetime of an email verification token.
 	EmailVerificationDuration = 24 * time.Hour
+	// SessionDuration is the lifetime of a session.
+	SessionDuration = 7 * 24 * time.Hour
+	// MaxSessionsPerUser is the maximum number of concurrent sessions per user.
+	MaxSessionsPerUser = 10
 
 	// TokenTypeAccess identifies an access token.
 	TokenTypeAccess = "access"
@@ -62,25 +68,39 @@ type Service struct {
 	apiKeys            domain.APIKeyRepository
 	passwordResets     domain.PasswordResetTokenRepository
 	emailVerifications domain.EmailVerificationTokenRepository
-	jwtSecret          []byte
+	sessions           domain.SessionRepository
+	jwtSecret          []byte   // primary secret (used for signing)
+	jwtSecretsPrevious [][]byte // previous secrets (accepted for validation during rotation)
 }
 
 // NewService creates a new auth service with the given repositories and JWT secret.
+// The jwtSecret is the primary signing secret. previousSecrets are optional older
+// secrets that are still accepted for token validation during secret rotation.
 func NewService(
 	users domain.UserRepository,
 	refreshTokens domain.RefreshTokenRepository,
 	apiKeys domain.APIKeyRepository,
 	passwordResets domain.PasswordResetTokenRepository,
 	emailVerifications domain.EmailVerificationTokenRepository,
+	sessions domain.SessionRepository,
 	jwtSecret string,
+	previousSecrets ...string,
 ) *Service {
+	var prevKeys [][]byte
+	for _, s := range previousSecrets {
+		if s != "" {
+			prevKeys = append(prevKeys, []byte(s))
+		}
+	}
 	return &Service{
 		users:              users,
 		refreshTokens:      refreshTokens,
 		apiKeys:            apiKeys,
 		passwordResets:     passwordResets,
 		emailVerifications: emailVerifications,
+		sessions:           sessions,
 		jwtSecret:          []byte(jwtSecret),
+		jwtSecretsPrevious: prevKeys,
 	}
 }
 
@@ -229,13 +249,36 @@ func (s *Service) Logout(refreshToken string) error {
 }
 
 // ValidateAccessToken parses and validates a JWT access token, returning its claims.
+// It first tries the primary secret, then falls back to previous secrets to
+// support seamless JWT secret rotation.
 func (s *Service) ValidateAccessToken(tokenString string) (*Claims, error) {
+	// Try primary secret first
+	claims, err := s.validateTokenWithSecret(tokenString, s.jwtSecret)
+	if err == nil {
+		return claims, nil
+	}
+
+	// Try previous secrets (rotation support)
+	for _, prevSecret := range s.jwtSecretsPrevious {
+		claims, prevErr := s.validateTokenWithSecret(tokenString, prevSecret)
+		if prevErr == nil {
+			slog.Debug("token validated with previous secret (rotation in progress)")
+			return claims, nil
+		}
+	}
+
+	// Return the original error from the primary secret
+	return nil, err
+}
+
+// validateTokenWithSecret validates a JWT token using a specific secret.
+func (s *Service) validateTokenWithSecret(tokenString string, secret []byte) (*Claims, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return s.jwtSecret, nil
+		return secret, nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("parsing token: %w", err)
@@ -263,13 +306,13 @@ func (s *Service) GetUserByID(id uint) (*domain.User, error) {
 	return user, nil
 }
 
-// ValidateAPIKey validates an API key string and returns the associated user ID.
+// ValidateAPIKey validates an API key string and returns the associated user ID, email, and scope.
 // It also updates the last_used_at timestamp for the key.
-func (s *Service) ValidateAPIKey(rawKey string) (uint, string, error) {
+func (s *Service) ValidateAPIKey(rawKey string) (uint, string, domain.APIKeyScope, error) {
 	ctx := context.Background()
 
 	if len(rawKey) < 10 {
-		return 0, "", errors.New("invalid API key format")
+		return 0, "", "", errors.New("invalid API key format")
 	}
 
 	// Prefix-based O(1) lookup: the DB has a partial index on key_prefix
@@ -278,14 +321,14 @@ func (s *Service) ValidateAPIKey(rawKey string) (uint, string, error) {
 	prefix := rawKey[:10]
 	keys, err := s.apiKeys.FindActiveByPrefix(ctx, prefix)
 	if err != nil {
-		return 0, "", fmt.Errorf("finding api keys: %w", err)
+		return 0, "", "", fmt.Errorf("finding api keys: %w", err)
 	}
 
 	for _, key := range keys {
 		if checkAPIKeyHash(rawKey, key.KeyHash) {
 			// Check expiration
 			if key.ExpiresAt != nil && time.Now().After(*key.ExpiresAt) {
-				return 0, "", errors.New("API key expired")
+				return 0, "", "", errors.New("API key expired")
 			}
 
 			// Update last used
@@ -296,18 +339,18 @@ func (s *Service) ValidateAPIKey(rawKey string) (uint, string, error) {
 			// Get user email
 			user, err := s.users.FindByID(ctx, key.UserID)
 			if err != nil {
-				return 0, "", fmt.Errorf("finding API key user: %w", err)
+				return 0, "", "", fmt.Errorf("finding API key user: %w", err)
 			}
 
 			if !user.IsActive {
-				return 0, "", errors.New("account is deactivated")
+				return 0, "", "", errors.New("account is deactivated")
 			}
 
-			return key.UserID, user.Email, nil
+			return key.UserID, user.Email, key.Scope, nil
 		}
 	}
 
-	return 0, "", errors.New("invalid API key")
+	return 0, "", "", errors.New("invalid API key")
 }
 
 // generateTokenPair creates a new access/refresh token pair for the given user.
@@ -374,10 +417,19 @@ func checkAPIKeyHash(rawKey, hash string) bool {
 	return err == nil
 }
 
-// CreateAPIKey generates a new API key for the given user.
+// CreateAPIKey generates a new API key for the given user with the specified scope.
 // The raw key is returned only once and cannot be retrieved again.
-func (s *Service) CreateAPIKey(userID uint, name string, expiresAt *time.Time) (*domain.APIKey, string, error) {
+func (s *Service) CreateAPIKey(userID uint, name string, scope domain.APIKeyScope, expiresAt *time.Time) (*domain.APIKey, string, error) {
 	ctx := context.Background()
+
+	// Default to read scope if not specified
+	if scope == "" {
+		scope = domain.APIKeyScopeRead
+	}
+
+	if !domain.IsValidAPIKeyScope(string(scope)) {
+		return nil, "", fmt.Errorf("invalid API key scope: %s", scope)
+	}
 
 	rawKey, err := generateAPIKeyRaw()
 	if err != nil {
@@ -389,6 +441,7 @@ func (s *Service) CreateAPIKey(userID uint, name string, expiresAt *time.Time) (
 		Name:      name,
 		KeyHash:   hashAPIKey(rawKey),
 		KeyPrefix: rawKey[:10],
+		Scope:     scope,
 		IsActive:  true,
 		ExpiresAt: expiresAt,
 	}
@@ -397,7 +450,7 @@ func (s *Service) CreateAPIKey(userID uint, name string, expiresAt *time.Time) (
 		return nil, "", fmt.Errorf("creating API key: %w", err)
 	}
 
-	slog.Info("API key created", "user_id", userID, "key_name", name, "key_id", apiKey.ID)
+	slog.Info("API key created", "user_id", userID, "key_name", name, "key_id", apiKey.ID, "scope", scope)
 	return apiKey, rawKey, nil
 }
 
@@ -576,6 +629,94 @@ func (s *Service) VerifyEmail(rawToken string) error {
 
 	slog.Info("email verified", "user_id", stored.UserID)
 	return nil
+}
+
+// --- Session Management ---
+
+// CreateSession creates a new session for the user, enforcing a max of MaxSessionsPerUser.
+// If the limit is exceeded, the oldest session is deleted.
+func (s *Service) CreateSession(userID uint, tokenHash, ipAddress, userAgent string) (*domain.Session, error) {
+	ctx := context.Background()
+
+	// Enforce max concurrent sessions
+	count, err := s.sessions.CountByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("counting sessions: %w", err)
+	}
+
+	for count >= MaxSessionsPerUser {
+		if err := s.sessions.DeleteOldestByUserID(ctx, userID); err != nil {
+			return nil, fmt.Errorf("deleting oldest session: %w", err)
+		}
+		count--
+	}
+
+	// Truncate user agent to 512 chars to match DB column
+	if len(userAgent) > 512 {
+		userAgent = userAgent[:512]
+	}
+
+	session := &domain.Session{
+		UserID:     userID,
+		TokenHash:  tokenHash,
+		IPAddress:  ipAddress,
+		UserAgent:  userAgent,
+		LastActive: time.Now(),
+		ExpiresAt:  time.Now().Add(SessionDuration),
+	}
+
+	if err := s.sessions.Create(ctx, session); err != nil {
+		return nil, fmt.Errorf("creating session: %w", err)
+	}
+
+	slog.Info("session created", "user_id", userID, "session_id", session.ID)
+	return session, nil
+}
+
+// ListSessions returns all active sessions for the given user.
+func (s *Service) ListSessions(userID uint) ([]domain.Session, error) {
+	ctx := context.Background()
+
+	sessions, err := s.sessions.FindByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("listing sessions: %w", err)
+	}
+	return sessions, nil
+}
+
+// RevokeSession deletes a specific session, verifying it belongs to the user.
+func (s *Service) RevokeSession(userID, sessionID uint) error {
+	ctx := context.Background()
+
+	session, err := s.sessions.FindByID(ctx, sessionID)
+	if err != nil {
+		return ErrSessionNotFound
+	}
+
+	if session.UserID != userID {
+		return ErrSessionNotFound
+	}
+
+	if err := s.sessions.Delete(ctx, sessionID); err != nil {
+		return fmt.Errorf("deleting session: %w", err)
+	}
+
+	slog.Info("session revoked", "user_id", userID, "session_id", sessionID)
+	return nil
+}
+
+// CleanExpiredSessions removes all expired sessions from the database.
+func (s *Service) CleanExpiredSessions() (int64, error) {
+	ctx := context.Background()
+
+	count, err := s.sessions.DeleteExpired(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("cleaning expired sessions: %w", err)
+	}
+	if count > 0 {
+		slog.Info("cleaned expired sessions", "count", count)
+	}
+	return count, nil
 }
 
 // generateResetToken creates a cryptographically secure random token for password reset.

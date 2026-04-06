@@ -23,6 +23,7 @@ import (
 // groups depend only on the services they need.
 type Handlers struct {
 	Auth          *AuthHandlers
+	Sessions      *SessionHandlers
 	Notifications *NotificationHandlers
 	Org           *OrgHandlers
 	AuditLogs     *AuditHandlers
@@ -116,6 +117,9 @@ func NewHandlers(
 		Auth: &AuthHandlers{
 			Auth:  authService,
 			Audit: auditService,
+		},
+		Sessions: &SessionHandlers{
+			Auth: authService,
 		},
 		Notifications: &NotificationHandlers{
 			Notifications: notificationService,

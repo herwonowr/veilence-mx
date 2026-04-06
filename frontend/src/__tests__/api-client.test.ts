@@ -9,6 +9,14 @@
 
 beforeEach(() => {
   localStorage.clear()
+  // Clear csrf_token cookie reliably across test environments
+  document.cookie = "csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
+  document.cookie = "csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+  // Force-overwrite with empty value in case happy-dom doesn't support expires
+  Object.defineProperty(document, "cookie", {
+    writable: true,
+    value: "",
+  })
   vi.stubGlobal("fetch", vi.fn())
 })
 
@@ -197,7 +205,9 @@ describe("api-client", () => {
         .mockResolvedValueOnce(unauthorizedResponse as Response)
         .mockResolvedValueOnce(refreshFailResponse as Response)
 
-      await expect(api.getDashboardStats()).rejects.toThrow("Unauthorized")
+      await expect(api.getDashboardStats()).rejects.toThrow(
+        "Your session has expired. Please sign in again."
+      )
     })
 
     it("does not attempt refresh when no refresh token is stored", async () => {
@@ -214,7 +224,9 @@ describe("api-client", () => {
 
       vi.mocked(fetch).mockResolvedValueOnce(unauthorizedResponse as Response)
 
-      await expect(api.getDashboardStats()).rejects.toThrow("Unauthorized")
+      await expect(api.getDashboardStats()).rejects.toThrow(
+        "Your session has expired. Please sign in again."
+      )
 
       // Only the original call, no refresh attempt
       expect(fetch).toHaveBeenCalledTimes(1)
@@ -222,7 +234,7 @@ describe("api-client", () => {
   })
 
   describe("error handling", () => {
-    it("throws with API error message on non-ok response", async () => {
+    it("throws with sanitized API error message on non-ok response", async () => {
       const api = await loadApiClient()
 
       const errorResponse = {
@@ -232,10 +244,13 @@ describe("api-client", () => {
       }
       vi.mocked(fetch).mockResolvedValueOnce(errorResponse as Response)
 
-      await expect(api.getDashboardStats()).rejects.toThrow("Forbidden")
+      // SEC-S4-10: Error messages are now sanitized
+      await expect(api.getDashboardStats()).rejects.toThrow(
+        "You do not have permission to perform this action."
+      )
     })
 
-    it("throws with status code when no error message provided", async () => {
+    it("throws with sanitized message when no error message provided", async () => {
       const api = await loadApiClient()
 
       const errorResponse = {
@@ -245,7 +260,144 @@ describe("api-client", () => {
       }
       vi.mocked(fetch).mockResolvedValueOnce(errorResponse as Response)
 
-      await expect(api.getDashboardStats()).rejects.toThrow("API error: 500")
+      // SEC-S4-10: "API error: 500" is sanitized to a user-friendly message
+      await expect(api.getDashboardStats()).rejects.toThrow(
+        "An unexpected server error occurred. Please try again later."
+      )
+    })
+  })
+
+  describe("CSRF token header (SEC-S4-002)", () => {
+    it("attaches X-CSRF-Token header for POST requests when cookie is set", async () => {
+      const api = await loadApiClient()
+
+      document.cookie = "csrf_token=abc123csrftoken"
+
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: { name: "test-package", registry: "npm" },
+          error: null,
+        }),
+      }
+      vi.mocked(fetch).mockResolvedValueOnce(mockResponse as Response)
+
+      await api.createPackage("test-package", "npm")
+
+      const [, options] = vi.mocked(fetch).mock.calls[0]
+      expect(
+        (options?.headers as Record<string, string>)["X-CSRF-Token"]
+      ).toBe("abc123csrftoken")
+    })
+
+    it("attaches X-CSRF-Token header for DELETE requests", async () => {
+      const api = await loadApiClient()
+
+      document.cookie = "csrf_token=delete-csrf-tok"
+
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: null, error: null }),
+      }
+      vi.mocked(fetch).mockResolvedValueOnce(mockResponse as Response)
+
+      await api.deletePackage(1)
+
+      const [, options] = vi.mocked(fetch).mock.calls[0]
+      expect(
+        (options?.headers as Record<string, string>)["X-CSRF-Token"]
+      ).toBe("delete-csrf-tok")
+    })
+
+    it("attaches X-CSRF-Token header for PUT requests", async () => {
+      const api = await loadApiClient()
+
+      document.cookie = "csrf_token=put-csrf-tok"
+
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: { id: 1, status: "acknowledged" },
+          error: null,
+        }),
+      }
+      vi.mocked(fetch).mockResolvedValueOnce(mockResponse as Response)
+
+      await api.updateSettings({ key: "value" })
+
+      const [, options] = vi.mocked(fetch).mock.calls[0]
+      expect(
+        (options?.headers as Record<string, string>)["X-CSRF-Token"]
+      ).toBe("put-csrf-tok")
+    })
+
+    it("attaches X-CSRF-Token header for PATCH requests", async () => {
+      const api = await loadApiClient()
+
+      document.cookie = "csrf_token=patch-csrf-tok"
+
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: { id: 1, status: "acknowledged" },
+          error: null,
+        }),
+      }
+      vi.mocked(fetch).mockResolvedValueOnce(mockResponse as Response)
+
+      await api.updateAlertStatus(1, "acknowledged")
+
+      const [, options] = vi.mocked(fetch).mock.calls[0]
+      expect(
+        (options?.headers as Record<string, string>)["X-CSRF-Token"]
+      ).toBe("patch-csrf-tok")
+    })
+
+    it("does NOT attach X-CSRF-Token header for GET requests", async () => {
+      const api = await loadApiClient()
+
+      document.cookie = "csrf_token=should-not-appear"
+
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { totalPackages: 10 }, error: null }),
+      }
+      vi.mocked(fetch).mockResolvedValueOnce(mockResponse as Response)
+
+      await api.getDashboardStats()
+
+      const [, options] = vi.mocked(fetch).mock.calls[0]
+      expect(
+        (options?.headers as Record<string, string>)["X-CSRF-Token"]
+      ).toBeUndefined()
+    })
+
+    it("does NOT attach X-CSRF-Token header when cookie is absent", async () => {
+      const api = await loadApiClient()
+
+      // No csrf_token cookie set
+
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: { name: "test-package", registry: "npm" },
+          error: null,
+        }),
+      }
+      vi.mocked(fetch).mockResolvedValueOnce(mockResponse as Response)
+
+      await api.createPackage("test-package", "npm")
+
+      const [, options] = vi.mocked(fetch).mock.calls[0]
+      expect(
+        (options?.headers as Record<string, string>)["X-CSRF-Token"]
+      ).toBeUndefined()
     })
   })
 })

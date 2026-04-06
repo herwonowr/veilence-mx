@@ -10,3 +10,9 @@ export {
   useChangePassword,
   useSendVerification,
 } from "./hooks/use-profile"
+
+export {
+  useSessions,
+  useRevokeSession,
+  sessionKeys,
+} from "./hooks/use-sessions"

@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/veilence/veilence-mx/backend/internal/auth"
+	"github.com/veilence/veilence-mx/backend/internal/domain"
 	"github.com/veilence/veilence-mx/backend/internal/models"
 	"github.com/veilence/veilence-mx/backend/internal/repository"
 )
@@ -27,6 +29,7 @@ func setupAuthTestDB(t *testing.T) *gorm.DB {
 		&models.APIKey{},
 		&models.PasswordResetToken{},
 		&models.EmailVerificationToken{},
+		&models.Session{},
 	)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -42,7 +45,8 @@ func newAuthService(db *gorm.DB) *auth.Service {
 	apiKeyRepo := repository.NewAPIKeyRepo(db)
 	passwordResetTokenRepo := repository.NewPasswordResetTokenRepo(db)
 	emailVerificationTokenRepo := repository.NewEmailVerificationTokenRepo(db)
-	return auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, testJWTSecret)
+	sessionRepo := repository.NewSessionRepo(db)
+	return auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, testJWTSecret)
 }
 
 // --- Register ---
@@ -196,7 +200,7 @@ func TestCreateAndValidateAPIKey(t *testing.T) {
 	user, err := svc.Register("grace@example.com", "Password123", "Grace", "Blue")
 	require.NoError(t, err)
 
-	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, "test-key", nil)
+	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, "test-key", domain.APIKeyScopeRead, nil)
 	require.NoError(t, err)
 	assert.NotZero(t, apiKey.ID)
 	assert.Equal(t, "test-key", apiKey.Name)
@@ -204,7 +208,7 @@ func TestCreateAndValidateAPIKey(t *testing.T) {
 	assert.True(t, apiKey.IsActive)
 
 	// Validate the raw key
-	userID, email, err := svc.ValidateAPIKey(rawKey)
+	userID, email, _, err := svc.ValidateAPIKey(rawKey)
 	require.NoError(t, err)
 	assert.Equal(t, user.ID, userID)
 	assert.Equal(t, "grace@example.com", email)
@@ -214,7 +218,7 @@ func TestValidateAPIKey_InvalidKey(t *testing.T) {
 	db := setupAuthTestDB(t)
 	svc := newAuthService(db)
 
-	_, _, err := svc.ValidateAPIKey("vmx_invalid_key_that_does_not_exist")
+	_, _, _, err := svc.ValidateAPIKey("vmx_invalid_key_that_does_not_exist")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid API key")
 }
@@ -226,7 +230,7 @@ func TestRevokeAPIKey(t *testing.T) {
 	user, err := svc.Register("henry@example.com", "Password123", "Henry", "Red")
 	require.NoError(t, err)
 
-	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, "to-revoke", nil)
+	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, "to-revoke", domain.APIKeyScopeRead, nil)
 	require.NoError(t, err)
 
 	// Revoke
@@ -234,7 +238,7 @@ func TestRevokeAPIKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// Should no longer validate
-	_, _, err = svc.ValidateAPIKey(rawKey)
+	_, _, _, err = svc.ValidateAPIKey(rawKey)
 	require.Error(t, err)
 }
 
@@ -257,9 +261,9 @@ func TestListAPIKeys(t *testing.T) {
 	user, err := svc.Register("jack@example.com", "Password123", "Jack", "Orange")
 	require.NoError(t, err)
 
-	_, _, err = svc.CreateAPIKey(user.ID, "key-1", nil)
+	_, _, err = svc.CreateAPIKey(user.ID, "key-1", domain.APIKeyScopeRead, nil)
 	require.NoError(t, err)
-	_, _, err = svc.CreateAPIKey(user.ID, "key-2", nil)
+	_, _, err = svc.CreateAPIKey(user.ID, "key-2", domain.APIKeyScopeWrite, nil)
 	require.NoError(t, err)
 
 	keys, err := svc.ListAPIKeys(user.ID)
@@ -275,7 +279,7 @@ func TestCreateAPIKey_WithExpiry(t *testing.T) {
 	require.NoError(t, err)
 
 	future := time.Now().Add(24 * time.Hour)
-	apiKey, _, err := svc.CreateAPIKey(user.ID, "expiring-key", &future)
+	apiKey, _, err := svc.CreateAPIKey(user.ID, "expiring-key", domain.APIKeyScopeRead, &future)
 	require.NoError(t, err)
 	assert.NotNil(t, apiKey.ExpiresAt)
 }
@@ -308,7 +312,7 @@ func BenchmarkValidateAPIKey(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.User{}, &models.RefreshToken{}, &models.APIKey{}, &models.PasswordResetToken{}, &models.EmailVerificationToken{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.RefreshToken{}, &models.APIKey{}, &models.PasswordResetToken{}, &models.EmailVerificationToken{}, &models.Session{}); err != nil {
 		b.Fatal(err)
 	}
 
@@ -318,7 +322,8 @@ func BenchmarkValidateAPIKey(b *testing.B) {
 		apiKeyRepo := repository.NewAPIKeyRepo(db)
 		passwordResetTokenRepo := repository.NewPasswordResetTokenRepo(db)
 		emailVerificationTokenRepo := repository.NewEmailVerificationTokenRepo(db)
-		return auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, testJWTSecret)
+		sessionRepo := repository.NewSessionRepo(db)
+		return auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, testJWTSecret)
 	}()
 
 	user, err := svc.Register("bench@example.com", "Password123", "Bench", "User")
@@ -326,14 +331,14 @@ func BenchmarkValidateAPIKey(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	_, rawKey, err := svc.CreateAPIKey(user.ID, "bench-key", nil)
+	_, rawKey, err := svc.CreateAPIKey(user.ID, "bench-key", domain.APIKeyScopeRead, nil)
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		uid, email, err := svc.ValidateAPIKey(rawKey)
+		uid, email, _, err := svc.ValidateAPIKey(rawKey)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -396,4 +401,258 @@ func TestLogout(t *testing.T) {
 	// Refresh should now fail
 	_, err = svc.RefreshTokens(tokens.RefreshToken)
 	require.Error(t, err)
+}
+
+// --- API Key Scoping (S4-8) ---
+
+func TestAPIKeyScope_Validation(t *testing.T) {
+	tests := []struct {
+		name    string
+		scope   string
+		isValid bool
+	}{
+		{"read scope", "read", true},
+		{"write scope", "write", true},
+		{"admin scope", "admin", true},
+		{"empty scope", "", false},
+		{"invalid scope", "superadmin", false},
+		{"uppercase READ", "READ", false},
+		{"mixed case", "Read", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.isValid, domain.IsValidAPIKeyScope(tt.scope))
+		})
+	}
+}
+
+func TestAPIKeyScope_ScopeAllows(t *testing.T) {
+	tests := []struct {
+		name    string
+		scope   domain.APIKeyScope
+		method  string
+		allowed bool
+	}{
+		// read scope
+		{"read allows GET", domain.APIKeyScopeRead, "GET", true},
+		{"read allows HEAD", domain.APIKeyScopeRead, "HEAD", true},
+		{"read allows OPTIONS", domain.APIKeyScopeRead, "OPTIONS", true},
+		{"read denies POST", domain.APIKeyScopeRead, "POST", false},
+		{"read denies PUT", domain.APIKeyScopeRead, "PUT", false},
+		{"read denies PATCH", domain.APIKeyScopeRead, "PATCH", false},
+		{"read denies DELETE", domain.APIKeyScopeRead, "DELETE", false},
+		// write scope
+		{"write allows GET", domain.APIKeyScopeWrite, "GET", true},
+		{"write allows POST", domain.APIKeyScopeWrite, "POST", true},
+		{"write allows PUT", domain.APIKeyScopeWrite, "PUT", true},
+		{"write allows PATCH", domain.APIKeyScopeWrite, "PATCH", true},
+		{"write allows HEAD", domain.APIKeyScopeWrite, "HEAD", true},
+		{"write allows OPTIONS", domain.APIKeyScopeWrite, "OPTIONS", true},
+		{"write denies DELETE", domain.APIKeyScopeWrite, "DELETE", false},
+		// admin scope
+		{"admin allows GET", domain.APIKeyScopeAdmin, "GET", true},
+		{"admin allows POST", domain.APIKeyScopeAdmin, "POST", true},
+		{"admin allows DELETE", domain.APIKeyScopeAdmin, "DELETE", true},
+		// invalid scope
+		{"invalid scope denies GET", domain.APIKeyScope("invalid"), "GET", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.allowed, tt.scope.ScopeAllows(tt.method))
+		})
+	}
+}
+
+func TestCreateAPIKey_WithScope(t *testing.T) {
+	tests := []struct {
+		name          string
+		scope         domain.APIKeyScope
+		expectScope   domain.APIKeyScope
+		expectError   bool
+	}{
+		{"read scope", domain.APIKeyScopeRead, domain.APIKeyScopeRead, false},
+		{"write scope", domain.APIKeyScopeWrite, domain.APIKeyScopeWrite, false},
+		{"admin scope", domain.APIKeyScopeAdmin, domain.APIKeyScopeAdmin, false},
+		{"empty defaults to read", "", domain.APIKeyScopeRead, false},
+		{"invalid scope", domain.APIKeyScope("superadmin"), "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := setupAuthTestDB(t)
+			svc := newAuthService(db)
+
+			user, err := svc.Register("scope-test@example.com", "Password123", "Scope", "Test")
+			require.NoError(t, err)
+
+			apiKey, _, err := svc.CreateAPIKey(user.ID, "test-key", tt.scope, nil)
+			if tt.expectError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectScope, apiKey.Scope)
+		})
+	}
+}
+
+func TestValidateAPIKey_ReturnsScope(t *testing.T) {
+	db := setupAuthTestDB(t)
+	svc := newAuthService(db)
+
+	user, err := svc.Register("scope-val@example.com", "Password123", "Scope", "Val")
+	require.NoError(t, err)
+
+	_, rawKey, err := svc.CreateAPIKey(user.ID, "write-key", domain.APIKeyScopeWrite, nil)
+	require.NoError(t, err)
+
+	userID, email, scope, err := svc.ValidateAPIKey(rawKey)
+	require.NoError(t, err)
+	assert.Equal(t, user.ID, userID)
+	assert.Equal(t, "scope-val@example.com", email)
+	assert.Equal(t, domain.APIKeyScopeWrite, scope)
+}
+
+// --- Session Management (S4-9) ---
+
+func TestCreateSession_Success(t *testing.T) {
+	db := setupAuthTestDB(t)
+	svc := newAuthService(db)
+
+	user, err := svc.Register("session@example.com", "Password123", "Session", "User")
+	require.NoError(t, err)
+
+	session, err := svc.CreateSession(user.ID, "token-hash-123", "192.168.1.1", "TestBrowser/1.0")
+	require.NoError(t, err)
+	assert.NotZero(t, session.ID)
+	assert.Equal(t, user.ID, session.UserID)
+	assert.Equal(t, "192.168.1.1", session.IPAddress)
+	assert.Equal(t, "TestBrowser/1.0", session.UserAgent)
+}
+
+func TestListSessions_ReturnsActiveSessions(t *testing.T) {
+	db := setupAuthTestDB(t)
+	svc := newAuthService(db)
+
+	user, err := svc.Register("listsess@example.com", "Password123", "List", "Sessions")
+	require.NoError(t, err)
+
+	_, err = svc.CreateSession(user.ID, "hash-1", "10.0.0.1", "Browser1")
+	require.NoError(t, err)
+	_, err = svc.CreateSession(user.ID, "hash-2", "10.0.0.2", "Browser2")
+	require.NoError(t, err)
+
+	sessions, err := svc.ListSessions(user.ID)
+	require.NoError(t, err)
+	assert.Len(t, sessions, 2)
+}
+
+func TestRevokeSession_Success(t *testing.T) {
+	db := setupAuthTestDB(t)
+	svc := newAuthService(db)
+
+	user, err := svc.Register("revoke-sess@example.com", "Password123", "Revoke", "Session")
+	require.NoError(t, err)
+
+	session, err := svc.CreateSession(user.ID, "hash-revoke", "10.0.0.1", "Browser1")
+	require.NoError(t, err)
+
+	err = svc.RevokeSession(user.ID, session.ID)
+	require.NoError(t, err)
+
+	sessions, err := svc.ListSessions(user.ID)
+	require.NoError(t, err)
+	assert.Len(t, sessions, 0)
+}
+
+func TestRevokeSession_NotFound(t *testing.T) {
+	db := setupAuthTestDB(t)
+	svc := newAuthService(db)
+
+	user, err := svc.Register("revoke-nf@example.com", "Password123", "Revoke", "NF")
+	require.NoError(t, err)
+
+	err = svc.RevokeSession(user.ID, 99999)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, auth.ErrSessionNotFound)
+}
+
+func TestRevokeSession_WrongUser(t *testing.T) {
+	db := setupAuthTestDB(t)
+	svc := newAuthService(db)
+
+	user1, err := svc.Register("user1-sess@example.com", "Password123", "User1", "Sess")
+	require.NoError(t, err)
+	user2, err := svc.Register("user2-sess@example.com", "Password123", "User2", "Sess")
+	require.NoError(t, err)
+
+	session, err := svc.CreateSession(user1.ID, "hash-user1", "10.0.0.1", "Browser1")
+	require.NoError(t, err)
+
+	// user2 should not be able to revoke user1's session
+	err = svc.RevokeSession(user2.ID, session.ID)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, auth.ErrSessionNotFound)
+}
+
+func TestCreateSession_EnforcesMaxLimit(t *testing.T) {
+	db := setupAuthTestDB(t)
+	svc := newAuthService(db)
+
+	user, err := svc.Register("maxsess@example.com", "Password123", "Max", "Sessions")
+	require.NoError(t, err)
+
+	// Create max sessions
+	for i := 0; i < auth.MaxSessionsPerUser; i++ {
+		_, err := svc.CreateSession(user.ID, fmt.Sprintf("hash-%d", i), "10.0.0.1", "Browser")
+		require.NoError(t, err)
+	}
+
+	sessions, err := svc.ListSessions(user.ID)
+	require.NoError(t, err)
+	assert.Len(t, sessions, auth.MaxSessionsPerUser)
+
+	// Create one more — should evict oldest
+	_, err = svc.CreateSession(user.ID, "hash-overflow", "10.0.0.1", "Browser")
+	require.NoError(t, err)
+
+	sessions, err = svc.ListSessions(user.ID)
+	require.NoError(t, err)
+	assert.Len(t, sessions, auth.MaxSessionsPerUser)
+}
+
+func TestCleanExpiredSessions(t *testing.T) {
+	db := setupAuthTestDB(t)
+	svc := newAuthService(db)
+
+	user, err := svc.Register("clean-sess@example.com", "Password123", "Clean", "Sessions")
+	require.NoError(t, err)
+
+	// Create a session that is already expired (via direct DB manipulation)
+	sessionRepo := repository.NewSessionRepo(db)
+	err = sessionRepo.Create(context.Background(), &domain.Session{
+		UserID:     user.ID,
+		TokenHash:  "expired-hash",
+		IPAddress:  "10.0.0.1",
+		UserAgent:  "Browser",
+		LastActive: time.Now().Add(-48 * time.Hour),
+		ExpiresAt:  time.Now().Add(-24 * time.Hour), // expired 24h ago
+	})
+	require.NoError(t, err)
+
+	// Also create an active session
+	_, err = svc.CreateSession(user.ID, "active-hash", "10.0.0.2", "Browser2")
+	require.NoError(t, err)
+
+	// Clean expired
+	count, err := svc.CleanExpiredSessions()
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), count)
+
+	// Only active session remains
+	sessions, err := svc.ListSessions(user.ID)
+	require.NoError(t, err)
+	assert.Len(t, sessions, 1)
 }

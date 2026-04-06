@@ -19,20 +19,28 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 	// Global middleware
 	r.Use(chiMiddleware.Recoverer)
 	r.Use(chiMiddleware.RealIP)
-	r.Use(middleware.SecurityHeaders)
+	r.Use(middleware.SecurityHeadersWithConfig(middleware.SecurityHeadersConfig{
+		FrontendURL: frontendURL,
+	}))
 	r.Use(middleware.BodySizeLimit(middleware.DefaultMaxBodySize))
+	r.Use(middleware.Sanitize)
 	r.Use(audit.CorrelationMiddleware)
 	r.Use(audit.RequestCaptureMiddleware)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Metrics)
 	r.Use(middleware.CORS(frontendURL))
 
-	// Rate limiters
-	defaultLimiter := middleware.NewRateLimiter(100)  // 100 req/min
-	authLimiter := middleware.NewRateLimiter(10)       // 10 req/min for auth endpoints
+	// Rate limiter group with per-category limits
+	rateLimitGroup := middleware.NewRateLimiterGroup(nil) // uses DefaultLimits
 
-	// Global rate limit
-	r.Use(defaultLimiter.Limit)
+	// Global rate limit (API category: 100 req/min)
+	r.Use(rateLimitGroup.ForCategory(middleware.CategoryAPI))
+
+	// CSRF protection (applied globally; safe methods get a cookie, state-changing
+	// methods require double-submit. API key auth is exempt.)
+	r.Use(middleware.CSRF(middleware.CSRFConfig{
+		Secure: frontendURL != "" && frontendURL != "http://localhost:3000",
+	}))
 
 	// Routes
 	r.Route("/api", func(r chi.Router) {
@@ -43,7 +51,7 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 
 		// Public auth routes (no authentication required, stricter rate limit)
 		r.Route("/auth", func(r chi.Router) {
-			r.Use(authLimiter.Limit)
+			r.Use(rateLimitGroup.ForCategory(middleware.CategoryAuth))
 			r.Post("/register", h.Auth.Register)
 			r.Post("/login", h.Auth.Login)
 			r.Post("/refresh", h.Auth.RefreshToken)
@@ -68,6 +76,12 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 				r.Post("/", h.Auth.CreateAPIKey)
 				r.Get("/", h.Auth.ListAPIKeys)
 				r.Delete("/{id}", h.Auth.RevokeAPIKey)
+			})
+
+			// Session management
+			r.Route("/auth/sessions", func(r chi.Router) {
+				r.Get("/", h.Sessions.ListSessions)
+				r.Delete("/{id}", h.Sessions.RevokeSession)
 			})
 
 			// User notifications (not org-scoped, across all orgs)
@@ -114,9 +128,12 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 				r.Get("/settings", h.Settings.GetSettings)
 				r.Put("/settings", h.Settings.UpdateSettings)
 
-				// Sync triggers
-				r.Post("/sync/top-packages", h.Settings.SyncTopPackages)
-				r.Post("/sync/reanalyze", h.Dashboard.ReanalyzeAll)
+				// Sync triggers (stricter rate limit)
+				r.Group(func(r chi.Router) {
+					r.Use(rateLimitGroup.ForCategory(middleware.CategorySync))
+					r.Post("/sync/top-packages", h.Settings.SyncTopPackages)
+					r.Post("/sync/reanalyze", h.Dashboard.ReanalyzeAll)
+				})
 
 				// Queue monitoring (global data, but requires org membership)
 				r.Get("/queue/stats", h.Queue.GetQueueStats)

@@ -11,6 +11,7 @@ import {
 } from "@/lib/api-client"
 import type { ApiResponse } from "@/types"
 import { toast } from "sonner"
+import { sanitizeErrorMessage } from "@/lib/utils"
 
 export const settingsKeys = {
   all: ["settings"] as const,
@@ -36,7 +37,7 @@ export function useUpdateSettings() {
       toast.success("Settings saved")
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to save settings")
+      toast.error(sanitizeErrorMessage(error, "Failed to save settings"))
     },
   })
 }
