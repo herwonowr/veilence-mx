@@ -185,8 +185,8 @@ type PermissionRepository interface {
 
 // InvitationRepository defines persistence operations for Invitation entities.
 type InvitationRepository interface {
-	// FindByToken returns an invitation by its token. Returns an error if not found.
-	FindByToken(ctx context.Context, token string) (*Invitation, error)
+	// FindByTokenHash returns an invitation by its hashed token. Returns an error if not found.
+	FindByTokenHash(ctx context.Context, tokenHash string) (*Invitation, error)
 	// Create persists a new invitation.
 	Create(ctx context.Context, invitation *Invitation) error
 	// Update saves changes to an existing invitation.
@@ -240,6 +240,32 @@ type NotificationRepository interface {
 	FindByUserAndOrg(ctx context.Context, orgID, userID uint, onlyUnread bool) ([]Notification, error)
 	// MarkRead marks a notification as read (checking user ownership).
 	MarkRead(ctx context.Context, id, userID uint) (int64, error)
+	// MarkAllRead marks all notifications as read for a user, optionally scoped to an org.
+	MarkAllRead(ctx context.Context, orgID, userID uint) (int64, error)
 	// CountUnread returns the number of unread notifications for a user.
 	CountUnread(ctx context.Context, orgID, userID uint) (int64, error)
+}
+
+// PasswordResetTokenRepository defines persistence operations for PasswordResetToken entities.
+type PasswordResetTokenRepository interface {
+	// FindByTokenHash returns a password reset token by its hash. Returns an error if not found.
+	FindByTokenHash(ctx context.Context, tokenHash string) (*PasswordResetToken, error)
+	// Create persists a new password reset token.
+	Create(ctx context.Context, token *PasswordResetToken) error
+	// MarkUsed marks a token as used by setting its used_at timestamp.
+	MarkUsed(ctx context.Context, id uint) error
+	// DeleteExpiredByUserID removes all expired or used tokens for a user.
+	DeleteExpiredByUserID(ctx context.Context, userID uint) error
+}
+
+// EmailVerificationTokenRepository defines persistence operations for EmailVerificationToken entities.
+type EmailVerificationTokenRepository interface {
+	// FindByTokenHash returns an email verification token by its hash. Returns an error if not found.
+	FindByTokenHash(ctx context.Context, tokenHash string) (*EmailVerificationToken, error)
+	// Create persists a new email verification token.
+	Create(ctx context.Context, token *EmailVerificationToken) error
+	// Delete removes a token by ID.
+	Delete(ctx context.Context, id uint) error
+	// DeleteByUserID removes all tokens for a user.
+	DeleteByUserID(ctx context.Context, userID uint) error
 }

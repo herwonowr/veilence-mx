@@ -20,6 +20,9 @@ import (
 var (
 	ErrEmailAlreadyRegistered = errors.New("email already registered")
 	ErrAPIKeyNotFound         = errors.New("API key not found")
+	ErrResetTokenInvalid      = errors.New("invalid or expired reset token")
+	ErrResetTokenUsed         = errors.New("reset token already used")
+	ErrVerificationInvalid    = errors.New("invalid or expired verification token")
 )
 
 const (
@@ -27,6 +30,10 @@ const (
 	AccessTokenDuration = 15 * time.Minute
 	// RefreshTokenDuration is the lifetime of a refresh token.
 	RefreshTokenDuration = 7 * 24 * time.Hour
+	// PasswordResetDuration is the lifetime of a password reset token.
+	PasswordResetDuration = 1 * time.Hour
+	// EmailVerificationDuration is the lifetime of an email verification token.
+	EmailVerificationDuration = 24 * time.Hour
 
 	// TokenTypeAccess identifies an access token.
 	TokenTypeAccess = "access"
@@ -50,19 +57,30 @@ type TokenPair struct {
 
 // Service provides authentication operations.
 type Service struct {
-	users         domain.UserRepository
-	refreshTokens domain.RefreshTokenRepository
-	apiKeys       domain.APIKeyRepository
-	jwtSecret     []byte
+	users              domain.UserRepository
+	refreshTokens      domain.RefreshTokenRepository
+	apiKeys            domain.APIKeyRepository
+	passwordResets     domain.PasswordResetTokenRepository
+	emailVerifications domain.EmailVerificationTokenRepository
+	jwtSecret          []byte
 }
 
 // NewService creates a new auth service with the given repositories and JWT secret.
-func NewService(users domain.UserRepository, refreshTokens domain.RefreshTokenRepository, apiKeys domain.APIKeyRepository, jwtSecret string) *Service {
+func NewService(
+	users domain.UserRepository,
+	refreshTokens domain.RefreshTokenRepository,
+	apiKeys domain.APIKeyRepository,
+	passwordResets domain.PasswordResetTokenRepository,
+	emailVerifications domain.EmailVerificationTokenRepository,
+	jwtSecret string,
+) *Service {
 	return &Service{
-		users:         users,
-		refreshTokens: refreshTokens,
-		apiKeys:       apiKeys,
-		jwtSecret:     []byte(jwtSecret),
+		users:              users,
+		refreshTokens:      refreshTokens,
+		apiKeys:            apiKeys,
+		passwordResets:     passwordResets,
+		emailVerifications: emailVerifications,
+		jwtSecret:          []byte(jwtSecret),
 	}
 }
 
@@ -407,4 +425,164 @@ func (s *Service) RevokeAPIKey(userID, keyID uint) error {
 
 	slog.Info("API key revoked", "user_id", userID, "key_id", keyID)
 	return nil
+}
+
+// ForgotPassword generates a password reset token for the given email address.
+// The raw token is returned so the caller can send it via email.
+// If the email doesn't exist, returns nil error and empty string (to prevent user enumeration).
+func (s *Service) ForgotPassword(email string) (string, error) {
+	ctx := context.Background()
+
+	user, err := s.users.FindByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			// Don't reveal that the email doesn't exist
+			slog.Info("password reset requested for unknown email", "email", email)
+			return "", nil
+		}
+		return "", fmt.Errorf("finding user: %w", err)
+	}
+
+	// Clean up old tokens
+	_ = s.passwordResets.DeleteExpiredByUserID(ctx, user.ID)
+
+	// Generate a random reset token
+	rawToken, err := generateResetToken()
+	if err != nil {
+		return "", fmt.Errorf("generating reset token: %w", err)
+	}
+
+	token := &domain.PasswordResetToken{
+		UserID:    user.ID,
+		TokenHash: hashRefreshToken(rawToken), // SHA-256 hash
+		ExpiresAt: time.Now().Add(PasswordResetDuration),
+	}
+
+	if err := s.passwordResets.Create(ctx, token); err != nil {
+		return "", fmt.Errorf("creating reset token: %w", err)
+	}
+
+	slog.Info("password reset token generated", "user_id", user.ID, "email", email)
+	return rawToken, nil
+}
+
+// ResetPassword validates a reset token and updates the user's password.
+func (s *Service) ResetPassword(rawToken, newPassword string) error {
+	ctx := context.Background()
+
+	tokenHash := hashRefreshToken(rawToken)
+
+	stored, err := s.passwordResets.FindByTokenHash(ctx, tokenHash)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return ErrResetTokenInvalid
+		}
+		return fmt.Errorf("finding reset token: %w", err)
+	}
+
+	if stored.UsedAt != nil {
+		return ErrResetTokenUsed
+	}
+
+	if time.Now().After(stored.ExpiresAt) {
+		return ErrResetTokenInvalid
+	}
+
+	// Hash the new password
+	passwordHash, err := hashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("hashing password: %w", err)
+	}
+
+	// Update the user's password
+	user, err := s.users.FindByID(ctx, stored.UserID)
+	if err != nil {
+		return fmt.Errorf("finding user: %w", err)
+	}
+
+	user.PasswordHash = passwordHash
+	if err := s.users.Update(ctx, user); err != nil {
+		return fmt.Errorf("updating password: %w", err)
+	}
+
+	// Mark the token as used
+	if err := s.passwordResets.MarkUsed(ctx, stored.ID); err != nil {
+		slog.Error("failed to mark reset token as used", "token_id", stored.ID, "error", err)
+	}
+
+	slog.Info("password reset successful", "user_id", stored.UserID)
+	return nil
+}
+
+// GenerateEmailVerificationToken creates a verification token for the given user.
+// Returns the raw token to be sent via email.
+func (s *Service) GenerateEmailVerificationToken(userID uint) (string, error) {
+	ctx := context.Background()
+
+	// Clean up old tokens for this user
+	_ = s.emailVerifications.DeleteByUserID(ctx, userID)
+
+	rawToken, err := generateResetToken()
+	if err != nil {
+		return "", fmt.Errorf("generating verification token: %w", err)
+	}
+
+	token := &domain.EmailVerificationToken{
+		UserID:    userID,
+		TokenHash: hashRefreshToken(rawToken),
+		ExpiresAt: time.Now().Add(EmailVerificationDuration),
+	}
+
+	if err := s.emailVerifications.Create(ctx, token); err != nil {
+		return "", fmt.Errorf("creating verification token: %w", err)
+	}
+
+	slog.Info("email verification token generated", "user_id", userID)
+	return rawToken, nil
+}
+
+// VerifyEmail validates a verification token and marks the user's email as verified.
+func (s *Service) VerifyEmail(rawToken string) error {
+	ctx := context.Background()
+
+	tokenHash := hashRefreshToken(rawToken)
+
+	stored, err := s.emailVerifications.FindByTokenHash(ctx, tokenHash)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return ErrVerificationInvalid
+		}
+		return fmt.Errorf("finding verification token: %w", err)
+	}
+
+	if time.Now().After(stored.ExpiresAt) {
+		return ErrVerificationInvalid
+	}
+
+	user, err := s.users.FindByID(ctx, stored.UserID)
+	if err != nil {
+		return fmt.Errorf("finding user: %w", err)
+	}
+
+	user.EmailVerified = true
+	if err := s.users.Update(ctx, user); err != nil {
+		return fmt.Errorf("updating user email verification: %w", err)
+	}
+
+	// Delete the token (one-time use)
+	if err := s.emailVerifications.Delete(ctx, stored.ID); err != nil {
+		slog.Error("failed to delete verification token", "token_id", stored.ID, "error", err)
+	}
+
+	slog.Info("email verified", "user_id", stored.UserID)
+	return nil
+}
+
+// generateResetToken creates a cryptographically secure random token for password reset.
+func generateResetToken() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("generating token: %w", err)
+	}
+	return hex.EncodeToString(b), nil
 }

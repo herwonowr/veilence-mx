@@ -302,3 +302,21 @@ func (h *NotificationHandlers) MarkNotificationRead(w http.ResponseWriter, r *ht
 
 	respondJSON(w, http.StatusOK, nil, nil)
 }
+
+// MarkAllNotificationsRead handles PUT /api/notifications/read-all — marks all
+// unread notifications as read for the current user across all organizations.
+func (h *NotificationHandlers) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request) {
+	userID := rbac.UserIDFromContext(r.Context())
+	if userID == 0 {
+		respondError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	affected, err := h.Notifications.MarkAllRead(0, userID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to mark all notifications as read")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]int64{"updated": affected}, nil)
+}

@@ -23,14 +23,63 @@ type Config struct {
 	TopNRefreshInterval time.Duration
 }
 
+// settingsCache holds cached settings values with a TTL.
+type settingsCache struct {
+	mu        sync.RWMutex
+	values    map[string]string
+	expiresAt time.Time
+	ttl       time.Duration
+}
+
+// newSettingsCache creates a new settings cache with the given TTL.
+func newSettingsCache(ttl time.Duration) *settingsCache {
+	return &settingsCache{
+		values: make(map[string]string),
+		ttl:    ttl,
+	}
+}
+
+// get retrieves a cached setting value. Returns the value and true if found
+// and not expired, or empty string and false otherwise.
+func (c *settingsCache) get(key string) (string, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if time.Now().After(c.expiresAt) {
+		return "", false
+	}
+	v, ok := c.values[key]
+	return v, ok
+}
+
+// set stores a setting value in the cache, refreshing the TTL.
+func (c *settingsCache) set(key, value string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.values[key] = value
+	c.expiresAt = time.Now().Add(c.ttl)
+}
+
+// invalidate clears the cache, forcing the next read to hit the database.
+func (c *settingsCache) invalidate() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.values = make(map[string]string)
+	c.expiresAt = time.Time{}
+}
+
+// SettingsCacheTTL is the default TTL for cached poller settings.
+// Settings are re-read from the database after this duration.
+const SettingsCacheTTL = 1 * time.Minute
+
 // Poller polls package registries for new releases.
 type Poller struct {
-	db     *gorm.DB
-	pypi   registry.Registry
-	npm    registry.Registry
-	config Config
-	queue  *queue.Queue
-	mu     sync.Mutex
+	db       *gorm.DB
+	pypi     registry.Registry
+	npm      registry.Registry
+	config   Config
+	queue    *queue.Queue
+	mu       sync.Mutex
+	settings *settingsCache
 }
 
 // New creates a new Poller instance.
@@ -39,12 +88,20 @@ func New(db *gorm.DB, pypi registry.Registry, npm registry.Registry, config Conf
 		config.Concurrency = 5
 	}
 	return &Poller{
-		db:     db,
-		pypi:   pypi,
-		npm:    npm,
-		config: config,
-		queue:  q,
+		db:       db,
+		pypi:     pypi,
+		npm:      npm,
+		config:   config,
+		queue:    q,
+		settings: newSettingsCache(SettingsCacheTTL),
 	}
+}
+
+// InvalidateSettingsCache clears the cached settings, forcing the next poll
+// cycle to re-read them from the database. Call this after settings are updated.
+func (p *Poller) InvalidateSettingsCache() {
+	p.settings.invalidate()
+	slog.Info("poller settings cache invalidated")
 }
 
 // Start begins the polling loops for both registries.
@@ -171,26 +228,22 @@ func (p *Poller) checkPackage(ctx context.Context, reg registry.Registry, pkg mo
 // applyVersionDepth limits versions based on the version_depth_mode setting.
 // Versions must be sorted newest-first (both registry clients do this).
 // "latest" (default) = only the newest version, "custom" = up to version_depth_count (1-5).
+// Settings are read from an in-memory cache to avoid repeated DB lookups during each poll cycle.
 func (p *Poller) applyVersionDepth(versions []registry.VersionInfo) []registry.VersionInfo {
 	if len(versions) == 0 {
 		return versions
 	}
 
-	var modeSetting models.Setting
-	if tx := p.db.Where("key = ?", models.SettingVersionDepthMode).Limit(1).Find(&modeSetting); tx.RowsAffected == 0 {
-		return versions[:1] // default to latest only
-	}
+	mode := p.getSetting(models.SettingVersionDepthMode, "latest")
 
-	switch modeSetting.Value {
+	switch mode {
 	case "latest":
 		return versions[:1]
 	case "custom":
 		count := 5 // default custom depth
-		var countSetting models.Setting
-		if tx := p.db.Where("key = ?", models.SettingVersionDepthCount).Limit(1).Find(&countSetting); tx.RowsAffected > 0 {
-			if v, err := strconv.Atoi(countSetting.Value); err == nil && v >= 1 && v <= 5 {
-				count = v
-			}
+		countStr := p.getSetting(models.SettingVersionDepthCount, "5")
+		if v, err := strconv.Atoi(countStr); err == nil && v >= 1 && v <= 5 {
+			count = v
 		}
 		if count > len(versions) {
 			count = len(versions)
@@ -199,6 +252,25 @@ func (p *Poller) applyVersionDepth(versions []registry.VersionInfo) []registry.V
 	default:
 		return versions
 	}
+}
+
+// getSetting retrieves a setting value, using the cache when available.
+// Falls back to a database lookup on cache miss and stores the result.
+func (p *Poller) getSetting(key, defaultValue string) string {
+	if v, ok := p.settings.get(key); ok {
+		return v
+	}
+
+	// Cache miss — read from database
+	var setting models.Setting
+	if tx := p.db.Where("key = ?", key).Limit(1).Find(&setting); tx.RowsAffected > 0 {
+		p.settings.set(key, setting.Value)
+		return setting.Value
+	}
+
+	// Not found in DB, cache the default
+	p.settings.set(key, defaultValue)
+	return defaultValue
 }
 
 // SyncTopPackages fetches and upserts the top-N packages for a registry, scoped to the given org.

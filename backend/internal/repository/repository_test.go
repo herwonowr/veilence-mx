@@ -516,19 +516,19 @@ func TestOrgRepo_CountBySlug(t *testing.T) {
 // InvitationRepo
 // =========================================================================
 
-func TestInvitationRepo_CreateAndFindByToken(t *testing.T) {
+func TestInvitationRepo_CreateAndFindByTokenHash(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewInvitationRepo(db)
 
 	inv := &domain.Invitation{
 		OrgID: 1, Email: "new@example.com", RoleID: 1,
-		Token: "secret-token", InvitedBy: 1, ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+		TokenHash: "hashed-secret-token", InvitedBy: 1, ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 	}
 	err := repo.Create(ctx, inv)
 	require.NoError(t, err)
 	assert.NotZero(t, inv.ID)
 
-	found, err := repo.FindByToken(ctx, "secret-token")
+	found, err := repo.FindByTokenHash(ctx, "hashed-secret-token")
 	require.NoError(t, err)
 	assert.Equal(t, "new@example.com", found.Email)
 }

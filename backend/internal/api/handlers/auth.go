@@ -72,7 +72,7 @@ func (h *AuthHandlers) Register(w http.ResponseWriter, r *http.Request) {
 	_, err := h.Auth.Register(req.Email, req.Password, req.FirstName, req.LastName)
 	if err != nil {
 		if errors.Is(err, auth.ErrEmailAlreadyRegistered) {
-			respondError(w, http.StatusConflict, err.Error())
+			respondAppError(w, apperror.Conflict("email already registered"))
 			return
 		}
 		respondError(w, http.StatusInternalServerError, "failed to register user")
@@ -268,7 +268,7 @@ func (h *AuthHandlers) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.Auth.RevokeAPIKey(userID, uint(id)); err != nil {
 		if errors.Is(err, auth.ErrAPIKeyNotFound) {
-			respondError(w, http.StatusNotFound, err.Error())
+			respondAppError(w, apperror.NotFound("API key"))
 			return
 		}
 		respondError(w, http.StatusInternalServerError, "failed to revoke API key")
@@ -278,4 +278,131 @@ func (h *AuthHandlers) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 	h.Audit.LogAction(r.Context(), "revoke", "api_key", uint(id), fmt.Sprintf("revoked API key %d", id))
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "API key revoked"}, nil)
+}
+
+// forgotPasswordRequest is the request body for initiating a password reset.
+type forgotPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+// ForgotPassword handles POST /api/auth/forgot-password — initiates a password reset.
+// Always returns 200 to prevent user enumeration.
+func (h *AuthHandlers) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var req forgotPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	req.Email = strings.TrimSpace(req.Email)
+	if req.Email == "" {
+		respondAppError(w, apperror.Validation("email is required"))
+		return
+	}
+
+	// TODO: token should be emailed by the service layer via SMTP.
+	// The raw token is intentionally not included in the HTTP response.
+	_, err := h.Auth.ForgotPassword(req.Email)
+	if err != nil {
+		// Log the error but don't reveal it to the client
+		respondJSON(w, http.StatusOK, map[string]string{
+			"message": "if an account with that email exists, a password reset link has been sent",
+		}, nil)
+		return
+	}
+
+	// The token is sent via email, never exposed in the HTTP response.
+	respondJSON(w, http.StatusOK, map[string]string{
+		"message": "if an account with that email exists, a password reset link has been sent",
+	}, nil)
+}
+
+// resetPasswordRequest is the request body for resetting a password.
+type resetPasswordRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"newPassword"`
+}
+
+// ResetPassword handles POST /api/auth/reset-password — resets user password with a valid token.
+func (h *AuthHandlers) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req resetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.Token == "" {
+		respondAppError(w, apperror.Validation("token is required"))
+		return
+	}
+
+	if err := validation.ValidatePassword(req.NewPassword); err != nil {
+		respondAppError(w, apperror.Validation(err.Error()))
+		return
+	}
+
+	if err := h.Auth.ResetPassword(req.Token, req.NewPassword); err != nil {
+		if errors.Is(err, auth.ErrResetTokenInvalid) || errors.Is(err, auth.ErrResetTokenUsed) {
+			respondAppError(w, apperror.BadRequest("invalid or expired reset token"))
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to reset password")
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "reset", "password", 0, "password reset via token")
+
+	respondJSON(w, http.StatusOK, map[string]string{"message": "password reset successfully"}, nil)
+}
+
+// verifyEmailRequest is the request body for verifying an email address.
+type verifyEmailRequest struct {
+	Token string `json:"token"`
+}
+
+// VerifyEmail handles POST /api/auth/verify-email — verifies user email with a valid token.
+func (h *AuthHandlers) VerifyEmail(w http.ResponseWriter, r *http.Request) {
+	var req verifyEmailRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.Token == "" {
+		respondAppError(w, apperror.Validation("token is required"))
+		return
+	}
+
+	if err := h.Auth.VerifyEmail(req.Token); err != nil {
+		if errors.Is(err, auth.ErrVerificationInvalid) {
+			respondAppError(w, apperror.BadRequest("invalid or expired verification token"))
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to verify email")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{"message": "email verified successfully"}, nil)
+}
+
+// SendVerificationEmail handles POST /api/auth/send-verification — sends a new verification email.
+func (h *AuthHandlers) SendVerificationEmail(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
+	if userID == 0 {
+		respondError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	// TODO: token should be emailed by the service layer via SMTP.
+	// The raw token is intentionally not included in the HTTP response.
+	_, err := h.Auth.GenerateEmailVerificationToken(userID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to generate verification token")
+		return
+	}
+
+	// The token is sent via email, never exposed in the HTTP response.
+	respondJSON(w, http.StatusOK, map[string]string{
+		"message": "verification email sent",
+	}, nil)
 }

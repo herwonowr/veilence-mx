@@ -21,9 +21,9 @@ func NewInvitationRepo(db *gorm.DB) *InvitationRepo {
 	return &InvitationRepo{db: db}
 }
 
-func (r *InvitationRepo) FindByToken(ctx context.Context, token string) (*domain.Invitation, error) {
+func (r *InvitationRepo) FindByTokenHash(ctx context.Context, tokenHash string) (*domain.Invitation, error) {
 	var m models.Invitation
-	if err := r.db.WithContext(ctx).Where("token = ?", token).First(&m).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("token_hash = ?", tokenHash).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("invitation %w", domain.ErrNotFound)
 		}
@@ -58,7 +58,7 @@ func invitationToDomain(m *models.Invitation) *domain.Invitation {
 		OrgID:      m.OrgID,
 		Email:      m.Email,
 		RoleID:     m.RoleID,
-		Token:      m.Token,
+		TokenHash:  m.TokenHash,
 		InvitedBy:  m.InvitedBy,
 		ExpiresAt:  m.ExpiresAt,
 		AcceptedAt: m.AcceptedAt,
@@ -72,7 +72,7 @@ func invitationToModel(d *domain.Invitation) *models.Invitation {
 		OrgID:      d.OrgID,
 		Email:      d.Email,
 		RoleID:     d.RoleID,
-		Token:      d.Token,
+		TokenHash:  d.TokenHash,
 		InvitedBy:  d.InvitedBy,
 		ExpiresAt:  d.ExpiresAt,
 		AcceptedAt: d.AcceptedAt,

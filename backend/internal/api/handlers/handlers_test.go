@@ -14,6 +14,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/api/handlers"
 	"github.com/veilence/veilence-mx/backend/internal/audit"
 	"github.com/veilence/veilence-mx/backend/internal/models"
+	"github.com/veilence/veilence-mx/backend/internal/repository"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -45,7 +46,7 @@ func idStr(id uint) string {
 
 // newDashboardHandlers creates a DashboardHandlers for testing.
 func newDashboardHandlers(db *gorm.DB) *handlers.DashboardHandlers {
-	return &handlers.DashboardHandlers{DB: db}
+	return &handlers.DashboardHandlers{DB: db, Dashboard: repository.NewDashboardRepo(db)}
 }
 
 // newPackageHandlers creates a PackageHandlers for testing.
@@ -665,7 +666,7 @@ func TestReanalyzeAll_NoQueue(t *testing.T) {
 
 func TestReanalyzeAll_WithDiffs(t *testing.T) {
 	db := setupTestDB(t)
-	h := &handlers.DashboardHandlers{DB: db, Queue: nil}
+	h := &handlers.DashboardHandlers{DB: db, Dashboard: repository.NewDashboardRepo(db), Queue: nil}
 
 	pkg := models.Package{Name: "requests", Registry: "pypi"}
 	db.Create(&pkg)
@@ -686,7 +687,7 @@ func TestReanalyzeAll_WithDiffs(t *testing.T) {
 
 func TestReanalyzeAll_NoDiffs(t *testing.T) {
 	db := setupTestDB(t)
-	h := &handlers.DashboardHandlers{DB: db, Queue: nil}
+	h := &handlers.DashboardHandlers{DB: db, Dashboard: repository.NewDashboardRepo(db), Queue: nil}
 
 	// Queue is nil, so reanalyze returns error regardless of diffs
 	req := httptest.NewRequest(http.MethodPost, "/api/reanalyze", nil)

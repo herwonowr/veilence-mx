@@ -8,7 +8,7 @@ type Invitation struct {
 	OrgID      uint       `json:"orgId"`
 	Email      string     `json:"email"`
 	RoleID     uint       `json:"roleId"`
-	Token      string     `json:"-"`
+	TokenHash  string     `json:"-"`
 	InvitedBy  uint       `json:"invitedBy"`
 	ExpiresAt  time.Time  `json:"expiresAt"`
 	AcceptedAt *time.Time `json:"acceptedAt,omitempty"`

@@ -1,8 +1,12 @@
 package notifications_test
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -45,7 +49,7 @@ func newService(db *gorm.DB) *notifications.Service {
 	channelRepo := repository.NewNotificationChannelRepo(db)
 	ruleRepo := repository.NewNotificationRuleRepo(db)
 	notifRepo := repository.NewNotificationRepo(db)
-	return notifications.NewService(channelRepo, ruleRepo, notifRepo)
+	return notifications.NewService(channelRepo, ruleRepo, notifRepo, notifications.SMTPConfig{})
 }
 
 // createTestChannel is a convenience helper that creates a channel and fails
@@ -865,4 +869,276 @@ func TestFullNotificationLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, all, 1)
 	assert.True(t, all[0].IsRead)
+}
+
+// =========================================================================
+// Webhook HMAC-SHA256 signing
+// =========================================================================
+
+func TestDispatch_WebhookHMAC_SignaturePresent(t *testing.T) {
+	const secret = "test-webhook-secret-key"
+
+	var mu sync.Mutex
+	var gotSignature string
+	var receivedBody []byte
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		gotSignature = r.Header.Get("X-Signature-256")
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("failed to read body: %v", err)
+		}
+		receivedBody = body
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	db := setupTestDB(t)
+	svc := newService(db)
+
+	config := fmt.Sprintf(`{"url":"%s","secret":"%s"}`, ts.URL, secret)
+	ch := createTestChannel(t, svc, 1, "HMAC Hook", domain.NotificationChannelWebhook, config)
+	createTestRule(t, svc, 1, ch.ID, "low")
+
+	svc.Dispatch(1, "high", "Signed Title", "Signed Body")
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	require.NotEmpty(t, gotSignature, "X-Signature-256 header should be present")
+	assert.True(t, len(gotSignature) > len("sha256="), "signature should have sha256= prefix")
+	assert.Equal(t, "sha256=", gotSignature[:7], "signature must start with sha256=")
+
+	// Verify the signature matches the body
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write(receivedBody)
+	expectedSig := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+	assert.Equal(t, expectedSig, gotSignature, "HMAC signature should match the payload")
+}
+
+func TestDispatch_WebhookHMAC_NoSecretNoHeader(t *testing.T) {
+	var mu sync.Mutex
+	var gotSignature string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		gotSignature = r.Header.Get("X-Signature-256")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	db := setupTestDB(t)
+	svc := newService(db)
+
+	// No secret in config — backward compatible
+	config := fmt.Sprintf(`{"url":"%s"}`, ts.URL)
+	ch := createTestChannel(t, svc, 1, "No Secret Hook", domain.NotificationChannelWebhook, config)
+	createTestRule(t, svc, 1, ch.ID, "low")
+
+	svc.Dispatch(1, "high", "Unsigned Title", "Unsigned Body")
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	assert.Empty(t, gotSignature, "X-Signature-256 header should NOT be present when no secret is configured")
+}
+
+func TestDispatch_WebhookHMAC_EmptySecretNoHeader(t *testing.T) {
+	var mu sync.Mutex
+	var gotSignature string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		gotSignature = r.Header.Get("X-Signature-256")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	db := setupTestDB(t)
+	svc := newService(db)
+
+	// Empty string secret — should not sign
+	config := fmt.Sprintf(`{"url":"%s","secret":""}`, ts.URL)
+	ch := createTestChannel(t, svc, 1, "Empty Secret", domain.NotificationChannelWebhook, config)
+	createTestRule(t, svc, 1, ch.ID, "low")
+
+	svc.Dispatch(1, "high", "Test", "Test Body")
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	assert.Empty(t, gotSignature, "empty secret should not produce a signature header")
+}
+
+func TestDispatch_WebhookHMAC_DifferentSecretsProduceDifferentSignatures(t *testing.T) {
+	var mu sync.Mutex
+	signatures := make([]string, 0, 2)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		signatures = append(signatures, r.Header.Get("X-Signature-256"))
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	db := setupTestDB(t)
+	svc := newService(db)
+
+	config1 := fmt.Sprintf(`{"url":"%s","secret":"secret-alpha"}`, ts.URL)
+	ch1 := createTestChannel(t, svc, 1, "Hook A", domain.NotificationChannelWebhook, config1)
+	createTestRule(t, svc, 1, ch1.ID, "low")
+
+	config2 := fmt.Sprintf(`{"url":"%s","secret":"secret-beta"}`, ts.URL)
+	ch2 := createTestChannel(t, svc, 2, "Hook B", domain.NotificationChannelWebhook, config2)
+	createTestRule(t, svc, 2, ch2.ID, "low")
+
+	svc.Dispatch(1, "high", "Same Title", "Same Body")
+	svc.Dispatch(2, "high", "Same Title", "Same Body")
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	require.Len(t, signatures, 2)
+	assert.NotEqual(t, signatures[0], signatures[1],
+		"different secrets must produce different signatures even for the same payload")
+}
+
+// =========================================================================
+// ComputeHMACSignature unit tests
+// =========================================================================
+
+func TestComputeHMACSignature_KnownVector(t *testing.T) {
+	secret := []byte("my-secret-key")
+	body := []byte(`{"title":"Hello","message":"World","channel":"test"}`)
+
+	sig := notifications.ComputeHMACSignature(secret, body)
+
+	// Independently compute the expected value
+	mac := hmac.New(sha256.New, secret)
+	mac.Write(body)
+	expected := hex.EncodeToString(mac.Sum(nil))
+
+	assert.Equal(t, expected, sig)
+	assert.Len(t, sig, 64, "SHA-256 hex digest should be 64 characters")
+}
+
+func TestComputeHMACSignature_EmptyBody(t *testing.T) {
+	secret := []byte("key")
+	sig := notifications.ComputeHMACSignature(secret, []byte{})
+
+	mac := hmac.New(sha256.New, secret)
+	mac.Write([]byte{})
+	expected := hex.EncodeToString(mac.Sum(nil))
+
+	assert.Equal(t, expected, sig)
+}
+
+func TestComputeHMACSignature_DeterministicForSameInput(t *testing.T) {
+	secret := []byte("deterministic")
+	body := []byte("same payload")
+
+	sig1 := notifications.ComputeHMACSignature(secret, body)
+	sig2 := notifications.ComputeHMACSignature(secret, body)
+
+	assert.Equal(t, sig1, sig2, "same inputs must produce the same signature")
+}
+
+// =========================================================================
+// ValidateWebhookSignature unit tests
+// =========================================================================
+
+func TestValidateWebhookSignature_Valid(t *testing.T) {
+	secret := []byte("validation-secret")
+	body := []byte(`{"title":"Test","message":"Validate me","channel":"hook"}`)
+
+	sig := notifications.ComputeHMACSignature(secret, body)
+	header := "sha256=" + sig
+
+	assert.True(t, notifications.ValidateWebhookSignature(secret, body, header),
+		"valid signature should pass validation")
+}
+
+func TestValidateWebhookSignature_InvalidDigest(t *testing.T) {
+	secret := []byte("validation-secret")
+	body := []byte(`{"title":"Test","message":"Validate me","channel":"hook"}`)
+
+	// Forge a bad signature
+	header := "sha256=0000000000000000000000000000000000000000000000000000000000000000"
+
+	assert.False(t, notifications.ValidateWebhookSignature(secret, body, header),
+		"forged signature should fail validation")
+}
+
+func TestValidateWebhookSignature_WrongSecret(t *testing.T) {
+	secret := []byte("correct-secret")
+	wrongSecret := []byte("wrong-secret")
+	body := []byte(`{"data":"sensitive"}`)
+
+	sig := notifications.ComputeHMACSignature(wrongSecret, body)
+	header := "sha256=" + sig
+
+	assert.False(t, notifications.ValidateWebhookSignature(secret, body, header),
+		"signature from wrong secret should fail")
+}
+
+func TestValidateWebhookSignature_TamperedBody(t *testing.T) {
+	secret := []byte("tamper-check")
+	originalBody := []byte(`{"title":"Original"}`)
+	tamperedBody := []byte(`{"title":"Tampered"}`)
+
+	sig := notifications.ComputeHMACSignature(secret, originalBody)
+	header := "sha256=" + sig
+
+	assert.False(t, notifications.ValidateWebhookSignature(secret, tamperedBody, header),
+		"tampered body should fail validation")
+}
+
+func TestValidateWebhookSignature_MissingPrefix(t *testing.T) {
+	secret := []byte("prefix-test")
+	body := []byte(`data`)
+
+	sig := notifications.ComputeHMACSignature(secret, body)
+
+	// No "sha256=" prefix
+	assert.False(t, notifications.ValidateWebhookSignature(secret, body, sig),
+		"signature without sha256= prefix should fail")
+}
+
+func TestValidateWebhookSignature_EmptyHeader(t *testing.T) {
+	secret := []byte("empty-header")
+	body := []byte(`data`)
+
+	assert.False(t, notifications.ValidateWebhookSignature(secret, body, ""),
+		"empty header should fail")
+}
+
+func TestValidateWebhookSignature_PrefixOnly(t *testing.T) {
+	secret := []byte("prefix-only")
+	body := []byte(`data`)
+
+	assert.False(t, notifications.ValidateWebhookSignature(secret, body, "sha256="),
+		"header with only prefix and no digest should fail")
+}
+
+func TestValidateWebhookSignature_InvalidHex(t *testing.T) {
+	secret := []byte("hex-test")
+	body := []byte(`data`)
+
+	assert.False(t, notifications.ValidateWebhookSignature(secret, body, "sha256=not-valid-hex!@#$"),
+		"invalid hex in signature should fail")
+}
+
+func TestValidateWebhookSignature_WrongAlgorithmPrefix(t *testing.T) {
+	secret := []byte("algo-test")
+	body := []byte(`data`)
+
+	sig := notifications.ComputeHMACSignature(secret, body)
+
+	assert.False(t, notifications.ValidateWebhookSignature(secret, body, "sha512="+sig),
+		"wrong algorithm prefix should fail")
 }

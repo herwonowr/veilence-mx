@@ -1,10 +1,10 @@
 package handlers
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
 
-	"github.com/veilence/veilence-mx/backend/internal/models"
 	"github.com/veilence/veilence-mx/backend/internal/rbac"
 )
 
@@ -44,6 +44,7 @@ type chartData struct {
 // GetChartData returns aggregated data for dashboard charts, scoped to the current org.
 func (h *DashboardHandlers) GetChartData(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
+	ctx := r.Context()
 	var data chartData
 
 	// Parse time range from query params
@@ -70,17 +71,12 @@ func (h *DashboardHandlers) GetChartData(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 1. Release activity — releases per day within range, scoped to org
-	var activityRows []struct {
-		Date  time.Time
-		Count int64
+	activityRows, err := h.Dashboard.GetReleaseActivity(ctx, orgID, from, to)
+	if err != nil {
+		slog.Error("failed to get release activity", "org_id", orgID, "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to get chart data")
+		return
 	}
-	h.DB.Model(&models.Release{}).
-		Joins("JOIN packages ON packages.id = releases.package_id").
-		Select("DATE(releases.created_at) as date, COUNT(*) as count").
-		Where("packages.org_id = ? AND releases.created_at >= ? AND releases.created_at <= ?", orgID, from, to).
-		Group("DATE(releases.created_at)").
-		Order("date ASC").
-		Scan(&activityRows)
 
 	// Fill in missing days with 0
 	dayMap := make(map[string]int64)
@@ -96,25 +92,19 @@ func (h *DashboardHandlers) GetChartData(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 2. Classification distribution (within range), scoped to org
-	var classRows []struct {
-		Classification string
-		Count          int64
+	classRows, err := h.Dashboard.GetClassificationDistribution(ctx, orgID, from, to)
+	if err != nil {
+		slog.Error("failed to get classification distribution", "org_id", orgID, "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to get chart data")
+		return
 	}
-	h.DB.Model(&models.Analysis{}).
-		Joins("JOIN diffs ON diffs.id = analyses.diff_id").
-		Joins("JOIN releases ON releases.id = diffs.release_id").
-		Joins("JOIN packages ON packages.id = releases.package_id").
-		Select("analyses.classification, COUNT(*) as count").
-		Where("packages.org_id = ? AND analyses.created_at >= ? AND analyses.created_at <= ?", orgID, from, to).
-		Group("analyses.classification").
-		Scan(&classRows)
 
-	// Also count baselines (completed releases with no diff, within range), scoped to org
-	var baselineCount int64
-	h.DB.Model(&models.Release{}).
-		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("packages.org_id = ? AND releases.status = ? AND releases.id NOT IN (SELECT release_id FROM diffs) AND releases.created_at >= ? AND releases.created_at <= ?", orgID, models.ReleaseStatusCompleted, from, to).
-		Count(&baselineCount)
+	baselineCount, err := h.Dashboard.GetBaselineCount(ctx, orgID, from, to)
+	if err != nil {
+		slog.Error("failed to get baseline count", "org_id", orgID, "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to get chart data")
+		return
+	}
 
 	for _, row := range classRows {
 		data.Classifications = append(data.Classifications, classificationCount{
@@ -133,15 +123,13 @@ func (h *DashboardHandlers) GetChartData(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 3. Registry distribution, scoped to org
-	var regRows []struct {
-		Registry string
-		Count    int64
+	regRows, err := h.Dashboard.GetRegistryDistribution(ctx, orgID)
+	if err != nil {
+		slog.Error("failed to get registry distribution", "org_id", orgID, "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to get chart data")
+		return
 	}
-	h.DB.Model(&models.Package{}).
-		Select("registry, COUNT(*) as count").
-		Where("org_id = ?", orgID).
-		Group("registry").
-		Scan(&regRows)
+
 	for _, row := range regRows {
 		data.Registries = append(data.Registries, registryCount{
 			Registry: row.Registry,
@@ -153,17 +141,13 @@ func (h *DashboardHandlers) GetChartData(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 4. Alerts by severity (within range), scoped to org
-	var alertRows []struct {
-		Severity string
-		Count    int64
+	alertRows, err := h.Dashboard.GetAlertsBySeverity(ctx, orgID, from, to)
+	if err != nil {
+		slog.Error("failed to get alerts by severity", "org_id", orgID, "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to get chart data")
+		return
 	}
-	h.DB.Model(&models.Alert{}).
-		Select("severity, COUNT(*) as count").
-		Where("org_id = ? AND created_at >= ? AND created_at <= ?", orgID, from, to).
-		Group("severity").
-		Scan(&alertRows)
 
-	// Ensure all severities appear
 	severityMap := make(map[string]int64)
 	for _, row := range alertRows {
 		severityMap[row.Severity] = row.Count
@@ -176,16 +160,13 @@ func (h *DashboardHandlers) GetChartData(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 5. Release statuses (within range), scoped to org
-	var statusRows []struct {
-		Status string
-		Count  int64
+	statusRows, err := h.Dashboard.GetReleaseStatusDistribution(ctx, orgID, from, to)
+	if err != nil {
+		slog.Error("failed to get release status distribution", "org_id", orgID, "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to get chart data")
+		return
 	}
-	h.DB.Model(&models.Release{}).
-		Joins("JOIN packages ON packages.id = releases.package_id").
-		Select("releases.status, COUNT(*) as count").
-		Where("packages.org_id = ? AND releases.created_at >= ? AND releases.created_at <= ?", orgID, from, to).
-		Group("releases.status").
-		Scan(&statusRows)
+
 	for _, row := range statusRows {
 		data.ReleaseStatuses = append(data.ReleaseStatuses, releaseStatusCount{
 			Status: row.Status,

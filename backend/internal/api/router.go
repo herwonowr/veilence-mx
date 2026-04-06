@@ -8,6 +8,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/auth"
 	"github.com/veilence/veilence-mx/backend/internal/api/handlers"
 	"github.com/veilence/veilence-mx/backend/internal/api/middleware"
+	"github.com/veilence/veilence-mx/backend/internal/metrics"
 	"github.com/veilence/veilence-mx/backend/internal/rbac"
 )
 
@@ -23,6 +24,7 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 	r.Use(audit.CorrelationMiddleware)
 	r.Use(audit.RequestCaptureMiddleware)
 	r.Use(middleware.Logger)
+	r.Use(middleware.Metrics)
 	r.Use(middleware.CORS(frontendURL))
 
 	// Rate limiters
@@ -36,6 +38,8 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 	r.Route("/api", func(r chi.Router) {
 		// Public routes
 		r.Get("/health", h.Health.HealthCheck)
+		r.Get("/ready", h.Health.ReadinessCheck)
+		r.Handle("/metrics", metrics.Handler())
 
 		// Public auth routes (no authentication required, stricter rate limit)
 		r.Route("/auth", func(r chi.Router) {
@@ -43,7 +47,14 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 			r.Post("/register", h.Auth.Register)
 			r.Post("/login", h.Auth.Login)
 			r.Post("/refresh", h.Auth.RefreshToken)
+			r.Post("/forgot-password", h.Auth.ForgotPassword)
+			r.Post("/reset-password", h.Auth.ResetPassword)
+			r.Post("/verify-email", h.Auth.VerifyEmail)
 		})
+
+		// Public invitation info (no auth required, so frontend can show
+		// "you've been invited to X" before the user logs in)
+		r.Get("/invitations/{token}", h.Org.GetInvitationInfo)
 
 		// Protected routes (authentication required)
 		r.Group(func(r chi.Router) {
@@ -52,6 +63,7 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 			// Protected auth routes
 			r.Post("/auth/logout", h.Auth.Logout)
 			r.Get("/auth/me", h.Auth.GetMe)
+			r.Post("/auth/send-verification", h.Auth.SendVerificationEmail)
 			r.Route("/auth/api-keys", func(r chi.Router) {
 				r.Post("/", h.Auth.CreateAPIKey)
 				r.Get("/", h.Auth.ListAPIKeys)
@@ -61,6 +73,7 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 			// User notifications (not org-scoped, across all orgs)
 			r.Get("/notifications", h.Notifications.ListUserNotifications)
 			r.Get("/notifications/unread-count", h.Notifications.GetUnreadCount)
+			r.Put("/notifications/read-all", h.Notifications.MarkAllNotificationsRead)
 			r.Put("/notifications/{id}/read", h.Notifications.MarkNotificationRead)
 
 			// Permissions (global, not org-scoped)
@@ -130,6 +143,8 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 					// Members
 					r.With(rbac.RequirePermission(rbacService, "members", "read")).Get("/members", h.Org.ListMembers)
 					r.With(rbac.RequirePermission(rbacService, "members", "invite")).Post("/invitations", h.Org.InviteMember)
+					r.With(rbac.RequirePermission(rbacService, "members", "read")).Get("/invitations", h.Org.ListPendingInvitations)
+					r.With(rbac.RequirePermission(rbacService, "members", "invite")).Delete("/invitations/{id}", h.Org.RevokeInvitation)
 					r.With(rbac.RequirePermission(rbacService, "members", "remove")).Delete("/members/{userId}", h.Org.RemoveMember)
 					r.With(rbac.RequirePermission(rbacService, "members", "remove")).Put("/members/{userId}/role", h.Org.UpdateMemberRole)
 

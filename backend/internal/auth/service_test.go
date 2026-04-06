@@ -25,6 +25,8 @@ func setupAuthTestDB(t *testing.T) *gorm.DB {
 		&models.User{},
 		&models.RefreshToken{},
 		&models.APIKey{},
+		&models.PasswordResetToken{},
+		&models.EmailVerificationToken{},
 	)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -38,7 +40,9 @@ func newAuthService(db *gorm.DB) *auth.Service {
 	userRepo := repository.NewUserRepo(db)
 	refreshTokenRepo := repository.NewRefreshTokenRepo(db)
 	apiKeyRepo := repository.NewAPIKeyRepo(db)
-	return auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, testJWTSecret)
+	passwordResetTokenRepo := repository.NewPasswordResetTokenRepo(db)
+	emailVerificationTokenRepo := repository.NewEmailVerificationTokenRepo(db)
+	return auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, testJWTSecret)
 }
 
 // --- Register ---
@@ -304,7 +308,7 @@ func BenchmarkValidateAPIKey(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.User{}, &models.RefreshToken{}, &models.APIKey{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.RefreshToken{}, &models.APIKey{}, &models.PasswordResetToken{}, &models.EmailVerificationToken{}); err != nil {
 		b.Fatal(err)
 	}
 
@@ -312,7 +316,9 @@ func BenchmarkValidateAPIKey(b *testing.B) {
 		userRepo := repository.NewUserRepo(db)
 		refreshTokenRepo := repository.NewRefreshTokenRepo(db)
 		apiKeyRepo := repository.NewAPIKeyRepo(db)
-		return auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, testJWTSecret)
+		passwordResetTokenRepo := repository.NewPasswordResetTokenRepo(db)
+		emailVerificationTokenRepo := repository.NewEmailVerificationTokenRepo(db)
+		return auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, testJWTSecret)
 	}()
 
 	user, err := svc.Register("bench@example.com", "Password123", "Bench", "User")

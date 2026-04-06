@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/veilence/veilence-mx/backend/internal/models"
@@ -8,36 +9,16 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/rbac"
 )
 
-// dashboardStats holds the statistics for the dashboard.
-type dashboardStats struct {
-	TotalPackages   int64 `json:"totalPackages"`
-	TotalReleases   int64 `json:"totalReleases"`
-	PendingAnalyses int64 `json:"pendingAnalyses"`
-	ActiveAlerts    int64 `json:"activeAlerts"`
-	RecentMalicious int64 `json:"recentMalicious"`
-}
-
 // GetDashboardStats returns overview statistics for the dashboard, scoped to the current org.
 func (h *DashboardHandlers) GetDashboardStats(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
-	var stats dashboardStats
 
-	h.DB.Model(&models.Package{}).Where("org_id = ?", orgID).Count(&stats.TotalPackages)
-	h.DB.Model(&models.Release{}).
-		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("packages.org_id = ?", orgID).
-		Count(&stats.TotalReleases)
-	h.DB.Model(&models.Release{}).
-		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("packages.org_id = ? AND releases.status IN ?", orgID, []string{"pending", "diffing", "analyzing"}).
-		Count(&stats.PendingAnalyses)
-	h.DB.Model(&models.Alert{}).Where("org_id = ? AND status = ?", orgID, "new").Count(&stats.ActiveAlerts)
-	h.DB.Model(&models.Analysis{}).
-		Joins("JOIN diffs ON diffs.id = analyses.diff_id").
-		Joins("JOIN releases ON releases.id = diffs.release_id").
-		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("packages.org_id = ? AND analyses.classification = ?", orgID, "malicious").
-		Count(&stats.RecentMalicious)
+	stats, err := h.Dashboard.GetStats(r.Context(), orgID)
+	if err != nil {
+		slog.Error("failed to get dashboard stats", "org_id", orgID, "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to get dashboard stats")
+		return
+	}
 
 	respondJSON(w, http.StatusOK, stats, nil)
 }
@@ -51,6 +32,8 @@ type recentRelease struct {
 }
 
 // GetRecentReleases returns the most recent releases across all packages, scoped to the current org.
+// NOTE: This handler still uses direct DB access for the complex paginated query with dynamic filters.
+// The simpler aggregation queries have been moved to the DashboardRepository.
 func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
@@ -128,6 +111,8 @@ func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Req
 }
 
 // ReanalyzeAll re-queues all un-analyzed diffs for analysis, scoped to the current org.
+// Unlike the global RetryDeadJobs queue endpoint, this only enqueues diffs that belong
+// to the current organization's packages.
 func (h *DashboardHandlers) ReanalyzeAll(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
@@ -137,30 +122,25 @@ func (h *DashboardHandlers) ReanalyzeAll(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Find diffs without analysis results, scoped to current org's packages
-	var diffIDs []uint
-	h.DB.Model(&models.Diff{}).
-		Select("diffs.id").
-		Joins("JOIN releases ON releases.id = diffs.release_id").
-		Joins("JOIN packages ON packages.id = releases.package_id").
-		Joins("LEFT JOIN analyses ON analyses.diff_id = diffs.id").
-		Where("packages.org_id = ? AND analyses.id IS NULL", orgID).
-		Pluck("diffs.id", &diffIDs)
+	diffIDs, err := h.Dashboard.GetUnanalyzedDiffIDs(r.Context(), orgID)
+	if err != nil {
+		slog.Error("failed to get unanalyzed diff IDs", "org_id", orgID, "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to find unanalyzed diffs")
+		return
+	}
 
 	queued := 0
 	for _, id := range diffIDs {
 		if _, err := h.Queue.Enqueue(r.Context(), queue.JobTypeAnalyze, id); err != nil {
-			respondError(w, http.StatusInternalServerError, "failed to enqueue: "+err.Error())
+			slog.Error("failed to enqueue analysis job", "diff_id", id, "org_id", orgID, "error", err)
+			respondError(w, http.StatusInternalServerError, "failed to enqueue analysis job")
 			return
 		}
 		queued++
 	}
 
-	// Also retry dead-letter jobs
-	deadRetried, _ := h.Queue.RequeueAllDead(r.Context(), queue.JobTypeAnalyze)
-
 	respondJSON(w, http.StatusOK, map[string]any{
-		"message":      "re-analysis triggered",
-		"queued":       queued,
-		"dead_retried": deadRetried,
+		"message": "re-analysis triggered",
+		"queued":  queued,
 	}, nil)
 }

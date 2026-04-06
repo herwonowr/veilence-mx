@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -71,6 +72,11 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 	}
 	h.Audit.LogAction(r.Context(), "update", "setting", 0, fmt.Sprintf("updated settings: %s", strings.Join(updatedKeys, ", ")))
 
+	// Invalidate the poller settings cache so changes take effect immediately
+	if h.Poller != nil {
+		h.Poller.InvalidateSettingsCache()
+	}
+
 	// Return updated settings
 	h.GetSettings(w, r)
 }
@@ -91,7 +97,8 @@ func (h *SettingsHandlers) SyncTopPackages(w http.ResponseWriter, r *http.Reques
 		}
 
 		if err := h.Poller.SyncTopPackages(r.Context(), h.PyPI, limit, orgID); err != nil {
-			respondError(w, http.StatusInternalServerError, "failed to sync PyPI top packages: "+err.Error())
+			slog.Error("failed to sync PyPI top packages", "org_id", orgID, "error", err)
+			respondError(w, http.StatusInternalServerError, "failed to sync PyPI top packages")
 			return
 		}
 	}
@@ -106,7 +113,8 @@ func (h *SettingsHandlers) SyncTopPackages(w http.ResponseWriter, r *http.Reques
 		}
 
 		if err := h.Poller.SyncTopPackages(r.Context(), h.NPM, limit, orgID); err != nil {
-			respondError(w, http.StatusInternalServerError, "failed to sync npm top packages: "+err.Error())
+			slog.Error("failed to sync npm top packages", "org_id", orgID, "error", err)
+			respondError(w, http.StatusInternalServerError, "failed to sync npm top packages")
 			return
 		}
 	}

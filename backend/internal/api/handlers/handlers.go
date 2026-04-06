@@ -9,6 +9,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/apperror"
 	"github.com/veilence/veilence-mx/backend/internal/audit"
 	"github.com/veilence/veilence-mx/backend/internal/auth"
+	"github.com/veilence/veilence-mx/backend/internal/domain"
 	"github.com/veilence/veilence-mx/backend/internal/notifications"
 	"github.com/veilence/veilence-mx/backend/internal/poller"
 	"github.com/veilence/veilence-mx/backend/internal/queue"
@@ -81,10 +82,10 @@ type SettingsHandlers struct {
 }
 
 // DashboardHandlers handles dashboard statistics, recent releases, charts, and reanalysis endpoints.
-// NOTE: DB will be replaced by a service interface in a future sprint.
 type DashboardHandlers struct {
-	DB    *gorm.DB
-	Queue *queue.Queue
+	DB        *gorm.DB
+	Dashboard domain.DashboardRepository
+	Queue     *queue.Queue
 }
 
 // QueueHandlers handles queue monitoring endpoints.
@@ -109,6 +110,7 @@ func NewHandlers(
 	pypiClient registry.Registry,
 	npmClient registry.Registry,
 	jobQueue *queue.Queue,
+	dashboardRepo domain.DashboardRepository,
 ) *Handlers {
 	return &Handlers{
 		Auth: &AuthHandlers{
@@ -142,8 +144,9 @@ func NewHandlers(
 			Audit:  auditService,
 		},
 		Dashboard: &DashboardHandlers{
-			DB:    db,
-			Queue: jobQueue,
+			DB:        db,
+			Dashboard: dashboardRepo,
+			Queue:     jobQueue,
 		},
 		Queue: &QueueHandlers{
 			Queue: jobQueue,

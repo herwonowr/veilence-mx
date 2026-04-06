@@ -148,13 +148,29 @@ func main() {
 	userRepo := repository.NewUserRepo(db)
 	refreshTokenRepo := repository.NewRefreshTokenRepo(db)
 	apiKeyRepo := repository.NewAPIKeyRepo(db)
-	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, jwtSecret)
+	passwordResetTokenRepo := repository.NewPasswordResetTokenRepo(db)
+	emailVerificationTokenRepo := repository.NewEmailVerificationTokenRepo(db)
+	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, jwtSecret)
 	rbacService := rbac.NewService(db)
 	auditService := audit.NewService(db)
 	notificationChannelRepo := repository.NewNotificationChannelRepo(db)
 	notificationRuleRepo := repository.NewNotificationRuleRepo(db)
 	notificationRepo := repository.NewNotificationRepo(db)
-	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo)
+	smtpConfig := notifications.SMTPConfig{
+		Host:     getEnv("SMTP_HOST", ""),
+		Port:     getEnv("SMTP_PORT", "587"),
+		Username: getEnv("SMTP_USERNAME", ""),
+		Password: getEnv("SMTP_PASSWORD", ""),
+		From:     getEnv("SMTP_FROM", ""),
+		UseTLS:   getEnv("SMTP_USE_TLS", "true") == "true",
+	}
+	if smtpConfig.IsConfigured() {
+		slog.Info("SMTP configured for email notifications", "host", smtpConfig.Host, "port", smtpConfig.Port, "from", smtpConfig.From)
+	} else {
+		slog.Warn("SMTP not configured — email notifications will be skipped. Set SMTP_HOST, SMTP_PORT, SMTP_FROM env vars.")
+	}
+	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, smtpConfig)
+	dashboardRepo := repository.NewDashboardRepo(db)
 
 	h := handlers.NewHandlers(
 		db,
@@ -166,6 +182,7 @@ func main() {
 		pypiClient,
 		npmClient,
 		jobQueue,
+		dashboardRepo,
 	)
 
 	router := api.NewRouter(h, frontendURL, authService, rbacService)

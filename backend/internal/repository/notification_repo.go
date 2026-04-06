@@ -85,6 +85,22 @@ func (r *NotificationRepo) CountUnread(ctx context.Context, orgID, userID uint) 
 	return count, nil
 }
 
+func (r *NotificationRepo) MarkAllRead(ctx context.Context, orgID, userID uint) (int64, error) {
+	query := r.db.WithContext(ctx).Model(&models.Notification{}).
+		Where("is_read = ?", false).
+		Where("user_id = ? OR user_id = 0", userID)
+
+	if orgID != 0 {
+		query = query.Where("org_id = ?", orgID)
+	}
+
+	result := query.Update("is_read", true)
+	if result.Error != nil {
+		return 0, fmt.Errorf("marking all notifications as read: %w", result.Error)
+	}
+	return result.RowsAffected, nil
+}
+
 // --- Converters ---
 
 func notifToDomain(m *models.Notification) *domain.Notification {
