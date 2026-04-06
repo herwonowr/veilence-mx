@@ -1,0 +1,560 @@
+"use client"
+
+import { useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
+import { ProtectedRoute } from "@/components/protected-route"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Loader2,
+  Save,
+  Trash2,
+  UserPlus,
+  UserMinus,
+  ShieldCheck,
+  KeyRound,
+  ScrollText,
+} from "lucide-react"
+import Link from "next/link"
+import {
+  useOrganization,
+  useOrgMembers,
+  useOrgRoles,
+  useUpdateOrganization,
+  useDeleteOrganization,
+  useInviteMember,
+  useRemoveMember,
+  useUpdateMemberRole,
+} from "@/features/admin"
+
+function OrgDetailContent() {
+  const params = useParams<{ id: string }>()
+  const orgId = parseInt(params.id, 10)
+  const router = useRouter()
+  const { user, refreshOrgs } = useAuth()
+
+  const { data: orgRes, isLoading: orgLoading } = useOrganization(orgId)
+  const { data: membersRes } = useOrgMembers(orgId)
+  const { data: rolesRes } = useOrgRoles(orgId)
+
+  const org = orgRes?.data ?? null
+  const members = membersRes?.data ?? []
+  const roles = rolesRes?.data ?? []
+
+  // SEC-S3-007: Determine current user's permissions in this org
+  const currentMember = members.find((m) => m.userId === user?.id)
+  const currentPermissions = currentMember?.role?.permissions ?? []
+  const hasPermission = (resource: string, action: string) =>
+    currentPermissions.some(
+      (p) => p.resource === resource && p.action === action
+    )
+  const isOrgOwner = org?.ownerId === user?.id
+  const canInvite = isOrgOwner || hasPermission("members", "invite")
+  const canRemove = isOrgOwner || hasPermission("members", "remove")
+  const canUpdateOrg = isOrgOwner
+  const canDeleteOrg = isOrgOwner
+
+  // Edit form
+  const [editName, setEditName] = useState("")
+  const [editDescription, setEditDescription] = useState("")
+  const [editInitialized, setEditInitialized] = useState(false)
+
+  // Initialize edit form when org loads
+  if (org && !editInitialized) {
+    setEditName(org.name)
+    setEditDescription(org.description ?? "")
+    setEditInitialized(true)
+  }
+
+  // Invite form
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviteRoleId, setInviteRoleId] = useState<number | null>(null)
+  const [inviteError, setInviteError] = useState("")
+
+  // Delete
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+
+  // Remove member confirmation
+  const [removeMemberDialogOpen, setRemoveMemberDialogOpen] = useState(false)
+  const [memberToRemove, setMemberToRemove] = useState<{
+    userId: number
+    name: string
+  } | null>(null)
+
+  const updateMutation = useUpdateOrganization()
+  const deleteMutation = useDeleteOrganization()
+  const inviteMutation = useInviteMember()
+  const removeMutation = useRemoveMember()
+  const updateRoleMutation = useUpdateMemberRole()
+
+  const handleSave = async () => {
+    await updateMutation.mutateAsync({
+      id: orgId,
+      data: { name: editName, description: editDescription },
+    })
+    await refreshOrgs()
+  }
+
+  const handleDelete = async () => {
+    await deleteMutation.mutateAsync(orgId)
+    await refreshOrgs()
+    router.push("/organizations")
+  }
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!inviteRoleId) return
+    setInviteError("")
+    try {
+      await inviteMutation.mutateAsync({
+        orgId,
+        data: { email: inviteEmail, roleId: inviteRoleId },
+      })
+      setInviteDialogOpen(false)
+      setInviteEmail("")
+      setInviteRoleId(null)
+    } catch (err) {
+      setInviteError(
+        err instanceof Error ? err.message : "Failed to send invitation"
+      )
+    }
+  }
+
+  const handleRemoveMember = (userId: number) => {
+    removeMutation.mutate({ orgId, userId })
+    setRemoveMemberDialogOpen(false)
+    setMemberToRemove(null)
+  }
+
+  const confirmRemoveMember = (userId: number, firstName?: string, lastName?: string) => {
+    setMemberToRemove({
+      userId,
+      name: [firstName, lastName].filter(Boolean).join(" ") || "this member",
+    })
+    setRemoveMemberDialogOpen(true)
+  }
+
+  const handleUpdateRole = (userId: number, roleId: number) => {
+    updateRoleMutation.mutate({ orgId, userId, roleId })
+  }
+
+  if (orgLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    )
+  }
+
+  if (!org) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-xl font-medium">Organization not found</h2>
+        <Button variant="link" onClick={() => router.push("/organizations")}>
+          Back to Organizations
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">{org.name}</h1>
+          <p className="text-sm text-muted-foreground font-mono">{org.slug}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href={`/organizations/${org.id}/audit`}>
+            <Button variant="outline" size="sm">
+              <ScrollText className="mr-2 size-4" />
+              Audit Log
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      <Tabs defaultValue="members">
+        <TabsList>
+          <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="roles">Roles</TabsTrigger>
+          {canUpdateOrg && (
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          )}
+        </TabsList>
+
+        {/* Members Tab */}
+        <TabsContent value="members" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-medium">Team Members</h2>
+            {canInvite && (
+            <Dialog
+              open={inviteDialogOpen}
+              onOpenChange={setInviteDialogOpen}
+            >
+              <DialogTrigger render={<Button size="sm" />}>
+                <UserPlus className="mr-2 size-4" />
+                Invite Member
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <form onSubmit={handleInvite}>
+                  <DialogHeader>
+                    <DialogTitle>Invite Member</DialogTitle>
+                    <DialogDescription>
+                      Send an invitation to join this organization.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    {inviteError && (
+                      <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                        {inviteError}
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor="invite-email">Email</Label>
+                      <Input
+                        id="invite-email"
+                        type="email"
+                        placeholder="user@example.com"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Role</Label>
+                      <Select
+                        value={inviteRoleId != null ? String(inviteRoleId) : undefined}
+                        onValueChange={(v) => setInviteRoleId(v ? parseInt(String(v), 10) : null)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roles.map((role) => (
+                            <SelectItem key={role.id} value={String(role.id)}>
+                              {role.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" disabled={inviteMutation.isPending || !inviteRoleId}>
+                      {inviteMutation.isPending && (
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                      )}
+                      Send Invitation
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+            )}
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead className="w-24">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {members.map((member) => (
+                    <TableRow key={member.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">
+                            {member.firstName} {member.lastName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {member.email}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={String(member.roleId)}
+                          onValueChange={(v) =>
+                            handleUpdateRole(member.userId, parseInt(String(v), 10))
+                          }
+                          disabled={member.userId === user?.id || !canRemove}
+                        >
+                          <SelectTrigger className="w-28">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {roles.map((role) => (
+                              <SelectItem key={role.id} value={String(role.id)}>
+                                {role.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(member.joinedAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        {member.userId !== user?.id && canRemove && (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() =>
+                              confirmRemoveMember(
+                                member.userId,
+                                member.firstName,
+                                member.lastName
+                              )
+                            }
+                          >
+                            <UserMinus className="size-4 text-destructive" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {members.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={4}
+                        className="text-center py-8 text-muted-foreground"
+                      >
+                        No members found
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Remove Member Confirmation Dialog */}
+          <Dialog
+            open={removeMemberDialogOpen}
+            onOpenChange={setRemoveMemberDialogOpen}
+          >
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Remove Member</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to remove{" "}
+                  <strong>{memberToRemove?.name}</strong> from this
+                  organization? They will lose access to all organization
+                  resources.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setRemoveMemberDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() =>
+                    memberToRemove &&
+                    handleRemoveMember(memberToRemove.userId)
+                  }
+                  disabled={removeMutation.isPending}
+                >
+                  {removeMutation.isPending && (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  )}
+                  Remove
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
+
+        {/* Roles Tab */}
+        <TabsContent value="roles" className="space-y-4">
+          <h2 className="text-lg font-medium">Roles & Permissions</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {roles.map((role) => (
+              <Card key={role.id}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <ShieldCheck className="size-4" />
+                      {role.name}
+                    </CardTitle>
+                    {role.isSystem && (
+                      <Badge variant="secondary">System</Badge>
+                    )}
+                  </div>
+                  <CardDescription>{role.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-1">
+                    {role.permissions?.map((perm) => (
+                      <Badge key={perm.id} variant="outline" className="text-xs">
+                        <KeyRound className="mr-1 size-3" />
+                        {perm.resource}:{perm.action}
+                      </Badge>
+                    ))}
+                    {(!role.permissions || role.permissions.length === 0) && (
+                      <span className="text-xs text-muted-foreground">
+                        No permissions assigned
+                      </span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* Settings Tab — owner only */}
+        {canUpdateOrg && (
+        <TabsContent value="settings" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Organization Settings</CardTitle>
+              <CardDescription>
+                Update your organization&apos;s name and description.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Name</Label>
+                <Input
+                  id="edit-name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-description">Description</Label>
+                <Input
+                  id="edit-description"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-4">
+                <Button onClick={handleSave} disabled={updateMutation.isPending}>
+                  {updateMutation.isPending ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 size-4" />
+                  )}
+                  Save Changes
+                </Button>
+                {updateMutation.isSuccess && (
+                  <span className="text-sm text-green-600">
+                    Saved successfully
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-destructive/50">
+            <CardHeader>
+              <CardTitle className="text-destructive">Danger Zone</CardTitle>
+              <CardDescription>
+                Permanently delete this organization and all its data.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Dialog
+                open={deleteDialogOpen}
+                onOpenChange={setDeleteDialogOpen}
+              >
+                <DialogTrigger render={<Button variant="destructive" />}>
+                  <Trash2 className="mr-2 size-4" />
+                  Delete Organization
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Delete Organization</DialogTitle>
+                    <DialogDescription>
+                      Are you sure? This action cannot be undone. All data
+                      associated with <strong>{org.name}</strong> will be
+                      permanently deleted.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setDeleteDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleDelete}
+                      disabled={deleteMutation.isPending}
+                    >
+                      {deleteMutation.isPending && (
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                      )}
+                      Delete
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        )}
+      </Tabs>
+    </div>
+  )
+}
+
+export default function OrgDetailPage() {
+  return (
+    <ProtectedRoute>
+      <OrgDetailContent />
+    </ProtectedRoute>
+  )
+}

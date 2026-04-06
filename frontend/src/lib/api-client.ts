@@ -18,6 +18,8 @@ import type {
   ApiKeyInfo,
   AuditLog,
   Notification,
+  NotificationChannel,
+  NotificationRule,
 } from "@/types"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"
@@ -140,6 +142,15 @@ async function fetchApi<T>(
     }
   }
 
+  // SEC-S3-006: Handle 429 rate limiting with Retry-After header
+  if (response.status === 429) {
+    const retryAfter = response.headers.get("Retry-After")
+    const seconds = retryAfter ? parseInt(retryAfter, 10) : 60
+    throw new Error(
+      `Rate limited. Please try again in ${seconds} second${seconds !== 1 ? "s" : ""}.`
+    )
+  }
+
   const body = (await response.json()) as ApiResponse<T>
 
   if (!response.ok) {
@@ -196,6 +207,55 @@ export async function apiLogout(
 
 export async function apiGetMe(): Promise<ApiResponse<User>> {
   return fetchApi<User>("/api/auth/me")
+}
+
+export async function apiForgotPassword(
+  email: string
+): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi<{ message: string }>("/api/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+    skipAuth: true,
+  })
+}
+
+export async function apiResetPassword(
+  token: string,
+  password: string
+): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi<{ message: string }>("/api/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, password }),
+    skipAuth: true,
+  })
+}
+
+export async function apiUpdateProfile(data: {
+  firstName: string
+  lastName: string
+}): Promise<ApiResponse<User>> {
+  return fetchApi<User>("/api/auth/me", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiChangePassword(data: {
+  currentPassword: string
+  newPassword: string
+}): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi<{ message: string }>("/api/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiSendVerificationEmail(): Promise<
+  ApiResponse<{ message: string }>
+> {
+  return fetchApi<{ message: string }>("/api/auth/send-verification", {
+    method: "POST",
+  })
 }
 
 // ─── API Keys ────────────────────────────────────────────────
@@ -333,6 +393,84 @@ export async function apiGetAuditLogs(
   return fetchApi<AuditLog[]>(
     `/api/orgs/${orgId}/audit-logs${query ? `?${query}` : ""}`
   )
+}
+
+// ─── Notification Channels ────────────────────────────────────
+
+export async function apiListChannels(
+  orgId: number
+): Promise<ApiResponse<NotificationChannel[]>> {
+  return fetchApi<NotificationChannel[]>(
+    `/api/orgs/${orgId}/notification-channels`
+  )
+}
+
+export async function apiCreateChannel(
+  orgId: number,
+  data: { name: string; type: string; config: string }
+): Promise<ApiResponse<NotificationChannel>> {
+  return fetchApi<NotificationChannel>(
+    `/api/orgs/${orgId}/notification-channels`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  )
+}
+
+export async function apiUpdateChannel(
+  orgId: number,
+  id: number,
+  data: { name: string; config: string; isActive: boolean }
+): Promise<ApiResponse<NotificationChannel>> {
+  return fetchApi<NotificationChannel>(
+    `/api/orgs/${orgId}/notification-channels/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }
+  )
+}
+
+export async function apiDeleteChannel(
+  orgId: number,
+  id: number
+): Promise<ApiResponse<null>> {
+  return fetchApi<null>(`/api/orgs/${orgId}/notification-channels/${id}`, {
+    method: "DELETE",
+  })
+}
+
+// ─── Notification Rules ──────────────────────────────────────
+
+export async function apiListRules(
+  orgId: number
+): Promise<ApiResponse<NotificationRule[]>> {
+  return fetchApi<NotificationRule[]>(
+    `/api/orgs/${orgId}/notification-rules`
+  )
+}
+
+export async function apiCreateRule(
+  orgId: number,
+  data: { channelId: number; severity: string }
+): Promise<ApiResponse<NotificationRule>> {
+  return fetchApi<NotificationRule>(
+    `/api/orgs/${orgId}/notification-rules`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  )
+}
+
+export async function apiDeleteRule(
+  orgId: number,
+  id: number
+): Promise<ApiResponse<null>> {
+  return fetchApi<null>(`/api/orgs/${orgId}/notification-rules/${id}`, {
+    method: "DELETE",
+  })
 }
 
 // ─── Existing API Functions ────────────────────────────────────
