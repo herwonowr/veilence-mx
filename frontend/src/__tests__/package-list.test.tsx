@@ -1,0 +1,177 @@
+/**
+ * Tests for package list and creation data flow.
+ */
+
+import { renderHook, waitFor, act } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { http, HttpResponse } from "msw"
+import { server } from "./msw-server"
+import { usePackages, useCreatePackage } from "@/features/packages"
+import { createPackage, createPackages } from "@/test-fixtures"
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
+}))
+
+vi.mock("@/lib/auth-context", () => ({
+  useAuth: vi.fn(() => ({
+    user: null,
+    isAuthenticated: false,
+    isLoading: false,
+    currentOrg: null,
+    organizations: [],
+    login: vi.fn(),
+    register: vi.fn(),
+    logout: vi.fn(),
+    setCurrentOrg: vi.fn(),
+    refreshUser: vi.fn(),
+    refreshOrgs: vi.fn(),
+  })),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}))
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  })
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  }
+}
+
+describe("Package list data flow", () => {
+  it("renders packages from API", async () => {
+    const { result } = renderHook(() => usePackages(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    const packages = result.current.data?.data
+    expect(packages).toHaveLength(3)
+    expect(packages?.[0]).toHaveProperty("name")
+    expect(packages?.[0]).toHaveProperty("registry")
+    expect(packages?.[0]).toHaveProperty("latestVersion")
+  })
+
+  it("filters by registry", async () => {
+    server.use(
+      http.get("http://localhost:8080/api/packages", ({ request }) => {
+        const url = new URL(request.url)
+        const registry = url.searchParams.get("registry")
+        if (registry === "npm") {
+          return HttpResponse.json({
+            data: [createPackage({ id: 1, name: "lodash", registry: "npm" })],
+            error: null,
+            meta: { page: 1, limit: 20, total: 1 },
+          })
+        }
+        return HttpResponse.json({
+          data: createPackages(3),
+          error: null,
+          meta: { page: 1, limit: 20, total: 3 },
+        })
+      })
+    )
+
+    const { result } = renderHook(
+      () => usePackages({ registry: "npm" }),
+      { wrapper: createWrapper() }
+    )
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    expect(result.current.data?.data).toHaveLength(1)
+    expect(result.current.data?.data[0].registry).toBe("npm")
+  })
+
+  it("shows empty state", async () => {
+    server.use(
+      http.get("http://localhost:8080/api/packages", () => {
+        return HttpResponse.json({
+          data: [],
+          error: null,
+          meta: { page: 1, limit: 20, total: 0 },
+        })
+      })
+    )
+
+    const { result } = renderHook(() => usePackages(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    expect(result.current.data?.data).toEqual([])
+    expect(result.current.data?.meta?.total).toBe(0)
+  })
+})
+
+describe("Package creation form data flow", () => {
+  it("creates a package via API", async () => {
+    let capturedBody: { name: string; registry: string } | null = null
+
+    server.use(
+      http.post("http://localhost:8080/api/packages", async ({ request }) => {
+        capturedBody = (await request.json()) as { name: string; registry: string }
+        return HttpResponse.json(
+          {
+            data: createPackage({ name: capturedBody.name, registry: capturedBody.registry as "npm" | "pypi" }),
+            error: null,
+          },
+          { status: 201 }
+        )
+      })
+    )
+
+    const { result } = renderHook(() => useCreatePackage(), {
+      wrapper: createWrapper(),
+    })
+
+    await act(async () => {
+      result.current.mutate({ name: "requests", registry: "pypi" })
+    })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+    expect(capturedBody?.name).toBe("requests")
+    expect(capturedBody?.registry).toBe("pypi")
+  })
+
+  it("handles duplicate package error", async () => {
+    server.use(
+      http.post("http://localhost:8080/api/packages", () => {
+        return HttpResponse.json(
+          { data: null, error: "Package already exists" },
+          { status: 409 }
+        )
+      })
+    )
+
+    const { result } = renderHook(() => useCreatePackage(), {
+      wrapper: createWrapper(),
+    })
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({ name: "existing-pkg", registry: "npm" })
+      } catch {
+        // Expected
+      }
+    })
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true)
+    })
+  })
+})

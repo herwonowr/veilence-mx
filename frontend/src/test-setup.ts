@@ -1,4 +1,14 @@
 import "@testing-library/jest-dom/vitest"
+import { server } from "./__tests__/msw-server"
+
+// ── MSW server lifecycle ──────────────────────────────────────
+// Registered here (setupFiles) so server.listen() is guaranteed
+// to fire before every test file and patch globalThis.fetch.
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: "bypass" })
+})
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())
 
 // Mock next/navigation
 vi.mock("next/navigation", () => ({

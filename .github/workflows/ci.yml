@@ -58,13 +58,54 @@ jobs:
         run: go vet ./...
         working-directory: backend
 
-      - name: Test
-        run: go test -race -count=1 ./...
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: backend
+          args: --timeout=5m
+
+      - name: Test with coverage
+        run: |
+          go test -race -count=1 -coverprofile=coverage.out -covermode=atomic ./...
+          go tool cover -func=coverage.out | tee coverage.txt
         working-directory: backend
+
+      - name: Check coverage threshold (45%)
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Total backend coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 45" | bc -l) )); then
+            echo "::error::Backend coverage ${COVERAGE}% is below 45% threshold"
+            exit 1
+          fi
+        working-directory: backend
+
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.out
+          retention-days: 30
 
       - name: Build
         run: go build ./...
         working-directory: backend
+
+      - name: Benchmark (baseline, no regression gate)
+        run: |
+          go test -bench=. -benchmem -run=^$ -count=1 ./... 2>&1 | tee benchmark.txt
+          echo "::notice::Benchmark baseline captured (no regression gate in v1.0.0)"
+        working-directory: backend
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-benchmarks
+          path: backend/benchmark.txt
+          retention-days: 30
 
   frontend:
     name: Frontend
@@ -88,6 +129,32 @@ jobs:
       - name: Lint
         run: npm run lint
         working-directory: frontend
+
+      - name: Test with coverage
+        run: npm run test:coverage
+        working-directory: frontend
+
+      - name: Check coverage threshold (30%)
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            COVERAGE=$(node -e "const c = require('./coverage/coverage-summary.json'); console.log(c.total.lines.pct)")
+            echo "Total frontend coverage: ${COVERAGE}%"
+            if (( $(echo "$COVERAGE < 30" | bc -l) )); then
+              echo "::error::Frontend coverage ${COVERAGE}% is below 30% threshold"
+              exit 1
+            fi
+          else
+            echo "::warning::No coverage summary found, skipping threshold check"
+          fi
+        working-directory: frontend
+
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          retention-days: 30
 
       - name: Build
         run: npm run build

@@ -38,6 +38,9 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		&models.NotificationChannel{},
 		&models.NotificationRule{},
 		&models.Notification{},
+		&models.Session{},
+		&models.PasswordResetToken{},
+		&models.EmailVerificationToken{},
 	)
 	require.NoError(t, err)
 	t.Cleanup(func() {
