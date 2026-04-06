@@ -36,7 +36,11 @@ func main() {
 
 	_ = godotenv.Load()
 
-	dbURL := getEnv("DATABASE_URL", "postgres://veilence:veilence_dev@localhost:5432/veilence_mx?sslmode=disable")
+	dbURL := getEnv("DATABASE_URL", "")
+	if dbURL == "" {
+		slog.Error("DATABASE_URL environment variable is required")
+		os.Exit(1)
+	}
 	redisURL := getEnv("REDIS_URL", "redis://localhost:6379/0")
 	port := getEnv("SERVER_PORT", "8080")
 	frontendURL := getEnv("FRONTEND_URL", "http://localhost:3000")

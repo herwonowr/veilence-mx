@@ -68,7 +68,7 @@ export function clearOrgId() {
 // SEC-S4-002: Read CSRF token from cookie set by backend CSRF middleware
 function getCsrfToken(): string {
   if (typeof document === "undefined") return ""
-  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/)
+  const match = document.cookie.match(/(?:^|;\s*)_csrf_token=([^;]+)/)
   return match ? match[1] : ""
 }
 
@@ -89,6 +89,7 @@ async function attemptTokenRefresh(): Promise<boolean> {
 
       const response = await fetch(`${API_BASE}/api/auth/refresh`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refreshToken }),
       })
@@ -145,6 +146,7 @@ async function fetchApi<T>(
 
   let response = await fetch(`${API_BASE}${endpoint}`, {
     ...fetchOptions,
+    credentials: "include",
     headers,
   })
 
@@ -158,6 +160,7 @@ async function fetchApi<T>(
       }
       response = await fetch(`${API_BASE}${endpoint}`, {
         ...fetchOptions,
+        credentials: "include",
         headers,
       })
     }

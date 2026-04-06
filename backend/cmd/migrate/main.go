@@ -32,7 +32,8 @@ func main() {
 
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
-		dsn = "postgres://veilence:veilence_dev@localhost:5432/veilence_mx?sslmode=disable"
+		slog.Error("DATABASE_URL environment variable is required")
+		os.Exit(1)
 	}
 
 	db, err := sql.Open("postgres", dsn)

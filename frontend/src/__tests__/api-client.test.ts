@@ -9,9 +9,9 @@
 
 beforeEach(() => {
   localStorage.clear()
-  // Clear csrf_token cookie reliably across test environments
-  document.cookie = "csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
-  document.cookie = "csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+  // Clear _csrf_token cookie reliably across test environments
+  document.cookie = "_csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
+  document.cookie = "_csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT"
   // Force-overwrite with empty value in case happy-dom doesn't support expires
   Object.defineProperty(document, "cookie", {
     writable: true,
@@ -271,7 +271,7 @@ describe("api-client", () => {
     it("attaches X-CSRF-Token header for POST requests when cookie is set", async () => {
       const api = await loadApiClient()
 
-      document.cookie = "csrf_token=abc123csrftoken"
+      document.cookie = "_csrf_token=abc123csrftoken"
 
       const mockResponse = {
         ok: true,
@@ -294,7 +294,7 @@ describe("api-client", () => {
     it("attaches X-CSRF-Token header for DELETE requests", async () => {
       const api = await loadApiClient()
 
-      document.cookie = "csrf_token=delete-csrf-tok"
+      document.cookie = "_csrf_token=delete-csrf-tok"
 
       const mockResponse = {
         ok: true,
@@ -314,7 +314,7 @@ describe("api-client", () => {
     it("attaches X-CSRF-Token header for PUT requests", async () => {
       const api = await loadApiClient()
 
-      document.cookie = "csrf_token=put-csrf-tok"
+      document.cookie = "_csrf_token=put-csrf-tok"
 
       const mockResponse = {
         ok: true,
@@ -337,7 +337,7 @@ describe("api-client", () => {
     it("attaches X-CSRF-Token header for PATCH requests", async () => {
       const api = await loadApiClient()
 
-      document.cookie = "csrf_token=patch-csrf-tok"
+      document.cookie = "_csrf_token=patch-csrf-tok"
 
       const mockResponse = {
         ok: true,
@@ -360,7 +360,7 @@ describe("api-client", () => {
     it("does NOT attach X-CSRF-Token header for GET requests", async () => {
       const api = await loadApiClient()
 
-      document.cookie = "csrf_token=should-not-appear"
+      document.cookie = "_csrf_token=should-not-appear"
 
       const mockResponse = {
         ok: true,
