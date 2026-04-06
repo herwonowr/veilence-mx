@@ -12,7 +12,7 @@ type queueStatsResponse struct {
 }
 
 // GetQueueStats returns current queue statistics.
-func (h *Handlers) GetQueueStats(w http.ResponseWriter, r *http.Request) {
+func (h *QueueHandlers) GetQueueStats(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
 		respondError(w, http.StatusInternalServerError, "queue not configured")
 		return
@@ -37,7 +37,7 @@ func (h *Handlers) GetQueueStats(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetDeadJobs returns dead-letter jobs for a given queue type.
-func (h *Handlers) GetDeadJobs(w http.ResponseWriter, r *http.Request) {
+func (h *QueueHandlers) GetDeadJobs(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
 		respondError(w, http.StatusInternalServerError, "queue not configured")
 		return
@@ -58,7 +58,7 @@ func (h *Handlers) GetDeadJobs(w http.ResponseWriter, r *http.Request) {
 }
 
 // RetryDeadJobs re-queues all dead-letter jobs for a given type.
-func (h *Handlers) RetryDeadJobs(w http.ResponseWriter, r *http.Request) {
+func (h *QueueHandlers) RetryDeadJobs(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
 		respondError(w, http.StatusInternalServerError, "queue not configured")
 		return

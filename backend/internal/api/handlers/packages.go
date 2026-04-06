@@ -14,7 +14,7 @@ import (
 )
 
 // ListPackages returns a paginated list of packages scoped to the current org.
-func (h *Handlers) ListPackages(w http.ResponseWriter, r *http.Request) {
+func (h *PackageHandlers) ListPackages(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
 	page, limit := parsePagination(r)
@@ -54,7 +54,7 @@ func (h *Handlers) ListPackages(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetPackage returns a single package scoped to the current org.
-func (h *Handlers) GetPackage(w http.ResponseWriter, r *http.Request) {
+func (h *PackageHandlers) GetPackage(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
 	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
@@ -78,7 +78,7 @@ type createPackageRequest struct {
 }
 
 // CreatePackage adds a custom package to monitor within the current org.
-func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
+func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
 	var req createPackageRequest
@@ -120,7 +120,7 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeletePackage removes a package from monitoring within the current org.
-func (h *Handlers) DeletePackage(w http.ResponseWriter, r *http.Request) {
+func (h *PackageHandlers) DeletePackage(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
 	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)

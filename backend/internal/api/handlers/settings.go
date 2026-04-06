@@ -12,7 +12,7 @@ import (
 )
 
 // GetSettings returns all settings as a key-value map scoped to the current org.
-func (h *Handlers) GetSettings(w http.ResponseWriter, r *http.Request) {
+func (h *SettingsHandlers) GetSettings(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
 	var settings []models.Setting
@@ -27,7 +27,7 @@ func (h *Handlers) GetSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateSettings updates settings from a key-value map scoped to the current org.
-func (h *Handlers) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
 	var req map[string]string
@@ -76,7 +76,7 @@ func (h *Handlers) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 // SyncTopPackages triggers an immediate top-N package sync for the current org.
-func (h *Handlers) SyncTopPackages(w http.ResponseWriter, r *http.Request) {
+func (h *SettingsHandlers) SyncTopPackages(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 	registryParam := r.URL.Query().Get("registry")
 

@@ -18,7 +18,7 @@ type dashboardStats struct {
 }
 
 // GetDashboardStats returns overview statistics for the dashboard, scoped to the current org.
-func (h *Handlers) GetDashboardStats(w http.ResponseWriter, r *http.Request) {
+func (h *DashboardHandlers) GetDashboardStats(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 	var stats dashboardStats
 
@@ -51,7 +51,7 @@ type recentRelease struct {
 }
 
 // GetRecentReleases returns the most recent releases across all packages, scoped to the current org.
-func (h *Handlers) GetRecentReleases(w http.ResponseWriter, r *http.Request) {
+func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
 	page, limit := parsePagination(r)
@@ -128,7 +128,7 @@ func (h *Handlers) GetRecentReleases(w http.ResponseWriter, r *http.Request) {
 }
 
 // ReanalyzeAll re-queues all un-analyzed diffs for analysis, scoped to the current org.
-func (h *Handlers) ReanalyzeAll(w http.ResponseWriter, r *http.Request) {
+func (h *DashboardHandlers) ReanalyzeAll(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
 	if h.Queue == nil {

@@ -21,7 +21,7 @@ type alertWithDetails struct {
 }
 
 // ListAlerts returns a paginated list of alerts scoped to the current org.
-func (h *Handlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
+func (h *AlertHandlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
 	page, limit := parsePagination(r)
@@ -74,7 +74,7 @@ type updateAlertRequest struct {
 }
 
 // UpdateAlert updates the status of an alert scoped to the current org.
-func (h *Handlers) UpdateAlert(w http.ResponseWriter, r *http.Request) {
+func (h *AlertHandlers) UpdateAlert(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
 	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)

@@ -20,7 +20,7 @@ type releaseDetail struct {
 }
 
 // ListPackageReleases returns releases for a specific package scoped to the current org.
-func (h *Handlers) ListPackageReleases(w http.ResponseWriter, r *http.Request) {
+func (h *PackageHandlers) ListPackageReleases(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
 	packageID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
@@ -52,7 +52,7 @@ func (h *Handlers) ListPackageReleases(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetRelease returns a single release with its diff and analysis, scoped to the current org.
-func (h *Handlers) GetRelease(w http.ResponseWriter, r *http.Request) {
+func (h *PackageHandlers) GetRelease(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
 	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)

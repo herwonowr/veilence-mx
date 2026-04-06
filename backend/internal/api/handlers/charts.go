@@ -42,7 +42,7 @@ type chartData struct {
 }
 
 // GetChartData returns aggregated data for dashboard charts, scoped to the current org.
-func (h *Handlers) GetChartData(w http.ResponseWriter, r *http.Request) {
+func (h *DashboardHandlers) GetChartData(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 	var data chartData
 

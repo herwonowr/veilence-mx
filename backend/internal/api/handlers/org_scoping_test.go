@@ -12,8 +12,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/veilence/veilence-mx/backend/internal/api/handlers"
-	"github.com/veilence/veilence-mx/backend/internal/audit"
 	"github.com/veilence/veilence-mx/backend/internal/models"
 	"github.com/veilence/veilence-mx/backend/internal/rbac"
 	"gorm.io/driver/sqlite"
@@ -54,7 +52,7 @@ func withOrgID(r *http.Request, orgID uint) *http.Request {
 
 func TestGetSettings_OrgScoped(t *testing.T) {
 	db := setupOrgTestDB(t)
-	h := &handlers.Handlers{DB: db, Audit: audit.NewService(db)}
+	h := newSettingsHandlers(db)
 
 	// Create settings for org 1
 	db.Create(&models.Setting{OrgID: 1, Key: "pypi_poll_interval", Value: "5m"})
@@ -91,7 +89,7 @@ func TestGetSettings_OrgScoped(t *testing.T) {
 
 func TestGetSettings_CrossOrg_ReturnsEmpty(t *testing.T) {
 	db := setupOrgTestDB(t)
-	h := &handlers.Handlers{DB: db, Audit: audit.NewService(db)}
+	h := newSettingsHandlers(db)
 
 	// Create settings for org 1 only
 	db.Create(&models.Setting{OrgID: 1, Key: "pypi_poll_interval", Value: "5m"})
@@ -111,7 +109,7 @@ func TestGetSettings_CrossOrg_ReturnsEmpty(t *testing.T) {
 
 func TestUpdateSettings_OrgScoped(t *testing.T) {
 	db := setupOrgTestDB(t)
-	h := &handlers.Handlers{DB: db, Audit: audit.NewService(db)}
+	h := newSettingsHandlers(db)
 
 	// Update settings for org 1
 	body := `{"pypi_poll_interval":"15m"}`
@@ -137,7 +135,7 @@ func TestUpdateSettings_OrgScoped(t *testing.T) {
 
 func TestGetRelease_CrossOrg_Returns404(t *testing.T) {
 	db := setupOrgTestDB(t)
-	h := &handlers.Handlers{DB: db, Audit: audit.NewService(db)}
+	h := newPackageHandlers(db)
 
 	// Create a package for org 1
 	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
@@ -160,7 +158,7 @@ func TestGetRelease_CrossOrg_Returns404(t *testing.T) {
 
 func TestGetRelease_SameOrg_ReturnsData(t *testing.T) {
 	db := setupOrgTestDB(t)
-	h := &handlers.Handlers{DB: db, Audit: audit.NewService(db)}
+	h := newPackageHandlers(db)
 
 	// Create a package for org 1
 	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
@@ -188,7 +186,7 @@ func TestGetRelease_SameOrg_ReturnsData(t *testing.T) {
 
 func TestListPackageReleases_CrossOrg_Returns404(t *testing.T) {
 	db := setupOrgTestDB(t)
-	h := &handlers.Handlers{DB: db, Audit: audit.NewService(db)}
+	h := newPackageHandlers(db)
 
 	// Create a package for org 1
 	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
@@ -212,7 +210,7 @@ func TestListPackageReleases_CrossOrg_Returns404(t *testing.T) {
 
 func TestListAlerts_OrgScoped(t *testing.T) {
 	db := setupOrgTestDB(t)
-	h := &handlers.Handlers{DB: db, Audit: audit.NewService(db)}
+	h := newAlertHandlers(db)
 
 	// Create packages for different orgs
 	pkg1 := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
@@ -273,7 +271,7 @@ func TestListAlerts_OrgScoped(t *testing.T) {
 
 func TestListAlerts_CrossOrg_ReturnsEmpty(t *testing.T) {
 	db := setupOrgTestDB(t)
-	h := &handlers.Handlers{DB: db, Audit: audit.NewService(db)}
+	h := newAlertHandlers(db)
 
 	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
 	db.Create(&pkg)
@@ -303,7 +301,7 @@ func TestListAlerts_CrossOrg_ReturnsEmpty(t *testing.T) {
 
 func TestUpdateAlert_CrossOrg_Returns404(t *testing.T) {
 	db := setupOrgTestDB(t)
-	h := &handlers.Handlers{DB: db, Audit: audit.NewService(db)}
+	h := newAlertHandlers(db)
 
 	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
 	db.Create(&pkg)
@@ -420,7 +418,9 @@ func TestPipelineProcessDiff_SetsAlertOrgID(t *testing.T) {
 
 func TestFullOrgIsolation(t *testing.T) {
 	db := setupOrgTestDB(t)
-	h := &handlers.Handlers{DB: db, Audit: audit.NewService(db)}
+	ph := newPackageHandlers(db)
+	sh := newSettingsHandlers(db)
+	ah := newAlertHandlers(db)
 
 	// Set up org 1 data
 	pkg1 := models.Package{Name: "safe-lib", Registry: "pypi", OrgID: 1}
@@ -437,7 +437,7 @@ func TestFullOrgIsolation(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
 		req = withOrgID(req, 1)
 		w := httptest.NewRecorder()
-		h.GetSettings(w, req)
+		sh.GetSettings(w, req)
 
 		var resp map[string]any
 		json.NewDecoder(w.Body).Decode(&resp)
@@ -452,7 +452,7 @@ func TestFullOrgIsolation(t *testing.T) {
 		r := chi.NewRouter()
 		r.Get("/api/packages/{id}/releases", func(w http.ResponseWriter, req *http.Request) {
 			req = withOrgID(req, 2) // org 2 trying to access org 1's package
-			h.ListPackageReleases(w, req)
+			ph.ListPackageReleases(w, req)
 		})
 
 		req := httptest.NewRequest(http.MethodGet, "/api/packages/"+fmt.Sprintf("%d", pkg1.ID)+"/releases", nil)
@@ -477,7 +477,7 @@ func TestFullOrgIsolation(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/alerts", nil)
 		req = withOrgID(req, 2)
 		w := httptest.NewRecorder()
-		h.ListAlerts(w, req)
+		ah.ListAlerts(w, req)
 
 		var resp map[string]any
 		json.NewDecoder(w.Body).Decode(&resp)
