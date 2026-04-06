@@ -1,0 +1,48 @@
+# Version control
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Dependencies (rebuilt in container)
+node_modules
+
+# Build output (rebuilt in container)
+.next
+out
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Documentation
+*.md
+LICENSE
+
+# Environment
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage
+.nyc_output
+
+# Miscellaneous
+.turbo
+.vercel
