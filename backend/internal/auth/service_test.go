@@ -85,7 +85,7 @@ func TestLogin_Success(t *testing.T) {
 	_, err := svc.Register("bob@example.com", "Password123", "Bob", "Brown")
 	require.NoError(t, err)
 
-	user, tokens, err := svc.Login("bob@example.com", "Password123")
+	user, tokens, err := svc.Login("bob@example.com", "Password123", "127.0.0.1", "TestBrowser/1.0")
 	require.NoError(t, err)
 	assert.Equal(t, "bob@example.com", user.Email)
 	assert.NotEmpty(t, tokens.AccessToken)
@@ -99,7 +99,7 @@ func TestLogin_WrongPassword(t *testing.T) {
 	_, err := svc.Register("carol@example.com", "Password123", "Carol", "White")
 	require.NoError(t, err)
 
-	user, tokens, err := svc.Login("carol@example.com", "WrongPassword1")
+	user, tokens, err := svc.Login("carol@example.com", "WrongPassword1", "127.0.0.1", "TestBrowser/1.0")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid email or password")
 	assert.Nil(t, user)
@@ -110,7 +110,7 @@ func TestLogin_NonexistentUser(t *testing.T) {
 	db := setupAuthTestDB(t)
 	svc := newAuthService(db)
 
-	user, tokens, err := svc.Login("nonexistent@example.com", "Password123")
+	user, tokens, err := svc.Login("nonexistent@example.com", "Password123", "127.0.0.1", "TestBrowser/1.0")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid email or password")
 	assert.Nil(t, user)
@@ -126,7 +126,7 @@ func TestValidateAccessToken_Success(t *testing.T) {
 	_, err := svc.Register("dave@example.com", "Password123", "Dave", "Green")
 	require.NoError(t, err)
 
-	_, tokens, err := svc.Login("dave@example.com", "Password123")
+	_, tokens, err := svc.Login("dave@example.com", "Password123", "127.0.0.1", "TestBrowser/1.0")
 	require.NoError(t, err)
 
 	claims, err := svc.ValidateAccessToken(tokens.AccessToken)
@@ -152,7 +152,7 @@ func TestRefreshTokens_Success(t *testing.T) {
 	_, err := svc.Register("eve@example.com", "Password123", "Eve", "Black")
 	require.NoError(t, err)
 
-	_, tokens, err := svc.Login("eve@example.com", "Password123")
+	_, tokens, err := svc.Login("eve@example.com", "Password123", "127.0.0.1", "TestBrowser/1.0")
 	require.NoError(t, err)
 
 	newTokens, err := svc.RefreshTokens(tokens.RefreshToken)
@@ -179,7 +179,7 @@ func TestRefreshTokens_UsedTokenInvalid(t *testing.T) {
 	_, err := svc.Register("frank@example.com", "Password123", "Frank", "Grey")
 	require.NoError(t, err)
 
-	_, tokens, err := svc.Login("frank@example.com", "Password123")
+	_, tokens, err := svc.Login("frank@example.com", "Password123", "127.0.0.1", "TestBrowser/1.0")
 	require.NoError(t, err)
 
 	// First refresh should succeed
@@ -392,7 +392,7 @@ func TestLogout(t *testing.T) {
 	_, err := svc.Register("mia@example.com", "Password123", "Mia", "Teal")
 	require.NoError(t, err)
 
-	_, tokens, err := svc.Login("mia@example.com", "Password123")
+	_, tokens, err := svc.Login("mia@example.com", "Password123", "127.0.0.1", "TestBrowser/1.0")
 	require.NoError(t, err)
 
 	err = svc.Logout(tokens.RefreshToken)

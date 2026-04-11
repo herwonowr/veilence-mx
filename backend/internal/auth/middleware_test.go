@@ -34,7 +34,7 @@ func TestMiddleware_ValidJWT(t *testing.T) {
 	_, err := svc.Register("mw-jwt@example.com", "Password123", "MW", "User")
 	require.NoError(t, err)
 
-	_, tokens, err := svc.Login("mw-jwt@example.com", "Password123")
+	_, tokens, err := svc.Login("mw-jwt@example.com", "Password123", "127.0.0.1", "TestBrowser/1.0")
 	require.NoError(t, err)
 
 	handler := auth.Middleware(svc)(dummyHandler())

@@ -77,7 +77,7 @@ func registerAndLogin(t *testing.T, env *middlewareTestEnv, email string) (*doma
 	t.Helper()
 	user, err := env.AuthSvc.Register(email, "Password123", "Test", "User")
 	require.NoError(t, err)
-	_, tokens, err := env.AuthSvc.Login(email, "Password123")
+	_, tokens, err := env.AuthSvc.Login(email, "Password123", "127.0.0.1", "TestBrowser/1.0")
 	require.NoError(t, err)
 	return user, tokens.AccessToken
 }

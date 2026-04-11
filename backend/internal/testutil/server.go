@@ -119,7 +119,7 @@ func LoginTestUser(t *testing.T, svc *auth.Service, email, password, firstName, 
 	user, err := svc.Register(email, password, firstName, lastName)
 	require.NoError(t, err, "failed to register test user")
 
-	_, tokens, err := svc.Login(email, password)
+	_, tokens, err := svc.Login(email, password, "127.0.0.1", "TestBrowser/1.0")
 	require.NoError(t, err, "failed to login test user")
 
 	return user.ID, tokens.AccessToken

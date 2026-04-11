@@ -122,20 +122,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Initialize auth state from localStorage
-  const [initStarted, setInitStarted] = useState(false)
-  if (!initStarted) {
-    setInitStarted(true)
+  // Initialize auth state from localStorage (must run after mount to avoid state updates before mount)
+  useEffect(() => {
     const token = getStoredAccessToken()
     if (token) {
       Promise.all([refreshUser(), refreshOrgs()]).finally(() => {
         setIsLoading(false)
       })
     } else {
-      // No need for async, can set synchronously during first render
       setIsLoading(false)
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run once on mount
+  }, [])
 
   // Auto-refresh token before expiry (refresh every 10 minutes)
   useEffect(() => {

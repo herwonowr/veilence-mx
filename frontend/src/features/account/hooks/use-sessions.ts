@@ -24,14 +24,20 @@ export function useSessions(
   })
 }
 
-export function useRevokeSession() {
+export function useRevokeSession(options?: {
+  onRevoked?: () => void | Promise<void>
+}) {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: (id: number) => apiRevokeSession(id),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: sessionKeys.list() })
-      toast.success("Session revoked")
+      if (options?.onRevoked) {
+        await options.onRevoked()
+      } else {
+        toast.success("Session revoked")
+      }
     },
     onError: (error: Error) => {
       toast.error(sanitizeErrorMessage(error, "Failed to revoke session"))

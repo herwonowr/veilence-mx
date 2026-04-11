@@ -82,7 +82,7 @@ func (h *AuthHandlers) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Automatically log in the newly registered user to return tokens
-	user, tokens, err := h.Auth.Login(req.Email, req.Password)
+	user, tokens, err := h.Auth.Login(req.Email, req.Password, r.RemoteAddr, r.UserAgent())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "registration succeeded but failed to generate tokens")
 		return
@@ -112,7 +112,7 @@ func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, tokens, err := h.Auth.Login(req.Email, req.Password)
+	user, tokens, err := h.Auth.Login(req.Email, req.Password, r.RemoteAddr, r.UserAgent())
 	if err != nil {
 		// Log failed login attempt
 		h.Audit.LogAuthEvent(r.Context(), "login_failed", 0, fmt.Sprintf("failed login attempt for email %s", req.Email))

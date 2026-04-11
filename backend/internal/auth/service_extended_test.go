@@ -76,11 +76,11 @@ func TestResetPassword_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	// Old password should no longer work
-	_, _, err = svc.Login("reset@example.com", "OldPassword123")
+	_, _, err = svc.Login("reset@example.com", "OldPassword123", "127.0.0.1", "TestBrowser/1.0")
 	require.Error(t, err)
 
 	// New password should work
-	user, tokens, err := svc.Login("reset@example.com", "NewPassword456")
+	user, tokens, err := svc.Login("reset@example.com", "NewPassword456", "127.0.0.1", "TestBrowser/1.0")
 	require.NoError(t, err)
 	assert.NotNil(t, user)
 	assert.NotNil(t, tokens)
@@ -259,7 +259,7 @@ func TestLogin_DeactivatedAccount(t *testing.T) {
 	// Deactivate the account directly in DB
 	db.Model(&models.User{}).Where("id = ?", user.ID).Update("is_active", false)
 
-	_, _, err = svc.Login("deactivated@example.com", "Password123")
+	_, _, err = svc.Login("deactivated@example.com", "Password123", "127.0.0.1", "TestBrowser/1.0")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "account is deactivated")
 }
@@ -362,7 +362,7 @@ func TestRefreshTokens_DeactivatedUser(t *testing.T) {
 	user, err := svc.Register("deact-refresh@example.com", "Password123", "Deact", "Refresh")
 	require.NoError(t, err)
 
-	_, tokens, err := svc.Login("deact-refresh@example.com", "Password123")
+	_, tokens, err := svc.Login("deact-refresh@example.com", "Password123", "127.0.0.1", "TestBrowser/1.0")
 	require.NoError(t, err)
 
 	// Deactivate the user between login and refresh
@@ -397,7 +397,7 @@ func TestValidateAccessToken_WithPreviousSecret(t *testing.T) {
 	_, err := oldSvc.Register("rotation@example.com", "Password123", "Rotation", "Test")
 	require.NoError(t, err)
 
-	_, tokens, err := oldSvc.Login("rotation@example.com", "Password123")
+	_, tokens, err := oldSvc.Login("rotation@example.com", "Password123", "127.0.0.1", "TestBrowser/1.0")
 	require.NoError(t, err)
 
 	// New service with new primary secret and old secret as previous

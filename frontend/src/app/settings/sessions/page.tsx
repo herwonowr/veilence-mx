@@ -1,5 +1,6 @@
 "use client"
 
+import { useCallback } from "react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,7 +20,10 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Monitor, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 import { useSessions, useRevokeSession } from "@/features/account"
+import { useAuth } from "@/lib/auth-context"
+import { apiRefreshToken, getStoredRefreshToken } from "@/lib/api-client"
 
 function parseUserAgent(ua: string): string {
   if (ua.includes("Chrome") && !ua.includes("Edg")) return "Chrome"
@@ -33,7 +37,29 @@ function parseUserAgent(ua: string): string {
 
 function SessionsContent() {
   const { data: sessionsRes, isLoading } = useSessions()
-  const revokeMutation = useRevokeSession()
+  const { logout } = useAuth()
+
+  const handleRevoked = useCallback(async () => {
+    const refreshToken = getStoredRefreshToken()
+    if (!refreshToken) {
+      // No refresh token means the session is already invalid
+      toast.info("Session ended — you have been signed out")
+      await logout()
+      return
+    }
+
+    try {
+      await apiRefreshToken(refreshToken)
+      // Refresh succeeded — the revoked session was not the current one
+      toast.success("Session revoked")
+    } catch {
+      // Refresh failed — the user revoked their own current session
+      toast.info("Session ended — you have been signed out")
+      await logout()
+    }
+  }, [logout])
+
+  const revokeMutation = useRevokeSession({ onRevoked: handleRevoked })
 
   const sessions = sessionsRes?.data ?? []
 

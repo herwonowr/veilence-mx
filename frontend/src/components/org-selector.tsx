@@ -84,7 +84,7 @@ export function OrgSelector() {
               {!orgsLoading && !orgsError && organizations.map((org) => (
                 <DropdownMenuItem
                   key={org.id}
-                  onSelect={() => {
+                  onClick={() => {
                     setCurrentOrg(org)
                     router.refresh()
                   }}
@@ -101,7 +101,7 @@ export function OrgSelector() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onSelect={() => router.push("/organizations?create=true")}
+              onClick={() => router.push("/organizations?create=true")}
             >
               <Plus className="mr-2 size-4" />
               Create Organization

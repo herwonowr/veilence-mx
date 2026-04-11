@@ -91,7 +91,7 @@ func BenchmarkJWTTokenValidation(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	_, tokens, err := svc.Login("bench-val@example.com", "Password123!")
+	_, tokens, err := svc.Login("bench-val@example.com", "Password123!", "127.0.0.1", "TestBrowser/1.0")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -201,7 +201,7 @@ func BenchmarkLoginUser(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, tokens, err := svc.Login("bench-login@example.com", "Password123!")
+		_, tokens, err := svc.Login("bench-login@example.com", "Password123!", "127.0.0.1", "TestBrowser/1.0")
 		if err != nil {
 			b.Fatal(err)
 		}

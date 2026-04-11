@@ -118,7 +118,6 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => {
@@ -211,7 +210,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onSelect={() => {
+                    onClick={() => {
                       logout()
                     }}
                   >

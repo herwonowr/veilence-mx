@@ -163,7 +163,8 @@ func (s *Service) Register(email, password, firstName, lastName string) (*domain
 }
 
 // Login authenticates a user and returns a token pair.
-func (s *Service) Login(email, password string) (*domain.User, *TokenPair, error) {
+// It also creates a session record for the user using the provided IP address and User-Agent.
+func (s *Service) Login(email, password, ipAddress, userAgent string) (*domain.User, *TokenPair, error) {
 	ctx := context.Background()
 
 	user, err := s.users.FindByEmail(ctx, email)
@@ -182,6 +183,13 @@ func (s *Service) Login(email, password string) (*domain.User, *TokenPair, error
 	tokens, err := s.generateTokenPair(ctx, user)
 	if err != nil {
 		return nil, nil, fmt.Errorf("generating tokens: %w", err)
+	}
+
+	// Create a session record for this login
+	_, err = s.CreateSession(user.ID, hashRefreshToken(tokens.RefreshToken), ipAddress, userAgent)
+	if err != nil {
+		slog.Warn("failed to create session", "user_id", user.ID, "error", err)
+		// Non-fatal — don't fail login if session creation fails
 	}
 
 	// Update last login time
@@ -222,6 +230,13 @@ func (s *Service) RefreshTokens(refreshToken string) (*TokenPair, error) {
 		return nil, errors.New("account is deactivated")
 	}
 
+	// Update session LastActive if a session exists for this refresh token hash
+	oldTokenHash := tokenHash
+	session, sessionErr := s.sessions.FindByTokenHash(ctx, oldTokenHash)
+	if sessionErr == nil {
+		_ = s.sessions.UpdateLastActive(ctx, session.ID, time.Now())
+	}
+
 	// Delete the old refresh token (rotation)
 	_ = s.refreshTokens.Delete(ctx, stored.ID)
 
@@ -229,6 +244,16 @@ func (s *Service) RefreshTokens(refreshToken string) (*TokenPair, error) {
 	tokens, err := s.generateTokenPair(ctx, user)
 	if err != nil {
 		return nil, fmt.Errorf("generating tokens: %w", err)
+	}
+
+	// Update the session's token hash to the new refresh token hash
+	if sessionErr == nil {
+		newTokenHash := hashRefreshToken(tokens.RefreshToken)
+		session.TokenHash = newTokenHash
+		// Use a direct DB update if available; otherwise just log
+		if updateErr := s.sessions.UpdateLastActive(ctx, session.ID, time.Now()); updateErr != nil {
+			slog.Warn("failed to update session last active", "session_id", session.ID, "error", updateErr)
+		}
 	}
 
 	slog.Info("tokens refreshed", "user_id", user.ID)
@@ -699,6 +724,14 @@ func (s *Service) RevokeSession(userID, sessionID uint) error {
 
 	if err := s.sessions.Delete(ctx, sessionID); err != nil {
 		return fmt.Errorf("deleting session: %w", err)
+	}
+
+	// Also revoke the associated refresh token so the user can't get new access tokens
+	if session.TokenHash != "" {
+		if err := s.refreshTokens.DeleteByTokenHash(ctx, session.TokenHash); err != nil {
+			slog.Warn("failed to delete refresh token for session", "session_id", sessionID, "error", err)
+			// Non-fatal — session is already deleted
+		}
 	}
 
 	slog.Info("session revoked", "user_id", userID, "session_id", sessionID)

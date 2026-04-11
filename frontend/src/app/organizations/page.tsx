@@ -45,8 +45,10 @@ function OrganizationsContent() {
   useEffect(() => {
     if (shouldCreateOrg) {
       setDialogOpen(true)
+      // Clean up the URL so subsequent navigations to ?create=true trigger the effect again
+      router.replace("/organizations", { scroll: false })
     }
-  }, [shouldCreateOrg])
+  }, [shouldCreateOrg, router])
 
   const generateSlug = useCallback((value: string) => {
     return value
