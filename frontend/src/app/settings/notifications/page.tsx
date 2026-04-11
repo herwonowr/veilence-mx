@@ -183,11 +183,15 @@ function ChannelsSection({
             Configure where notifications are sent.
           </CardDescription>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger render={<Button size="sm" />}>
-            <Plus className="mr-1 size-4" />
-            Add Channel
-          </DialogTrigger>
+        <Dialog open={createOpen} onOpenChange={(open) => setCreateOpen(open)}>
+          <DialogTrigger
+            render={
+              <Button size="sm">
+                <Plus className="mr-1 size-4" />
+                Add Channel
+              </Button>
+            }
+          />
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Notification Channel</DialogTitle>
@@ -455,11 +459,15 @@ function RulesSection({
             Define which alerts are sent to which channels based on severity.
           </CardDescription>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger render={<Button size="sm" />}>
-            <Plus className="mr-1 size-4" />
-            Add Rule
-          </DialogTrigger>
+        <Dialog open={createOpen} onOpenChange={(open) => setCreateOpen(open)}>
+          <DialogTrigger
+            render={
+              <Button size="sm">
+                <Plus className="mr-1 size-4" />
+                Add Rule
+              </Button>
+            }
+          />
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Routing Rule</DialogTitle>

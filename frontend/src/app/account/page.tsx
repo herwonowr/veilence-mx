@@ -384,11 +384,15 @@ function ApiKeysSection() {
             Manage API keys for programmatic access.
           </CardDescription>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger render={<Button size="sm" />}>
-            <Plus className="mr-1 size-4" />
-            Create Key
-          </DialogTrigger>
+        <Dialog open={createOpen} onOpenChange={(open) => setCreateOpen(open)}>
+          <DialogTrigger
+            render={
+              <Button size="sm">
+                <Plus className="mr-1 size-4" />
+                Create Key
+              </Button>
+            }
+          />
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create API Key</DialogTitle>

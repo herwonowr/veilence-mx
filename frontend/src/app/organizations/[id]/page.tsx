@@ -239,12 +239,16 @@ function OrgDetailContent() {
             {canInvite && (
             <Dialog
               open={inviteDialogOpen}
-              onOpenChange={setInviteDialogOpen}
+              onOpenChange={(open) => setInviteDialogOpen(open)}
             >
-              <DialogTrigger render={<Button size="sm" />}>
-                <UserPlus className="mr-2 size-4" />
-                Invite Member
-              </DialogTrigger>
+              <DialogTrigger
+                render={
+                  <Button size="sm">
+                    <UserPlus className="mr-2 size-4" />
+                    Invite Member
+                  </Button>
+                }
+              />
               <DialogContent className="sm:max-w-md">
                 <form onSubmit={handleInvite}>
                   <DialogHeader>
@@ -388,7 +392,7 @@ function OrgDetailContent() {
           {/* Remove Member Confirmation Dialog */}
           <Dialog
             open={removeMemberDialogOpen}
-            onOpenChange={setRemoveMemberDialogOpen}
+            onOpenChange={(open) => setRemoveMemberDialogOpen(open)}
           >
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
@@ -519,12 +523,16 @@ function OrgDetailContent() {
             <CardContent>
               <Dialog
                 open={deleteDialogOpen}
-                onOpenChange={setDeleteDialogOpen}
+                onOpenChange={(open) => setDeleteDialogOpen(open)}
               >
-                <DialogTrigger render={<Button variant="destructive" />}>
-                  <Trash2 className="mr-2 size-4" />
-                  Delete Organization
-                </DialogTrigger>
+                <DialogTrigger
+                  render={
+                    <Button variant="destructive">
+                      <Trash2 className="mr-2 size-4" />
+                      Delete Organization
+                    </Button>
+                  }
+                />
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle>Delete Organization</DialogTitle>

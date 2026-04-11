@@ -112,11 +112,15 @@ function ApiKeysContent() {
             Manage API keys for programmatic access
           </p>
         </div>
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger render={<Button />}>
-            <Plus className="mr-2 size-4" />
-            New API Key
-          </DialogTrigger>
+        <Dialog open={createDialogOpen} onOpenChange={(open) => setCreateDialogOpen(open)}>
+          <DialogTrigger
+            render={
+              <Button>
+                <Plus className="mr-2 size-4" />
+                New API Key
+              </Button>
+            }
+          />
           <DialogContent className="sm:max-w-md">
             <form onSubmit={handleCreate}>
               <DialogHeader>
@@ -201,7 +205,7 @@ function ApiKeysContent() {
       </div>
 
       {/* Show key dialog */}
-      <Dialog open={showKeyDialogOpen} onOpenChange={setShowKeyDialogOpen}>
+      <Dialog open={showKeyDialogOpen} onOpenChange={(open) => setShowKeyDialogOpen(open)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>API Key Created</DialogTitle>

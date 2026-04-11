@@ -85,11 +85,15 @@ function OrganizationsContent() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Organizations</h1>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger render={<Button />}>
-            <Plus className="mr-2 size-4" />
-            New Organization
-          </DialogTrigger>
+        <Dialog open={dialogOpen} onOpenChange={(open) => setDialogOpen(open)}>
+          <DialogTrigger
+            render={
+              <Button>
+                <Plus className="mr-2 size-4" />
+                New Organization
+              </Button>
+            }
+          />
           <DialogContent className="sm:max-w-md">
             <form onSubmit={handleCreate}>
               <DialogHeader>
