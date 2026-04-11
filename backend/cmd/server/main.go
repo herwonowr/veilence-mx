@@ -188,6 +188,7 @@ func main() {
 	}
 	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, smtpConfig)
 	dashboardRepo := repository.NewDashboardRepo(db)
+	alertNoteRepo := repository.NewAlertNoteRepo(db)
 
 	h := handlers.NewHandlers(
 		db,
@@ -200,6 +201,7 @@ func main() {
 		npmClient,
 		jobQueue,
 		dashboardRepo,
+		alertNoteRepo,
 	)
 
 	router := api.NewRouter(h, frontendURL, authService, rbacService)

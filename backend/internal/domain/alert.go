@@ -26,10 +26,23 @@ type Alert struct {
 	ID         uint          `json:"id"`
 	OrgID      uint          `json:"orgId"`
 	AnalysisID uint          `json:"analysisId"`
+	ReleaseID  uint          `json:"releaseId"`
 	PackageID  uint          `json:"packageId"`
 	Severity   AlertSeverity `json:"severity"`
 	Status     AlertStatus   `json:"status"`
 	Message    string        `json:"message"`
 	CreatedAt  time.Time     `json:"createdAt"`
 	UpdatedAt  time.Time     `json:"updatedAt"`
+}
+
+// AlertNote represents a comment/note on an alert.
+type AlertNote struct {
+	ID        uint      `json:"id"`
+	AlertID   uint      `json:"alertId"`
+	OrgID     uint      `json:"orgId"`
+	UserID    uint      `json:"userId"`
+	UserEmail string    `json:"userEmail"`
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }

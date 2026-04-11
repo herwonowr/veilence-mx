@@ -265,7 +265,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setCurrentOrg = useCallback((org: Organization) => {
     setCurrentOrgState(org)
     storeOrgId(org.id)
-  }, [])
+    // V101-10: Invalidate all React Query caches when switching orgs
+    // so stale org-scoped data is refetched for the new org context
+    queryClient.invalidateQueries()
+  }, [queryClient])
 
   const value = useMemo<AuthContextValue>(
     () => ({

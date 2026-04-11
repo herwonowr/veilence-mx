@@ -11,6 +11,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/api/validation"
 	"github.com/veilence/veilence-mx/backend/internal/apperror"
 	"github.com/veilence/veilence-mx/backend/internal/domain"
+	"github.com/veilence/veilence-mx/backend/internal/notifications"
 	"github.com/veilence/veilence-mx/backend/internal/rbac"
 )
 
@@ -84,6 +85,12 @@ func (h *NotificationHandlers) CreateNotificationChannel(w http.ResponseWriter, 
 		return
 	}
 
+	// SSRF protection: validate URLs in channel config before persisting.
+	if err := notifications.ValidateChannelConfig(req.Type, req.Config); err != nil {
+		respondAppError(w, apperror.Validation(fmt.Sprintf("invalid channel config: %s", err.Error())))
+		return
+	}
+
 	channel, err := h.Notifications.CreateChannel(orgID, req.Name, req.Type, req.Config)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to create notification channel")
@@ -122,6 +129,18 @@ func (h *NotificationHandlers) UpdateNotificationChannel(w http.ResponseWriter, 
 	}
 	if err := validation.ValidateMaxLength(req.Name, "name", 100); err != nil {
 		respondAppError(w, apperror.Validation(err.Error()))
+		return
+	}
+
+	// SSRF protection: fetch the existing channel to know its type, then validate
+	// the new config's URLs before persisting.
+	existingChannel, err := h.Notifications.GetChannel(uint(id), orgID)
+	if err != nil {
+		respondError(w, http.StatusNotFound, "notification channel not found")
+		return
+	}
+	if err := notifications.ValidateChannelConfig(existingChannel.Type, req.Config); err != nil {
+		respondAppError(w, apperror.Validation(fmt.Sprintf("invalid channel config: %s", err.Error())))
 		return
 	}
 
@@ -319,4 +338,30 @@ func (h *NotificationHandlers) MarkAllNotificationsRead(w http.ResponseWriter, r
 	}
 
 	respondJSON(w, http.StatusOK, map[string]int64{"updated": affected}, nil)
+}
+
+// TestNotificationChannel handles POST /api/orgs/{orgId}/notification-channels/{id}/test.
+// Sends a test payload to verify the channel works.
+func (h *NotificationHandlers) TestNotificationChannel(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+	if orgID == 0 {
+		respondError(w, http.StatusBadRequest, "organization context required")
+		return
+	}
+
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid channel ID")
+		return
+	}
+
+	if err := h.Notifications.TestChannel(uint(id), orgID); err != nil {
+		respondError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "test", "notification_channel", uint(id), fmt.Sprintf("sent test notification to channel %d", id))
+
+	respondJSON(w, http.StatusOK, map[string]string{"message": "test notification sent"}, nil)
 }

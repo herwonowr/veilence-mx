@@ -4,8 +4,8 @@ import {
   useQueryClient,
   type UseQueryOptions,
 } from "@tanstack/react-query"
-import { getAlerts, updateAlertStatus } from "@/lib/api-client"
-import type { ApiResponse, Alert } from "@/types"
+import { getAlerts, getAlert, updateAlertStatus, getAlertNotes, createAlertNote } from "@/lib/api-client"
+import type { ApiResponse, Alert, AlertNote } from "@/types"
 import { toast } from "sonner"
 import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
 
@@ -14,12 +14,27 @@ export const alertKeys = {
   lists: () => [...alertKeys.all, "list"] as const,
   list: (params?: Record<string, unknown>) =>
     [...alertKeys.lists(), params] as const,
+  detail: (id: number) => [...alertKeys.all, "detail", id] as const,
+  notes: (alertId: number) => [...alertKeys.all, "notes", alertId] as const,
+}
+
+export function useAlert(
+  id: number,
+  options?: Partial<UseQueryOptions<ApiResponse<Alert>>>
+) {
+  return useQuery({
+    queryKey: alertKeys.detail(id),
+    queryFn: () => getAlert(id),
+    enabled: id > 0,
+    ...options,
+  })
 }
 
 export function useAlerts(
   params?: {
     severity?: string
     status?: string
+    search?: string
     page?: number
     limit?: number
     sortBy?: string
@@ -79,6 +94,35 @@ export function useUpdateAlert() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: alertKeys.lists() })
+    },
+  })
+}
+
+// ─── Alert Notes ──────────────────────────────────────────────
+
+export function useAlertNotes(
+  alertId: number,
+  options?: Partial<UseQueryOptions<ApiResponse<AlertNote[]>>>
+) {
+  return useQuery({
+    queryKey: alertKeys.notes(alertId),
+    queryFn: () => getAlertNotes(alertId),
+    enabled: alertId > 0,
+    ...options,
+  })
+}
+
+export function useCreateAlertNote(alertId: number) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (content: string) => createAlertNote(alertId, content),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: alertKeys.notes(alertId) })
+      toast.success("Note added")
+    },
+    onError: (error: Error) => {
+      toast.error(sanitizeErrorMessage(error, "Failed to add note"))
     },
   })
 }

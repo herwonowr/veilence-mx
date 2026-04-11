@@ -49,7 +49,9 @@ func newService(db *gorm.DB) *notifications.Service {
 	channelRepo := repository.NewNotificationChannelRepo(db)
 	ruleRepo := repository.NewNotificationRuleRepo(db)
 	notifRepo := repository.NewNotificationRepo(db)
-	return notifications.NewService(channelRepo, ruleRepo, notifRepo, notifications.SMTPConfig{})
+	svc := notifications.NewService(channelRepo, ruleRepo, notifRepo, notifications.SMTPConfig{})
+	svc.AllowLocalURLs = true // Tests use httptest.NewServer (localhost)
+	return svc
 }
 
 // createTestChannel is a convenience helper that creates a channel and fails
@@ -1141,4 +1143,88 @@ func TestValidateWebhookSignature_WrongAlgorithmPrefix(t *testing.T) {
 
 	assert.False(t, notifications.ValidateWebhookSignature(secret, body, "sha512="+sig),
 		"wrong algorithm prefix should fail")
+}
+
+// ---------------------------------------------------------------------------
+// SSRF validation tests
+// ---------------------------------------------------------------------------
+
+func TestValidateWebhookURL_PublicURL(t *testing.T) {
+	assert.NoError(t, notifications.ValidateWebhookURL("https://example.com/webhook"))
+	assert.NoError(t, notifications.ValidateWebhookURL("http://example.com/webhook"))
+}
+
+func TestValidateWebhookURL_BlocksPrivateIPs(t *testing.T) {
+	cases := []string{
+		"http://10.0.0.1/hook",
+		"http://172.16.0.1/hook",
+		"http://172.31.255.255/hook",
+		"http://192.168.1.1/hook",
+		"http://127.0.0.1/hook",
+		"http://169.254.1.1/hook",
+		"http://[::1]/hook",
+		"http://[fe80::1]/hook",
+	}
+	for _, tc := range cases {
+		t.Run(tc, func(t *testing.T) {
+			err := notifications.ValidateWebhookURL(tc)
+			assert.Error(t, err, "should block %s", tc)
+		})
+	}
+}
+
+func TestValidateWebhookURL_BlocksLocalhost(t *testing.T) {
+	assert.Error(t, notifications.ValidateWebhookURL("http://localhost/hook"))
+	assert.Error(t, notifications.ValidateWebhookURL("https://localhost:8080/hook"))
+}
+
+func TestValidateWebhookURL_BlocksBadSchemes(t *testing.T) {
+	assert.Error(t, notifications.ValidateWebhookURL("ftp://example.com/file"))
+	assert.Error(t, notifications.ValidateWebhookURL("file:///etc/passwd"))
+	assert.Error(t, notifications.ValidateWebhookURL("gopher://evil.com"))
+}
+
+func TestValidateWebhookURL_BlocksEmpty(t *testing.T) {
+	assert.Error(t, notifications.ValidateWebhookURL(""))
+}
+
+func TestValidateSlackWebhookURL_ValidSlack(t *testing.T) {
+	assert.NoError(t, notifications.ValidateSlackWebhookURL("https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"))
+}
+
+func TestValidateSlackWebhookURL_BlocksNonSlackDomain(t *testing.T) {
+	assert.ErrorIs(t, notifications.ValidateSlackWebhookURL("https://evil.com/services/hook"), notifications.ErrInvalidSlackURL)
+	assert.ErrorIs(t, notifications.ValidateSlackWebhookURL("https://hooks.slack.com.evil.com/hook"), notifications.ErrInvalidSlackURL)
+}
+
+func TestValidateSlackWebhookURL_BlocksHTTP(t *testing.T) {
+	assert.ErrorIs(t, notifications.ValidateSlackWebhookURL("http://hooks.slack.com/services/hook"), notifications.ErrInvalidSlackURL)
+}
+
+func TestValidateChannelConfig_Webhook(t *testing.T) {
+	// Valid public URL
+	cfg := `{"url":"https://example.com/hook","secret":"s3cret"}`
+	assert.NoError(t, notifications.ValidateChannelConfig("webhook", cfg))
+
+	// Private IP
+	cfg = `{"url":"http://10.0.0.1/hook"}`
+	assert.Error(t, notifications.ValidateChannelConfig("webhook", cfg))
+
+	// Missing URL
+	cfg = `{"url":""}`
+	assert.Error(t, notifications.ValidateChannelConfig("webhook", cfg))
+}
+
+func TestValidateChannelConfig_Slack(t *testing.T) {
+	cfg := `{"webhookUrl":"https://hooks.slack.com/services/T/B/X"}`
+	assert.NoError(t, notifications.ValidateChannelConfig("slack", cfg))
+
+	cfg = `{"webhookUrl":"https://evil.com/hook"}`
+	assert.Error(t, notifications.ValidateChannelConfig("slack", cfg))
+}
+
+func TestValidateChannelConfig_Email(t *testing.T) {
+	// Email channels have no URL to validate — always pass.
+	cfg := `{"recipients":"test@example.com"}`
+	assert.NoError(t, notifications.ValidateChannelConfig("email", cfg))
 }

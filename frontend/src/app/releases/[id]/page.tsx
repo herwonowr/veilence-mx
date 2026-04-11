@@ -2,15 +2,16 @@
 
 import { use, useState } from "react"
 import Link from "next/link"
+import { notFound } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import type { Classification } from "@/types"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ArrowLeft, FileCode, Plus, Minus, WrapText } from "lucide-react"
+import { ArrowLeft, FileCode, Plus, Minus, WrapText, RotateCcw, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProtectedRoute } from "@/components/protected-route"
-import { useRelease } from "@/features/packages"
+import { useRelease, useReanalyzeRelease } from "@/features/packages"
 
 function classificationColor(c: Classification) {
   if (c === "malicious") return "destructive" as const
@@ -74,7 +75,13 @@ function ReleaseDetailContent({
   const releaseId = parseInt(id, 10)
   const [wordWrap, setWordWrap] = useState(false)
 
+  // NaN validation: show 404 for non-numeric IDs
+  if (isNaN(releaseId) || releaseId <= 0) {
+    notFound()
+  }
+
   const { data: releaseRes } = useRelease(releaseId)
+  const reanalyzeMutation = useReanalyzeRelease(releaseId)
   const release = releaseRes?.data ?? null
 
   if (!release) return (
@@ -101,10 +108,29 @@ function ReleaseDetailContent({
             {release.package.name}
           </Link>
         )}
-        <h1 className="text-3xl font-bold">
-          {release.package?.name} <span className="text-muted-foreground font-normal">v{release.version}</span>
-        </h1>
-        <div className="flex items-center gap-2 mt-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold">
+            {release.package?.name} <span className="text-muted-foreground font-normal">v{release.version}</span>
+          </h1>
+          {/* Re-analyze button */}
+          {release.status === "completed" && !release.isBaseline && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => reanalyzeMutation.mutate()}
+              disabled={reanalyzeMutation.isPending}
+              aria-label="Re-analyze this release"
+            >
+              {reanalyzeMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="mr-2 h-4 w-4" />
+              )}
+              Re-analyze
+            </Button>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 mt-2">
           <Badge variant="outline">{release.package?.registry}</Badge>
           <Badge variant="secondary">{release.status}</Badge>
           <span className="text-sm text-muted-foreground">
@@ -143,7 +169,7 @@ function ReleaseDetailContent({
               <p className="text-sm font-medium text-muted-foreground mb-1">Reasoning</p>
               <p className="text-sm leading-relaxed">{release.analysis.reasoning}</p>
             </div>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
               <span>Analyzer: <strong>{release.analysis.analyzerType}</strong></span>
               <span>Model: <strong>{release.analysis.modelUsed}</strong></span>
               <span>Analyzed: {new Date(release.analysis.createdAt).toLocaleString()}</span>
@@ -180,8 +206,8 @@ function ReleaseDetailContent({
       {release.diff && (
         <Card className="min-w-0 overflow-hidden">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+            <CardTitle className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-4">
                 <span className="flex items-center gap-2">
                   <FileCode className="h-5 w-5" />
                   Diff

@@ -11,6 +11,7 @@ export {
   useCreateChannel,
   useUpdateChannel,
   useDeleteChannel,
+  useTestChannel,
   useRules,
   useCreateRule,
   useDeleteRule,

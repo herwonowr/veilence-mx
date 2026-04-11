@@ -39,7 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Package, Registry } from "@/types"
-import { Plus, Trash2, RefreshCw, RotateCcw } from "lucide-react"
+import { Plus, Trash2, RefreshCw, RotateCcw, Upload } from "lucide-react"
 import Link from "next/link"
 import {
   useReactTable,
@@ -227,6 +227,12 @@ function PackagesContent() {
             <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
             Sync Top Packages
           </Button>
+          <Link href="/packages/import">
+            <Button variant="outline">
+              <Upload className="h-4 w-4 mr-2" />
+              Bulk Import
+            </Button>
+          </Link>
           <Dialog open={dialogOpen} onOpenChange={(open) => setDialogOpen(open)}>
             <DialogTrigger
               render={
@@ -349,8 +355,19 @@ function PackagesContent() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center text-muted-foreground py-8">
-                    No packages found. Add packages or sync top packages.
+                  <TableCell colSpan={columns.length} className="text-center py-8">
+                    <div className="flex flex-col items-center gap-3">
+                      <Plus className="h-8 w-8 text-muted-foreground" />
+                      <p className="text-muted-foreground">No packages found.</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button size="sm" onClick={() => setDialogOpen(true)}>
+                          Add Package
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleSync} disabled={syncMutation.isPending}>
+                          Sync Top Packages
+                        </Button>
+                      </div>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}

@@ -1,1 +1,8 @@
-export { useAlerts, useUpdateAlert, alertKeys } from "./hooks/use-alerts"
+export {
+  useAlert,
+  useAlerts,
+  useUpdateAlert,
+  useAlertNotes,
+  useCreateAlertNote,
+  alertKeys,
+} from "./hooks/use-alerts"

@@ -32,7 +32,9 @@ import {
   Loader2,
   BellRing,
   Route,
+  Zap,
 } from "lucide-react"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/lib/auth-context"
 import {
@@ -40,6 +42,7 @@ import {
   useCreateChannel,
   useUpdateChannel,
   useDeleteChannel,
+  useTestChannel,
   useRules,
   useCreateRule,
   useDeleteRule,
@@ -146,6 +149,7 @@ function ChannelsSection({
   const createMutation = useCreateChannel(orgId)
   const updateMutation = useUpdateChannel(orgId)
   const deleteMutation = useDeleteChannel(orgId)
+  const testMutation = useTestChannel(orgId)
 
   const handleCreate = () => {
     if (!channelName || !channelType) return
@@ -281,7 +285,17 @@ function ChannelsSection({
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => testMutation.mutate(channel.id)}
+                    disabled={testMutation.isPending}
+                    aria-label={`Test channel ${channel.name}`}
+                    title="Send test notification"
+                  >
+                    <Zap className="size-4 text-primary" />
+                  </Button>
                   <Switch
                     checked={channel.isActive}
                     onCheckedChange={(checked) =>
@@ -289,15 +303,21 @@ function ChannelsSection({
                     }
                     aria-label={`Toggle ${channel.name} ${channel.isActive ? "off" : "on"}`}
                   />
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => deleteMutation.mutate(channel.id)}
-                    disabled={deleteMutation.isPending}
-                    aria-label={`Delete channel ${channel.name}`}
+                  <ConfirmDialog
+                    title="Delete Channel"
+                    description={`Are you sure you want to delete "${channel.name}"? Any routing rules using this channel will also be removed.`}
+                    actionLabel="Delete"
+                    onConfirm={async () => { await deleteMutation.mutateAsync(channel.id) }}
                   >
-                    <Trash2 className="size-4 text-destructive" />
-                  </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={deleteMutation.isPending}
+                      aria-label={`Delete channel ${channel.name}`}
+                    >
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
+                  </ConfirmDialog>
                 </div>
               </div>
             ))}
@@ -577,15 +597,21 @@ function RulesSection({
                     </span>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => deleteMutation.mutate(rule.id)}
-                  disabled={deleteMutation.isPending}
-                  aria-label={`Delete routing rule for ${rule.severity} severity`}
+                <ConfirmDialog
+                  title="Delete Rule"
+                  description={`Are you sure you want to remove the ${rule.severity} severity routing rule for ${getChannelName(rule.channelId)}?`}
+                  actionLabel="Delete"
+                  onConfirm={async () => { await deleteMutation.mutateAsync(rule.id) }}
                 >
-                  <Trash2 className="size-4 text-destructive" />
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={deleteMutation.isPending}
+                    aria-label={`Delete routing rule for ${rule.severity} severity`}
+                  >
+                    <Trash2 className="size-4 text-destructive" />
+                  </Button>
+                </ConfirmDialog>
               </div>
             ))}
           </div>

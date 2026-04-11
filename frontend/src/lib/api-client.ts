@@ -6,6 +6,9 @@ import type {
   Release,
   ReleaseDetail,
   Alert,
+  AlertNote,
+  BulkImportResult,
+  AnalysisHistoryEntry,
   DashboardStats,
   RecentRelease,
   ChartData,
@@ -602,24 +605,6 @@ export async function getRelease(
   return fetchApi<ReleaseDetail>(`/api/releases/${id}`)
 }
 
-export async function getAlerts(params?: {
-  severity?: string
-  status?: string
-  page?: number
-  limit?: number
-  sortBy?: string
-  sortDir?: string
-}): Promise<ApiResponse<Alert[]>> {
-  const searchParams = new URLSearchParams()
-  if (params?.severity) searchParams.set("severity", params.severity)
-  if (params?.status) searchParams.set("status", params.status)
-  if (params?.page) searchParams.set("page", String(params.page))
-  if (params?.limit) searchParams.set("limit", String(params.limit))
-  if (params?.sortBy) searchParams.set("sort_by", params.sortBy)
-  if (params?.sortDir) searchParams.set("sort_dir", params.sortDir)
-  return fetchApi<Alert[]>(`/api/alerts?${searchParams.toString()}`)
-}
-
 export async function updateAlertStatus(
   id: number,
   status: string
@@ -731,4 +716,98 @@ export async function apiRevokeSession(
   return fetchApi<{ message: string }>(`/api/auth/sessions/${id}`, {
     method: "DELETE",
   })
+}
+
+// ─── Alerts: Search, Notes ────────────────────────────────────
+
+export async function getAlerts(params?: {
+  severity?: string
+  status?: string
+  search?: string
+  page?: number
+  limit?: number
+  sortBy?: string
+  sortDir?: string
+}): Promise<ApiResponse<Alert[]>> {
+  const searchParams = new URLSearchParams()
+  if (params?.severity) searchParams.set("severity", params.severity)
+  if (params?.status) searchParams.set("status", params.status)
+  if (params?.search) searchParams.set("search", params.search)
+  if (params?.page) searchParams.set("page", String(params.page))
+  if (params?.limit) searchParams.set("limit", String(params.limit))
+  if (params?.sortBy) searchParams.set("sort_by", params.sortBy)
+  if (params?.sortDir) searchParams.set("sort_dir", params.sortDir)
+  return fetchApi<Alert[]>(`/api/alerts?${searchParams.toString()}`)
+}
+
+export async function getAlert(id: number): Promise<ApiResponse<Alert>> {
+  // Uses PATCH endpoint path pattern — backend exposes the single alert
+  // through the list endpoint. We fetch the list and find by ID.
+  const res = await fetchApi<Alert[]>(`/api/alerts?page=1&limit=100`)
+  const alert = res.data?.find((a) => a.id === id) ?? null
+  return {
+    data: alert as Alert,
+    error: alert ? null : "Alert not found",
+    meta: res.meta,
+  }
+}
+
+export async function getAlertNotes(
+  alertId: number
+): Promise<ApiResponse<AlertNote[]>> {
+  return fetchApi<AlertNote[]>(`/api/alerts/${alertId}/notes`)
+}
+
+export async function createAlertNote(
+  alertId: number,
+  content: string
+): Promise<ApiResponse<AlertNote>> {
+  return fetchApi<AlertNote>(`/api/alerts/${alertId}/notes`, {
+    method: "POST",
+    body: JSON.stringify({ content }),
+  })
+}
+
+// ─── Re-analyze Release ─────────────────────────────────────────
+
+export async function reanalyzeRelease(
+  releaseId: number
+): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi<{ message: string }>(`/api/releases/${releaseId}/reanalyze`, {
+    method: "POST",
+  })
+}
+
+// ─── Bulk Package Import ──────────────────────────────────────
+
+export async function bulkImportPackages(
+  format: "requirements_txt" | "package_json" | "list",
+  content: string
+): Promise<ApiResponse<BulkImportResult>> {
+  return fetchApi<BulkImportResult>("/api/packages/bulk-import", {
+    method: "POST",
+    body: JSON.stringify({ format, content }),
+  })
+}
+
+// ─── Webhook Test/Ping ────────────────────────────────────────
+
+export async function testNotificationChannel(
+  orgId: number,
+  channelId: number
+): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi<{ message: string }>(
+    `/api/orgs/${orgId}/notification-channels/${channelId}/test`,
+    { method: "POST" }
+  )
+}
+
+// ─── Analysis History ─────────────────────────────────────────
+
+export async function getAnalysisHistory(
+  packageId: number
+): Promise<ApiResponse<AnalysisHistoryEntry[]>> {
+  return fetchApi<AnalysisHistoryEntry[]>(
+    `/api/packages/${packageId}/analysis-history`
+  )
 }

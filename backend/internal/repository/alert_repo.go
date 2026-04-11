@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"gorm.io/gorm"
 
@@ -34,17 +35,33 @@ func (r *AlertRepo) FindByID(ctx context.Context, id uint) (*domain.Alert, error
 
 func (r *AlertRepo) FindByOrgID(ctx context.Context, orgID uint, page, limit int, sortClause string, filters domain.AlertFilters) ([]domain.Alert, int64, error) {
 	var total int64
-	query := r.db.WithContext(ctx).Model(&models.Alert{}).Where("org_id = ?", orgID)
+	query := r.db.WithContext(ctx).Model(&models.Alert{}).
+		Where("alerts.org_id = ?", orgID)
+
+	// Only JOIN packages when we need to search
+	needsJoin := filters.Search != nil && *filters.Search != ""
+	if needsJoin {
+		query = query.Joins("JOIN packages ON packages.id = alerts.package_id")
+		escapedSearch := escapeLikeRepo(*filters.Search)
+		query = query.Where("(packages.name ILIKE ? OR alerts.message ILIKE ?)",
+			"%"+escapedSearch+"%", "%"+escapedSearch+"%")
+	}
 
 	if filters.Severity != nil {
-		query = query.Where("severity = ?", string(*filters.Severity))
+		query = query.Where("alerts.severity = ?", string(*filters.Severity))
 	}
 	if filters.Status != nil {
-		query = query.Where("status = ?", string(*filters.Status))
+		query = query.Where("alerts.status = ?", string(*filters.Status))
 	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("counting alerts: %w", err)
+	}
+
+	// If sortClause doesn't contain a table qualifier, prefix with "alerts."
+	// to avoid ambiguity when a JOIN is present.
+	if sortClause != "" && !strings.Contains(sortClause, ".") {
+		sortClause = "alerts." + sortClause
 	}
 
 	var ms []models.Alert
@@ -114,6 +131,7 @@ func alertToDomain(m *models.Alert) *domain.Alert {
 		ID:         m.ID,
 		OrgID:      m.OrgID,
 		AnalysisID: m.AnalysisID,
+		ReleaseID:  m.ReleaseID,
 		PackageID:  m.PackageID,
 		Severity:   domain.AlertSeverity(m.Severity),
 		Status:     domain.AlertStatus(m.Status),
@@ -128,6 +146,7 @@ func alertToModel(d *domain.Alert) *models.Alert {
 		ID:         d.ID,
 		OrgID:      d.OrgID,
 		AnalysisID: d.AnalysisID,
+		ReleaseID:  d.ReleaseID,
 		PackageID:  d.PackageID,
 		Severity:   models.AlertSeverity(d.Severity),
 		Status:     models.AlertStatus(d.Status),
@@ -135,4 +154,12 @@ func alertToModel(d *domain.Alert) *models.Alert {
 		CreatedAt:  d.CreatedAt,
 		UpdatedAt:  d.UpdatedAt,
 	}
+}
+
+// escapeLikeRepo escapes LIKE/ILIKE special characters for safe queries.
+func escapeLikeRepo(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "%", "\\%")
+	s = strings.ReplaceAll(s, "_", "\\_")
+	return s
 }

@@ -8,11 +8,13 @@ import (
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/smtp"
+	"net/url"
 	"strings"
 	"time"
 
@@ -46,6 +48,10 @@ type Service struct {
 	rules         domain.NotificationRuleRepository
 	notifications domain.NotificationRepository
 	smtp          SMTPConfig
+
+	// AllowLocalURLs disables SSRF protection for webhook/Slack URLs.
+	// This must ONLY be set to true in tests that use httptest.NewServer (localhost).
+	AllowLocalURLs bool
 }
 
 // NewService creates a new notification service.
@@ -415,6 +421,162 @@ func (s *Service) sendEmailImplicitTLS(addr string, auth smtp.Auth, recipients [
 	return client.Quit()
 }
 
+// ---------------------------------------------------------------------------
+// SSRF prevention — URL validation
+// ---------------------------------------------------------------------------
+
+// ErrSSRFBlocked is returned when a URL targets a private/internal address.
+var ErrSSRFBlocked = errors.New("URL targets a private or internal address")
+
+// ErrInvalidSlackURL is returned when a Slack webhook URL doesn't match the expected domain.
+var ErrInvalidSlackURL = errors.New("Slack webhook URL must use https://hooks.slack.com")
+
+// ValidateWebhookURL validates that a URL is safe for outbound HTTP requests.
+// It blocks private IP ranges, localhost, link-local addresses, and non-HTTP(S) schemes.
+func ValidateWebhookURL(rawURL string) error {
+	if rawURL == "" {
+		return fmt.Errorf("URL is empty")
+	}
+
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+
+	// Only allow HTTP and HTTPS schemes.
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("URL scheme must be http or https, got %q", parsed.Scheme)
+	}
+
+	// Resolve hostname to check if it points to a private IP.
+	hostname := parsed.Hostname()
+	if hostname == "" {
+		return fmt.Errorf("URL has no hostname")
+	}
+
+	// Block localhost by name.
+	lowerHost := strings.ToLower(hostname)
+	if lowerHost == "localhost" || lowerHost == "localhost." {
+		return ErrSSRFBlocked
+	}
+
+	// Resolve and check IP addresses.
+	ips, err := net.LookupHost(hostname)
+	if err != nil {
+		// If we can't resolve, block to be safe — the webhook would fail anyway.
+		return fmt.Errorf("cannot resolve hostname %q: %w", hostname, err)
+	}
+
+	for _, ipStr := range ips {
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			continue
+		}
+		if isPrivateOrReservedIP(ip) {
+			return ErrSSRFBlocked
+		}
+	}
+
+	return nil
+}
+
+// ValidateSlackWebhookURL validates that a Slack webhook URL is safe and
+// actually targets hooks.slack.com.
+func ValidateSlackWebhookURL(rawURL string) error {
+	if err := ValidateWebhookURL(rawURL); err != nil {
+		return err
+	}
+
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return err
+	}
+
+	// Slack webhook URLs must be HTTPS and target hooks.slack.com.
+	if strings.ToLower(parsed.Scheme) != "https" {
+		return ErrInvalidSlackURL
+	}
+	host := strings.ToLower(parsed.Hostname())
+	if host != "hooks.slack.com" {
+		return ErrInvalidSlackURL
+	}
+
+	return nil
+}
+
+// ValidateChannelConfig validates URLs in a channel's config based on channel type.
+// Call this when creating or updating a channel to reject SSRF targets early.
+func ValidateChannelConfig(channelType domain.NotificationChannelType, config string) error {
+	switch channelType {
+	case domain.NotificationChannelWebhook:
+		var cfg webhookConfig
+		if err := json.Unmarshal([]byte(config), &cfg); err != nil {
+			return fmt.Errorf("invalid webhook config JSON: %w", err)
+		}
+		if cfg.URL == "" {
+			return fmt.Errorf("webhook URL is required")
+		}
+		return ValidateWebhookURL(cfg.URL)
+
+	case domain.NotificationChannelSlack:
+		var cfg slackConfig
+		if err := json.Unmarshal([]byte(config), &cfg); err != nil {
+			return fmt.Errorf("invalid slack config JSON: %w", err)
+		}
+		if cfg.WebhookURL == "" {
+			return fmt.Errorf("slack webhook URL is required")
+		}
+		return ValidateSlackWebhookURL(cfg.WebhookURL)
+
+	case domain.NotificationChannelEmail:
+		// Email channels don't have URLs to validate for SSRF.
+		return nil
+
+	default:
+		return nil
+	}
+}
+
+// isPrivateOrReservedIP returns true if the IP is in a private, loopback,
+// link-local, or other reserved range that should not be targeted by
+// outbound webhook requests.
+func isPrivateOrReservedIP(ip net.IP) bool {
+	// Check standard private/reserved ranges.
+	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
+		return true
+	}
+
+	// IPv4 private ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+	// Also: 169.254.0.0/16 (link-local, caught above), 100.64.0.0/10 (CGNAT)
+	privateRanges := []struct {
+		network string
+	}{
+		{"10.0.0.0/8"},
+		{"172.16.0.0/12"},
+		{"192.168.0.0/16"},
+		{"100.64.0.0/10"},  // Carrier-grade NAT
+		{"169.254.0.0/16"}, // Link-local (redundant with IsLinkLocalUnicast but explicit)
+		{"127.0.0.0/8"},    // Loopback (redundant but explicit)
+		{"0.0.0.0/8"},      // "This" network
+		{"fc00::/7"},        // IPv6 unique local
+		{"::1/128"},         // IPv6 loopback
+		{"fe80::/10"},       // IPv6 link-local (redundant but explicit)
+	}
+
+	for _, r := range privateRanges {
+		_, cidr, err := net.ParseCIDR(r.network)
+		if err != nil {
+			continue
+		}
+		if cidr.Contains(ip) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // slackPayload is the JSON payload sent to Slack incoming webhooks.
 type slackPayload struct {
 	Text string `json:"text"`
@@ -440,6 +602,18 @@ func (s *Service) sendSlack(channel domain.NotificationChannel, title, message s
 	if cfg.WebhookURL == "" {
 		slog.Error("slack webhook URL is empty", "channel_id", channel.ID)
 		return
+	}
+
+	// SSRF protection: validate the Slack webhook URL at dispatch time.
+	if !s.AllowLocalURLs {
+		if err := ValidateSlackWebhookURL(cfg.WebhookURL); err != nil {
+			slog.Error("slack webhook URL blocked by SSRF policy",
+				"channel_id", channel.ID,
+				"url", cfg.WebhookURL,
+				"error", err,
+			)
+			return
+		}
 	}
 
 	// Format as a Slack mrkdwn message
@@ -510,6 +684,18 @@ func (s *Service) sendWebhook(channel domain.NotificationChannel, title, message
 	if cfg.URL == "" {
 		slog.Error("webhook URL is empty", "channel_id", channel.ID)
 		return
+	}
+
+	// SSRF protection: validate the webhook URL at dispatch time.
+	if !s.AllowLocalURLs {
+		if err := ValidateWebhookURL(cfg.URL); err != nil {
+			slog.Error("webhook URL blocked by SSRF policy",
+				"channel_id", channel.ID,
+				"url", cfg.URL,
+				"error", err,
+			)
+			return
+		}
 	}
 
 	payload := webhookPayload{
@@ -622,6 +808,35 @@ func (s *Service) MarkAllRead(orgID, userID uint) (int64, error) {
 		return 0, fmt.Errorf("marking all notifications as read: %w", err)
 	}
 	return affected, nil
+}
+
+// TestChannel sends a test notification through a specific channel to verify it works.
+// Returns nil on success, an error describing the failure otherwise.
+func (s *Service) TestChannel(id, orgID uint) error {
+	ctx := context.Background()
+
+	channel, err := s.channels.FindByIDAndOrg(ctx, id, orgID)
+	if err != nil {
+		return fmt.Errorf("notification channel not found in this organization")
+	}
+
+	title := "Veilence-MX Test Notification"
+	message := "This is a test notification from Veilence-MX. If you received this, your notification channel is configured correctly."
+
+	s.dispatchToChannel(*channel, title, message)
+
+	slog.Info("test notification dispatched",
+		"channel_id", id,
+		"org_id", orgID,
+		"type", channel.Type,
+	)
+	return nil
+}
+
+// GetChannel returns a notification channel by ID and org.
+func (s *Service) GetChannel(id, orgID uint) (*domain.NotificationChannel, error) {
+	ctx := context.Background()
+	return s.channels.FindByIDAndOrg(ctx, id, orgID)
 }
 
 // ---------------------------------------------------------------------------

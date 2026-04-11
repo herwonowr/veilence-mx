@@ -178,10 +178,21 @@ func TestAlertRepo_FindByOrgID(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewAlertRepo(db)
 
+	// Create prerequisite packages so the JOIN succeeds
+	pkg1 := &models.Package{OrgID: 1, Name: "requests", Registry: "pypi"}
+	require.NoError(t, db.Create(pkg1).Error)
+	pkg2 := &models.Package{OrgID: 2, Name: "express", Registry: "npm"}
+	require.NoError(t, db.Create(pkg2).Error)
+
 	// Create alerts for two orgs
-	for _, orgID := range []uint{1, 1, 2} {
+	for i, orgID := range []uint{1, 1, 2} {
+		pkgID := pkg1.ID
+		if orgID == 2 {
+			pkgID = pkg2.ID
+		}
+		_ = i
 		a := &domain.Alert{
-			OrgID: orgID, PackageID: 1, AnalysisID: 1,
+			OrgID: orgID, PackageID: pkgID, AnalysisID: 1,
 			Severity: domain.AlertSeverityMedium,
 			Status:   domain.AlertStatusNew,
 			Message:  "test alert",
@@ -199,10 +210,14 @@ func TestAlertRepo_FindByOrgID_WithFilters(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewAlertRepo(db)
 
+	// Create prerequisite package so the JOIN succeeds
+	pkg := &models.Package{OrgID: 1, Name: "requests", Registry: "pypi"}
+	require.NoError(t, db.Create(pkg).Error)
+
 	severities := []domain.AlertSeverity{domain.AlertSeverityLow, domain.AlertSeverityHigh, domain.AlertSeverityCritical}
 	for _, sev := range severities {
 		a := &domain.Alert{
-			OrgID: 1, PackageID: 1, AnalysisID: 1,
+			OrgID: 1, PackageID: pkg.ID, AnalysisID: 1,
 			Severity: sev,
 			Status:   domain.AlertStatusNew,
 			Message:  "alert " + string(sev),

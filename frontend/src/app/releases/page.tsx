@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select"
 import type { RecentRelease, Classification } from "@/types"
 import { Skeleton } from "@/components/ui/skeleton"
-import { CheckCircle, RotateCcw } from "lucide-react"
+import { CheckCircle, RotateCcw, Activity } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   useReactTable,
@@ -286,8 +286,17 @@ function ReleasesContent() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center text-muted-foreground py-8">
-                    No releases yet. Add packages to start monitoring.
+                  <TableCell colSpan={columns.length} className="text-center py-8">
+                    <div className="flex flex-col items-center gap-3">
+                      <Activity className="h-8 w-8 text-muted-foreground" />
+                      <p className="text-muted-foreground">No releases yet.</p>
+                      <p className="text-xs text-muted-foreground">Add packages to start monitoring releases.</p>
+                      <Link href="/packages">
+                        <Button variant="outline" size="sm">
+                          Go to Packages
+                        </Button>
+                      </Link>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}

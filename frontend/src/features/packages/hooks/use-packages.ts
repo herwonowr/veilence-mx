@@ -11,8 +11,10 @@ import {
   deletePackage,
   getPackageReleases,
   syncTopPackages,
+  bulkImportPackages,
+  getAnalysisHistory,
 } from "@/lib/api-client"
-import type { ApiResponse, Package, Release } from "@/types"
+import type { ApiResponse, Package, Release, AnalysisHistoryEntry } from "@/types"
 import { toast } from "sonner"
 import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
 
@@ -25,6 +27,8 @@ export const packageKeys = {
   detail: (id: number) => [...packageKeys.details(), id] as const,
   releases: (packageId: number, page?: number, limit?: number) =>
     [...packageKeys.all, "releases", packageId, page, limit] as const,
+  analysisHistory: (packageId: number) =>
+    [...packageKeys.all, "analysis-history", packageId] as const,
 }
 
 export function usePackages(
@@ -114,5 +118,39 @@ export function useSyncTopPackages() {
     onError: (error: Error) => {
       toast.error(sanitizeErrorMessage(error, "Failed to sync packages"))
     },
+  })
+}
+
+export function useBulkImportPackages() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      format,
+      content,
+    }: {
+      format: "requirements_txt" | "package_json" | "list"
+      content: string
+    }) => bulkImportPackages(format, content),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: packageKeys.lists() })
+      const { imported, skipped } = result.data
+      toast.success(`Imported ${imported} package(s)${skipped > 0 ? `, ${skipped} skipped` : ""}`)
+    },
+    onError: (error: Error) => {
+      toast.error(sanitizeErrorMessage(error, "Failed to import packages"))
+    },
+  })
+}
+
+export function useAnalysisHistory(
+  packageId: number,
+  options?: Partial<UseQueryOptions<ApiResponse<AnalysisHistoryEntry[]>>>
+) {
+  return useQuery({
+    queryKey: packageKeys.analysisHistory(packageId),
+    queryFn: () => getAnalysisHistory(packageId),
+    enabled: packageId > 0,
+    ...options,
   })
 }

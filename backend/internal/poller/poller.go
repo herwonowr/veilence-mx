@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"gorm.io/gorm"
@@ -71,6 +72,17 @@ func (c *settingsCache) invalidate() {
 // Settings are re-read from the database after this duration.
 const SettingsCacheTTL = 1 * time.Minute
 
+// BaseTickInterval is the base polling interval used by pollLoop.
+// Each tick, the poller checks which orgs are due for polling based on
+// their per-org interval settings. This must be ≤ the smallest expected
+// per-org interval to ensure timely polling.
+const BaseTickInterval = 30 * time.Second
+
+// MaxOrgConcurrency limits how many orgs can be polled concurrently
+// within a single poll cycle. This prevents resource exhaustion when
+// many orgs are due simultaneously.
+const MaxOrgConcurrency = 5
+
 // Poller polls package registries for new releases.
 type Poller struct {
 	db       *gorm.DB
@@ -80,6 +92,11 @@ type Poller struct {
 	queue    *queue.Queue
 	mu       sync.Mutex
 	settings *settingsCache
+
+	// lastPollAt tracks when each (orgID, registry) pair was last polled.
+	// Protected by lastPollMu.
+	lastPollMu sync.RWMutex
+	lastPollAt map[string]time.Time
 }
 
 // New creates a new Poller instance.
@@ -88,12 +105,13 @@ func New(db *gorm.DB, pypi registry.Registry, npm registry.Registry, config Conf
 		config.Concurrency = 5
 	}
 	return &Poller{
-		db:       db,
-		pypi:     pypi,
-		npm:      npm,
-		config:   config,
-		queue:    q,
-		settings: newSettingsCache(SettingsCacheTTL),
+		db:         db,
+		pypi:       pypi,
+		npm:        npm,
+		config:     config,
+		queue:      q,
+		settings:   newSettingsCache(SettingsCacheTTL),
+		lastPollAt: make(map[string]time.Time),
 	}
 }
 
@@ -111,9 +129,11 @@ func (p *Poller) Start(ctx context.Context) {
 	go p.pollLoop(ctx, p.npm, p.config.NPMInterval)
 }
 
-func (p *Poller) pollLoop(ctx context.Context, reg registry.Registry, interval time.Duration) {
-	p.pollRegistry(ctx, reg)
-	ticker := time.NewTicker(interval)
+func (p *Poller) pollLoop(ctx context.Context, reg registry.Registry, defaultInterval time.Duration) {
+	// Initial poll — all orgs are immediately due since lastPollAt is empty.
+	p.pollRegistry(ctx, reg, defaultInterval)
+
+	ticker := time.NewTicker(BaseTickInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -121,12 +141,55 @@ func (p *Poller) pollLoop(ctx context.Context, reg registry.Registry, interval t
 			slog.Info("poller shutting down", "registry", reg.Name())
 			return
 		case <-ticker.C:
-			p.pollRegistry(ctx, reg)
+			p.pollRegistry(ctx, reg, defaultInterval)
 		}
 	}
 }
 
-func (p *Poller) pollRegistry(ctx context.Context, reg registry.Registry) {
+// pollRegistryKey returns the lastPollAt map key for an (orgID, registry) pair.
+func pollRegistryKey(orgID uint, regName string) string {
+	return fmt.Sprintf("%d:%s", orgID, regName)
+}
+
+// getOrgPollInterval returns the poll interval for a specific org and registry.
+// Falls back to the global default interval if no per-org setting exists.
+func (p *Poller) getOrgPollInterval(orgID uint, reg registry.Registry, defaultInterval time.Duration) time.Duration {
+	settingKey := models.SettingPyPIPollInterval
+	if reg.Name() == "npm" {
+		settingKey = models.SettingNPMPollInterval
+	}
+
+	intervalStr := p.getSetting(settingKey, defaultInterval.String(), orgID)
+	if d, err := time.ParseDuration(intervalStr); err == nil && d > 0 {
+		return d
+	}
+	return defaultInterval
+}
+
+// isOrgDue returns true if the given org is due for polling based on its
+// per-org interval setting and the last time it was polled.
+func (p *Poller) isOrgDue(orgID uint, regName string, interval time.Duration) bool {
+	key := pollRegistryKey(orgID, regName)
+
+	p.lastPollMu.RLock()
+	last, ok := p.lastPollAt[key]
+	p.lastPollMu.RUnlock()
+
+	if !ok {
+		return true // Never polled — immediately due.
+	}
+	return time.Since(last) >= interval
+}
+
+// markOrgPolled records the current time as the last poll time for the org+registry.
+func (p *Poller) markOrgPolled(orgID uint, regName string) {
+	key := pollRegistryKey(orgID, regName)
+	p.lastPollMu.Lock()
+	p.lastPollAt[key] = time.Now()
+	p.lastPollMu.Unlock()
+}
+
+func (p *Poller) pollRegistry(ctx context.Context, reg registry.Registry, defaultInterval time.Duration) {
 	slog.Info("polling registry", "registry", reg.Name())
 
 	// Fetch distinct org IDs that have packages in this registry
@@ -144,38 +207,72 @@ func (p *Poller) pollRegistry(ctx context.Context, reg registry.Registry) {
 		return
 	}
 
-	totalChecked := 0
+	// Filter to orgs that are due for polling based on their per-org interval.
+	var dueOrgIDs []uint
 	for _, orgID := range orgIDs {
-		var packages []models.Package
-		if err := p.db.Where("registry = ? AND org_id = ?", reg.Name(), orgID).Find(&packages).Error; err != nil {
-			slog.Error("failed to load packages", "registry", reg.Name(), "org_id", orgID, "error", err)
-			continue
+		interval := p.getOrgPollInterval(orgID, reg, defaultInterval)
+		if p.isOrgDue(orgID, reg.Name(), interval) {
+			dueOrgIDs = append(dueOrgIDs, orgID)
 		}
-
-		if len(packages) == 0 {
-			continue
-		}
-
-		sem := make(chan struct{}, p.config.Concurrency)
-		var wg sync.WaitGroup
-
-		for _, pkg := range packages {
-			wg.Add(1)
-			go func(pkg models.Package) {
-				defer wg.Done()
-				sem <- struct{}{}
-				defer func() { <-sem }()
-				if err := p.checkPackage(ctx, reg, pkg); err != nil {
-					slog.Error("failed to check package", "package", pkg.Name, "registry", reg.Name(), "org_id", orgID, "error", err)
-				}
-			}(pkg)
-		}
-
-		wg.Wait()
-		totalChecked += len(packages)
 	}
 
-	slog.Info("polling complete", "registry", reg.Name(), "packages_checked", totalChecked)
+	if len(dueOrgIDs) == 0 {
+		slog.Debug("no orgs due for polling", "registry", reg.Name())
+		return
+	}
+
+	// Poll due orgs concurrently, bounded by MaxOrgConcurrency.
+	orgSem := make(chan struct{}, MaxOrgConcurrency)
+	var wg sync.WaitGroup
+	var totalChecked int64
+
+	for _, orgID := range dueOrgIDs {
+		wg.Add(1)
+		go func(orgID uint) {
+			defer wg.Done()
+			orgSem <- struct{}{}
+			defer func() { <-orgSem }()
+
+			n := p.pollOrgPackages(ctx, reg, orgID)
+			atomic.AddInt64(&totalChecked, int64(n))
+			p.markOrgPolled(orgID, reg.Name())
+		}(orgID)
+	}
+
+	wg.Wait()
+	slog.Info("polling complete", "registry", reg.Name(), "orgs_polled", len(dueOrgIDs), "packages_checked", totalChecked)
+}
+
+// pollOrgPackages polls all packages for a single org in a single registry.
+// Returns the number of packages checked.
+func (p *Poller) pollOrgPackages(ctx context.Context, reg registry.Registry, orgID uint) int {
+	var packages []models.Package
+	if err := p.db.Where("registry = ? AND org_id = ?", reg.Name(), orgID).Find(&packages).Error; err != nil {
+		slog.Error("failed to load packages", "registry", reg.Name(), "org_id", orgID, "error", err)
+		return 0
+	}
+
+	if len(packages) == 0 {
+		return 0
+	}
+
+	sem := make(chan struct{}, p.config.Concurrency)
+	var wg sync.WaitGroup
+
+	for _, pkg := range packages {
+		wg.Add(1)
+		go func(pkg models.Package) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			if err := p.checkPackage(ctx, reg, pkg); err != nil {
+				slog.Error("failed to check package", "package", pkg.Name, "registry", reg.Name(), "org_id", orgID, "error", err)
+			}
+		}(pkg)
+	}
+
+	wg.Wait()
+	return len(packages)
 }
 
 func (p *Poller) checkPackage(ctx context.Context, reg registry.Registry, pkg models.Package) error {

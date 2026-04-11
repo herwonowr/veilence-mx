@@ -115,6 +115,15 @@ type AlertRepository interface {
 type AlertFilters struct {
 	Severity *AlertSeverity
 	Status   *AlertStatus
+	Search   *string
+}
+
+// AlertNoteRepository defines persistence operations for AlertNote entities.
+type AlertNoteRepository interface {
+	// FindByAlertID returns all notes for an alert.
+	FindByAlertID(ctx context.Context, alertID uint) ([]AlertNote, error)
+	// Create persists a new alert note.
+	Create(ctx context.Context, note *AlertNote) error
 }
 
 // SettingRepository defines persistence operations for Setting entities.

@@ -55,6 +55,7 @@ export interface Alert {
   id: number
   analysisId: number
   packageId: number
+  releaseId?: number
   severity: AlertSeverity
   status: AlertStatus
   message: string
@@ -265,4 +266,43 @@ export interface NotificationRule {
   isActive: boolean
   createdAt: string
   updatedAt: string
+}
+
+// ─── Alert Notes ──────────────────────────────────────────────
+
+export interface AlertNote {
+  id: number
+  alertId: number
+  userId: number
+  userEmail: string
+  content: string
+  createdAt: string
+  updatedAt: string
+}
+
+// ─── Bulk Import ──────────────────────────────────────────────
+
+export interface BulkImportError {
+  name: string
+  error: string
+}
+
+export interface BulkImportResult {
+  imported: number
+  skipped: number
+  errors: BulkImportError[]
+}
+
+// ─── Analysis History ─────────────────────────────────────────
+
+export interface AnalysisHistoryEntry {
+  releaseId: number
+  version: string
+  classification: Classification
+  confidence: number
+  reasoning: string
+  modelUsed: string
+  analyzerType: AnalyzerType
+  analyzedAt: string
+  publishedAt: string
 }

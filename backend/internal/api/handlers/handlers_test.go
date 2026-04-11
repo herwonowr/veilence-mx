@@ -29,6 +29,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		&models.Diff{},
 		&models.Analysis{},
 		&models.Alert{},
+		&models.AlertNote{},
 		&models.Setting{},
 		&models.AuditLog{},
 	)
@@ -51,12 +52,12 @@ func newDashboardHandlers(db *gorm.DB) *handlers.DashboardHandlers {
 
 // newPackageHandlers creates a PackageHandlers for testing.
 func newPackageHandlers(db *gorm.DB) *handlers.PackageHandlers {
-	return &handlers.PackageHandlers{DB: db, Audit: audit.NewService(db)}
+	return &handlers.PackageHandlers{DB: db, Queue: nil, Audit: audit.NewService(db)}
 }
 
 // newAlertHandlers creates an AlertHandlers for testing.
 func newAlertHandlers(db *gorm.DB) *handlers.AlertHandlers {
-	return &handlers.AlertHandlers{DB: db, Audit: audit.NewService(db)}
+	return &handlers.AlertHandlers{DB: db, AlertNotes: repository.NewAlertNoteRepo(db), Audit: audit.NewService(db)}
 }
 
 // newSettingsHandlers creates a SettingsHandlers for testing.
@@ -728,4 +729,507 @@ func TestParsePagination(t *testing.T) {
 			assert.Len(t, data, tt.wantCount)
 		})
 	}
+}
+
+// =====================================
+// v1.0.1 NEW ENDPOINT TESTS
+// =====================================
+
+// --- Alert Search ---
+
+func TestListAlerts_Search(t *testing.T) {
+	db := setupTestDB(t)
+	h := newAlertHandlers(db)
+
+	pkg1 := models.Package{Name: "requests", Registry: "pypi"}
+	db.Create(&pkg1)
+	pkg2 := models.Package{Name: "express", Registry: "npm"}
+	db.Create(&pkg2)
+
+	// Set up required chain for alerts
+	rel1 := models.Release{PackageID: pkg1.ID, Version: "1.0.0", Status: "completed"}
+	db.Create(&rel1)
+	diff1 := models.Diff{ReleaseID: rel1.ID, DiffContent: "d"}
+	db.Create(&diff1)
+	analysis1 := models.Analysis{DiffID: diff1.ID, Classification: "malicious", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
+	db.Create(&analysis1)
+
+	rel2 := models.Release{PackageID: pkg2.ID, Version: "2.0.0", Status: "completed"}
+	db.Create(&rel2)
+	diff2 := models.Diff{ReleaseID: rel2.ID, DiffContent: "d"}
+	db.Create(&diff2)
+	analysis2 := models.Analysis{DiffID: diff2.ID, Classification: "suspicious", Confidence: 0.8, ModelUsed: "test", AnalyzerType: "copilot"}
+	db.Create(&analysis2)
+
+	db.Create(&models.Alert{AnalysisID: analysis1.ID, PackageID: pkg1.ID, Severity: "critical", Status: "new", Message: "Malicious in requests"})
+	db.Create(&models.Alert{AnalysisID: analysis2.ID, PackageID: pkg2.ID, Severity: "medium", Status: "new", Message: "Suspicious in express"})
+
+	tests := []struct {
+		name      string
+		search    string
+		wantCount int
+		pgOnly    bool // ILIKE is PostgreSQL-specific, skip on SQLite
+	}{
+		{"search by package name", "requests", 1, true},
+		{"search by message", "Suspicious", 1, true},
+		{"search no results", "nonexistent", 0, true},
+		{"empty search", "", 2, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.pgOnly {
+				t.Skip("ILIKE requires PostgreSQL; search tested via integration tests")
+			}
+			query := ""
+			if tt.search != "" {
+				query = "search=" + tt.search
+			}
+			req := httptest.NewRequest(http.MethodGet, "/api/alerts?"+query, nil)
+			w := httptest.NewRecorder()
+			h.ListAlerts(w, req)
+			require.Equal(t, http.StatusOK, w.Code)
+
+			var resp map[string]any
+			json.NewDecoder(w.Body).Decode(&resp)
+			data := resp["data"].([]any)
+			assert.Len(t, data, tt.wantCount)
+		})
+	}
+}
+
+// --- Alert Notes ---
+
+func TestListAlertNotes(t *testing.T) {
+	db := setupTestDB(t)
+	h := newAlertHandlers(db)
+
+	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	db.Create(&pkg)
+	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
+	db.Create(&rel)
+	diff := models.Diff{ReleaseID: rel.ID, DiffContent: "d"}
+	db.Create(&diff)
+	analysis := models.Analysis{DiffID: diff.ID, Classification: "malicious", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
+	db.Create(&analysis)
+	alert := models.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, Severity: "critical", Status: "new", Message: "Bad"}
+	db.Create(&alert)
+
+	// Create some notes
+	db.Create(&models.AlertNote{AlertID: alert.ID, OrgID: 0, UserID: 1, UserEmail: "user@example.com", Content: "First note"})
+	db.Create(&models.AlertNote{AlertID: alert.ID, OrgID: 0, UserID: 2, UserEmail: "other@example.com", Content: "Second note"})
+
+	r := chi.NewRouter()
+	r.Get("/api/alerts/{id}/notes", h.ListAlertNotes)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/alerts/"+idStr(alert.ID)+"/notes", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].([]any)
+	assert.Len(t, data, 2)
+}
+
+func TestListAlertNotes_AlertNotFound(t *testing.T) {
+	db := setupTestDB(t)
+	h := newAlertHandlers(db)
+
+	r := chi.NewRouter()
+	r.Get("/api/alerts/{id}/notes", h.ListAlertNotes)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/alerts/99999/notes", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestCreateAlertNote(t *testing.T) {
+	db := setupTestDB(t)
+	h := newAlertHandlers(db)
+
+	// Create user for email lookup
+	db.Exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, email TEXT, first_name TEXT, last_name TEXT, password_hash TEXT, is_active INTEGER DEFAULT 1, email_verified INTEGER DEFAULT 0, last_login_at TEXT, created_at TEXT, updated_at TEXT, deleted_at TEXT)")
+	db.Exec("INSERT INTO users (id, email, first_name, last_name, password_hash) VALUES (1, 'user@example.com', 'Test', 'User', 'hash')")
+
+	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	db.Create(&pkg)
+	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
+	db.Create(&rel)
+	diff := models.Diff{ReleaseID: rel.ID, DiffContent: "d"}
+	db.Create(&diff)
+	analysis := models.Analysis{DiffID: diff.ID, Classification: "malicious", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
+	db.Create(&analysis)
+	alert := models.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, Severity: "critical", Status: "new", Message: "Bad"}
+	db.Create(&alert)
+
+	r := chi.NewRouter()
+	r.Post("/api/alerts/{id}/notes", h.CreateAlertNote)
+
+	body := `{"content":"This looks like a false positive"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/alerts/"+idStr(alert.ID)+"/notes", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusCreated, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Equal(t, "This looks like a false positive", data["content"])
+}
+
+func TestCreateAlertNote_EmptyContent(t *testing.T) {
+	db := setupTestDB(t)
+	h := newAlertHandlers(db)
+
+	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	db.Create(&pkg)
+	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
+	db.Create(&rel)
+	diff := models.Diff{ReleaseID: rel.ID, DiffContent: "d"}
+	db.Create(&diff)
+	analysis := models.Analysis{DiffID: diff.ID, Classification: "malicious", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
+	db.Create(&analysis)
+	alert := models.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, Severity: "critical", Status: "new", Message: "Bad"}
+	db.Create(&alert)
+
+	r := chi.NewRouter()
+	r.Post("/api/alerts/{id}/notes", h.CreateAlertNote)
+
+	body := `{"content":""}`
+	req := httptest.NewRequest(http.MethodPost, "/api/alerts/"+idStr(alert.ID)+"/notes", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// --- Bulk Package Import ---
+
+func TestImportPackages(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	body := `{"packages":[{"name":"django","registry":"pypi"},{"name":"express","registry":"npm"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.ImportPackages(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Equal(t, float64(2), data["imported"])
+	assert.Equal(t, float64(0), data["skipped"])
+
+	// Verify packages exist in DB
+	var count int64
+	db.Model(&models.Package{}).Count(&count)
+	assert.Equal(t, int64(2), count)
+}
+
+func TestImportPackages_Duplicates(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	// Pre-create a package
+	db.Create(&models.Package{Name: "django", Registry: "pypi"})
+
+	body := `{"packages":[{"name":"django","registry":"pypi"},{"name":"flask","registry":"pypi"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.ImportPackages(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Equal(t, float64(1), data["imported"])
+	assert.Equal(t, float64(1), data["skipped"])
+}
+
+func TestImportPackages_InvalidRegistry(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	body := `{"packages":[{"name":"test","registry":"rubygems"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.ImportPackages(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Equal(t, float64(0), data["imported"])
+	errors := data["errors"].([]any)
+	assert.Len(t, errors, 1)
+}
+
+func TestImportPackages_EmptyList(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	body := `{"packages":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.ImportPackages(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestImportPackages_TooMany(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	// Build a body with 501 packages
+	entries := make([]string, 501)
+	for i := range entries {
+		entries[i] = fmt.Sprintf(`{"name":"pkg-%d","registry":"pypi"}`, i)
+	}
+	body := `{"packages":[` + strings.Join(entries, ",") + `]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.ImportPackages(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestImportPackages_RequirementsTxt(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	content := "# This is a comment\nrequests==2.31.0\nflask>=2.0\nnumpy\n-i https://pypi.org\ndjango~=4.0\nsetuptools[extra]>=60.0\n\n"
+	body := fmt.Sprintf(`{"format":"requirements_txt","content":%q}`, content)
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.ImportPackages(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Equal(t, float64(5), data["imported"]) // requests, flask, numpy, django, setuptools
+	assert.Equal(t, float64(0), data["skipped"])
+}
+
+func TestImportPackages_PackageJSON(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	pkgJSON := `{
+		"name": "my-app",
+		"dependencies": {"express": "^4.18.0", "lodash": "^4.17.21"},
+		"devDependencies": {"jest": "^29.0.0", "typescript": "^5.0.0"}
+	}`
+	body := fmt.Sprintf(`{"format":"package_json","content":%q}`, pkgJSON)
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.ImportPackages(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Equal(t, float64(4), data["imported"]) // express, lodash, jest, typescript
+}
+
+func TestImportPackages_ListFormat(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	content := "pypi:requests\nnpm:express\npypi:flask\n# comment\n\nnpm:lodash"
+	body := fmt.Sprintf(`{"format":"list","content":%q}`, content)
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.ImportPackages(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Equal(t, float64(4), data["imported"])
+}
+
+func TestImportPackages_InvalidFormat(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	body := `{"format":"invalid","content":"some content"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.ImportPackages(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestImportPackages_FormatWithoutContent(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	body := `{"format":"requirements_txt"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.ImportPackages(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestImportPackages_InvalidPackageName(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	body := `{"packages":[{"name":"valid-pkg","registry":"pypi"},{"name":"evil pkg!","registry":"pypi"},{"name":"ok.pkg","registry":"npm"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.ImportPackages(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Equal(t, float64(2), data["imported"])  // valid-pkg and ok.pkg
+	errors := data["errors"].([]any)
+	assert.Len(t, errors, 1) // evil pkg! has invalid characters
+}
+
+func TestCreatePackage_InvalidName(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	body := `{"name":"invalid name!@#$","registry":"pypi"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/packages", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.CreatePackage(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestCreatePackage_NameTooLong(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	longName := strings.Repeat("a", 201)
+	body := fmt.Sprintf(`{"name":"%s","registry":"pypi"}`, longName)
+	req := httptest.NewRequest(http.MethodPost, "/api/packages", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.CreatePackage(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestCreatePackage_ScopedNpmPackage(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	body := `{"name":"@angular/core","registry":"npm"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/packages", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.CreatePackage(w, req)
+	assert.Equal(t, http.StatusCreated, w.Code)
+}
+
+// --- Re-analyze Release ---
+
+func TestReanalyzeRelease_NoQueue(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db) // Queue is nil
+
+	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 0}
+	db.Create(&pkg)
+	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
+	db.Create(&rel)
+
+	r := chi.NewRouter()
+	r.Post("/api/releases/{id}/reanalyze", h.ReanalyzeRelease)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/releases/"+idStr(rel.ID)+"/reanalyze", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestReanalyzeRelease_NotFound(t *testing.T) {
+	t.Skip("Cannot test release-not-found path without a queue mock; handler returns 500 (queue nil) before checking release existence")
+}
+
+func TestReanalyzeRelease_InvalidID(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	r := chi.NewRouter()
+	r.Post("/api/releases/{id}/reanalyze", h.ReanalyzeRelease)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/releases/abc/reanalyze", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// --- Analysis History ---
+
+func TestGetAnalysisHistory(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	db.Create(&pkg)
+
+	// Baseline release (completed, no diff)
+	rel1 := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
+	db.Create(&rel1)
+
+	// Analyzed release
+	rel2 := models.Release{PackageID: pkg.ID, Version: "1.1.0", Status: "completed"}
+	db.Create(&rel2)
+	diff := models.Diff{ReleaseID: rel2.ID, PrevReleaseID: rel1.ID, DiffContent: "diff"}
+	db.Create(&diff)
+	db.Create(&models.Analysis{DiffID: diff.ID, Classification: "benign", Confidence: 0.95, Reasoning: "OK", ModelUsed: "test", AnalyzerType: "copilot"})
+
+	// Pending release (no diff, not completed)
+	rel3 := models.Release{PackageID: pkg.ID, Version: "1.2.0", Status: "pending"}
+	db.Create(&rel3)
+
+	r := chi.NewRouter()
+	r.Get("/api/packages/{id}/analysis-history", h.GetAnalysisHistory)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/packages/"+idStr(pkg.ID)+"/analysis-history", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].([]any)
+	// Should include baseline + analyzed, NOT pending
+	assert.Len(t, data, 2)
+}
+
+func TestGetAnalysisHistory_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	r := chi.NewRouter()
+	r.Get("/api/packages/{id}/analysis-history", h.GetAnalysisHistory)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/packages/99999/analysis-history", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestGetAnalysisHistory_Empty(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	pkg := models.Package{Name: "brand-new", Registry: "pypi"}
+	db.Create(&pkg)
+
+	r := chi.NewRouter()
+	r.Get("/api/packages/{id}/analysis-history", h.GetAnalysisHistory)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/packages/"+idStr(pkg.ID)+"/analysis-history", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].([]any)
+	assert.Len(t, data, 0)
 }

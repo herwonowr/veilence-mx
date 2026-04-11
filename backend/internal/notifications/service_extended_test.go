@@ -207,6 +207,7 @@ func TestDispatch_EmailChannel_SMTPConfiguredButUnreachable(t *testing.T) {
 		Port: "1",
 		From: "noreply@test.example.com",
 	})
+	svc.AllowLocalURLs = true // Tests use localhost
 
 	config := `{"recipients":"test@example.com"}`
 	ch := createTestChannel(t, svc, 1, "SMTP Email", domain.NotificationChannelEmail, config)
@@ -231,6 +232,7 @@ func TestDispatch_EmailChannel_MultipleRecipients(t *testing.T) {
 		Port: "1",
 		From: "noreply@test.example.com",
 	})
+	svc.AllowLocalURLs = true // Tests use localhost
 
 	config := `{"recipients":"a@test.com, b@test.com, c@test.com"}`
 	ch := createTestChannel(t, svc, 1, "Multi Recip", domain.NotificationChannelEmail, config)

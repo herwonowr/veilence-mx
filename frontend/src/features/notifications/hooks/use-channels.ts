@@ -7,6 +7,7 @@ import {
   apiListRules,
   apiCreateRule,
   apiDeleteRule,
+  testNotificationChannel,
 } from "@/lib/api-client"
 import { toast } from "sonner"
 import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
@@ -117,6 +118,18 @@ export function useDeleteRule(orgId: number) {
     },
     onError: (err: Error) => {
       toast.error(sanitizeErrorMessage(err, "Failed to delete rule"))
+    },
+  })
+}
+
+export function useTestChannel(orgId: number) {
+  return useMutation({
+    mutationFn: (channelId: number) => testNotificationChannel(orgId, channelId),
+    onSuccess: () => {
+      toast.success("Test notification sent")
+    },
+    onError: (err: Error) => {
+      toast.error(sanitizeErrorMessage(err, "Failed to send test notification"))
     },
   })
 }

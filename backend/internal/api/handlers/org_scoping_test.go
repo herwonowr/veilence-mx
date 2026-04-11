@@ -30,6 +30,7 @@ func setupOrgTestDB(t *testing.T) *gorm.DB {
 		&models.Diff{},
 		&models.Analysis{},
 		&models.Alert{},
+		&models.AlertNote{},
 		&models.Setting{},
 		&models.AuditLog{},
 	)

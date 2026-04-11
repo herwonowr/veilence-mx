@@ -106,28 +106,35 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 
 				// Packages
 				r.Route("/packages", func(r chi.Router) {
-					r.Get("/", h.Packages.ListPackages)
+					r.With(rbac.RequirePermission(rbacService, "packages", "read")).Get("/", h.Packages.ListPackages)
 					r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/", h.Packages.CreatePackage)
+					r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/bulk-import", h.Packages.ImportPackages)
 					r.Route("/{id}", func(r chi.Router) {
-						r.Get("/", h.Packages.GetPackage)
+						r.With(rbac.RequirePermission(rbacService, "packages", "read")).Get("/", h.Packages.GetPackage)
 						r.With(rbac.RequirePermission(rbacService, "packages", "delete")).Delete("/", h.Packages.DeletePackage)
-						r.Get("/releases", h.Packages.ListPackageReleases)
+						r.With(rbac.RequirePermission(rbacService, "releases", "read")).Get("/releases", h.Packages.ListPackageReleases)
+						r.With(rbac.RequirePermission(rbacService, "packages", "read")).Get("/analysis-history", h.Packages.GetAnalysisHistory)
 					})
 				})
 
 				// Releases
 				r.Route("/releases", func(r chi.Router) {
-					r.Get("/{id}", h.Packages.GetRelease)
+					r.With(rbac.RequirePermission(rbacService, "releases", "read")).Get("/{id}", h.Packages.GetRelease)
+					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/{id}/reanalyze", h.Packages.ReanalyzeRelease)
 				})
 
 				// Alerts
 				r.Route("/alerts", func(r chi.Router) {
-					r.Get("/", h.Alerts.ListAlerts)
-					r.With(rbac.RequirePermission(rbacService, "alerts", "write")).Patch("/{id}", h.Alerts.UpdateAlert)
+					r.With(rbac.RequirePermission(rbacService, "alerts", "read")).Get("/", h.Alerts.ListAlerts)
+					r.Route("/{id}", func(r chi.Router) {
+						r.With(rbac.RequirePermission(rbacService, "alerts", "write")).Patch("/", h.Alerts.UpdateAlert)
+						r.With(rbac.RequirePermission(rbacService, "alerts", "read")).Get("/notes", h.Alerts.ListAlertNotes)
+						r.With(rbac.RequirePermission(rbacService, "alerts", "write")).Post("/notes", h.Alerts.CreateAlertNote)
+					})
 				})
 
 				// Settings
-				r.Get("/settings", h.Settings.GetSettings)
+				r.With(rbac.RequirePermission(rbacService, "settings", "read")).Get("/settings", h.Settings.GetSettings)
 				r.With(rbac.RequirePermission(rbacService, "settings", "write")).Put("/settings", h.Settings.UpdateSettings)
 
 				// Sync triggers (stricter rate limit + write permission)
@@ -138,9 +145,9 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 				})
 
 				// Queue monitoring (global data, but requires org membership)
-				r.Get("/queue/stats", h.Queue.GetQueueStats)
-				r.Get("/queue/dead", h.Queue.GetDeadJobs)
-				r.Post("/queue/retry-dead", h.Queue.RetryDeadJobs)
+				r.With(rbac.RequirePermission(rbacService, "settings", "read")).Get("/queue/stats", h.Queue.GetQueueStats)
+				r.With(rbac.RequirePermission(rbacService, "settings", "read")).Get("/queue/dead", h.Queue.GetDeadJobs)
+				r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/queue/retry-dead", h.Queue.RetryDeadJobs)
 			})
 
 			// Organization routes
@@ -177,8 +184,11 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 					r.Route("/notification-channels", func(r chi.Router) {
 						r.With(rbac.RequirePermission(rbacService, "notifications", "read")).Get("/", h.Notifications.ListNotificationChannels)
 						r.With(rbac.RequirePermission(rbacService, "notifications", "create")).Post("/", h.Notifications.CreateNotificationChannel)
-						r.With(rbac.RequirePermission(rbacService, "notifications", "update")).Put("/{id}", h.Notifications.UpdateNotificationChannel)
-						r.With(rbac.RequirePermission(rbacService, "notifications", "delete")).Delete("/{id}", h.Notifications.DeleteNotificationChannel)
+						r.Route("/{id}", func(r chi.Router) {
+							r.With(rbac.RequirePermission(rbacService, "notifications", "update")).Put("/", h.Notifications.UpdateNotificationChannel)
+							r.With(rbac.RequirePermission(rbacService, "notifications", "delete")).Delete("/", h.Notifications.DeleteNotificationChannel)
+							r.With(rbac.RequirePermission(rbacService, "notifications", "update")).Post("/test", h.Notifications.TestNotificationChannel)
+						})
 					})
 
 					// Notification rules

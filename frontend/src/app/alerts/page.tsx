@@ -1,9 +1,11 @@
 "use client"
 
 import { useEffect, useState, useMemo, useCallback } from "react"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -21,7 +23,7 @@ import {
 } from "@/components/ui/table"
 import type { Alert, AlertSeverity } from "@/types"
 import Link from "next/link"
-import { RotateCcw } from "lucide-react"
+import { RotateCcw, Bell, ShieldCheck } from "lucide-react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -51,6 +53,8 @@ export default function AlertsPage() {
 }
 
 function AlertsContent() {
+  const [search, setSearch] = useState("")
+  const debouncedSearch = useDebouncedValue(search, 300)
   const [severityFilter, setSeverityFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [pagination, setPagination] = useState<PaginationState>({
@@ -63,6 +67,7 @@ function AlertsContent() {
   const { data: alertsRes } = useAlerts({
     severity: severityFilter || undefined,
     status: statusFilter || undefined,
+    search: debouncedSearch || undefined,
     page: pagination.pageIndex + 1,
     limit: pagination.pageSize,
     sortBy: sort?.id,
@@ -76,7 +81,7 @@ function AlertsContent() {
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-  }, [severityFilter, statusFilter, sorting])
+  }, [severityFilter, statusFilter, debouncedSearch, sorting])
 
   const handleStatusChange = useCallback(
     (id: number, status: string) => {
@@ -126,7 +131,7 @@ function AlertsContent() {
         accessorKey: "createdAt",
         header: ({ column }) => <SortableHeader column={column} title="Created" />,
         cell: ({ row }) => (
-          <span className="text-sm">
+          <span className="text-sm whitespace-nowrap">
             {new Date(row.original.createdAt).toLocaleString()}
           </span>
         ),
@@ -136,7 +141,7 @@ function AlertsContent() {
         header: "Actions",
         enableSorting: false,
         cell: ({ row }) => (
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             {row.original.status === "new" && (
               <Button
                 variant="outline"
@@ -153,6 +158,18 @@ function AlertsContent() {
                 onClick={() => handleStatusChange(row.original.id, "resolved")}
               >
                 Resolve
+              </Button>
+            )}
+            {/* Alert → Release deep link (prefer releaseId, fallback to analysisId) */}
+            {(row.original.releaseId ?? row.original.analysisId) ? (
+              <Link href={`/releases/${row.original.releaseId ?? row.original.analysisId}`}>
+                <Button variant="ghost" size="sm" aria-label={`View release for alert ${row.original.id}`}>
+                  View Release
+                </Button>
+              </Link>
+            ) : (
+              <Button variant="ghost" size="sm" disabled aria-label="No release linked">
+                View Release
               </Button>
             )}
           </div>
@@ -182,7 +199,14 @@ function AlertsContent() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <Input
+              placeholder="Search by package name or message..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-xs"
+              aria-label="Search alerts"
+            />
             <Select
               value={severityFilter || "all"}
               onValueChange={(v) => setSeverityFilter(v === "all" ? "" : (v ?? ""))}
@@ -212,11 +236,12 @@ function AlertsContent() {
                 <SelectItem value="resolved">Resolved</SelectItem>
               </SelectContent>
             </Select>
-            {(severityFilter || statusFilter) && (
+            {(search || severityFilter || statusFilter) && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => {
+                  setSearch("")
                   setSeverityFilter("")
                   setStatusFilter("")
                   setSorting([])
@@ -257,8 +282,37 @@ function AlertsContent() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center text-muted-foreground py-8">
-                    No alerts found.
+                  <TableCell colSpan={columns.length} className="text-center py-8">
+                    <div className="flex flex-col items-center gap-3">
+                      {search || severityFilter || statusFilter ? (
+                        <>
+                          <Bell className="h-8 w-8 text-muted-foreground" />
+                          <p className="text-muted-foreground">No alerts match your filters.</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSearch("")
+                              setSeverityFilter("")
+                              setStatusFilter("")
+                            }}
+                          >
+                            Clear Filters
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="h-8 w-8 text-green-600" />
+                          <p className="text-muted-foreground font-medium">All clear!</p>
+                          <p className="text-sm text-muted-foreground">No alerts found. Your packages are looking safe.</p>
+                          <Link href="/packages">
+                            <Button variant="outline" size="sm">
+                              View Packages
+                            </Button>
+                          </Link>
+                        </>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
