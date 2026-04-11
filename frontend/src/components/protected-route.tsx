@@ -1,14 +1,21 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useSyncExternalStore } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
+
+// useSyncExternalStore with server snapshot = false, client snapshot = true
+// gives us a clean "has mounted" signal without setState-in-effect.
+const emptySubscribe = () => () => {}
+const getClientSnapshot = () => true
+const getServerSnapshot = () => false
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
+  const hasMounted = useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerSnapshot)
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -16,7 +23,12 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     }
   }, [isLoading, isAuthenticated, router, pathname])
 
-  if (isLoading) {
+  // Before mount, render children to match server HTML and avoid hydration mismatch.
+  // After mount, show loading skeleton while auth state is being resolved.
+  if (!hasMounted || isLoading) {
+    if (!hasMounted) {
+      return <>{children}</>
+    }
     return (
       <div className="flex-1 space-y-4 p-4 md:p-6">
         <Skeleton className="h-8 w-48" />

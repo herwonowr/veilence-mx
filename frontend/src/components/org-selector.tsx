@@ -6,6 +6,7 @@ import { Building2, ChevronsUpDown, Plus, AlertCircle, Loader2 } from "lucide-re
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -59,44 +60,45 @@ export function OrgSelector() {
             side="bottom"
             sideOffset={4}
           >
-            <DropdownMenuLabel>Organizations</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {orgsError && (
-              <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-destructive">
-                <AlertCircle className="size-3 shrink-0" />
-                <span className="truncate">{orgsError}</span>
-                <button
-                  type="button"
-                  className="ml-auto shrink-0 text-xs underline hover:no-underline"
-                  onClick={() => refreshOrgs()}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Organizations</DropdownMenuLabel>
+              {orgsError && (
+                <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-destructive">
+                  <AlertCircle className="size-3 shrink-0" />
+                  <span className="truncate">{orgsError}</span>
+                  <button
+                    type="button"
+                    className="ml-auto shrink-0 text-xs underline hover:no-underline"
+                    onClick={() => refreshOrgs()}
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+              {orgsLoading && (
+                <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="size-3 animate-spin" />
+                  Loading organizations...
+                </div>
+              )}
+              {!orgsLoading && !orgsError && organizations.map((org) => (
+                <DropdownMenuItem
+                  key={org.id}
+                  onSelect={() => {
+                    setCurrentOrg(org)
+                    router.refresh()
+                  }}
                 >
-                  Retry
-                </button>
-              </div>
-            )}
-            {orgsLoading && (
-              <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
-                <Loader2 className="size-3 animate-spin" />
-                Loading organizations...
-              </div>
-            )}
-            {!orgsLoading && !orgsError && organizations.map((org) => (
-              <DropdownMenuItem
-                key={org.id}
-                onSelect={() => {
-                  setCurrentOrg(org)
-                  router.refresh()
-                }}
-              >
-                <Building2 className="mr-2 size-4" />
-                <span className="truncate">{org.name}</span>
-              </DropdownMenuItem>
-            ))}
-            {!orgsLoading && !orgsError && organizations.length === 0 && (
-              <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                No organizations yet
-              </div>
-            )}
+                  <Building2 className="mr-2 size-4" />
+                  <span className="truncate">{org.name}</span>
+                </DropdownMenuItem>
+              ))}
+              {!orgsLoading && !orgsError && organizations.length === 0 && (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                  No organizations yet
+                </div>
+              )}
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onSelect={() => router.push("/organizations?create=true")}
