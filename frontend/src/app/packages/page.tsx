@@ -220,9 +220,9 @@ function PackagesContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-3xl font-bold">Packages</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={handleSync} disabled={syncMutation.isPending}>
             <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
             Sync Top Packages
@@ -252,7 +252,7 @@ function PackagesContent() {
                     placeholder="e.g., requests"
                   />
                   {createErrors.name && (
-                    <p className="text-xs text-destructive mt-1">{createErrors.name}</p>
+                    <p className="text-xs text-destructive mt-1" role="alert">{createErrors.name}</p>
                   )}
                 </div>
                 <div>
@@ -289,12 +289,13 @@ function PackagesContent() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-xs"
+              aria-label="Search packages"
             />
             <Select
               value={registryFilter || "all"}
               onValueChange={(v) => setRegistryFilter(v === "all" ? "" : (v ?? ""))}
             >
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="w-32" aria-label="Filter by registry">
                 <SelectValue placeholder="All" />
               </SelectTrigger>
               <SelectContent>
@@ -320,6 +321,7 @@ function PackagesContent() {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -354,6 +356,7 @@ function PackagesContent() {
               )}
             </TableBody>
           </Table>
+          </div>
 
           <DataTablePagination table={table} total={total} />
         </CardContent>

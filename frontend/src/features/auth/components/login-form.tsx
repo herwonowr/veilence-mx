@@ -181,7 +181,7 @@ function LoginFormInner() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {serverError && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">
                 {serverError}
               </div>
             )}
@@ -189,6 +189,7 @@ function LoginFormInner() {
               <div
                 className="rounded-md bg-destructive/10 p-3 text-sm text-destructive"
                 data-testid="lockout-message"
+                role="alert"
               >
                 Too many failed login attempts. Please try again in{" "}
                 <span data-testid="lockout-countdown">{countdown}</span>{" "}

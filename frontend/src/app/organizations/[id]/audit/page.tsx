@@ -76,6 +76,7 @@ function AuditLogContent() {
             variant="ghost"
             size="icon-sm"
             onClick={() => router.push(`/organizations/${orgId}`)}
+            aria-label="Back to organization"
           >
             <ChevronLeft className="size-4" />
           </Button>

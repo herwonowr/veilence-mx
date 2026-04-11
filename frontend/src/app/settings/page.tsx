@@ -232,9 +232,9 @@ function SettingsContent() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="text-sm font-medium">
+            <span className="text-sm font-medium">
               Analyzer Backend
-            </label>
+            </span>
             <p className="text-sm text-muted-foreground mt-1">
               Using <strong>copilot-api</strong> proxy → GitHub Copilot → Claude Sonnet 4.6
             </p>
@@ -362,7 +362,7 @@ function SettingsContent() {
           )}
         </div>
         {Object.keys(validationErrors).length > 0 && (
-          <div className="text-sm text-destructive">
+          <div className="text-sm text-destructive" role="alert">
             {Object.values(validationErrors).map((msg) => (
               <p key={msg}>{msg}</p>
             ))}

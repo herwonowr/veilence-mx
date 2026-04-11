@@ -255,7 +255,7 @@ function OrgDetailContent() {
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     {inviteError && (
-                      <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                      <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">
                         {inviteError}
                       </div>
                     )}
@@ -355,6 +355,7 @@ function OrgDetailContent() {
                           <Button
                             variant="ghost"
                             size="icon-sm"
+                            aria-label={`Remove member ${member.firstName} ${member.lastName}`}
                             onClick={() =>
                               confirmRemoveMember(
                                 member.userId,

@@ -13,6 +13,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/api/validation"
 	"github.com/veilence/veilence-mx/backend/internal/apperror"
 	"github.com/veilence/veilence-mx/backend/internal/auth"
+	"github.com/veilence/veilence-mx/backend/internal/models"
 	"github.com/veilence/veilence-mx/backend/internal/rbac"
 )
 
@@ -23,6 +24,21 @@ type inviteMemberRequest struct {
 
 type updateMemberRoleRequest struct {
 	RoleID uint `json:"roleId"`
+}
+
+// flatMember is the flattened response shape for organization members.
+// The frontend expects email, firstName, and lastName at the top level
+// instead of nested under a "user" object.
+type flatMember struct {
+	ID        uint        `json:"id"`
+	OrgID     uint        `json:"orgId"`
+	UserID    uint        `json:"userId"`
+	RoleID    uint        `json:"roleId"`
+	Role      models.Role `json:"role,omitempty"`
+	JoinedAt  time.Time   `json:"joinedAt"`
+	Email     string      `json:"email"`
+	FirstName string      `json:"firstName"`
+	LastName  string      `json:"lastName"`
 }
 
 // ListMembers handles GET /api/orgs/{orgId}/members — lists organization members.
@@ -39,7 +55,25 @@ func (h *OrgHandlers) ListMembers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON(w, http.StatusOK, members, nil)
+	// Flatten the response: promote User fields to the top level so the
+	// frontend receives {email, firstName, lastName} directly instead of
+	// a nested user object.
+	flat := make([]flatMember, len(members))
+	for i, m := range members {
+		flat[i] = flatMember{
+			ID:        m.ID,
+			OrgID:     m.OrgID,
+			UserID:    m.UserID,
+			RoleID:    m.RoleID,
+			Role:      m.Role,
+			JoinedAt:  m.JoinedAt,
+			Email:     m.User.Email,
+			FirstName: m.User.FirstName,
+			LastName:  m.User.LastName,
+		}
+	}
+
+	respondJSON(w, http.StatusOK, flat, nil)
 }
 
 // InviteMember handles POST /api/orgs/{orgId}/invitations — invites a user to the organization.

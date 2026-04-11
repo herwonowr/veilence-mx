@@ -182,12 +182,13 @@ function ReleasesContent() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-xs"
+              aria-label="Search releases"
             />
             <Select
               value={registryFilter || "all"}
               onValueChange={(v) => setRegistryFilter(v === "all" ? "" : (v ?? ""))}
             >
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="w-32" aria-label="Filter by registry">
                 <SelectValue placeholder="All" />
               </SelectTrigger>
               <SelectContent>
@@ -200,7 +201,7 @@ function ReleasesContent() {
               value={statusFilter || "all"}
               onValueChange={(v) => setStatusFilter(v === "all" ? "" : (v ?? ""))}
             >
-              <SelectTrigger className="w-36">
+              <SelectTrigger className="w-36" aria-label="Filter by status">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -216,7 +217,7 @@ function ReleasesContent() {
               value={classificationFilter || "all"}
               onValueChange={(v) => setClassificationFilter(v === "all" ? "" : (v ?? ""))}
             >
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-40" aria-label="Filter by classification">
                 <SelectValue placeholder="All Classifications" />
               </SelectTrigger>
               <SelectContent>
@@ -246,6 +247,7 @@ function ReleasesContent() {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -291,6 +293,7 @@ function ReleasesContent() {
               )}
             </TableBody>
           </Table>
+          </div>
 
           <DataTablePagination table={table} total={total} />
         </CardContent>

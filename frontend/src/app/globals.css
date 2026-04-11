@@ -128,4 +128,9 @@
   button {
     @apply cursor-pointer;
   }
+
+  /* Ensure visible focus indicators for keyboard navigation (WCAG 2.1 AA) */
+  :focus-visible {
+    @apply outline-2 outline-ring outline-offset-2;
+  }
 }

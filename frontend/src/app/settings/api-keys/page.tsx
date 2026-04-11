@@ -127,7 +127,7 @@ function ApiKeysContent() {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 {createError && (
-                  <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                  <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">
                     {createError}
                   </div>
                 )}
@@ -218,6 +218,7 @@ function ApiKeysContent() {
                 variant="ghost"
                 size="icon-sm"
                 onClick={handleCopy}
+                aria-label={copied ? "Copied to clipboard" : "Copy API key"}
               >
                 {copied ? (
                   <Check className="size-4 text-green-600" />
@@ -301,6 +302,7 @@ function ApiKeysContent() {
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => handleDelete(key.id)}
+                        aria-label={`Delete API key ${key.name}`}
                       >
                         <Trash2 className="size-4 text-destructive" />
                       </Button>

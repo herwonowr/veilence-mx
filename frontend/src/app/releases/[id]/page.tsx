@@ -27,7 +27,7 @@ function confidenceColor(confidence: number): string {
 function DiffViewer({ content, wordWrap }: { content: string; wordWrap: boolean }) {
   const lines = content.split("\n")
   return (
-    <div className="overflow-auto rounded-lg border text-xs font-mono max-h-175">
+    <div className="overflow-auto rounded-lg border text-xs font-mono max-h-175" role="region" aria-label="Diff viewer">
       {lines.map((line, i) => {
         let bgClass = ""
         let textClass = "text-foreground"
@@ -203,6 +203,8 @@ function ReleaseDetailContent({
                 size="sm"
                 onClick={() => setWordWrap((v) => !v)}
                 title={wordWrap ? "Disable word wrap" : "Enable word wrap"}
+                aria-label={wordWrap ? "Disable word wrap" : "Enable word wrap"}
+                aria-pressed={wordWrap}
               >
                 <WrapText className="h-4 w-4" />
               </Button>

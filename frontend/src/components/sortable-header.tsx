@@ -30,6 +30,7 @@ export function SortableHeader<TData, TValue>({
         className
       )}
       onClick={() => column.toggleSorting()}
+      aria-label={`Sort by ${title}${sorted === "asc" ? ", currently ascending" : sorted === "desc" ? ", currently descending" : ""}`}
     >
       {title}
       {sorted === "asc" ? (

@@ -31,7 +31,7 @@ export function FormField({
         {...inputProps}
       />
       {error && (
-        <p id={`${id}-error`} className="text-sm text-destructive">
+        <p id={`${id}-error`} className="text-sm text-destructive" role="alert">
           {error}
         </p>
       )}

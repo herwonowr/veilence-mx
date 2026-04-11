@@ -63,9 +63,9 @@ function DashboardContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-3xl font-bold">Dashboard</h1>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <Switch
               id="auto-refresh"
@@ -88,12 +88,13 @@ function DashboardContent() {
                   if (!isNaN(v) && v >= 5) setIntervalSec(v)
                 }}
                 className="w-16 h-8 text-sm"
+                aria-label="Auto-refresh interval in seconds"
               />
               <span className="text-sm text-muted-foreground">sec</span>
             </div>
           )}
           {autoRefresh && (
-            <RefreshCw className="h-3.5 w-3.5 text-muted-foreground animate-spin" style={{ animationDuration: "3s" }} />
+            <RefreshCw className="h-3.5 w-3.5 text-muted-foreground animate-spin" style={{ animationDuration: "3s" }} aria-hidden="true" />
           )}
         </div>
       </div>
@@ -172,6 +173,7 @@ function DashboardContent() {
           <CardTitle>Recent Releases</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -200,7 +202,7 @@ function DashboardContent() {
                   <TableCell>
                     {release.status === "completed" ? (
                       <span className="flex items-center gap-1 text-sm text-green-600">
-                        <CheckCircle className="h-3.5 w-3.5" />
+                        <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
                         Done
                       </span>
                     ) : (
@@ -227,6 +229,7 @@ function DashboardContent() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -283,12 +283,14 @@ function ChannelsSection({
                     onCheckedChange={(checked) =>
                       handleToggle(channel, checked)
                     }
+                    aria-label={`Toggle ${channel.name} ${channel.isActive ? "off" : "on"}`}
                   />
                   <Button
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => deleteMutation.mutate(channel.id)}
                     disabled={deleteMutation.isPending}
+                    aria-label={`Delete channel ${channel.name}`}
                   >
                     <Trash2 className="size-4 text-destructive" />
                   </Button>
@@ -572,6 +574,7 @@ function RulesSection({
                   size="icon-sm"
                   onClick={() => deleteMutation.mutate(rule.id)}
                   disabled={deleteMutation.isPending}
+                  aria-label={`Delete routing rule for ${rule.severity} severity`}
                 >
                   <Trash2 className="size-4 text-destructive" />
                 </Button>

@@ -1,0 +1,168 @@
+# docker-compose.prod.yml — Production configuration for Veilence-MX
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# All secrets are read from .env (not committed to source control).
+# See docs/deployment.md for full setup instructions.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: veilence-mx-db
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-veilence_mx}
+      POSTGRES_USER: ${POSTGRES_USER:-veilence}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-veilence} -d ${POSTGRES_DB:-veilence_mx}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  redis:
+    image: redis:7-alpine
+    container_name: veilence-mx-redis
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy noeviction
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+    volumes:
+      - redisdata:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: veilence-mx-backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-veilence}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-veilence_mx}?sslmode=disable
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      SERVER_PORT: "8080"
+      APP_ENV: production
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+      - external
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: veilence-mx-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL must be set}
+      NODE_ENV: production
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - external
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "30m"
+        max-file: "3"
+
+volumes:
+  pgdata:
+    driver: local
+  redisdata:
+    driver: local
+
+networks:
+  # Internal network — database and Redis are NOT exposed to the host
+  internal:
+    driver: bridge
+    internal: true
+  # External network — API and frontend are accessible from the host
+  external:
+    driver: bridge

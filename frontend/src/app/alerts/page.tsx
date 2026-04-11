@@ -187,7 +187,7 @@ function AlertsContent() {
               value={severityFilter || "all"}
               onValueChange={(v) => setSeverityFilter(v === "all" ? "" : (v ?? ""))}
             >
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-40" aria-label="Filter by severity">
                 <SelectValue placeholder="All Severities" />
               </SelectTrigger>
               <SelectContent>
@@ -202,7 +202,7 @@ function AlertsContent() {
               value={statusFilter || "all"}
               onValueChange={(v) => setStatusFilter(v === "all" ? "" : (v ?? ""))}
             >
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-40" aria-label="Filter by status">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -229,6 +229,7 @@ function AlertsContent() {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -263,6 +264,7 @@ function AlertsContent() {
               )}
             </TableBody>
           </Table>
+          </div>
 
           <DataTablePagination table={table} total={total} />
         </CardContent>

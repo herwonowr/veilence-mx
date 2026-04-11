@@ -30,6 +30,7 @@ export function OrgSelector() {
               <SidebarMenuButton
                 className="w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 tooltip="Organization"
+                aria-label={`Current organization: ${currentOrg?.name ?? "None selected"}`}
               />
             }
           >
