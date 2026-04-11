@@ -8,6 +8,7 @@ import {
   apiGetUnreadCount,
   apiListNotifications,
   apiMarkNotificationRead,
+  apiMarkAllNotificationsRead,
 } from "@/lib/api-client"
 import type { ApiResponse, Notification } from "@/types"
 
@@ -51,6 +52,14 @@ export function useMarkNotificationRead() {
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: notificationKeys.all })
 
+      // Snapshot for rollback
+      const previousNotifications = queryClient.getQueriesData<ApiResponse<Notification[]>>({
+        queryKey: notificationKeys.all,
+      })
+      const previousUnreadCount = queryClient.getQueryData<ApiResponse<{ count: number }>>(
+        notificationKeys.unreadCount()
+      )
+
       // Optimistic update: mark as read in cached list
       queryClient.setQueriesData<ApiResponse<Notification[]>>(
         { queryKey: notificationKeys.all },
@@ -73,6 +82,19 @@ export function useMarkNotificationRead() {
           return { ...old, data: { count: Math.max(0, old.data.count - 1) } }
         }
       )
+
+      return { previousNotifications, previousUnreadCount }
+    },
+    onError: (_error, _id, context) => {
+      // Rollback on error
+      if (context?.previousNotifications) {
+        for (const [queryKey, data] of context.previousNotifications) {
+          queryClient.setQueryData(queryKey, data)
+        }
+      }
+      if (context?.previousUnreadCount) {
+        queryClient.setQueryData(notificationKeys.unreadCount(), context.previousUnreadCount)
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.all })
@@ -84,14 +106,19 @@ export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (notifications: Notification[]) => {
-      const unread = notifications.filter((n) => !n.isRead)
-      await Promise.allSettled(
-        unread.map((n) => apiMarkNotificationRead(n.id))
-      )
+    mutationFn: async () => {
+      await apiMarkAllNotificationsRead()
     },
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: notificationKeys.all })
+
+      // Snapshot for rollback
+      const previousNotifications = queryClient.getQueriesData<ApiResponse<Notification[]>>({
+        queryKey: notificationKeys.all,
+      })
+      const previousUnreadCount = queryClient.getQueryData<ApiResponse<{ count: number }>>(
+        notificationKeys.unreadCount()
+      )
 
       // Optimistic: mark everything read
       queryClient.setQueriesData<ApiResponse<Notification[]>>(
@@ -112,6 +139,19 @@ export function useMarkAllNotificationsRead() {
           return { ...old, data: { count: 0 } }
         }
       )
+
+      return { previousNotifications, previousUnreadCount }
+    },
+    onError: (_error, _vars, context) => {
+      // Rollback on error
+      if (context?.previousNotifications) {
+        for (const [queryKey, data] of context.previousNotifications) {
+          queryClient.setQueryData(queryKey, data)
+        }
+      }
+      if (context?.previousUnreadCount) {
+        queryClient.setQueryData(notificationKeys.unreadCount(), context.previousUnreadCount)
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.all })

@@ -2,11 +2,9 @@
  * Tests for the Dashboard page component.
  */
 
-import { render, screen, waitFor } from "@/test-utils"
+import { waitFor } from "@/test-utils"
 import { http, HttpResponse } from "msw"
 import { server } from "./msw-server"
-import { useAuth } from "@/lib/auth-context"
-import { createDashboardStats, createAuthState } from "@/test-fixtures"
 
 // Mock auth context to provide authenticated state
 vi.mock("@/lib/auth-context", () => ({
@@ -26,15 +24,6 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/",
   useSearchParams: () => new URLSearchParams(),
 }))
-
-// We import the DashboardContent component for testing
-// Since the page wraps in ProtectedRoute, we test the inner component
-// by mocking auth as authenticated
-function DashboardContent() {
-  // Re-export a minimal version that matches what the page renders
-  // We need to import directly from the page file
-  return null
-}
 
 // Instead of testing the full page (which requires ProtectedRoute),
 // we test the dashboard hooks with MSW and verify data flow

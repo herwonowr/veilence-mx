@@ -427,3 +427,98 @@ func (h *AuthHandlers) SendVerificationEmail(w http.ResponseWriter, r *http.Requ
 		"message": "verification email sent",
 	}, nil)
 }
+
+// updateProfileRequest is the request body for updating user profile.
+type updateProfileRequest struct {
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+}
+
+// UpdateProfile handles PUT /api/auth/me — updates the current user's profile.
+func (h *AuthHandlers) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
+	if userID == 0 {
+		respondError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	var req updateProfileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	req.FirstName = strings.TrimSpace(req.FirstName)
+	req.LastName = strings.TrimSpace(req.LastName)
+
+	if req.FirstName == "" {
+		respondAppError(w, apperror.Validation("firstName is required"))
+		return
+	}
+	if req.LastName == "" {
+		respondAppError(w, apperror.Validation("lastName is required"))
+		return
+	}
+	if len(req.FirstName) > 100 {
+		respondAppError(w, apperror.Validation("firstName must be at most 100 characters"))
+		return
+	}
+	if len(req.LastName) > 100 {
+		respondAppError(w, apperror.Validation("lastName must be at most 100 characters"))
+		return
+	}
+
+	user, err := h.Auth.UpdateProfile(userID, req.FirstName, req.LastName)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to update profile")
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "update", "user", userID, "updated user profile")
+
+	respondJSON(w, http.StatusOK, user, nil)
+}
+
+// changePasswordRequest is the request body for changing password.
+type changePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+// ChangePassword handles POST /api/auth/change-password — changes the user's password.
+func (h *AuthHandlers) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
+	if userID == 0 {
+		respondError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	var req changePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.CurrentPassword == "" {
+		respondAppError(w, apperror.Validation("currentPassword is required"))
+		return
+	}
+
+	if err := validation.ValidatePassword(req.NewPassword); err != nil {
+		respondAppError(w, apperror.Validation(err.Error()))
+		return
+	}
+
+	if err := h.Auth.ChangePassword(userID, req.CurrentPassword, req.NewPassword); err != nil {
+		if errors.Is(err, auth.ErrInvalidPassword) {
+			respondAppError(w, apperror.BadRequest("current password is incorrect"))
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to change password")
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "update", "password", userID, "changed password")
+
+	respondJSON(w, http.StatusOK, map[string]string{"message": "password changed successfully"}, nil)
+}

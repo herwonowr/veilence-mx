@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { ProtectedRoute } from "@/components/protected-route"
-import type { ApiKeyInfo, APIKeyScope } from "@/types"
+import type { APIKeyScope } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"

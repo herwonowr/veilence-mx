@@ -7,7 +7,7 @@ import {
 import { getAlerts, updateAlertStatus } from "@/lib/api-client"
 import type { ApiResponse, Alert } from "@/types"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/lib/utils"
+import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
 
 export const alertKeys = {
   all: ["alerts"] as const,

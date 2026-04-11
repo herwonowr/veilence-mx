@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { apiForgotPassword } from "@/lib/api-client"
 import { passwordResetSchema } from "@/lib/validations"
+import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
 import { Button } from "@/components/ui/button"
 import { FormField } from "@/components/form-field"
 import {
@@ -44,9 +45,7 @@ export function ForgotPasswordForm() {
         }
         setErrors(fieldErrors)
       } else {
-        setServerError(
-          err instanceof Error ? err.message : "Failed to send reset email"
-        )
+        setServerError(sanitizeErrorMessage(err, "Failed to send reset email"))
       }
     } finally {
       setLoading(false)

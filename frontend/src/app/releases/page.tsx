@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import Link from "next/link"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -54,6 +55,7 @@ export default function ReleasesPage() {
 
 function ReleasesContent() {
   const [search, setSearch] = useState("")
+  const debouncedSearch = useDebouncedValue(search, 300)
   const [registryFilter, setRegistryFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [classificationFilter, setClassificationFilter] = useState("")
@@ -69,7 +71,7 @@ function ReleasesContent() {
     limit: pagination.pageSize,
     sortBy: sort?.id,
     sortDir: sort ? (sort.desc ? "desc" : "asc") : undefined,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     registry: registryFilter || undefined,
     status: statusFilter || undefined,
     classification: classificationFilter || undefined,
@@ -80,7 +82,7 @@ function ReleasesContent() {
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-  }, [sorting, search, registryFilter, statusFilter, classificationFilter])
+  }, [sorting, debouncedSearch, registryFilter, statusFilter, classificationFilter])
 
   const columns = useMemo<ColumnDef<RecentRelease>[]>(
     () => [

@@ -12,12 +12,14 @@ import {
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import type { User, Organization } from "@/types"
+import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
 import {
   apiLogin,
   apiRegister,
   apiLogout,
   apiGetMe,
   apiGetOrgs,
+  apiRefreshToken,
   getStoredAccessToken,
   getStoredRefreshToken,
   storeTokens,
@@ -44,6 +46,8 @@ interface AuthContextValue {
   isLoading: boolean
   currentOrg: Organization | null
   organizations: Organization[]
+  orgsLoading: boolean
+  orgsError: string | null
   login: (email: string, password: string) => Promise<void>
   register: (data: {
     email: string
@@ -73,7 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const [currentOrg, setCurrentOrgState] = useState<Organization | null>(null)
   const [organizations, setOrganizations] = useState<Organization[]>([])
-
+  const [orgsLoading, setOrgsLoading] = useState(false)
+  const [orgsError, setOrgsError] = useState<string | null>(null)
   const isAuthenticated = !!user
 
   const refreshUser = useCallback(async () => {
@@ -87,6 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const refreshOrgs = useCallback(async () => {
+    setOrgsLoading(true)
+    setOrgsError(null)
     try {
       const { data } = await apiGetOrgs()
       setOrganizations(data ?? [])
@@ -105,22 +112,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCurrentOrgState(data[0])
         storeOrgId(data[0].id)
       }
-    } catch {
+    } catch (err) {
       setOrganizations([])
+      const message = sanitizeErrorMessage(err, "Failed to load organizations")
+      setOrgsError(message)
+      toast.error(message)
+    } finally {
+      setOrgsLoading(false)
     }
   }, [])
 
   // Initialize auth state from localStorage
-  useEffect(() => {
+  const [initStarted, setInitStarted] = useState(false)
+  if (!initStarted) {
+    setInitStarted(true)
     const token = getStoredAccessToken()
     if (token) {
       Promise.all([refreshUser(), refreshOrgs()]).finally(() => {
         setIsLoading(false)
       })
     } else {
+      // No need for async, can set synchronously during first render
       setIsLoading(false)
     }
-  }, [refreshUser, refreshOrgs])
+  }
 
   // Auto-refresh token before expiry (refresh every 10 minutes)
   useEffect(() => {
@@ -132,20 +147,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!refreshToken) return
 
         try {
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"}/api/auth/refresh`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ refreshToken }),
-            }
-          )
-
-          if (response.ok) {
-            const body = await response.json()
-            if (body.data?.accessToken && body.data?.refreshToken) {
-              storeTokens(body.data.accessToken, body.data.refreshToken)
-            }
+          const { data } = await apiRefreshToken(refreshToken)
+          if (data?.accessToken && data?.refreshToken) {
+            storeTokens(data.accessToken, data.refreshToken)
           }
         } catch {
           // Token refresh failed silently
@@ -160,6 +164,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (email: string, password: string) => {
       const { data } = await apiLogin(email, password)
+      if (!data) {
+        throw new Error("Login failed: no data received")
+      }
       storeTokens(data.accessToken, data.refreshToken)
       setUser(data.user)
       await refreshOrgs()
@@ -175,6 +182,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       lastName: string
     }) => {
       const { data } = await apiRegister(params)
+      if (!data) {
+        throw new Error("Registration failed: no data received")
+      }
       storeTokens(data.accessToken, data.refreshToken)
       setUser(data.user)
       await refreshOrgs()
@@ -266,6 +276,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       currentOrg,
       organizations,
+      orgsLoading,
+      orgsError,
       login,
       register,
       logout,
@@ -279,6 +291,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       currentOrg,
       organizations,
+      orgsLoading,
+      orgsError,
       login,
       register,
       logout,

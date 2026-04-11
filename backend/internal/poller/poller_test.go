@@ -94,16 +94,16 @@ func TestApplyVersionDepth_Default(t *testing.T) {
 		{Version: "1.0.0", PublishedAt: time.Now().Add(-2 * time.Hour)},
 	}
 
-	result := p.applyVersionDepth(versions)
+	result := p.applyVersionDepth(versions, 1)
 	assert.Len(t, result, 1)
 	assert.Equal(t, "3.0.0", result[0].Version)
 }
 
 func TestApplyVersionDepth_LatestMode(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&models.Setting{Key: models.SettingVersionDepthMode, Value: "latest"})
+	db.Create(&models.Setting{OrgID: 1, Key: models.SettingVersionDepthMode, Value: "latest"})
 
-	
+
 	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
 
 	versions := []registry.VersionInfo{
@@ -112,17 +112,17 @@ func TestApplyVersionDepth_LatestMode(t *testing.T) {
 		{Version: "1.0.0"},
 	}
 
-	result := p.applyVersionDepth(versions)
+	result := p.applyVersionDepth(versions, 1)
 	assert.Len(t, result, 1)
 	assert.Equal(t, "3.0.0", result[0].Version)
 }
 
 func TestApplyVersionDepth_CustomMode(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&models.Setting{Key: models.SettingVersionDepthMode, Value: "custom"})
-	db.Create(&models.Setting{Key: models.SettingVersionDepthCount, Value: "3"})
+	db.Create(&models.Setting{OrgID: 1, Key: models.SettingVersionDepthMode, Value: "custom"})
+	db.Create(&models.Setting{OrgID: 1, Key: models.SettingVersionDepthCount, Value: "3"})
 
-	
+
 	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
 
 	versions := []registry.VersionInfo{
@@ -133,7 +133,7 @@ func TestApplyVersionDepth_CustomMode(t *testing.T) {
 		{Version: "1.0.0"},
 	}
 
-	result := p.applyVersionDepth(versions)
+	result := p.applyVersionDepth(versions, 1)
 	assert.Len(t, result, 3)
 	assert.Equal(t, "5.0.0", result[0].Version)
 	assert.Equal(t, "3.0.0", result[2].Version)
@@ -141,9 +141,9 @@ func TestApplyVersionDepth_CustomMode(t *testing.T) {
 
 func TestApplyVersionDepth_CustomMode_DefaultCount(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&models.Setting{Key: models.SettingVersionDepthMode, Value: "custom"})
+	db.Create(&models.Setting{OrgID: 1, Key: models.SettingVersionDepthMode, Value: "custom"})
 
-	
+
 	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
 
 	versions := make([]registry.VersionInfo, 10)
@@ -151,16 +151,16 @@ func TestApplyVersionDepth_CustomMode_DefaultCount(t *testing.T) {
 		versions[i] = registry.VersionInfo{Version: fmt.Sprintf("%d.0.0", 10-i)}
 	}
 
-	result := p.applyVersionDepth(versions)
+	result := p.applyVersionDepth(versions, 1)
 	assert.Len(t, result, 5)
 }
 
 func TestApplyVersionDepth_CustomMode_CountExceedsVersions(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&models.Setting{Key: models.SettingVersionDepthMode, Value: "custom"})
-	db.Create(&models.Setting{Key: models.SettingVersionDepthCount, Value: "5"})
+	db.Create(&models.Setting{OrgID: 1, Key: models.SettingVersionDepthMode, Value: "custom"})
+	db.Create(&models.Setting{OrgID: 1, Key: models.SettingVersionDepthCount, Value: "5"})
 
-	
+
 	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
 
 	versions := []registry.VersionInfo{
@@ -168,25 +168,25 @@ func TestApplyVersionDepth_CustomMode_CountExceedsVersions(t *testing.T) {
 		{Version: "1.0.0"},
 	}
 
-	result := p.applyVersionDepth(versions)
+	result := p.applyVersionDepth(versions, 1)
 	assert.Len(t, result, 2)
 }
 
 func TestApplyVersionDepth_EmptyVersions(t *testing.T) {
 	db := setupTestDB(t)
-	
+
 	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
 
-	result := p.applyVersionDepth([]registry.VersionInfo{})
+	result := p.applyVersionDepth([]registry.VersionInfo{}, 1)
 	assert.Empty(t, result)
 }
 
 func TestApplyVersionDepth_InvalidCount(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&models.Setting{Key: models.SettingVersionDepthMode, Value: "custom"})
-	db.Create(&models.Setting{Key: models.SettingVersionDepthCount, Value: "invalid"})
+	db.Create(&models.Setting{OrgID: 1, Key: models.SettingVersionDepthMode, Value: "custom"})
+	db.Create(&models.Setting{OrgID: 1, Key: models.SettingVersionDepthCount, Value: "invalid"})
 
-	
+
 	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
 
 	versions := make([]registry.VersionInfo, 10)
@@ -194,7 +194,7 @@ func TestApplyVersionDepth_InvalidCount(t *testing.T) {
 		versions[i] = registry.VersionInfo{Version: fmt.Sprintf("%d.0.0", 10-i)}
 	}
 
-	result := p.applyVersionDepth(versions)
+	result := p.applyVersionDepth(versions, 1)
 	assert.Len(t, result, 5)
 }
 

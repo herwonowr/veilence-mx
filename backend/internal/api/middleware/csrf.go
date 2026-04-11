@@ -47,6 +47,18 @@ func generateCSRFToken() (string, error) {
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
+// csrfExemptPaths lists POST routes that must be exempt from CSRF validation.
+// These are pre-authentication endpoints where no session exists to hijack,
+// and on a fresh browser the CSRF cookie has not yet been set (it is only
+// issued on GET responses via ensureCSRFCookie). Blocking these routes causes
+// login/register to fail with 403 on every fresh session.
+var csrfExemptPaths = map[string]bool{
+	"/api/auth/login":           true,
+	"/api/auth/register":        true,
+	"/api/auth/forgot-password": true,
+	"/api/auth/reset-password":  true,
+}
+
 // CSRF returns a middleware implementing the double-submit cookie pattern.
 //
 // For state-changing methods (POST, PUT, PATCH, DELETE), it validates that
@@ -55,11 +67,22 @@ func generateCSRFToken() (string, error) {
 // API key authenticated requests are exempt from CSRF validation since they
 // are not vulnerable to CSRF attacks (the API key is not automatically sent
 // by the browser).
+//
+// Pre-authentication routes (login, register, forgot-password, reset-password)
+// are exempt because no session exists to hijack, and the CSRF cookie may not
+// yet exist on a fresh browser.
 func CSRF(config CSRFConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Safe methods: ensure a CSRF cookie exists, then pass through
 			if isSafeMethod(r.Method) {
+				ensureCSRFCookie(w, r, config)
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Pre-auth routes are exempt — no session to hijack
+			if csrfExemptPaths[r.URL.Path] {
 				ensureCSRFCookie(w, r, config)
 				next.ServeHTTP(w, r)
 				return

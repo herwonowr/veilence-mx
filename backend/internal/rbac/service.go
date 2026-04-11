@@ -255,11 +255,12 @@ func (s *Service) DeleteOrganization(orgID uint) error {
 	return nil
 }
 
-// GetOrgMembers returns all members of an organization with their roles.
+// GetOrgMembers returns all members of an organization with their roles and user data.
 func (s *Service) GetOrgMembers(orgID uint) ([]models.OrgMember, error) {
 	var members []models.OrgMember
 	err := s.db.
 		Preload("Role").
+		Preload("User").
 		Where("org_id = ?", orgID).
 		Find(&members).Error
 	if err != nil {

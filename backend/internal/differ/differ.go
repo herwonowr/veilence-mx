@@ -62,10 +62,10 @@ func (d *Differ) processRelease(ctx context.Context, releaseID uint) error {
 	// Update status to diffing
 	d.db.Model(&release).Update("status", models.ReleaseStatusDiffing)
 
-	// Find the previous release for this package
+	// Find the previous release for this package by publish time
 	var prevRelease models.Release
-	result := d.db.Where("package_id = ? AND id < ? AND status = ?", release.PackageID, release.ID, models.ReleaseStatusCompleted).
-		Order("id DESC").Limit(1).Find(&prevRelease)
+	result := d.db.Where("package_id = ? AND published_at < ? AND status = ?", release.PackageID, release.PublishedAt, models.ReleaseStatusCompleted).
+		Order("published_at DESC").Limit(1).Find(&prevRelease)
 
 	if result.RowsAffected == 0 {
 		// No previous release — mark as completed (first tracked version)

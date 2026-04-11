@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -9,19 +9,14 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
-  const [hasMounted, setHasMounted] = useState(false)
 
   useEffect(() => {
-    setHasMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (hasMounted && !isLoading && !isAuthenticated) {
+    if (!isLoading && !isAuthenticated) {
       router.push(`/login?redirect=${encodeURIComponent(pathname)}`)
     }
-  }, [hasMounted, isLoading, isAuthenticated, router, pathname])
+  }, [isLoading, isAuthenticated, router, pathname])
 
-  if (!hasMounted || isLoading) {
+  if (isLoading) {
     return (
       <div className="flex-1 space-y-4 p-4 md:p-6">
         <Skeleton className="h-8 w-48" />

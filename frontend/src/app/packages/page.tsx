@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo, useCallback } from "react"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -20,6 +21,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   Select,
   SelectContent,
@@ -41,6 +52,8 @@ import {
 import { DataTablePagination } from "@/components/data-table-pagination"
 import { SortableHeader } from "@/components/sortable-header"
 import { ProtectedRoute } from "@/components/protected-route"
+import { packageSchema } from "@/lib/validations"
+import { ZodError } from "zod"
 import {
   usePackages,
   useCreatePackage,
@@ -59,6 +72,7 @@ export default function PackagesPage() {
 function PackagesContent() {
   const [registryFilter, setRegistryFilter] = useState("")
   const [search, setSearch] = useState("")
+  const debouncedSearch = useDebouncedValue(search, 300)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [newName, setNewName] = useState("")
   const [newRegistry, setNewRegistry] = useState<Registry>("pypi")
@@ -67,11 +81,13 @@ function PackagesContent() {
     pageSize: 20,
   })
   const [sorting, setSorting] = useState<SortingState>([])
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null)
+  const [createErrors, setCreateErrors] = useState<Record<string, string>>({})
 
   const sort = sorting[0]
   const { data: packagesRes } = usePackages({
     registry: registryFilter || undefined,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     page: pagination.pageIndex + 1,
     limit: pagination.pageSize,
     sortBy: sort?.id,
@@ -88,21 +104,40 @@ function PackagesContent() {
   // Reset to first page when filters or sort change
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-  }, [registryFilter, search, sorting])
+  }, [registryFilter, debouncedSearch, sorting])
 
   const handleCreate = async () => {
-    if (!newName.trim()) return
-    await createMutation.mutateAsync({ name: newName.trim(), registry: newRegistry })
-    setDialogOpen(false)
-    setNewName("")
+    setCreateErrors({})
+    try {
+      const data = packageSchema.parse({ name: newName, registry: newRegistry })
+      await createMutation.mutateAsync({ name: data.name, registry: data.registry })
+      setDialogOpen(false)
+      setNewName("")
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const fieldErrors: Record<string, string> = {}
+        for (const issue of err.issues) {
+          const key = issue.path[0]
+          if (typeof key === "string") fieldErrors[key] = issue.message
+        }
+        setCreateErrors(fieldErrors)
+      }
+    }
   }
 
   const handleDelete = useCallback(
-    (id: number) => {
-      deleteMutation.mutate(id)
+    (id: number, name: string) => {
+      setDeleteTarget({ id, name })
     },
-    [deleteMutation]
+    []
   )
+
+  const confirmDelete = useCallback(() => {
+    if (deleteTarget) {
+      deleteMutation.mutate(deleteTarget.id)
+      setDeleteTarget(null)
+    }
+  }, [deleteTarget, deleteMutation])
 
   const handleSync = () => {
     syncMutation.mutate(undefined)
@@ -158,7 +193,8 @@ function PackagesContent() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => handleDelete(row.original.id)}
+            aria-label={`Delete package ${row.original.name}`}
+            onClick={() => handleDelete(row.original.id, row.original.name)}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -215,6 +251,9 @@ function PackagesContent() {
                     onChange={(e) => setNewName(e.target.value)}
                     placeholder="e.g., requests"
                   />
+                  {createErrors.name && (
+                    <p className="text-xs text-destructive mt-1">{createErrors.name}</p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="package-registry" className="text-sm font-medium">
@@ -319,6 +358,25 @@ function PackagesContent() {
           <DataTablePagination table={table} total={total} />
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Package</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This action
+              cannot be undone. All releases and analysis data for this package will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

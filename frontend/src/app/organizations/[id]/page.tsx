@@ -66,12 +66,13 @@ import {
 function OrgDetailContent() {
   const params = useParams<{ id: string }>()
   const orgId = parseInt(params.id, 10)
+  const validOrgId = isNaN(orgId) ? 0 : orgId
   const router = useRouter()
   const { user, refreshOrgs } = useAuth()
 
-  const { data: orgRes, isLoading: orgLoading } = useOrganization(orgId)
-  const { data: membersRes } = useOrgMembers(orgId)
-  const { data: rolesRes } = useOrgRoles(orgId)
+  const { data: orgRes, isLoading: orgLoading } = useOrganization(validOrgId)
+  const { data: membersRes } = useOrgMembers(validOrgId)
+  const { data: rolesRes } = useOrgRoles(validOrgId)
 
   const org = orgRes?.data ?? null
   const members = membersRes?.data ?? []
@@ -88,18 +89,17 @@ function OrgDetailContent() {
   const canInvite = isOrgOwner || hasPermission("members", "invite")
   const canRemove = isOrgOwner || hasPermission("members", "remove")
   const canUpdateOrg = isOrgOwner
-  const canDeleteOrg = isOrgOwner
 
   // Edit form
   const [editName, setEditName] = useState("")
   const [editDescription, setEditDescription] = useState("")
-  const [editInitialized, setEditInitialized] = useState(false)
+  const [prevOrgId, setPrevOrgId] = useState<number | null>(null)
 
-  // Initialize edit form when org loads
-  if (org && !editInitialized) {
+  // React-recommended "store previous props" pattern for syncing derived state
+  if (org && prevOrgId !== org.id) {
+    setPrevOrgId(org.id)
     setEditName(org.name)
     setEditDescription(org.description ?? "")
-    setEditInitialized(true)
   }
 
   // Invite form
@@ -126,14 +126,14 @@ function OrgDetailContent() {
 
   const handleSave = async () => {
     await updateMutation.mutateAsync({
-      id: orgId,
+      id: validOrgId,
       data: { name: editName, description: editDescription },
     })
     await refreshOrgs()
   }
 
   const handleDelete = async () => {
-    await deleteMutation.mutateAsync(orgId)
+    await deleteMutation.mutateAsync(validOrgId)
     await refreshOrgs()
     router.push("/organizations")
   }
@@ -144,7 +144,7 @@ function OrgDetailContent() {
     setInviteError("")
     try {
       await inviteMutation.mutateAsync({
-        orgId,
+        orgId: validOrgId,
         data: { email: inviteEmail, roleId: inviteRoleId },
       })
       setInviteDialogOpen(false)
@@ -158,7 +158,7 @@ function OrgDetailContent() {
   }
 
   const handleRemoveMember = (userId: number) => {
-    removeMutation.mutate({ orgId, userId })
+    removeMutation.mutate({ orgId: validOrgId, userId })
     setRemoveMemberDialogOpen(false)
     setMemberToRemove(null)
   }
@@ -172,7 +172,18 @@ function OrgDetailContent() {
   }
 
   const handleUpdateRole = (userId: number, roleId: number) => {
-    updateRoleMutation.mutate({ orgId, userId, roleId })
+    updateRoleMutation.mutate({ orgId: validOrgId, userId, roleId })
+  }
+
+  if (isNaN(orgId)) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <p className="text-lg font-medium text-destructive">Invalid organization ID</p>
+        <Button variant="outline" className="mt-4" onClick={() => router.push("/organizations")}>
+          Back to Organizations
+        </Button>
+      </div>
+    )
   }
 
   if (orgLoading) {

@@ -11,7 +11,7 @@ import {
 } from "@/lib/api-client"
 import type { ApiResponse } from "@/types"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/lib/utils"
+import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
 
 export const settingsKeys = {
   all: ["settings"] as const,

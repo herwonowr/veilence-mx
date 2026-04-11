@@ -54,7 +54,9 @@ export function clearTokens() {
 export function getStoredOrgId(): number | null {
   if (typeof window === "undefined") return null
   const v = localStorage.getItem(ORG_ID_KEY)
-  return v ? parseInt(v, 10) : null
+  if (!v) return null
+  const n = parseInt(v, 10)
+  return isNaN(n) ? null : n
 }
 
 export function storeOrgId(orgId: number) {
@@ -175,7 +177,12 @@ async function fetchApi<T>(
     )
   }
 
-  const body = (await response.json()) as ApiResponse<T>
+  let body: ApiResponse<T>
+  try {
+    body = (await response.json()) as ApiResponse<T>
+  } catch {
+    throw new Error(`API error: ${response.status}`)
+  }
 
   if (!response.ok) {
     // SEC-S4-10: Sanitize raw API error messages before they reach UI consumers
@@ -706,13 +713,11 @@ export async function apiMarkNotificationRead(
   return fetchApi<null>(`/api/notifications/${id}/read`, { method: "PUT" })
 }
 
-// TODO(S2-8): Backend endpoint PUT /api/notifications/read-all does not exist yet.
-// Uncomment when the backend adds the read-all endpoint in Sprint 2.
-// export async function apiMarkAllNotificationsRead(): Promise<
-//   ApiResponse<null>
-// > {
-//   return fetchApi<null>("/api/notifications/read-all", { method: "PUT" })
-// }
+export async function apiMarkAllNotificationsRead(): Promise<
+  ApiResponse<null>
+> {
+  return fetchApi<null>("/api/notifications/read-all", { method: "PUT" })
+}
 
 // ─── Sessions ──────────────────────────────────────────────────
 

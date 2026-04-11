@@ -139,8 +139,15 @@ func (s *Service) DeleteChannel(id, orgID uint) error {
 }
 
 // CreateRule creates a new notification routing rule.
+// It verifies the channel belongs to the same organization before creating the rule.
 func (s *Service) CreateRule(orgID, channelID uint, severity string) (*domain.NotificationRule, error) {
 	ctx := context.Background()
+
+	// Verify the channel belongs to the requesting org
+	_, err := s.channels.FindByIDAndOrg(ctx, channelID, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("notification channel not found in this organization")
+	}
 
 	rule := &domain.NotificationRule{
 		OrgID:     orgID,

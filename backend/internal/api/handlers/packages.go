@@ -38,17 +38,24 @@ func (h *PackageHandlers) ListPackages(w http.ResponseWriter, r *http.Request) {
 		query = query.Where("is_custom = ?", isCustomFilter == "true")
 	}
 	if search != "" {
+		search = escapeLike(search)
 		query = query.Where("name ILIKE ?", "%"+search+"%")
 	}
 
 	var total int64
-	query.Count(&total)
+	if err := query.Count(&total).Error; err != nil {
+		respondAppError(w, apperror.Internal("failed to count packages"))
+		return
+	}
 
 	var packages []models.Package
-	query.Order(sortOrder).
+	if err := query.Order(sortOrder).
 		Offset((page - 1) * limit).
 		Limit(limit).
-		Find(&packages)
+		Find(&packages).Error; err != nil {
+		respondAppError(w, apperror.Internal("failed to list packages"))
+		return
+	}
 
 	respondJSON(w, http.StatusOK, packages, &Meta{Page: page, Limit: limit, Total: total})
 }
@@ -132,6 +139,10 @@ func (h *PackageHandlers) DeletePackage(w http.ResponseWriter, r *http.Request) 
 	result := h.DB.Where("id = ? AND org_id = ?", id, orgID).Delete(&models.Package{})
 	if result.Error != nil {
 		respondAppError(w, apperror.Internal("failed to delete package"))
+		return
+	}
+	if result.RowsAffected == 0 {
+		respondAppError(w, apperror.NotFound("package"))
 		return
 	}
 

@@ -101,6 +101,7 @@ function SessionsContent() {
                         onClick={() => revokeMutation.mutate(session.id)}
                         disabled={revokeMutation.isPending}
                         title="Revoke session"
+                        aria-label="Revoke session"
                       >
                         <Trash2 className="size-4 text-destructive" />
                       </Button>

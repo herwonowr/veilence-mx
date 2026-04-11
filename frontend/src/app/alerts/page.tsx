@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -78,9 +78,12 @@ function AlertsContent() {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }))
   }, [severityFilter, statusFilter, sorting])
 
-  const handleStatusChange = (id: number, status: string) => {
-    updateMutation.mutate({ id, status })
-  }
+  const handleStatusChange = useCallback(
+    (id: number, status: string) => {
+      updateMutation.mutate({ id, status })
+    },
+    [updateMutation]
+  )
 
   const columns = useMemo<ColumnDef<Alert>[]>(
     () => [
@@ -156,7 +159,7 @@ function AlertsContent() {
         ),
       },
     ],
-    []
+    [handleStatusChange]
   )
 
   const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize))

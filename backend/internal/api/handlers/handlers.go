@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/veilence/veilence-mx/backend/internal/apperror"
 	"github.com/veilence/veilence-mx/backend/internal/audit"
@@ -221,4 +222,13 @@ func parseSort(r *http.Request, allowedColumns map[string]string, defaultSort st
 	}
 
 	return col + " " + sortDir
+}
+
+// escapeLike escapes LIKE/ILIKE special characters (%, _) to prevent
+// wildcard injection when building LIKE queries from user input.
+func escapeLike(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "%", "\\%")
+	s = strings.ReplaceAll(s, "_", "\\_")
+	return s
 }

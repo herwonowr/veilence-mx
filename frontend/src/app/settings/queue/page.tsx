@@ -227,7 +227,6 @@ function QueueContent() {
 
 function QueueStatsCard({
   title,
-  type,
   stats,
 }: {
   title: string

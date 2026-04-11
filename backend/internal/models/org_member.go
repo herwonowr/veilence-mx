@@ -11,6 +11,7 @@ type OrgMember struct {
 	UserID    uint      `gorm:"not null;uniqueIndex:idx_org_user" json:"userId"`
 	RoleID    uint      `gorm:"not null" json:"roleId"`
 	Role      Role      `gorm:"foreignKey:RoleID" json:"role,omitempty"`
+	User      User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	JoinedAt  time.Time `gorm:"not null" json:"joinedAt"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`

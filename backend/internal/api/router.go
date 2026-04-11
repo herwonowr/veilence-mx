@@ -71,6 +71,8 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 			// Protected auth routes
 			r.Post("/auth/logout", h.Auth.Logout)
 			r.Get("/auth/me", h.Auth.GetMe)
+			r.Put("/auth/me", h.Auth.UpdateProfile)
+			r.Post("/auth/change-password", h.Auth.ChangePassword)
 			r.Post("/auth/send-verification", h.Auth.SendVerificationEmail)
 			r.Route("/auth/api-keys", func(r chi.Router) {
 				r.Post("/", h.Auth.CreateAPIKey)
@@ -97,7 +99,7 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 			r.Group(func(r chi.Router) {
 				r.Use(rbac.RequireOrg(rbacService))
 
-				// Dashboard
+				// Dashboard (read-only, any org member can view)
 				r.Get("/dashboard/stats", h.Dashboard.GetDashboardStats)
 				r.Get("/dashboard/recent-releases", h.Dashboard.GetRecentReleases)
 				r.Get("/dashboard/charts", h.Dashboard.GetChartData)
@@ -105,10 +107,10 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 				// Packages
 				r.Route("/packages", func(r chi.Router) {
 					r.Get("/", h.Packages.ListPackages)
-					r.Post("/", h.Packages.CreatePackage)
+					r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/", h.Packages.CreatePackage)
 					r.Route("/{id}", func(r chi.Router) {
 						r.Get("/", h.Packages.GetPackage)
-						r.Delete("/", h.Packages.DeletePackage)
+						r.With(rbac.RequirePermission(rbacService, "packages", "delete")).Delete("/", h.Packages.DeletePackage)
 						r.Get("/releases", h.Packages.ListPackageReleases)
 					})
 				})
@@ -121,18 +123,18 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 				// Alerts
 				r.Route("/alerts", func(r chi.Router) {
 					r.Get("/", h.Alerts.ListAlerts)
-					r.Patch("/{id}", h.Alerts.UpdateAlert)
+					r.With(rbac.RequirePermission(rbacService, "alerts", "write")).Patch("/{id}", h.Alerts.UpdateAlert)
 				})
 
 				// Settings
 				r.Get("/settings", h.Settings.GetSettings)
-				r.Put("/settings", h.Settings.UpdateSettings)
+				r.With(rbac.RequirePermission(rbacService, "settings", "write")).Put("/settings", h.Settings.UpdateSettings)
 
-				// Sync triggers (stricter rate limit)
+				// Sync triggers (stricter rate limit + write permission)
 				r.Group(func(r chi.Router) {
 					r.Use(rateLimitGroup.ForCategory(middleware.CategorySync))
-					r.Post("/sync/top-packages", h.Settings.SyncTopPackages)
-					r.Post("/sync/reanalyze", h.Dashboard.ReanalyzeAll)
+					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/top-packages", h.Settings.SyncTopPackages)
+					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/reanalyze", h.Dashboard.ReanalyzeAll)
 				})
 
 				// Queue monitoring (global data, but requires org membership)

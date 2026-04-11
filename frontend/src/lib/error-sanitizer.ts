@@ -42,9 +42,10 @@ const ERROR_PATTERNS: ReadonlyArray<{ pattern: RegExp; friendly: string }> = [
  * Sanitise an error into a user-friendly message.
  *
  * @param error - The caught error (Error, string, or unknown).
+ * @param fallback - Optional fallback message. Defaults to "Something went wrong. Please try again."
  * @returns A safe, user-facing message string.
  */
-export function sanitizeErrorMessage(error: unknown): string {
+export function sanitizeErrorMessage(error: unknown, fallback?: string): string {
   const raw = extractRawMessage(error)
 
   for (const { pattern, friendly } of ERROR_PATTERNS) {
@@ -54,12 +55,12 @@ export function sanitizeErrorMessage(error: unknown): string {
   }
 
   // Fallback: if the message looks "safe" (short, no stack-trace markers),
-  // pass it through. Otherwise return a generic message.
+  // pass it through. Otherwise return the provided fallback or a generic message.
   if (isSafeMessage(raw)) {
     return raw
   }
 
-  return "Something went wrong. Please try again."
+  return fallback ?? "Something went wrong. Please try again."
 }
 
 function extractRawMessage(error: unknown): string {

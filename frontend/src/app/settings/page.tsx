@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,6 +8,8 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Save, RefreshCw, Play, RotateCcw } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { settingsSchema } from "@/lib/validations"
+import { ZodError } from "zod"
 import { useSettings, useUpdateSettings, useReanalyzeAll, useQueueStats, useRetryDeadJobs } from "@/features/settings"
 
 export default function SettingsPage() {
@@ -20,8 +22,9 @@ export default function SettingsPage() {
 
 function SettingsContent() {
   const [localSettings, setLocalSettings] = useState<Record<string, string>>({})
-  const [initialized, setInitialized] = useState(false)
+  const [prevSettingsKey, setPrevSettingsKey] = useState<string | null>(null)
   const [queueMessage, setQueueMessage] = useState("")
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
   const { data: settingsRes } = useSettings()
   const { data: queueRes, refetch: refetchQueue, isRefetching: queueRefetching } = useQueueStats()
@@ -31,20 +34,34 @@ function SettingsContent() {
 
   const queueStats = queueRes?.data ?? null
 
-  // Initialize local settings from server data
-  useEffect(() => {
-    if (settingsRes?.data && !initialized) {
+  // React-recommended "store previous props" pattern for syncing derived state
+  if (settingsRes?.data) {
+    const key = JSON.stringify(settingsRes.data)
+    if (prevSettingsKey !== key) {
+      setPrevSettingsKey(key)
       setLocalSettings(settingsRes.data)
-      setInitialized(true)
     }
-  }, [settingsRes, initialized])
+  }
 
   const updateSetting = (key: string, value: string) => {
     setLocalSettings((prev) => ({ ...prev, [key]: value }))
   }
 
   const handleSave = () => {
-    updateMutation.mutate(localSettings)
+    setValidationErrors({})
+    try {
+      settingsSchema.parse(localSettings)
+      updateMutation.mutate(localSettings)
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const fieldErrors: Record<string, string> = {}
+        for (const issue of err.issues) {
+          const key = issue.path[0]
+          if (typeof key === "string") fieldErrors[key] = issue.message
+        }
+        setValidationErrors(fieldErrors)
+      }
+    }
   }
 
   const handleReanalyze = async () => {
@@ -334,13 +351,22 @@ function SettingsContent() {
         </CardContent>
       </Card>
 
-      <div className="flex items-center gap-4">
-        <Button onClick={handleSave} disabled={updateMutation.isPending}>
-          <Save className="h-4 w-4 mr-2" />
-          {updateMutation.isPending ? "Saving..." : "Save Settings"}
-        </Button>
-        {updateMutation.isSuccess && (
-          <span className="text-sm text-green-600">Settings saved successfully.</span>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-4">
+          <Button onClick={handleSave} disabled={updateMutation.isPending}>
+            <Save className="h-4 w-4 mr-2" />
+            {updateMutation.isPending ? "Saving..." : "Save Settings"}
+          </Button>
+          {updateMutation.isSuccess && (
+            <span className="text-sm text-green-600">Settings saved successfully.</span>
+          )}
+        </div>
+        {Object.keys(validationErrors).length > 0 && (
+          <div className="text-sm text-destructive">
+            {Object.values(validationErrors).map((msg) => (
+              <p key={msg}>{msg}</p>
+            ))}
+          </div>
         )}
       </div>
     </div>

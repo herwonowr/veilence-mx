@@ -33,6 +33,7 @@ import { useAuditLogs } from "@/features/admin"
 function AuditLogContent() {
   const params = useParams<{ id: string }>()
   const orgId = parseInt(params.id, 10)
+  const validOrgId = isNaN(orgId) ? 0 : orgId
   const router = useRouter()
 
   // Filters
@@ -43,7 +44,7 @@ function AuditLogContent() {
   const [page, setPage] = useState(1)
   const limit = 20
 
-  const { data: logsRes, isLoading } = useAuditLogs(orgId, {
+  const { data: logsRes, isLoading } = useAuditLogs(validOrgId, {
     action: action || undefined,
     resource: resource || undefined,
     from: fromDate || undefined,
@@ -55,6 +56,17 @@ function AuditLogContent() {
   const logs = logsRes?.data ?? []
   const meta = logsRes?.meta ?? null
   const totalPages = meta ? Math.ceil(meta.total / meta.limit) : 1
+
+  if (isNaN(orgId)) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <p className="text-lg font-medium text-destructive">Invalid organization ID</p>
+        <Button variant="outline" className="mt-4" onClick={() => router.push("/organizations")}>
+          Back to Organizations
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

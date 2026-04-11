@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Bell, CheckCheck, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -22,11 +22,30 @@ import {
 } from "@/features/notifications"
 import { useState } from "react"
 
-function severityVariant(title: string): "destructive" | "default" | "secondary" | "outline" {
-  const lower = title.toLowerCase()
-  if (lower.includes("critical") || lower.includes("malicious")) return "destructive"
-  if (lower.includes("high") || lower.includes("suspicious")) return "default"
-  if (lower.includes("medium")) return "secondary"
+type SeverityLevel = "critical" | "high" | "medium" | "info"
+
+/** Keyword-to-severity mapping — ordered from highest to lowest priority */
+const SEVERITY_KEYWORDS: ReadonlyArray<{ keywords: string[]; severity: SeverityLevel }> = [
+  { keywords: ["critical", "malicious"], severity: "critical" },
+  { keywords: ["high", "suspicious"], severity: "high" },
+  { keywords: ["medium"], severity: "medium" },
+]
+
+function classifySeverity(notification: Notification): SeverityLevel {
+  // Prefer a structured severity field if the backend provides one in the future
+  const haystack = `${notification.title} ${notification.message}`.toLowerCase()
+  for (const { keywords, severity } of SEVERITY_KEYWORDS) {
+    if (keywords.some((kw) => haystack.includes(kw))) {
+      return severity
+    }
+  }
+  return "info"
+}
+
+function severityVariant(severity: SeverityLevel): "destructive" | "default" | "secondary" | "outline" {
+  if (severity === "critical") return "destructive"
+  if (severity === "high") return "default"
+  if (severity === "medium") return "secondary"
   return "outline"
 }
 
@@ -58,7 +77,10 @@ export function NotificationBell() {
     { limit: 20 },
     { enabled: isAuthenticated && open }
   )
-  const notifications = notificationsRes?.data ?? []
+  const notifications = useMemo(
+    () => notificationsRes?.data ?? [],
+    [notificationsRes?.data]
+  )
 
   const markReadMutation = useMarkNotificationRead()
   const markAllReadMutation = useMarkAllNotificationsRead()
@@ -82,8 +104,8 @@ export function NotificationBell() {
   )
 
   const handleMarkAllRead = useCallback(() => {
-    markAllReadMutation.mutate(notifications)
-  }, [markAllReadMutation, notifications])
+    markAllReadMutation.mutate()
+  }, [markAllReadMutation])
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -134,7 +156,9 @@ export function NotificationBell() {
             </div>
           ) : (
             <ul className="divide-y">
-              {notifications.map((notification) => (
+              {notifications.map((notification) => {
+                const severity = classifySeverity(notification)
+                return (
                 <li key={notification.id}>
                   <button
                     type="button"
@@ -148,18 +172,10 @@ export function NotificationBell() {
                         {notification.title}
                       </span>
                       <Badge
-                        variant={severityVariant(notification.title)}
+                        variant={severityVariant(severity)}
                         className="shrink-0 text-[10px]"
                       >
-                        {notification.title.toLowerCase().includes("critical")
-                          ? "critical"
-                          : notification.title.toLowerCase().includes("high") ||
-                              notification.title.toLowerCase().includes("malicious")
-                            ? "high"
-                            : notification.title.toLowerCase().includes("medium") ||
-                                notification.title.toLowerCase().includes("suspicious")
-                              ? "medium"
-                              : "info"}
+                        {severity}
                       </Badge>
                     </div>
                     <p className="line-clamp-2 text-xs text-muted-foreground">
@@ -175,7 +191,8 @@ export function NotificationBell() {
                     </div>
                   </button>
                 </li>
-              ))}
+                )
+              })}
             </ul>
           )}
         </div>

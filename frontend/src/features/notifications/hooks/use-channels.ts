@@ -9,7 +9,7 @@ import {
   apiDeleteRule,
 } from "@/lib/api-client"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/lib/utils"
+import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
 
 export const channelKeys = {
   all: ["channels"] as const,

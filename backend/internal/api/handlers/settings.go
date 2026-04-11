@@ -17,7 +17,10 @@ func (h *SettingsHandlers) GetSettings(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
 	var settings []models.Setting
-	h.DB.Where("org_id = ?", orgID).Find(&settings)
+	if err := h.DB.Where("org_id = ?", orgID).Find(&settings).Error; err != nil {
+		respondAppError(w, apperror.Internal("failed to load settings"))
+		return
+	}
 
 	result := make(map[string]string, len(settings))
 	for _, s := range settings {
@@ -59,10 +62,16 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 		result := h.DB.Where("org_id = ? AND key = ?", orgID, key).First(&setting)
 		if result.Error != nil {
 			// Create new setting
-			h.DB.Create(&models.Setting{OrgID: orgID, Key: key, Value: value})
+			if err := h.DB.Create(&models.Setting{OrgID: orgID, Key: key, Value: value}).Error; err != nil {
+				respondAppError(w, apperror.Internal("failed to save setting"))
+				return
+			}
 		} else {
 			// Update existing
-			h.DB.Model(&setting).Update("value", value)
+			if err := h.DB.Model(&setting).Update("value", value).Error; err != nil {
+				respondAppError(w, apperror.Internal("failed to update setting"))
+				return
+			}
 		}
 	}
 

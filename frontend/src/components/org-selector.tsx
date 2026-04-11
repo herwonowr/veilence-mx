@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { Building2, ChevronsUpDown, Plus } from "lucide-react"
+import { Building2, ChevronsUpDown, Plus, AlertCircle, Loader2 } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/sidebar"
 
 export function OrgSelector() {
-  const { currentOrg, organizations, setCurrentOrg } = useAuth()
+  const { currentOrg, organizations, orgsLoading, orgsError, setCurrentOrg, refreshOrgs } = useAuth()
   const router = useRouter()
 
   return (
@@ -33,12 +33,18 @@ export function OrgSelector() {
               />
             }
           >
-            <Building2 className="size-4" />
+            {orgsLoading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Building2 className="size-4" />
+            )}
             <div className="flex flex-1 flex-col text-left text-sm leading-tight">
               <span className="truncate font-medium">
-                {currentOrg?.name ?? "No Organization"}
+                {orgsLoading
+                  ? "Loading..."
+                  : currentOrg?.name ?? "No Organization"}
               </span>
-              {currentOrg?.slug && (
+              {currentOrg?.slug && !orgsLoading && (
                 <span className="truncate text-xs text-muted-foreground">
                   {currentOrg.slug}
                 </span>
@@ -54,7 +60,26 @@ export function OrgSelector() {
           >
             <DropdownMenuLabel>Organizations</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {organizations.map((org) => (
+            {orgsError && (
+              <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-destructive">
+                <AlertCircle className="size-3 shrink-0" />
+                <span className="truncate">{orgsError}</span>
+                <button
+                  type="button"
+                  className="ml-auto shrink-0 text-xs underline hover:no-underline"
+                  onClick={() => refreshOrgs()}
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+            {orgsLoading && (
+              <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+                <Loader2 className="size-3 animate-spin" />
+                Loading organizations...
+              </div>
+            )}
+            {!orgsLoading && !orgsError && organizations.map((org) => (
               <DropdownMenuItem
                 key={org.id}
                 onSelect={() => {
@@ -66,7 +91,7 @@ export function OrgSelector() {
                 <span className="truncate">{org.name}</span>
               </DropdownMenuItem>
             ))}
-            {organizations.length === 0 && (
+            {!orgsLoading && !orgsError && organizations.length === 0 && (
               <div className="px-2 py-1.5 text-xs text-muted-foreground">
                 No organizations yet
               </div>

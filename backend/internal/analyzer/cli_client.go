@@ -18,7 +18,7 @@ type CLIClient struct {
 	baseURL     string
 	model       string
 	maxDiffLen  int
-	rateLimiter <-chan time.Time
+	rateLimiter *time.Ticker
 }
 
 // CLIClientConfig holds configuration for the copilot-api client.
@@ -52,7 +52,14 @@ func NewCLIClient(config CLIClientConfig) *CLIClient {
 		baseURL:     config.BaseURL,
 		model:       config.Model,
 		maxDiffLen:  config.MaxDiffLen,
-		rateLimiter: time.Tick(config.RateInterval),
+		rateLimiter: time.NewTicker(config.RateInterval),
+	}
+}
+
+// Close stops the rate limiter ticker, releasing its goroutine.
+func (c *CLIClient) Close() {
+	if c.rateLimiter != nil {
+		c.rateLimiter.Stop()
 	}
 }
 
@@ -84,7 +91,7 @@ type chatResponse struct {
 func (c *CLIClient) Analyze(ctx context.Context, diff string, packageName string, registry string, oldVersion string, newVersion string) (*Result, error) {
 	// Rate limit
 	select {
-	case <-c.rateLimiter:
+	case <-c.rateLimiter.C:
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}

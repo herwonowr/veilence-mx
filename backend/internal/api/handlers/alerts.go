@@ -39,22 +39,39 @@ func (h *AlertHandlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
 		Where("alerts.org_id = ?", orgID).
 		Joins("JOIN packages ON packages.id = alerts.package_id")
 
+	validSeverities := map[string]bool{"low": true, "medium": true, "high": true, "critical": true}
+	validFilterStatuses := map[string]bool{"new": true, "acknowledged": true, "resolved": true}
+
 	if severity != "" {
-		query = query.Where("severity = ?", severity)
+		if !validSeverities[severity] {
+			respondAppError(w, apperror.Validation("invalid severity filter"))
+			return
+		}
+		query = query.Where("alerts.severity = ?", severity)
 	}
 	if status != "" {
-		query = query.Where("status = ?", status)
+		if !validFilterStatuses[status] {
+			respondAppError(w, apperror.Validation("invalid status filter"))
+			return
+		}
+		query = query.Where("alerts.status = ?", status)
 	}
 
 	var total int64
-	query.Count(&total)
+	if err := query.Count(&total).Error; err != nil {
+		respondAppError(w, apperror.Internal("failed to count alerts"))
+		return
+	}
 
 	var alerts []models.Alert
-	query.Preload("Package").
+	if err := query.Preload("Package").
 		Order(sortOrder).
 		Offset((page - 1) * limit).
 		Limit(limit).
-		Find(&alerts)
+		Find(&alerts).Error; err != nil {
+		respondAppError(w, apperror.Internal("failed to list alerts"))
+		return
+	}
 
 	result := make([]alertWithDetails, len(alerts))
 	for i, a := range alerts {
@@ -105,7 +122,11 @@ func (h *AlertHandlers) UpdateAlert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.DB.Model(&alert).Update("status", req.Status)
+	if err := h.DB.Model(&alert).Update("status", req.Status).Error; err != nil {
+		respondAppError(w, apperror.Internal("failed to update alert"))
+		return
+	}
+	alert.Status = models.AlertStatus(req.Status)
 
 	h.Audit.LogAction(r.Context(), "update", "alert", alert.ID, fmt.Sprintf("updated alert status to %q", req.Status))
 

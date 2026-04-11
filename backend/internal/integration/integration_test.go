@@ -1067,7 +1067,11 @@ func TestIntegration_SettingsCRUD(t *testing.T) {
 func TestIntegration_CSRF_Required(t *testing.T) {
 	ts := setupIntegrationServer(t)
 
-	// POST without CSRF token should be rejected
+	// Pre-auth routes (register, login, etc.) are exempt from CSRF so that
+	// users who haven't loaded a page yet can still authenticate. Verify
+	// that a non-exempt protected route still requires CSRF.
+
+	// First, register + login to get an access token
 	body := map[string]string{
 		"email": "csrf@example.com", "password": "SecurePass123!", "firstName": "C", "lastName": "S",
 	}
@@ -1076,12 +1080,11 @@ func TestIntegration_CSRF_Required(t *testing.T) {
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Origin", "http://localhost:3000")
-	// No CSRF token or cookie
 
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	// Should be forbidden (CSRF protection)
-	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+	// Pre-auth route should succeed without CSRF token
+	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 }

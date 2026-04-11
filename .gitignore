@@ -10,3 +10,5 @@
 .idea/
 *.swp
 *.swo
+
+.playwright-mcp

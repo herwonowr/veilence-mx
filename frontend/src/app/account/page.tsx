@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import type { APIKeyScope } from "@/types"
 import {
@@ -66,7 +66,6 @@ export default function AccountPage() {
 }
 
 function AccountContent() {
-  const { user, refreshUser } = useAuth()
 
   return (
     <div className="space-y-6">
@@ -110,15 +109,14 @@ function ProfileSection() {
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [initialized, setInitialized] = useState(false)
+  const [prevUserId, setPrevUserId] = useState<number | null>(null)
 
-  useEffect(() => {
-    if (user && !initialized) {
-      setFirstName(user.firstName)
-      setLastName(user.lastName)
-      setInitialized(true)
-    }
-  }, [user, initialized])
+  // React-recommended "store previous props" pattern for syncing derived state
+  if (user && prevUserId !== user.id) {
+    setPrevUserId(user.id)
+    setFirstName(user.firstName)
+    setLastName(user.lastName)
+  }
 
   const handleSave = async () => {
     setErrors({})
@@ -524,6 +522,7 @@ function ApiKeysSection() {
                         size="icon-sm"
                         onClick={() => deleteMutation.mutate(key.id)}
                         disabled={deleteMutation.isPending}
+                        aria-label={`Delete API key ${key.name}`}
                       >
                         <Trash2 className="size-4 text-destructive" />
                       </Button>
@@ -615,6 +614,7 @@ function SessionsSection() {
                       onClick={() => revokeMutation.mutate(session.id)}
                       disabled={revokeMutation.isPending}
                       title="Revoke session"
+                      aria-label="Revoke session"
                     >
                       <Trash2 className="size-4 text-destructive" />
                     </Button>

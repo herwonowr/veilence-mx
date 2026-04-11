@@ -7,7 +7,7 @@ import {
 import { apiGetSessions, apiRevokeSession } from "@/lib/api-client"
 import type { ApiResponse, Session } from "@/types"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/lib/utils"
+import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
 
 export const sessionKeys = {
   all: ["sessions"] as const,

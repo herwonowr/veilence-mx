@@ -5,7 +5,7 @@ import {
   apiSendVerificationEmail,
 } from "@/lib/api-client"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/lib/utils"
+import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
 
 export function useUpdateProfile() {
   return useMutation({

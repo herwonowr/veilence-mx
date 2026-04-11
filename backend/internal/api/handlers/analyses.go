@@ -51,6 +51,7 @@ func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Req
 	statusFilter := r.URL.Query().Get("status")
 	search := r.URL.Query().Get("search")
 	latestPerPackage := r.URL.Query().Get("latest_per_package") == "true"
+	classificationFilter := r.URL.Query().Get("classification")
 
 	query := h.DB.Model(&models.Release{}).
 		Joins("JOIN packages ON packages.id = releases.package_id").
@@ -65,18 +66,71 @@ func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Req
 		query = query.Where("releases.status = ?", statusFilter)
 	}
 	if search != "" {
+		search = escapeLike(search)
 		query = query.Where("packages.name ILIKE ?", "%"+search+"%")
 	}
 
+	// Apply classification filter in SQL before pagination via LEFT JOINs on diffs/analyses
+	if classificationFilter != "" {
+		query = query.
+			Joins("LEFT JOIN diffs ON diffs.release_id = releases.id").
+			Joins("LEFT JOIN analyses ON analyses.diff_id = diffs.id")
+
+		if classificationFilter == "baseline" {
+			// Baseline: completed releases with no diff
+			query = query.Where("releases.status = ? AND diffs.id IS NULL", models.ReleaseStatusCompleted)
+		} else {
+			query = query.Where("analyses.classification = ?", classificationFilter)
+		}
+	}
+
 	var total int64
-	query.Count(&total)
+	if err := query.Count(&total).Error; err != nil {
+		slog.Error("failed to count releases", "org_id", orgID, "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to count releases")
+		return
+	}
 
 	var releases []models.Release
-	query.Preload("Package").
+	if err := query.Preload("Package").
 		Order(sortOrder).
 		Offset((page - 1) * limit).
 		Limit(limit).
-		Find(&releases)
+		Find(&releases).Error; err != nil {
+		slog.Error("failed to load releases", "org_id", orgID, "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to load releases")
+		return
+	}
+
+	// Batch-load diffs and analyses for the returned releases to avoid N+1
+	releaseIDs := make([]uint, len(releases))
+	for i, rel := range releases {
+		releaseIDs[i] = rel.ID
+	}
+
+	// Load diffs for all releases in one query
+	var diffs []models.Diff
+	diffMap := make(map[uint]models.Diff)
+	if len(releaseIDs) > 0 {
+		h.DB.Where("release_id IN ?", releaseIDs).Find(&diffs)
+		for _, d := range diffs {
+			diffMap[d.ReleaseID] = d
+		}
+	}
+
+	// Load analyses for all diffs in one query
+	analysisMap := make(map[uint]models.Analysis) // keyed by diff_id
+	if len(diffs) > 0 {
+		diffIDs := make([]uint, len(diffs))
+		for i, d := range diffs {
+			diffIDs[i] = d.ID
+		}
+		var analyses []models.Analysis
+		h.DB.Where("diff_id IN ?", diffIDs).Find(&analyses)
+		for _, a := range analyses {
+			analysisMap[a.DiffID] = a
+		}
+	}
 
 	result := make([]recentRelease, 0, len(releases))
 	for _, rel := range releases {
@@ -86,22 +140,14 @@ func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Req
 			PackageRegistry: string(rel.Package.Registry),
 		}
 
-		// Fetch classification if available
-		var diff models.Diff
-		if tx := h.DB.Where("release_id = ?", rel.ID).Limit(1).Find(&diff); tx.RowsAffected > 0 {
-			var analysis models.Analysis
-			if tx := h.DB.Where("diff_id = ?", diff.ID).Limit(1).Find(&analysis); tx.RowsAffected > 0 {
+		// Look up classification from pre-loaded maps
+		if diff, ok := diffMap[rel.ID]; ok {
+			if analysis, ok := analysisMap[diff.ID]; ok {
 				rr.Classification = string(analysis.Classification)
 			}
 		} else if rel.Status == models.ReleaseStatusCompleted {
 			// Completed release with no diff is a baseline (first tracked version)
 			rr.Classification = "baseline"
-		}
-
-		// Apply classification filter after computing classification
-		classificationFilter := r.URL.Query().Get("classification")
-		if classificationFilter != "" && rr.Classification != classificationFilter {
-			continue
 		}
 
 		result = append(result, rr)

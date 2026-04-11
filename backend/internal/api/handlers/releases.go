@@ -39,14 +39,20 @@ func (h *PackageHandlers) ListPackageReleases(w http.ResponseWriter, r *http.Req
 	page, limit := parsePagination(r)
 
 	var total int64
-	h.DB.Model(&models.Release{}).Where("package_id = ?", packageID).Count(&total)
+	if err := h.DB.Model(&models.Release{}).Where("package_id = ?", packageID).Count(&total).Error; err != nil {
+		respondAppError(w, apperror.Internal("failed to count releases"))
+		return
+	}
 
 	var releases []models.Release
-	h.DB.Where("package_id = ?", packageID).
+	if err := h.DB.Where("package_id = ?", packageID).
 		Order("created_at DESC").
 		Offset((page - 1) * limit).
 		Limit(limit).
-		Find(&releases)
+		Find(&releases).Error; err != nil {
+		respondAppError(w, apperror.Internal("failed to list releases"))
+		return
+	}
 
 	respondJSON(w, http.StatusOK, releases, &Meta{Page: page, Limit: limit, Total: total})
 }

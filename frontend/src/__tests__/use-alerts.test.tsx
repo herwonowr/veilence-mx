@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { http, HttpResponse } from "msw"
 import { server } from "./msw-server"
 import { useAlerts, useUpdateAlert } from "@/features/alerts"
-import { createAlerts, createAlert } from "@/test-fixtures"
+import { createAlerts } from "@/test-fixtures"
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },

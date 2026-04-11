@@ -129,34 +129,53 @@ func (p *Poller) pollLoop(ctx context.Context, reg registry.Registry, interval t
 func (p *Poller) pollRegistry(ctx context.Context, reg registry.Registry) {
 	slog.Info("polling registry", "registry", reg.Name())
 
-	var packages []models.Package
-	if err := p.db.Where("registry = ?", reg.Name()).Find(&packages).Error; err != nil {
-		slog.Error("failed to load packages", "registry", reg.Name(), "error", err)
+	// Fetch distinct org IDs that have packages in this registry
+	var orgIDs []uint
+	if err := p.db.Model(&models.Package{}).
+		Where("registry = ?", reg.Name()).
+		Distinct("org_id").
+		Pluck("org_id", &orgIDs).Error; err != nil {
+		slog.Error("failed to load org IDs for registry", "registry", reg.Name(), "error", err)
 		return
 	}
 
-	if len(packages) == 0 {
+	if len(orgIDs) == 0 {
 		slog.Info("no packages to poll", "registry", reg.Name())
 		return
 	}
 
-	sem := make(chan struct{}, p.config.Concurrency)
-	var wg sync.WaitGroup
+	totalChecked := 0
+	for _, orgID := range orgIDs {
+		var packages []models.Package
+		if err := p.db.Where("registry = ? AND org_id = ?", reg.Name(), orgID).Find(&packages).Error; err != nil {
+			slog.Error("failed to load packages", "registry", reg.Name(), "org_id", orgID, "error", err)
+			continue
+		}
 
-	for _, pkg := range packages {
-		wg.Add(1)
-		go func(pkg models.Package) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			if err := p.checkPackage(ctx, reg, pkg); err != nil {
-				slog.Error("failed to check package", "package", pkg.Name, "registry", reg.Name(), "error", err)
-			}
-		}(pkg)
+		if len(packages) == 0 {
+			continue
+		}
+
+		sem := make(chan struct{}, p.config.Concurrency)
+		var wg sync.WaitGroup
+
+		for _, pkg := range packages {
+			wg.Add(1)
+			go func(pkg models.Package) {
+				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
+				if err := p.checkPackage(ctx, reg, pkg); err != nil {
+					slog.Error("failed to check package", "package", pkg.Name, "registry", reg.Name(), "org_id", orgID, "error", err)
+				}
+			}(pkg)
+		}
+
+		wg.Wait()
+		totalChecked += len(packages)
 	}
 
-	wg.Wait()
-	slog.Info("polling complete", "registry", reg.Name(), "packages_checked", len(packages))
+	slog.Info("polling complete", "registry", reg.Name(), "packages_checked", totalChecked)
 }
 
 func (p *Poller) checkPackage(ctx context.Context, reg registry.Registry, pkg models.Package) error {
@@ -165,12 +184,13 @@ func (p *Poller) checkPackage(ctx context.Context, reg registry.Registry, pkg mo
 		return fmt.Errorf("fetching package info: %w", err)
 	}
 
+	// Update only this specific package record (scoped by primary key)
 	p.db.Model(&pkg).Updates(map[string]any{
 		"latest_version": info.Version,
 		"description":    info.Description,
 	})
 
-	versions := p.applyVersionDepth(info.Versions)
+	versions := p.applyVersionDepth(info.Versions, pkg.OrgID)
 
 	// If no releases exist yet for this package and there are older versions
 	// available, include one additional older version as a diff baseline.
@@ -229,19 +249,20 @@ func (p *Poller) checkPackage(ctx context.Context, reg registry.Registry, pkg mo
 // Versions must be sorted newest-first (both registry clients do this).
 // "latest" (default) = only the newest version, "custom" = up to version_depth_count (1-5).
 // Settings are read from an in-memory cache to avoid repeated DB lookups during each poll cycle.
-func (p *Poller) applyVersionDepth(versions []registry.VersionInfo) []registry.VersionInfo {
+// The orgID parameter scopes settings to the requesting organization.
+func (p *Poller) applyVersionDepth(versions []registry.VersionInfo, orgID uint) []registry.VersionInfo {
 	if len(versions) == 0 {
 		return versions
 	}
 
-	mode := p.getSetting(models.SettingVersionDepthMode, "latest")
+	mode := p.getSetting(models.SettingVersionDepthMode, "latest", orgID)
 
 	switch mode {
 	case "latest":
 		return versions[:1]
 	case "custom":
 		count := 5 // default custom depth
-		countStr := p.getSetting(models.SettingVersionDepthCount, "5")
+		countStr := p.getSetting(models.SettingVersionDepthCount, "5", orgID)
 		if v, err := strconv.Atoi(countStr); err == nil && v >= 1 && v <= 5 {
 			count = v
 		}
@@ -256,20 +277,22 @@ func (p *Poller) applyVersionDepth(versions []registry.VersionInfo) []registry.V
 
 // getSetting retrieves a setting value, using the cache when available.
 // Falls back to a database lookup on cache miss and stores the result.
-func (p *Poller) getSetting(key, defaultValue string) string {
-	if v, ok := p.settings.get(key); ok {
+// The orgID parameter scopes settings to the requesting organization.
+func (p *Poller) getSetting(key, defaultValue string, orgID uint) string {
+	cacheKey := fmt.Sprintf("%d:%s", orgID, key)
+	if v, ok := p.settings.get(cacheKey); ok {
 		return v
 	}
 
-	// Cache miss — read from database
+	// Cache miss — read from database, scoped to org
 	var setting models.Setting
-	if tx := p.db.Where("key = ?", key).Limit(1).Find(&setting); tx.RowsAffected > 0 {
-		p.settings.set(key, setting.Value)
+	if tx := p.db.Where("key = ? AND org_id = ?", key, orgID).Limit(1).Find(&setting); tx.RowsAffected > 0 {
+		p.settings.set(cacheKey, setting.Value)
 		return setting.Value
 	}
 
 	// Not found in DB, cache the default
-	p.settings.set(key, defaultValue)
+	p.settings.set(cacheKey, defaultValue)
 	return defaultValue
 }
 

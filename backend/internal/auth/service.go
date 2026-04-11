@@ -719,6 +719,56 @@ func (s *Service) CleanExpiredSessions() (int64, error) {
 	return count, nil
 }
 
+// UpdateProfile updates the user's first and last name.
+func (s *Service) UpdateProfile(userID uint, firstName, lastName string) (*domain.User, error) {
+	ctx := context.Background()
+
+	user, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("finding user: %w", err)
+	}
+
+	user.FirstName = firstName
+	user.LastName = lastName
+
+	if err := s.users.Update(ctx, user); err != nil {
+		return nil, fmt.Errorf("updating user profile: %w", err)
+	}
+
+	slog.Info("user profile updated", "user_id", userID)
+	return user, nil
+}
+
+// ErrInvalidPassword is returned when the current password does not match.
+var ErrInvalidPassword = errors.New("current password is incorrect")
+
+// ChangePassword validates the current password and updates to a new one.
+func (s *Service) ChangePassword(userID uint, currentPassword, newPassword string) error {
+	ctx := context.Background()
+
+	user, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("finding user: %w", err)
+	}
+
+	if !checkPassword(currentPassword, user.PasswordHash) {
+		return ErrInvalidPassword
+	}
+
+	passwordHash, err := hashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("hashing new password: %w", err)
+	}
+
+	user.PasswordHash = passwordHash
+	if err := s.users.Update(ctx, user); err != nil {
+		return fmt.Errorf("updating password: %w", err)
+	}
+
+	slog.Info("user password changed", "user_id", userID)
+	return nil
+}
+
 // generateResetToken creates a cryptographically secure random token for password reset.
 func generateResetToken() (string, error) {
 	b := make([]byte, 32)

@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { http, HttpResponse } from "msw"
 import { server } from "./msw-server"
 import { usePackages, useCreatePackage, useDeletePackage } from "@/features/packages"
-import { createPackages, createPackage } from "@/test-fixtures"
+import { createPackages } from "@/test-fixtures"
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },

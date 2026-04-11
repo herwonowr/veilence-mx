@@ -10,7 +10,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { http, HttpResponse } from "msw"
 import { server } from "./msw-server"
 import { useQueueStats, useDeadJobs, useRetryDeadJobs, queueKeys } from "@/features/settings"
-import { createQueueStats } from "@/test-fixtures"
 
 vi.mock("@/lib/auth-context", () => ({
   useAuth: vi.fn(() => ({

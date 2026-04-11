@@ -17,6 +17,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Test and tooling files (not part of the Next.js app):
+    "e2e/**",
+    "vitest.config.ts",
+    "coverage/**",
   ]),
 ]);
 

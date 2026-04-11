@@ -27,7 +27,7 @@ import type {
   AuditLog,
 } from "@/types"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/lib/utils"
+import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
 
 export const orgKeys = {
   all: ["organizations"] as const,
