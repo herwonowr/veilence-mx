@@ -64,7 +64,7 @@ func (h *PackageHandlers) ListPackages(w http.ResponseWriter, r *http.Request) {
 	}
 	if search != "" {
 		search = escapeLike(search)
-		query = query.Where("name ILIKE ?", "%"+search+"%")
+		query = query.Where("LOWER(name) LIKE LOWER(?)", "%"+search+"%")
 	}
 
 	var total int64

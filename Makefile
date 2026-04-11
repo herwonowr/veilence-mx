@@ -1,4 +1,4 @@
-.PHONY: dev dev-backend dev-frontend test test-backend test-e2e build lint db-up db-down
+.PHONY: dev dev-backend dev-frontend test test-backend test-backend-integration test-e2e build lint db-up db-down db-test-setup
 
 # Infrastructure
 db-up:
@@ -6,6 +6,13 @@ db-up:
 
 db-down:
 	docker-compose down
+
+# Create the integration test database (run once after db-up)
+db-test-setup: db-up
+	@echo "Creating test database (if not exists)..."
+	@docker-compose exec -T postgres psql -U veilence -d veilence_mx -c "SELECT 1 FROM pg_database WHERE datname = 'veilence_mx_test'" | grep -q 1 || \
+		docker-compose exec -T postgres psql -U veilence -d veilence_mx -c "CREATE DATABASE veilence_mx_test;"
+	@echo "Test database ready."
 
 # copilot-api (LLM proxy)
 dev-copilot:
@@ -21,8 +28,8 @@ build-backend:
 test-backend:
 	cd backend && go test ./... -count=1
 
-test-backend-integration:
-	cd backend && go test -tags=integration ./... -v
+test-backend-integration: db-test-setup
+	cd backend && go test -tags=integration ./... -v -count=1
 
 lint-backend:
 	cd backend && go vet ./...

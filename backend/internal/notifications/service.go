@@ -876,3 +876,76 @@ func ValidateWebhookSignature(secret, body []byte, signatureHeader string) bool 
 
 	return hmac.Equal(receivedMAC, expectedMAC.Sum(nil))
 }
+
+// SendRawEmail sends a pre-formatted email message via the configured SMTP server.
+// This is a package-level utility for use by other packages (e.g., digest scheduler)
+// that need to send emails using the same SMTP configuration.
+func SendRawEmail(cfg SMTPConfig, recipients []string, msg []byte) error {
+	if !cfg.IsConfigured() {
+		return fmt.Errorf("SMTP not configured")
+	}
+
+	addr := net.JoinHostPort(cfg.Host, cfg.Port)
+
+	var auth smtp.Auth
+	if cfg.Username != "" {
+		auth = smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
+	}
+
+	if cfg.Port == "465" {
+		return sendImplicitTLS(addr, cfg.Host, cfg.From, auth, recipients, msg)
+	}
+
+	return smtp.SendMail(addr, auth, cfg.From, recipients, msg)
+}
+
+// sendImplicitTLS sends an email over implicit TLS (port 465).
+func sendImplicitTLS(addr, host, from string, auth smtp.Auth, recipients []string, msg []byte) error {
+	tlsConfig := &tls.Config{
+		ServerName: host,
+		MinVersion: tls.VersionTLS12,
+	}
+
+	conn, err := tls.DialWithDialer(&net.Dialer{Timeout: 10 * time.Second}, "tcp", addr, tlsConfig)
+	if err != nil {
+		return fmt.Errorf("connecting to SMTP server: %w", err)
+	}
+
+	client, err := smtp.NewClient(conn, host)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("creating SMTP client: %w", err)
+	}
+	defer client.Close()
+
+	if auth != nil {
+		if err := client.Auth(auth); err != nil {
+			return fmt.Errorf("SMTP authentication: %w", err)
+		}
+	}
+
+	if err := client.Mail(from); err != nil {
+		return fmt.Errorf("SMTP MAIL FROM: %w", err)
+	}
+
+	for _, rcpt := range recipients {
+		if err := client.Rcpt(rcpt); err != nil {
+			return fmt.Errorf("SMTP RCPT TO %s: %w", rcpt, err)
+		}
+	}
+
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("SMTP DATA: %w", err)
+	}
+
+	if _, err := w.Write(msg); err != nil {
+		return fmt.Errorf("writing email body: %w", err)
+	}
+
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("closing email body: %w", err)
+	}
+
+	return client.Quit()
+}

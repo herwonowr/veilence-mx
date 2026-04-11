@@ -22,6 +22,23 @@ export function DataTablePagination<TData>({
   total,
   pageSizeOptions = [10, 20, 50, 100],
 }: DataTablePaginationProps<TData>) {
+  const { pageSize } = table.getState().pagination
+
+  // 0 items: hide pagination entirely
+  if (total === 0) {
+    return null
+  }
+
+  // 1–pageSize items: show "N total" only, no page controls
+  if (total <= pageSize) {
+    return (
+      <div className="mt-4 text-sm text-muted-foreground">
+        {total} total
+      </div>
+    )
+  }
+
+  // pageSize+ items: full pagination with page size selector and nav
   return (
     <nav
       aria-label="Table pagination"
@@ -34,7 +51,7 @@ export function DataTablePagination<TData>({
           <label htmlFor="page-size-select" className="sr-only">Rows per page</label>
           <span>Show</span>
           <Select
-            value={String(table.getState().pagination.pageSize)}
+            value={String(pageSize)}
             onValueChange={(value) => {
               if (value) table.setPageSize(Number(value))
             }}

@@ -57,6 +57,12 @@ type QueueStats struct {
 	Dead       int64 `json:"dead"`
 }
 
+// Enqueuer is the minimal interface needed by handlers that only enqueue jobs.
+// This allows test code to supply a mock without requiring a live Redis connection.
+type Enqueuer interface {
+	Enqueue(ctx context.Context, jobType string, referenceID uint) (string, error)
+}
+
 type Queue struct {
 	rdb         *redis.Client
 	maxAttempts int

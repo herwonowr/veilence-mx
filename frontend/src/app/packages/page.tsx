@@ -39,7 +39,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Package, Registry } from "@/types"
-import { Plus, Trash2, RefreshCw, RotateCcw, Upload } from "lucide-react"
+import { Plus, Trash2, RefreshCw, Upload } from "lucide-react"
+import { TableSkeleton, type SkeletonColumn } from "@/components/table-skeleton"
+import { TableError } from "@/components/table-error"
+import { FilterChips, type ActiveFilter } from "@/components/filter-chips"
+import { SearchInput } from "@/components/search-input"
 import Link from "next/link"
 import {
   useReactTable,
@@ -51,6 +55,7 @@ import {
 } from "@tanstack/react-table"
 import { DataTablePagination } from "@/components/data-table-pagination"
 import { SortableHeader } from "@/components/sortable-header"
+import { useResponsiveColumns, type ColumnBreakpoints } from "@/hooks/use-responsive-columns"
 import { ProtectedRoute } from "@/components/protected-route"
 import { packageSchema } from "@/lib/validations"
 import { ZodError } from "zod"
@@ -84,8 +89,15 @@ function PackagesContent() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null)
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({})
 
+  const packageColumnBreakpoints: ColumnBreakpoints = useMemo(() => ({
+    rank: "desktop",
+    isCustom: "desktop",
+    latestVersion: "tablet",
+  }), [])
+  const columnVisibility = useResponsiveColumns(packageColumnBreakpoints)
+
   const sort = sorting[0]
-  const { data: packagesRes } = usePackages({
+  const { data: packagesRes, isLoading, isFetching, isError, refetch } = usePackages({
     registry: registryFilter || undefined,
     search: debouncedSearch || undefined,
     page: pagination.pageIndex + 1,
@@ -105,6 +117,23 @@ function PackagesContent() {
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }))
   }, [registryFilter, debouncedSearch, sorting])
+
+  const hasActiveFilters = !!(search || registryFilter)
+
+  const clearAllFilters = () => {
+    setSearch("")
+    setRegistryFilter("")
+    setSorting([])
+  }
+
+  const activeFilters: ActiveFilter[] = [
+    ...(registryFilter
+      ? [{ label: "Registry", value: registryFilter === "pypi" ? "PyPI" : "npm", onRemove: () => setRegistryFilter("") }]
+      : []),
+    ...(search
+      ? [{ label: "Search", value: search, onRemove: () => setSearch("") }]
+      : []),
+  ]
 
   const handleCreate = async () => {
     setCreateErrors({})
@@ -142,6 +171,15 @@ function PackagesContent() {
   const handleSync = () => {
     syncMutation.mutate(undefined)
   }
+
+  const skeletonColumns: SkeletonColumn[] = [
+    { width: "w-32", header: "Name" },
+    { width: "w-16", header: "Registry" },
+    { width: "w-20", header: "Latest Version" },
+    { width: "w-12", header: "Rank" },
+    { width: "w-16", header: "Type" },
+    { width: "w-8", header: "" },
+  ]
 
   const columns = useMemo<ColumnDef<Package>[]>(
     () => [
@@ -210,7 +248,7 @@ function PackagesContent() {
     data: packages,
     columns,
     pageCount,
-    state: { pagination, sorting },
+    state: { pagination, sorting, columnVisibility },
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -289,56 +327,65 @@ function PackagesContent() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-4">
-            <Input
-              placeholder="Search packages..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-xs"
-              aria-label="Search packages"
-            />
-            <Select
-              value={registryFilter || "all"}
-              onValueChange={(v) => setRegistryFilter(v === "all" ? "" : (v ?? ""))}
-            >
-              <SelectTrigger className="w-32" aria-label="Filter by registry">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="pypi">PyPI</SelectItem>
-                <SelectItem value="npm">npm</SelectItem>
-              </SelectContent>
-            </Select>
-            {(search || registryFilter) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSearch("")
-                  setRegistryFilter("")
-                  setSorting([])
-                }}
-              >
-                <RotateCcw className="mr-1 h-3 w-3" />
-                Reset
-              </Button>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-end gap-4">
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                onClear={() => setSearch("")}
+                isLoading={isFetching && !!debouncedSearch}
+                placeholder="Search packages..."
+                aria-label="Search packages"
+              />
+              <div className="space-y-1">
+                <label htmlFor="packages-registry-filter" className="text-xs font-medium text-muted-foreground">
+                  Registry
+                </label>
+                <Select
+                  value={registryFilter || "all"}
+                  onValueChange={(v) => setRegistryFilter(v === "all" ? "" : (v ?? ""))}
+                >
+                  <SelectTrigger id="packages-registry-filter" className="w-32">
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="pypi">PyPI</SelectItem>
+                    <SelectItem value="npm">npm</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {hasActiveFilters && (
+              <FilterChips filters={activeFilters} onClearAll={clearAllFilters} />
             )}
           </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
+          {isLoading ? (
+            <TableSkeleton columns={skeletonColumns} rows={5} />
+          ) : isError ? (
+            <TableError colSpan={columns.length} onRetry={() => refetch()} />
+          ) : (
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}>
+                  {headerGroup.headers.map((header) => {
+                    const sorted = header.column.getIsSorted()
+                    return (
+                    <TableHead
+                      key={header.id}
+                      style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
+                      aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
-                  ))}
+                    )
+                  })}
                 </TableRow>
               ))}
             </TableHeader>
@@ -373,6 +420,7 @@ function PackagesContent() {
               )}
             </TableBody>
           </Table>
+          )}
           </div>
 
           <DataTablePagination table={table} total={total} />

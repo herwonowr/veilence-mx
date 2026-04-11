@@ -186,8 +186,8 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     />
                   }
                 >
-                  <User className="size-4" />
-                  <div className="flex flex-col text-left text-sm leading-tight">
+                  <User className="size-4 shrink-0" />
+                  <div className="flex flex-1 flex-col text-left text-sm leading-tight min-w-0">
                     <span className="truncate font-medium">
                       {user.firstName} {user.lastName}
                     </span>

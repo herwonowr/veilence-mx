@@ -41,6 +41,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ConfirmDialog, type ConfirmDialogDetail } from "@/components/confirm-dialog"
 import {
   Loader2,
   Save,
@@ -108,14 +109,11 @@ function OrgDetailContent() {
   const [inviteRoleId, setInviteRoleId] = useState<number | null>(null)
   const [inviteError, setInviteError] = useState("")
 
-  // Delete
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-
   // Remove member confirmation
-  const [removeMemberDialogOpen, setRemoveMemberDialogOpen] = useState(false)
   const [memberToRemove, setMemberToRemove] = useState<{
     userId: number
     name: string
+    details: ConfirmDialogDetail[]
   } | null>(null)
 
   const updateMutation = useUpdateOrganization()
@@ -157,18 +155,22 @@ function OrgDetailContent() {
     }
   }
 
-  const handleRemoveMember = (userId: number) => {
-    removeMutation.mutate({ orgId: validOrgId, userId })
-    setRemoveMemberDialogOpen(false)
+  const handleRemoveMember = async (userId: number) => {
+    await removeMutation.mutateAsync({ orgId: validOrgId, userId })
     setMemberToRemove(null)
   }
 
-  const confirmRemoveMember = (userId: number, firstName?: string, lastName?: string) => {
+  const confirmRemoveMember = (userId: number, firstName?: string, lastName?: string, email?: string) => {
+    const name = [firstName, lastName].filter(Boolean).join(" ") || "this member"
     setMemberToRemove({
       userId,
-      name: [firstName, lastName].filter(Boolean).join(" ") || "this member",
+      name,
+      details: [
+        { label: "Member", value: name },
+        ...(email ? [{ label: "Email", value: email }] : []),
+        { label: "Organization", value: org?.name ?? "" },
+      ],
     })
-    setRemoveMemberDialogOpen(true)
   }
 
   const handleUpdateRole = (userId: number, roleId: number) => {
@@ -364,7 +366,8 @@ function OrgDetailContent() {
                               confirmRemoveMember(
                                 member.userId,
                                 member.firstName,
-                                member.lastName
+                                member.lastName,
+                                member.email
                               )
                             }
                           >
@@ -390,43 +393,19 @@ function OrgDetailContent() {
           </Card>
 
           {/* Remove Member Confirmation Dialog */}
-          <Dialog
-            open={removeMemberDialogOpen}
-            onOpenChange={(open) => setRemoveMemberDialogOpen(open)}
-          >
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Remove Member</DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to remove{" "}
-                  <strong>{memberToRemove?.name}</strong> from this
-                  organization? They will lose access to all organization
-                  resources.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setRemoveMemberDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() =>
-                    memberToRemove &&
-                    handleRemoveMember(memberToRemove.userId)
-                  }
-                  disabled={removeMutation.isPending}
-                >
-                  {removeMutation.isPending && (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  )}
-                  Remove
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <ConfirmDialog
+            open={!!memberToRemove}
+            onOpenChange={(open) => { if (!open) setMemberToRemove(null) }}
+            title="Remove Member?"
+            description={`Are you sure you want to remove ${memberToRemove?.name ?? "this member"} from this organization? They will lose access to all organization resources.`}
+            details={memberToRemove?.details}
+            actionLabel="Remove"
+            onConfirm={async () => {
+              if (memberToRemove) {
+                await handleRemoveMember(memberToRemove.userId)
+              }
+            }}
+          />
         </TabsContent>
 
         {/* Roles Tab */}
@@ -521,47 +500,22 @@ function OrgDetailContent() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Dialog
-                open={deleteDialogOpen}
-                onOpenChange={(open) => setDeleteDialogOpen(open)}
+              <ConfirmDialog
+                title="Delete Organization?"
+                description="Are you sure? This action cannot be undone. All data associated with this organization will be permanently deleted."
+                details={[
+                  { label: "Organization", value: org.name },
+                  { label: "Slug", value: org.slug },
+                  { label: "Members", value: String(members.length) },
+                ]}
+                actionLabel="Delete"
+                onConfirm={handleDelete}
               >
-                <DialogTrigger
-                  render={
-                    <Button variant="destructive">
-                      <Trash2 className="mr-2 size-4" />
-                      Delete Organization
-                    </Button>
-                  }
-                />
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Delete Organization</DialogTitle>
-                    <DialogDescription>
-                      Are you sure? This action cannot be undone. All data
-                      associated with <strong>{org.name}</strong> will be
-                      permanently deleted.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => setDeleteDialogOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={handleDelete}
-                      disabled={deleteMutation.isPending}
-                    >
-                      {deleteMutation.isPending && (
-                        <Loader2 className="mr-2 size-4 animate-spin" />
-                      )}
-                      Delete
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                <Button variant="destructive">
+                  <Trash2 className="mr-2 size-4" />
+                  Delete Organization
+                </Button>
+              </ConfirmDialog>
             </CardContent>
           </Card>
         </TabsContent>

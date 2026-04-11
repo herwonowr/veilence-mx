@@ -31,7 +31,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
+import { TableSkeleton, type SkeletonColumn } from "@/components/table-skeleton"
+import { TableError } from "@/components/table-error"
+import { ConfirmDialog, type ConfirmDialogDetail } from "@/components/confirm-dialog"
 import { Key, Plus, Trash2, Copy, Check, Loader2 } from "lucide-react"
 import { useApiKeys, useCreateApiKey, useDeleteApiKey } from "@/features/account"
 
@@ -53,7 +55,18 @@ function scopeBadgeVariant(scope: APIKeyScope): "secondary" | "default" | "destr
 }
 
 function ApiKeysContent() {
-  const { data: keysRes, isLoading } = useApiKeys()
+  const { data: keysRes, isLoading, isError, refetch } = useApiKeys()
+  const apiKeysSkeletonColumns: SkeletonColumn[] = [
+    { width: "w-24", header: "Name" },
+    { width: "w-20", header: "Key Prefix" },
+    { width: "w-12", header: "Scope" },
+    { width: "w-12", header: "Status" },
+    { width: "w-20", header: "Last Used" },
+    { width: "w-20", header: "Expires" },
+    { width: "w-20", header: "Created" },
+    { width: "w-8", header: "Actions" },
+  ]
+
   const keys = keysRes?.data ?? []
 
   // Create form
@@ -70,6 +83,12 @@ function ApiKeysContent() {
 
   const createMutation = useCreateApiKey()
   const deleteMutation = useDeleteApiKey()
+
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: number
+    details: ConfirmDialogDetail[]
+  } | null>(null)
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -91,10 +110,6 @@ function ApiKeysContent() {
         err instanceof Error ? err.message : "Failed to create API key"
       )
     }
-  }
-
-  const handleDelete = (id: number) => {
-    deleteMutation.mutate(id)
   }
 
   const handleCopy = async () => {
@@ -250,11 +265,9 @@ function ApiKeysContent() {
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="space-y-2 p-4">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
+            <TableSkeleton columns={apiKeysSkeletonColumns} rows={5} />
+          ) : isError ? (
+            <TableError colSpan={8} onRetry={() => refetch()} />
           ) : (
             <Table>
               <TableHeader>
@@ -263,9 +276,9 @@ function ApiKeysContent() {
                   <TableHead>Key Prefix</TableHead>
                   <TableHead>Scope</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Last Used</TableHead>
-                  <TableHead>Expires</TableHead>
-                  <TableHead>Created</TableHead>
+                  <TableHead className="hidden lg:table-cell">Last Used</TableHead>
+                  <TableHead className="hidden md:table-cell">Expires</TableHead>
+                  <TableHead className="hidden md:table-cell">Created</TableHead>
                   <TableHead className="w-16">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -288,24 +301,34 @@ function ApiKeysContent() {
                         {key.isActive ? "Active" : "Revoked"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                       {key.lastUsedAt
                         ? new Date(key.lastUsedAt).toLocaleDateString()
                         : "Never"}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                       {key.expiresAt
                         ? new Date(key.expiresAt).toLocaleDateString()
                         : "Never"}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                       {new Date(key.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        onClick={() => handleDelete(key.id)}
+                        onClick={() =>
+                          setDeleteTarget({
+                            id: key.id,
+                            details: [
+                              { label: "Name", value: key.name },
+                              { label: "Key Prefix", value: `${key.keyPrefix}...` },
+                              { label: "Scope", value: key.scope ?? "admin" },
+                              { label: "Created", value: new Date(key.createdAt).toLocaleDateString() },
+                            ],
+                          })
+                        }
                         aria-label={`Delete API key ${key.name}`}
                       >
                         <Trash2 className="size-4 text-destructive" />
@@ -328,6 +351,21 @@ function ApiKeysContent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete API Key Confirmation */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        title="Delete API Key?"
+        description="Are you sure you want to delete this API key? Any applications using this key will lose access immediately. This action cannot be undone."
+        details={deleteTarget?.details}
+        actionLabel="Delete"
+        onConfirm={async () => {
+          if (deleteTarget) {
+            await deleteMutation.mutateAsync(deleteTarget.id)
+          }
+        }}
+      />
     </div>
   )
 }

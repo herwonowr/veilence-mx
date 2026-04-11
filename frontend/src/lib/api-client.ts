@@ -741,15 +741,7 @@ export async function getAlerts(params?: {
 }
 
 export async function getAlert(id: number): Promise<ApiResponse<Alert>> {
-  // Uses PATCH endpoint path pattern — backend exposes the single alert
-  // through the list endpoint. We fetch the list and find by ID.
-  const res = await fetchApi<Alert[]>(`/api/alerts?page=1&limit=100`)
-  const alert = res.data?.find((a) => a.id === id) ?? null
-  return {
-    data: alert as Alert,
-    error: alert ? null : "Alert not found",
-    meta: res.meta,
-  }
+  return fetchApi<Alert>(`/api/alerts/${id}`)
 }
 
 export async function getAlertNotes(

@@ -41,15 +41,18 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 	}
 
 	validKeys := map[string]bool{
-		models.SettingPyPIPollInterval:    true,
-		models.SettingNPMPollInterval:     true,
-		models.SettingPyPITopN:            true,
-		models.SettingNPMTopN:             true,
-		models.SettingAnalyzerMode:        true,
-		models.SettingTopNRefreshInterval: true,
-		models.SettingDiffSizeLimit:       true,
-		models.SettingVersionDepthMode:    true,
-		models.SettingVersionDepthCount:   true,
+		models.SettingPyPIPollInterval:       true,
+		models.SettingNPMPollInterval:        true,
+		models.SettingPyPITopN:               true,
+		models.SettingNPMTopN:                true,
+		models.SettingAnalyzerMode:           true,
+		models.SettingTopNRefreshInterval:    true,
+		models.SettingDiffSizeLimit:          true,
+		models.SettingVersionDepthMode:       true,
+		models.SettingVersionDepthCount:      true,
+		models.SettingEmailDigestEnabled:     true,
+		models.SettingEmailDigestFrequency:   true,
+		models.SettingEmailDigestRecipients:  true,
 	}
 
 	for key, value := range req {

@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -53,6 +54,35 @@ func newDashboardHandlers(db *gorm.DB) *handlers.DashboardHandlers {
 // newPackageHandlers creates a PackageHandlers for testing.
 func newPackageHandlers(db *gorm.DB) *handlers.PackageHandlers {
 	return &handlers.PackageHandlers{DB: db, Queue: nil, Audit: audit.NewService(db)}
+}
+
+// newPackageHandlersWithQueue creates a PackageHandlers with a mock queue for testing.
+func newPackageHandlersWithQueue(db *gorm.DB, q *mockEnqueuer) *handlers.PackageHandlers {
+	return &handlers.PackageHandlers{DB: db, Queue: q, Audit: audit.NewService(db)}
+}
+
+// mockEnqueuer implements queue.Enqueuer for testing.
+type mockEnqueuer struct {
+	// calls records each Enqueue call as (jobType, referenceID).
+	calls []enqueueCall
+	// err is returned by Enqueue when non-nil (simulates Redis failure).
+	err error
+	// nextJobID is the job ID returned by Enqueue (incremented per call).
+	nextJobID int
+}
+
+type enqueueCall struct {
+	jobType     string
+	referenceID uint
+}
+
+func (m *mockEnqueuer) Enqueue(_ context.Context, jobType string, referenceID uint) (string, error) {
+	m.calls = append(m.calls, enqueueCall{jobType: jobType, referenceID: referenceID})
+	if m.err != nil {
+		return "", m.err
+	}
+	m.nextJobID++
+	return fmt.Sprintf("mock-%d", m.nextJobID), nil
 }
 
 // newAlertHandlers creates an AlertHandlers for testing.
@@ -423,6 +453,90 @@ func TestGetRelease_NotFound(t *testing.T) {
 
 // --- Alerts ---
 
+func TestGetAlert(t *testing.T) {
+	db := setupTestDB(t)
+	h := newAlertHandlers(db)
+
+	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
+	db.Create(&pkg)
+	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
+	db.Create(&rel)
+	diff := models.Diff{ReleaseID: rel.ID, DiffContent: "d"}
+	db.Create(&diff)
+	analysis := models.Analysis{DiffID: diff.ID, Classification: "malicious", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
+	db.Create(&analysis)
+	alert := models.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, OrgID: 0, Severity: "critical", Status: "new", Message: "Malicious detected"}
+	db.Create(&alert)
+
+	r := chi.NewRouter()
+	r.Get("/api/alerts/{id}", h.GetAlert)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/alerts/"+idStr(alert.ID), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Equal(t, "Malicious detected", data["message"])
+	assert.Equal(t, "critical", data["severity"])
+	assert.Equal(t, "requests", data["packageName"])
+	assert.Equal(t, "pypi", data["packageRegistry"])
+}
+
+func TestGetAlert_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	h := newAlertHandlers(db)
+
+	r := chi.NewRouter()
+	r.Get("/api/alerts/{id}", h.GetAlert)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/alerts/99999", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestGetAlert_InvalidID(t *testing.T) {
+	db := setupTestDB(t)
+	h := newAlertHandlers(db)
+
+	r := chi.NewRouter()
+	r.Get("/api/alerts/{id}", h.GetAlert)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/alerts/abc", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestGetAlert_OrgScoping(t *testing.T) {
+	db := setupTestDB(t)
+	h := newAlertHandlers(db)
+
+	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 5}
+	db.Create(&pkg)
+	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
+	db.Create(&rel)
+	diff := models.Diff{ReleaseID: rel.ID, DiffContent: "d"}
+	db.Create(&diff)
+	analysis := models.Analysis{DiffID: diff.ID, Classification: "malicious", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
+	db.Create(&analysis)
+	// Alert belongs to org 5 — request context has orgID=0 (default), so it should not be found
+	alert := models.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, OrgID: 5, Severity: "high", Status: "new", Message: "Other org alert"}
+	db.Create(&alert)
+
+	r := chi.NewRouter()
+	r.Get("/api/alerts/{id}", h.GetAlert)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/alerts/"+idStr(alert.ID), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	// OrgID from context is 0 (no middleware), alert belongs to org 5 → not found
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
 func TestListAlerts(t *testing.T) {
 	db := setupTestDB(t)
 	h := newAlertHandlers(db)
@@ -626,6 +740,25 @@ func TestUpdateSettings_VersionDepth(t *testing.T) {
 	assert.Equal(t, "3", count.Value)
 }
 
+func TestUpdateSettings_EmailDigest(t *testing.T) {
+	db := setupTestDB(t)
+	h := newSettingsHandlers(db)
+
+	body := `{"email_digest_enabled":"true","email_digest_frequency":"weekly","email_digest_recipients":"admin@example.com,ops@example.com"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.UpdateSettings(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var enabled, frequency, recipients models.Setting
+	db.Where("key = ?", "email_digest_enabled").First(&enabled)
+	db.Where("key = ?", "email_digest_frequency").First(&frequency)
+	db.Where("key = ?", "email_digest_recipients").First(&recipients)
+	assert.Equal(t, "true", enabled.Value)
+	assert.Equal(t, "weekly", frequency.Value)
+	assert.Equal(t, "admin@example.com,ops@example.com", recipients.Value)
+}
+
 // --- Recent Releases ---
 
 func TestGetRecentReleases(t *testing.T) {
@@ -768,19 +901,15 @@ func TestListAlerts_Search(t *testing.T) {
 		name      string
 		search    string
 		wantCount int
-		pgOnly    bool // ILIKE is PostgreSQL-specific, skip on SQLite
 	}{
-		{"search by package name", "requests", 1, true},
-		{"search by message", "Suspicious", 1, true},
-		{"search no results", "nonexistent", 0, true},
-		{"empty search", "", 2, false},
+		{"search by package name", "requests", 1},
+		{"search by message", "Suspicious", 1},
+		{"search no results", "nonexistent", 0},
+		{"empty search", "", 2},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.pgOnly {
-				t.Skip("ILIKE requires PostgreSQL; search tested via integration tests")
-			}
 			query := ""
 			if tt.search != "" {
 				query = "search=" + tt.search
@@ -1145,7 +1274,139 @@ func TestReanalyzeRelease_NoQueue(t *testing.T) {
 }
 
 func TestReanalyzeRelease_NotFound(t *testing.T) {
-	t.Skip("Cannot test release-not-found path without a queue mock; handler returns 500 (queue nil) before checking release existence")
+	db := setupTestDB(t)
+	mq := &mockEnqueuer{}
+	h := newPackageHandlersWithQueue(db, mq)
+
+	// No release in DB — should get 404 after passing queue nil check
+	r := chi.NewRouter()
+	r.Post("/api/releases/{id}/reanalyze", h.ReanalyzeRelease)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/releases/99999/reanalyze", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Empty(t, mq.calls, "should not enqueue anything for nonexistent release")
+}
+
+func TestReanalyzeRelease_SuccessNoDiff(t *testing.T) {
+	db := setupTestDB(t)
+	mq := &mockEnqueuer{}
+	h := newPackageHandlersWithQueue(db, mq)
+
+	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 0}
+	db.Create(&pkg)
+	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
+	db.Create(&rel)
+
+	r := chi.NewRouter()
+	r.Post("/api/releases/{id}/reanalyze", h.ReanalyzeRelease)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/releases/"+idStr(rel.ID)+"/reanalyze", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Verify a diff job was enqueued (no diff exists, so it re-diffs from scratch)
+	require.Len(t, mq.calls, 1)
+	assert.Equal(t, "diff", mq.calls[0].jobType)
+	assert.Equal(t, rel.ID, mq.calls[0].referenceID)
+
+	// Verify release status was reset to pending
+	var updated models.Release
+	db.First(&updated, rel.ID)
+	assert.Equal(t, models.ReleaseStatusPending, updated.Status)
+
+	// Verify response contains jobId
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Contains(t, data["message"], "diffing")
+	assert.NotEmpty(t, data["jobId"])
+}
+
+func TestReanalyzeRelease_SuccessWithDiff(t *testing.T) {
+	db := setupTestDB(t)
+	mq := &mockEnqueuer{}
+	h := newPackageHandlersWithQueue(db, mq)
+
+	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 0}
+	db.Create(&pkg)
+	rel1 := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
+	db.Create(&rel1)
+	rel2 := models.Release{PackageID: pkg.ID, Version: "1.1.0", Status: "completed"}
+	db.Create(&rel2)
+	diff := models.Diff{ReleaseID: rel2.ID, PrevReleaseID: rel1.ID, DiffContent: "some diff"}
+	db.Create(&diff)
+
+	r := chi.NewRouter()
+	r.Post("/api/releases/{id}/reanalyze", h.ReanalyzeRelease)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/releases/"+idStr(rel2.ID)+"/reanalyze", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Verify an analyze job was enqueued (diff exists, so it re-analyzes)
+	require.Len(t, mq.calls, 1)
+	assert.Equal(t, "analyze", mq.calls[0].jobType)
+	assert.Equal(t, diff.ID, mq.calls[0].referenceID)
+
+	// Verify release status was set to analyzing
+	var updated models.Release
+	db.First(&updated, rel2.ID)
+	assert.Equal(t, models.ReleaseStatusAnalyzing, updated.Status)
+
+	// Verify response contains jobId
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Contains(t, data["message"], "analysis")
+	assert.NotEmpty(t, data["jobId"])
+}
+
+func TestReanalyzeRelease_OrgScoping(t *testing.T) {
+	db := setupTestDB(t)
+	mq := &mockEnqueuer{}
+	h := newPackageHandlersWithQueue(db, mq)
+
+	// Create a release belonging to org 5; request context has orgID=0 (default, no middleware)
+	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 5}
+	db.Create(&pkg)
+	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
+	db.Create(&rel)
+
+	r := chi.NewRouter()
+	r.Post("/api/releases/{id}/reanalyze", h.ReanalyzeRelease)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/releases/"+idStr(rel.ID)+"/reanalyze", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	// OrgID from context is 0, package belongs to org 5 → not found
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Empty(t, mq.calls, "should not enqueue anything for cross-org release")
+}
+
+func TestReanalyzeRelease_EnqueueError(t *testing.T) {
+	db := setupTestDB(t)
+	mq := &mockEnqueuer{err: fmt.Errorf("redis connection refused")}
+	h := newPackageHandlersWithQueue(db, mq)
+
+	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 0}
+	db.Create(&pkg)
+	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
+	db.Create(&rel)
+
+	r := chi.NewRouter()
+	r.Post("/api/releases/{id}/reanalyze", h.ReanalyzeRelease)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/releases/"+idStr(rel.ID)+"/reanalyze", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+	// Enqueue was attempted but failed
+	require.Len(t, mq.calls, 1)
 }
 
 func TestReanalyzeRelease_InvalidID(t *testing.T) {

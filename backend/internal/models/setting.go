@@ -31,4 +31,9 @@ const (
 	SettingDiffSizeLimit       = "diff_size_limit"
 	SettingVersionDepthMode    = "version_depth_mode"
 	SettingVersionDepthCount   = "version_depth_count"
+
+	// Email digest settings (per-org).
+	SettingEmailDigestEnabled    = "email_digest_enabled"
+	SettingEmailDigestFrequency  = "email_digest_frequency"
+	SettingEmailDigestRecipients = "email_digest_recipients"
 )

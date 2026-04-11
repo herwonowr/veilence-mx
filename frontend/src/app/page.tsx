@@ -2,8 +2,10 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Table,
   TableBody,
@@ -14,12 +16,13 @@ import {
 } from "@/components/ui/table"
 import type { Classification } from "@/types"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Package, Activity, AlertTriangle, Shield, Clock, CheckCircle, RefreshCw } from "lucide-react"
+import { Package, Activity, AlertTriangle, Shield, Clock, CheckCircle, RefreshCw, Building2, Plus, BookOpen, CircleCheck, Circle } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { DashboardCharts } from "@/components/dashboard-charts"
 import { ProtectedRoute } from "@/components/protected-route"
+import { useAuth } from "@/lib/auth-context"
 import { useDashboardStats, useRecentReleases, useChartData } from "@/features/dashboard"
 
 function classificationVariant(c?: Classification) {
@@ -38,6 +41,93 @@ export default function DashboardPage() {
 }
 
 function DashboardContent() {
+  const { currentOrg, organizations, user } = useAuth()
+  const hasOrg = !!currentOrg
+
+  // When no org is selected, show onboarding instead of broken skeletons
+  if (!hasOrg) {
+    return <DashboardOnboarding hasAnyOrg={organizations.length > 0} user={user} />
+  }
+
+  return <DashboardData />
+}
+
+// ─── Onboarding State (no org selected) ─────────────────────
+
+interface OnboardingProps {
+  hasAnyOrg: boolean
+  user: { firstName?: string; emailVerified?: boolean } | null
+}
+
+function DashboardOnboarding({ hasAnyOrg, user }: OnboardingProps) {
+  const router = useRouter()
+
+  const steps = [
+    { label: "Create your account", done: true },
+    { label: "Create an organization", done: hasAnyOrg },
+    { label: "Add packages to monitor", done: false },
+    { label: "Review your first analysis", done: false },
+  ]
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold">Dashboard</h1>
+
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+        <h2 className="text-2xl font-bold mb-2">
+          Welcome to Veilence-MX{user?.firstName ? `, ${user.firstName}` : ""}!
+        </h2>
+        <p className="text-muted-foreground mb-6 max-w-md">
+          {hasAnyOrg
+            ? "Select an organization from the sidebar to view your supply chain monitoring dashboard."
+            : "Get started by creating your first organization to begin monitoring your software supply chain."}
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          {!hasAnyOrg && (
+            <Button onClick={() => router.push("/organizations")}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Organization
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => router.push("/packages")}>
+            <Package className="mr-2 h-4 w-4" />
+            {hasAnyOrg ? "Go to Packages" : "Browse Packages"}
+          </Button>
+        </div>
+      </div>
+
+      <Card className="max-w-md mx-auto">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BookOpen className="h-4 w-4" />
+            Getting Started
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ol className="space-y-3">
+            {steps.map((step, i) => (
+              <li key={i} className="flex items-center gap-3">
+                {step.done ? (
+                  <CircleCheck className="h-5 w-5 text-green-500 shrink-0" />
+                ) : (
+                  <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
+                )}
+                <span className={step.done ? "text-muted-foreground line-through" : "text-sm font-medium"}>
+                  {step.label}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ─── Dashboard Data (org selected) ──────────────────────────
+
+function DashboardData() {
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [intervalSec, setIntervalSec] = useState(30)
   const [chartRange, setChartRange] = useState<{ from?: string; to?: string }>({})
@@ -133,7 +223,7 @@ function DashboardContent() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Active Alerts</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-yellow-500" />
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
             {stats ? <div className="text-2xl font-bold">{stats.activeAlerts}</div> : <Skeleton className="h-8 w-12" />}
@@ -178,10 +268,10 @@ function DashboardContent() {
             <TableHeader>
               <TableRow>
                 <TableHead>Package</TableHead>
-                <TableHead>Registry</TableHead>
+                <TableHead className="hidden md:table-cell">Registry</TableHead>
                 <TableHead>Version</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Classification</TableHead>
+                <TableHead className="hidden lg:table-cell">Classification</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -195,7 +285,7 @@ function DashboardContent() {
                       {release.packageName}
                     </Link>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     <Badge variant="outline">{release.packageRegistry}</Badge>
                   </TableCell>
                   <TableCell className="font-mono text-sm">{release.version}</TableCell>
@@ -209,7 +299,7 @@ function DashboardContent() {
                       <Badge variant="secondary">{release.status}</Badge>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden lg:table-cell">
                     {release.classification ? (
                       <Badge variant={classificationVariant(release.classification)}>
                         {release.classification}

@@ -63,7 +63,7 @@ type AuditHandlers struct {
 // NOTE: DB will be replaced by a service interface in a future sprint.
 type PackageHandlers struct {
 	DB    *gorm.DB
-	Queue *queue.Queue
+	Queue queue.Enqueuer
 	Audit *audit.Service
 }
 
@@ -229,7 +229,7 @@ func parseSort(r *http.Request, allowedColumns map[string]string, defaultSort st
 	return col + " " + sortDir
 }
 
-// escapeLike escapes LIKE/ILIKE special characters (%, _) to prevent
+// escapeLike escapes LIKE special characters (%, _) to prevent
 // wildcard injection when building LIKE queries from user input.
 func escapeLike(s string) string {
 	s = strings.ReplaceAll(s, "\\", "\\\\")

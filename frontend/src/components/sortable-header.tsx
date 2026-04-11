@@ -34,11 +34,11 @@ export function SortableHeader<TData, TValue>({
     >
       {title}
       {sorted === "asc" ? (
-        <ArrowUp className="h-3.5 w-3.5" />
+        <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
       ) : sorted === "desc" ? (
-        <ArrowDown className="h-3.5 w-3.5" />
+        <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
       ) : (
-        <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+        <ArrowUpDown className="h-3.5 w-3.5 opacity-50" aria-hidden="true" />
       )}
     </button>
   )

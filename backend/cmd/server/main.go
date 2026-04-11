@@ -22,6 +22,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/auth"
 	"github.com/veilence/veilence-mx/backend/internal/database"
 	"github.com/veilence/veilence-mx/backend/internal/differ"
+	"github.com/veilence/veilence-mx/backend/internal/digest"
 	"github.com/veilence/veilence-mx/backend/internal/models"
 	"github.com/veilence/veilence-mx/backend/internal/notifications"
 	"github.com/veilence/veilence-mx/backend/internal/poller"
@@ -189,6 +190,10 @@ func main() {
 	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, smtpConfig)
 	dashboardRepo := repository.NewDashboardRepo(db)
 	alertNoteRepo := repository.NewAlertNoteRepo(db)
+
+	// Start email digest scheduler
+	digestScheduler := digest.New(db, smtpConfig, digest.Config{})
+	go digestScheduler.Start(ctx)
 
 	h := handlers.NewHandlers(
 		db,

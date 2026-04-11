@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Save, RefreshCw, Play, RotateCcw } from "lucide-react"
+import { Save, RefreshCw, Play, RotateCcw, Mail } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { settingsSchema } from "@/lib/validations"
 import { ZodError } from "zod"
@@ -257,6 +257,83 @@ function SettingsContent() {
               Maximum diff size sent to LLM for analysis. Default: 100KB.
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Email Digest
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Receive periodic email summaries of new alerts, analysis results, and classification breakdowns.
+          </p>
+          <div className="flex items-center gap-3">
+            <label htmlFor="digest-enabled" className="flex items-center gap-2 cursor-pointer">
+              <input
+                id="digest-enabled"
+                type="checkbox"
+                checked={localSettings.email_digest_enabled === "true"}
+                onChange={(e) =>
+                  updateSetting("email_digest_enabled", e.target.checked ? "true" : "false")
+                }
+                className="accent-primary h-4 w-4"
+              />
+              <span className="text-sm font-medium">Enable email digest</span>
+            </label>
+          </div>
+          {localSettings.email_digest_enabled === "true" && (
+            <div className="space-y-4 ml-6">
+              <div>
+                <span className="text-sm font-medium">Frequency</span>
+                <div className="flex flex-col gap-2 mt-1">
+                  <label htmlFor="digest-daily" className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      id="digest-daily"
+                      type="radio"
+                      name="email_digest_frequency"
+                      value="daily"
+                      checked={(localSettings.email_digest_frequency ?? "daily") === "daily"}
+                      onChange={() => updateSetting("email_digest_frequency", "daily")}
+                      className="accent-primary"
+                    />
+                    <span className="text-sm">Daily</span>
+                  </label>
+                  <label htmlFor="digest-weekly" className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      id="digest-weekly"
+                      type="radio"
+                      name="email_digest_frequency"
+                      value="weekly"
+                      checked={localSettings.email_digest_frequency === "weekly"}
+                      onChange={() => updateSetting("email_digest_frequency", "weekly")}
+                      className="accent-primary"
+                    />
+                    <span className="text-sm">Weekly</span>
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label htmlFor="digest-recipients" className="text-sm font-medium">
+                  Recipients
+                </label>
+                <Input
+                  id="digest-recipients"
+                  value={localSettings.email_digest_recipients ?? ""}
+                  onChange={(e) =>
+                    updateSetting("email_digest_recipients", e.target.value)
+                  }
+                  placeholder="admin@example.com, ops@example.com"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Comma-separated email addresses
+                </p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

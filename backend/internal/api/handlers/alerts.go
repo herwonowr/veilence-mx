@@ -61,7 +61,7 @@ func (h *AlertHandlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
 	}
 	if search != "" {
 		search = escapeLike(search)
-		query = query.Where("(packages.name ILIKE ? OR alerts.message ILIKE ?)",
+		query = query.Where("(LOWER(packages.name) LIKE LOWER(?) OR LOWER(alerts.message) LIKE LOWER(?))",
 			"%"+search+"%", "%"+search+"%")
 	}
 
@@ -91,6 +91,32 @@ func (h *AlertHandlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, result, &Meta{Page: page, Limit: limit, Total: total})
+}
+
+// GetAlert returns a single alert by ID, scoped to the current org.
+// Returns the alert with associated package info (packageName, packageRegistry).
+func (h *AlertHandlers) GetAlert(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+
+	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		respondAppError(w, apperror.BadRequest("invalid alert ID"))
+		return
+	}
+
+	var alert models.Alert
+	if err := h.DB.Preload("Package").Where("alerts.id = ? AND alerts.org_id = ?", id, orgID).First(&alert).Error; err != nil {
+		respondAppError(w, apperror.NotFound("alert"))
+		return
+	}
+
+	result := alertWithDetails{
+		Alert:           alert,
+		PackageName:     alert.Package.Name,
+		PackageRegistry: string(alert.Package.Registry),
+	}
+
+	respondJSON(w, http.StatusOK, result, nil)
 }
 
 // updateAlertRequest is the request body for updating an alert.

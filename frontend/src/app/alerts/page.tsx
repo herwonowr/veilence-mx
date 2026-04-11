@@ -5,7 +5,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/search-input"
 import {
   Select,
   SelectContent,
@@ -23,7 +23,10 @@ import {
 } from "@/components/ui/table"
 import type { Alert, AlertSeverity } from "@/types"
 import Link from "next/link"
-import { RotateCcw, Bell, ShieldCheck } from "lucide-react"
+import { Bell, ShieldCheck } from "lucide-react"
+import { TableSkeleton, type SkeletonColumn } from "@/components/table-skeleton"
+import { TableError } from "@/components/table-error"
+import { FilterChips, type ActiveFilter } from "@/components/filter-chips"
 import {
   useReactTable,
   getCoreRowModel,
@@ -34,6 +37,7 @@ import {
 } from "@tanstack/react-table"
 import { DataTablePagination } from "@/components/data-table-pagination"
 import { SortableHeader } from "@/components/sortable-header"
+import { useResponsiveColumns, type ColumnBreakpoints } from "@/hooks/use-responsive-columns"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAlerts, useUpdateAlert } from "@/features/alerts"
 
@@ -63,8 +67,15 @@ function AlertsContent() {
   })
   const [sorting, setSorting] = useState<SortingState>([])
 
+  const alertColumnBreakpoints: ColumnBreakpoints = useMemo(() => ({
+    createdAt: "desktop",
+    actions: "desktop",
+    message: "tablet",
+  }), [])
+  const columnVisibility = useResponsiveColumns(alertColumnBreakpoints)
+
   const sort = sorting[0]
-  const { data: alertsRes } = useAlerts({
+  const { data: alertsRes, isLoading, isFetching, isError, refetch } = useAlerts({
     severity: severityFilter || undefined,
     status: statusFilter || undefined,
     search: debouncedSearch || undefined,
@@ -83,12 +94,42 @@ function AlertsContent() {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }))
   }, [severityFilter, statusFilter, debouncedSearch, sorting])
 
+  const hasActiveFilters = !!(search || severityFilter || statusFilter)
+
+  const clearAllFilters = () => {
+    setSearch("")
+    setSeverityFilter("")
+    setStatusFilter("")
+    setSorting([])
+  }
+
+  const activeFilters: ActiveFilter[] = [
+    ...(severityFilter
+      ? [{ label: "Severity", value: severityFilter.charAt(0).toUpperCase() + severityFilter.slice(1), onRemove: () => setSeverityFilter("") }]
+      : []),
+    ...(statusFilter
+      ? [{ label: "Status", value: statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1), onRemove: () => setStatusFilter("") }]
+      : []),
+    ...(search
+      ? [{ label: "Search", value: search, onRemove: () => setSearch("") }]
+      : []),
+  ]
+
   const handleStatusChange = useCallback(
     (id: number, status: string) => {
       updateMutation.mutate({ id, status })
     },
     [updateMutation]
   )
+
+  const skeletonColumns: SkeletonColumn[] = [
+    { width: "w-16", header: "Severity" },
+    { width: "w-24", header: "Package" },
+    { width: "w-48", header: "Message" },
+    { width: "w-16", header: "Status" },
+    { width: "w-24", header: "Created" },
+    { width: "w-28", header: "Actions" },
+  ]
 
   const columns = useMemo<ColumnDef<Alert>[]>(
     () => [
@@ -185,7 +226,7 @@ function AlertsContent() {
     data: alerts,
     columns,
     pageCount,
-    state: { pagination, sorting },
+    state: { pagination, sorting, columnVisibility },
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -199,73 +240,85 @@ function AlertsContent() {
 
       <Card>
         <CardHeader>
-          <div className="flex flex-wrap items-center gap-4">
-            <Input
-              placeholder="Search by package name or message..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-xs"
-              aria-label="Search alerts"
-            />
-            <Select
-              value={severityFilter || "all"}
-              onValueChange={(v) => setSeverityFilter(v === "all" ? "" : (v ?? ""))}
-            >
-              <SelectTrigger className="w-40" aria-label="Filter by severity">
-                <SelectValue placeholder="All Severities" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Severities</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={statusFilter || "all"}
-              onValueChange={(v) => setStatusFilter(v === "all" ? "" : (v ?? ""))}
-            >
-              <SelectTrigger className="w-40" aria-label="Filter by status">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="acknowledged">Acknowledged</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
-              </SelectContent>
-            </Select>
-            {(search || severityFilter || statusFilter) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSearch("")
-                  setSeverityFilter("")
-                  setStatusFilter("")
-                  setSorting([])
-                }}
-              >
-                <RotateCcw className="mr-1 h-3 w-3" />
-                Reset
-              </Button>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-end gap-4">
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                onClear={() => setSearch("")}
+                isLoading={isFetching && !!debouncedSearch}
+                placeholder="Search by package name or message..."
+                aria-label="Search alerts"
+              />
+              <div className="space-y-1">
+                <label htmlFor="alerts-severity-filter" className="text-xs font-medium text-muted-foreground">
+                  Severity
+                </label>
+                <Select
+                  value={severityFilter || "all"}
+                  onValueChange={(v) => setSeverityFilter(v === "all" ? "" : (v ?? ""))}
+                >
+                  <SelectTrigger id="alerts-severity-filter" className="w-40">
+                    <SelectValue placeholder="All Severities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Severities</SelectItem>
+                    <SelectItem value="critical">Critical</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="alerts-status-filter" className="text-xs font-medium text-muted-foreground">
+                  Status
+                </label>
+                <Select
+                  value={statusFilter || "all"}
+                  onValueChange={(v) => setStatusFilter(v === "all" ? "" : (v ?? ""))}
+                >
+                  <SelectTrigger id="alerts-status-filter" className="w-40">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="new">New</SelectItem>
+                    <SelectItem value="acknowledged">Acknowledged</SelectItem>
+                    <SelectItem value="resolved">Resolved</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {hasActiveFilters && (
+              <FilterChips filters={activeFilters} onClearAll={clearAllFilters} />
             )}
           </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
+          {isLoading ? (
+            <TableSkeleton columns={skeletonColumns} rows={5} />
+          ) : isError ? (
+            <TableError colSpan={columns.length} onRetry={() => refetch()} />
+          ) : (
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
+                  {headerGroup.headers.map((header) => {
+                    const sorted = header.column.getIsSorted()
+                    return (
+                    <TableHead
+                      key={header.id}
+                      aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
-                  ))}
+                    )
+                  })}
                 </TableRow>
               ))}
             </TableHeader>
@@ -284,18 +337,14 @@ function AlertsContent() {
                 <TableRow>
                   <TableCell colSpan={columns.length} className="text-center py-8">
                     <div className="flex flex-col items-center gap-3">
-                      {search || severityFilter || statusFilter ? (
+                      {hasActiveFilters ? (
                         <>
                           <Bell className="h-8 w-8 text-muted-foreground" />
                           <p className="text-muted-foreground">No alerts match your filters.</p>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              setSearch("")
-                              setSeverityFilter("")
-                              setStatusFilter("")
-                            }}
+                            onClick={clearAllFilters}
                           >
                             Clear Filters
                           </Button>
@@ -318,6 +367,7 @@ function AlertsContent() {
               )}
             </TableBody>
           </Table>
+          )}
           </div>
 
           <DataTablePagination table={table} total={total} />

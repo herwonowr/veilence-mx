@@ -21,7 +21,7 @@ function classificationColor(c: Classification) {
 
 function confidenceColor(confidence: number): string {
   if (confidence >= 0.8) return "bg-green-500"
-  if (confidence >= 0.5) return "bg-yellow-500"
+  if (confidence >= 0.5) return "bg-amber-500"
   return "bg-red-500"
 }
 

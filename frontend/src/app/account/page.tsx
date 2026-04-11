@@ -45,6 +45,7 @@ import {
   Monitor,
 } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { ConfirmDialog, type ConfirmDialogDetail } from "@/components/confirm-dialog"
 import {
   useUpdateProfile,
   useChangePassword,
@@ -354,6 +355,12 @@ function ApiKeysSection() {
   const [keyScope, setKeyScope] = useState<APIKeyScope>("read")
   const [newKeyValue, setNewKeyValue] = useState<string | null>(null)
 
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: number
+    details: ConfirmDialogDetail[]
+  } | null>(null)
+
   const keys = keysRes?.data ?? []
 
   const handleCreate = async () => {
@@ -524,8 +531,16 @@ function ApiKeysSection() {
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        onClick={() => deleteMutation.mutate(key.id)}
-                        disabled={deleteMutation.isPending}
+                        onClick={() =>
+                          setDeleteTarget({
+                            id: key.id,
+                            details: [
+                              { label: "Name", value: key.name },
+                              { label: "Key Prefix", value: `${key.keyPrefix}...` },
+                              { label: "Scope", value: key.scope ?? "admin" },
+                            ],
+                          })
+                        }
                         aria-label={`Delete API key ${key.name}`}
                       >
                         <Trash2 className="size-4 text-destructive" />
@@ -537,6 +552,22 @@ function ApiKeysSection() {
             </TableBody>
           </Table>
         )}
+
+        {/* Delete API Key Confirmation */}
+        <ConfirmDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+          title="Delete API Key?"
+          description="Are you sure you want to delete this API key? Any applications using this key will lose access immediately."
+          details={deleteTarget?.details}
+          actionLabel="Delete"
+          onConfirm={async () => {
+            if (deleteTarget) {
+              await deleteMutation.mutateAsync(deleteTarget.id)
+              setDeleteTarget(null)
+            }
+          }}
+        />
       </CardContent>
     </Card>
   )
@@ -547,6 +578,12 @@ function ApiKeysSection() {
 function SessionsSection() {
   const { data: sessionsRes, isLoading } = useSessions()
   const revokeMutation = useRevokeSession()
+
+  // Revoke confirmation state
+  const [revokeTarget, setRevokeTarget] = useState<{
+    id: number
+    details: ConfirmDialogDetail[]
+  } | null>(null)
 
   const sessions = sessionsRes?.data ?? []
 
@@ -615,10 +652,18 @@ function SessionsSection() {
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      onClick={() => revokeMutation.mutate(session.id)}
+                      onClick={() =>
+                        setRevokeTarget({
+                          id: session.id,
+                          details: [
+                            { label: "Device", value: parseUserAgent(session.userAgent) },
+                            { label: "IP Address", value: session.ipAddress },
+                            { label: "Last Active", value: new Date(session.lastActive).toLocaleString() },
+                          ],
+                        })
+                      }
                       disabled={revokeMutation.isPending}
-                      title="Revoke session"
-                      aria-label="Revoke session"
+                      aria-label={`Revoke session for ${parseUserAgent(session.userAgent)}`}
                     >
                       <Trash2 className="size-4 text-destructive" />
                     </Button>
@@ -628,6 +673,22 @@ function SessionsSection() {
             </TableBody>
           </Table>
         )}
+
+        {/* Revoke Session Confirmation */}
+        <ConfirmDialog
+          open={!!revokeTarget}
+          onOpenChange={(open) => { if (!open) setRevokeTarget(null) }}
+          title="Revoke Session?"
+          description="Are you sure you want to revoke this session? The device will be signed out immediately."
+          details={revokeTarget?.details}
+          actionLabel="Revoke"
+          onConfirm={async () => {
+            if (revokeTarget) {
+              await revokeMutation.mutateAsync(revokeTarget.id)
+              setRevokeTarget(null)
+            }
+          }}
+        />
       </CardContent>
     </Card>
   )

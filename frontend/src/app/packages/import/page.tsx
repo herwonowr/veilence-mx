@@ -1,31 +1,37 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Upload, FileText, Loader2, AlertCircle, CheckCircle2 } from "lucide-react"
+import { ArrowLeft, Upload, FileText, Loader2, AlertCircle, CheckCircle2, CloudUpload } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
-import { useBulkImportPackages } from "@/features/packages"
+import { useBulkImportPackages, usePackages } from "@/features/packages"
 
-type ParsedPackage = { name: string; registry: string }
 type ImportFormat = "requirements_txt" | "package_json" | "list"
 
-function parseRequirementsTxt(text: string): ParsedPackage[] {
+type ParsedEntry = {
+  name: string
+  registry: string
+  status: "new" | "exists" | "error"
+  error?: string
+  selected: boolean
+}
+
+function parseRequirementsTxt(text: string): { name: string; registry: string }[] {
   return text
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith("#") && !line.startsWith("-"))
     .map((line) => {
-      // Handle: package==1.0.0, package>=1.0.0, package~=1.0.0, package[extra]>=1.0
       const name = line.split(/[=<>~!\[;@]/)[0].trim()
       return { name, registry: "pypi" }
     })
     .filter((p) => p.name.length > 0)
 }
 
-function parsePackageJson(text: string): ParsedPackage[] {
+function parsePackageJson(text: string): { name: string; registry: string }[] {
   try {
     const pkg = JSON.parse(text)
     const deps = { ...pkg.dependencies, ...pkg.devDependencies }
@@ -56,98 +62,193 @@ export default function BulkImportPage() {
 function BulkImportContent() {
   const [textInput, setTextInput] = useState("")
   const [detectedFormat, setDetectedFormat] = useState<ImportFormat>("requirements_txt")
-  const [parsedPackages, setParsedPackages] = useState<ParsedPackage[]>([])
+  const [entries, setEntries] = useState<ParsedEntry[]>([])
   const [parseError, setParseError] = useState("")
   const [importResult, setImportResult] = useState<{
     imported: number
     skipped: number
     errors: { name: string; error: string }[]
   } | null>(null)
+  const [dragActive, setDragActive] = useState(false)
+  const [importProgress, setImportProgress] = useState<number | null>(null)
 
   const bulkImportMutation = useBulkImportPackages()
 
-  const handleFileUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0]
-      if (!file) return
+  // Fetch existing packages to cross-reference
+  const { data: existingRes } = usePackages({ limit: 500 })
+  const existingNames = useMemo(() => {
+    const pkgs = existingRes?.data ?? []
+    return new Set(pkgs.map((p) => `${p.name}:${p.registry}`))
+  }, [existingRes])
 
+  // ─── Parsing helpers ───
+
+  const buildEntries = useCallback(
+    (raw: { name: string; registry: string }[]): ParsedEntry[] => {
+      return raw.map((pkg) => ({
+        ...pkg,
+        status: existingNames.has(`${pkg.name}:${pkg.registry}`) ? "exists" as const : "new" as const,
+        selected: !existingNames.has(`${pkg.name}:${pkg.registry}`),
+      }))
+    },
+    [existingNames]
+  )
+
+  const parseContent = useCallback(
+    (text: string, fileName?: string) => {
       setParseError("")
       setImportResult(null)
 
+      if (!text.trim()) {
+        setParseError("No content to parse.")
+        return
+      }
+
+      const format = detectFormat(text, fileName)
+      setDetectedFormat(format)
+
+      const packages =
+        format === "package_json" ? parsePackageJson(text) : parseRequirementsTxt(text)
+
+      if (packages.length === 0) {
+        setParseError(
+          format === "package_json"
+            ? 'Could not parse any packages from this JSON. Ensure it has a "dependencies" or "devDependencies" field.'
+            : "Could not parse any packages. Use requirements.txt format (one package per line) or a package.json file."
+        )
+        return
+      }
+
+      setEntries(buildEntries(packages))
+    },
+    [buildEntries]
+  )
+
+  // ─── File handling (click + drag-and-drop) ───
+
+  const processFile = useCallback(
+    (file: File) => {
       const reader = new FileReader()
       reader.onload = (event) => {
         const content = event.target?.result as string
         setTextInput(content)
-
-        const format = detectFormat(content, file.name)
-        setDetectedFormat(format)
-
-        let packages: ParsedPackage[]
-        if (format === "package_json") {
-          packages = parsePackageJson(content)
-          if (packages.length === 0) {
-            setParseError("Could not parse any packages from this JSON file. Ensure it has a \"dependencies\" or \"devDependencies\" field.")
-          }
-        } else {
-          packages = parseRequirementsTxt(content)
-          if (packages.length === 0) {
-            setParseError("Could not parse any packages from this file.")
-          }
-        }
-        setParsedPackages(packages)
+        parseContent(content, file.name)
       }
       reader.readAsText(file)
     },
-    []
+    [parseContent]
+  )
+
+  const handleFileUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (file) processFile(file)
+    },
+    [processFile]
+  )
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // Only deactivate if leaving the drop zone entirely
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return
+    setDragActive(false)
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setDragActive(false)
+
+      const file = e.dataTransfer.files?.[0]
+      if (file) processFile(file)
+    },
+    [processFile]
   )
 
   const handleTextParse = useCallback(() => {
-    setParseError("")
-    setImportResult(null)
+    parseContent(textInput)
+  }, [textInput, parseContent])
 
-    if (!textInput.trim()) {
-      setParseError("Please paste package list content first.")
-      return
-    }
+  // ─── Selection ───
 
-    const format = detectFormat(textInput)
-    setDetectedFormat(format)
+  const selectedCount = entries.filter((e) => e.selected).length
+  const newCount = entries.filter((e) => e.status === "new").length
+  const existsCount = entries.filter((e) => e.status === "exists").length
 
-    let packages: ParsedPackage[]
-    if (format === "package_json") {
-      packages = parsePackageJson(textInput)
-    } else {
-      packages = parseRequirementsTxt(textInput)
-    }
+  const allSelected = entries.length > 0 && entries.every((e) => e.selected)
+  const someSelected = entries.some((e) => e.selected) && !allSelected
 
-    if (packages.length === 0) {
-      setParseError("Could not parse any packages. Use requirements.txt format (one package per line) or a package.json file.")
-      return
-    }
+  const toggleSelectAll = () => {
+    const nextVal = !allSelected
+    setEntries((prev) => prev.map((e) => ({ ...e, selected: nextVal })))
+  }
 
-    setParsedPackages(packages)
-  }, [textInput])
+  const toggleEntry = (index: number) => {
+    setEntries((prev) =>
+      prev.map((e, i) => (i === index ? { ...e, selected: !e.selected } : e))
+    )
+  }
+
+  // ─── Import ───
 
   const handleImport = async () => {
-    if (parsedPackages.length === 0) return
+    const selected = entries.filter((e) => e.selected)
+    if (selected.length === 0) return
+
+    setImportProgress(0)
+
+    // Simulate progress (actual import is a single POST)
+    const progressInterval = setInterval(() => {
+      setImportProgress((prev) => {
+        if (prev === null || prev >= 90) return prev
+        return prev + Math.random() * 15
+      })
+    }, 200)
 
     try {
-      // Send raw content + format to backend (server-side parsing per V101-12 spec)
       const result = await bulkImportMutation.mutateAsync({
         format: detectedFormat,
         content: textInput,
       })
+      clearInterval(progressInterval)
+      setImportProgress(100)
       setImportResult(result.data)
-      setParsedPackages([])
+      setEntries([])
       setTextInput("")
+
+      // Clear progress after a short delay
+      setTimeout(() => setImportProgress(null), 1000)
     } catch {
-      // Error is handled by mutation onError
+      clearInterval(progressInterval)
+      setImportProgress(null)
     }
   }
 
-  const handleRemovePackage = (index: number) => {
-    setParsedPackages((prev) => prev.filter((_, i) => i !== index))
-  }
+  // Re-compute entries when existingNames changes (lazy re-check)
+  useEffect(() => {
+    if (entries.length > 0) {
+      setEntries((prev) =>
+        prev.map((e) => ({
+          ...e,
+          status: existingNames.has(`${e.name}:${e.registry}`) ? "exists" : "new",
+        }))
+      )
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingNames])
 
   return (
     <div className="space-y-6">
@@ -165,6 +266,7 @@ function BulkImportContent() {
         </p>
       </div>
 
+      {/* Import result banner */}
       {importResult && (
         <Card className="border-green-500/50">
           <CardContent className="py-4">
@@ -193,7 +295,7 @@ function BulkImportContent() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* File Upload */}
+        {/* File Upload with drag-and-drop */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -207,13 +309,39 @@ function BulkImportContent() {
           <CardContent>
             <label
               htmlFor="file-upload"
-              className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 p-8 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors"
+              className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${
+                dragActive
+                  ? "border-blue-500 bg-blue-500/5"
+                  : "border-muted-foreground/25 hover:border-muted-foreground/50"
+              }`}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              role="button"
+              tabIndex={0}
+              aria-label="Upload file or drag and drop"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  document.getElementById("file-upload")?.click()
+                }
+              }}
             >
-              <FileText className="h-10 w-10 text-muted-foreground mb-3" />
-              <p className="text-sm font-medium">Click to upload</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                .txt, .json files accepted
-              </p>
+              {dragActive ? (
+                <>
+                  <CloudUpload className="h-10 w-10 text-blue-500 mb-3 animate-bounce" />
+                  <p className="text-sm font-medium text-blue-600">Drop to upload</p>
+                </>
+              ) : (
+                <>
+                  <FileText className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="text-sm font-medium">Click or drag to upload</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    .txt, .json files accepted
+                  </p>
+                </>
+              )}
               <input
                 id="file-upload"
                 type="file"
@@ -251,55 +379,173 @@ function BulkImportContent() {
         </Card>
       </div>
 
+      {/* Parse error */}
       {parseError && (
-        <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+        <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">
           <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
           {parseError}
         </div>
       )}
 
-      {/* Parsed preview */}
-      {parsedPackages.length > 0 && (
+      {/* Progress bar during import */}
+      {importProgress !== null && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Importing packages...</span>
+            <span>{Math.round(importProgress)}%</span>
+          </div>
+          <div
+            className="h-2 w-full rounded-full bg-muted overflow-hidden"
+            role="progressbar"
+            aria-valuenow={Math.round(importProgress)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Import progress"
+          >
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
+              style={{ width: `${importProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Parsed preview with checkboxes */}
+      {entries.length > 0 && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Parsed Packages ({parsedPackages.length})</CardTitle>
-              <CardDescription>
-                Review and confirm packages before importing.
-                Detected format: <Badge variant="outline" className="ml-1">{detectedFormat === "package_json" ? "package.json" : "requirements.txt"}</Badge>
-              </CardDescription>
+          <CardHeader>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle>
+                  Parsed Packages ({entries.length} found)
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  {entries.length} package{entries.length !== 1 ? "s" : ""} found
+                  {existsCount > 0 && `, ${existsCount} already monitored`}.
+                  {" "}Detected format:{" "}
+                  <Badge variant="outline" className="ml-1">
+                    {detectedFormat === "package_json" ? "package.json" : "requirements.txt"}
+                  </Badge>
+                </CardDescription>
+              </div>
+              <Button
+                onClick={handleImport}
+                disabled={bulkImportMutation.isPending || selectedCount === 0}
+              >
+                {bulkImportMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                Add {selectedCount} Selected Package{selectedCount !== 1 ? "s" : ""}
+              </Button>
             </div>
-            <Button
-              onClick={handleImport}
-              disabled={bulkImportMutation.isPending}
-            >
-              {bulkImportMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="mr-2 h-4 w-4" />
-              )}
-              Import {parsedPackages.length} Package{parsedPackages.length !== 1 ? "s" : ""}
-            </Button>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto">
-              {parsedPackages.map((pkg, i) => (
-                <Badge
-                  key={`${pkg.name}-${i}`}
-                  variant="secondary"
-                  className="gap-1 cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-colors"
-                  onClick={() => handleRemovePackage(i)}
-                  title={`Click to remove ${pkg.name}`}
+            {/* Select all header */}
+            <div className="flex items-center gap-3 pb-3 mb-3 border-b">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                ref={(el) => {
+                  if (el) el.indeterminate = someSelected
+                }}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-input accent-primary cursor-pointer"
+                aria-label="Select all packages"
+              />
+              <span className="text-sm font-medium">
+                Select All
+              </span>
+              <span className="text-xs text-muted-foreground ml-auto">
+                {selectedCount} of {entries.length} selected
+              </span>
+            </div>
+
+            {/* Package list */}
+            <div className="max-h-80 overflow-y-auto space-y-0.5" role="list" aria-label="Parsed packages">
+              {entries.map((entry, i) => (
+                <label
+                  key={`${entry.name}-${entry.registry}-${i}`}
+                  className={`flex items-center gap-3 rounded-md px-2 py-1.5 cursor-pointer transition-colors hover:bg-muted/50 ${
+                    entry.selected ? "bg-muted/30" : ""
+                  }`}
+                  role="listitem"
                 >
-                  {pkg.name}
-                  <span className="text-xs opacity-60">({pkg.registry})</span>
-                  <span className="ml-1 text-xs">&times;</span>
-                </Badge>
+                  <input
+                    type="checkbox"
+                    checked={entry.selected}
+                    onChange={() => toggleEntry(i)}
+                    className="h-4 w-4 rounded border-input accent-primary cursor-pointer shrink-0"
+                    aria-label={`Select ${entry.name}`}
+                  />
+                  <span className="text-sm font-mono truncate">{entry.name}</span>
+                  <Badge variant="outline" className="shrink-0 text-xs">
+                    {entry.registry}
+                  </Badge>
+                  <StatusBadge status={entry.status} />
+                </label>
               ))}
+            </div>
+
+            {/* Summary line */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 mt-3 border-t text-sm text-muted-foreground">
+              <span>
+                {newCount} new, {existsCount} already monitored
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setEntries([])
+                    setTextInput("")
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleImport}
+                  disabled={bulkImportMutation.isPending || selectedCount === 0}
+                >
+                  {bulkImportMutation.isPending ? (
+                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="mr-2 h-3.5 w-3.5" />
+                  )}
+                  Add {selectedCount} Selected
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
       )}
     </div>
   )
+}
+
+// ─── Status Badge ───
+
+function StatusBadge({ status }: { status: ParsedEntry["status"] }) {
+  switch (status) {
+    case "new":
+      return (
+        <Badge variant="outline" className="ml-auto shrink-0 text-xs border-green-500/50 text-green-600 bg-green-500/10">
+          new
+        </Badge>
+      )
+    case "exists":
+      return (
+        <Badge variant="secondary" className="ml-auto shrink-0 text-xs">
+          exists
+        </Badge>
+      )
+    case "error":
+      return (
+        <Badge variant="destructive" className="ml-auto shrink-0 text-xs">
+          error
+        </Badge>
+      )
+  }
 }

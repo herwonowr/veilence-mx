@@ -43,7 +43,7 @@ func (r *AlertRepo) FindByOrgID(ctx context.Context, orgID uint, page, limit int
 	if needsJoin {
 		query = query.Joins("JOIN packages ON packages.id = alerts.package_id")
 		escapedSearch := escapeLikeRepo(*filters.Search)
-		query = query.Where("(packages.name ILIKE ? OR alerts.message ILIKE ?)",
+		query = query.Where("(LOWER(packages.name) LIKE LOWER(?) OR LOWER(alerts.message) LIKE LOWER(?))",
 			"%"+escapedSearch+"%", "%"+escapedSearch+"%")
 	}
 
@@ -156,7 +156,7 @@ func alertToModel(d *domain.Alert) *models.Alert {
 	}
 }
 
-// escapeLikeRepo escapes LIKE/ILIKE special characters for safe queries.
+// escapeLikeRepo escapes LIKE special characters for safe queries.
 func escapeLikeRepo(s string) string {
 	s = strings.ReplaceAll(s, "\\", "\\\\")
 	s = strings.ReplaceAll(s, "%", "\\%")

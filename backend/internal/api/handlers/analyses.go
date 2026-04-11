@@ -67,7 +67,7 @@ func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Req
 	}
 	if search != "" {
 		search = escapeLike(search)
-		query = query.Where("packages.name ILIKE ?", "%"+search+"%")
+		query = query.Where("LOWER(packages.name) LIKE LOWER(?)", "%"+search+"%")
 	}
 
 	// Apply classification filter in SQL before pagination via LEFT JOINs on diffs/analyses

@@ -127,6 +127,7 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 				r.Route("/alerts", func(r chi.Router) {
 					r.With(rbac.RequirePermission(rbacService, "alerts", "read")).Get("/", h.Alerts.ListAlerts)
 					r.Route("/{id}", func(r chi.Router) {
+						r.With(rbac.RequirePermission(rbacService, "alerts", "read")).Get("/", h.Alerts.GetAlert)
 						r.With(rbac.RequirePermission(rbacService, "alerts", "write")).Patch("/", h.Alerts.UpdateAlert)
 						r.With(rbac.RequirePermission(rbacService, "alerts", "read")).Get("/notes", h.Alerts.ListAlertNotes)
 						r.With(rbac.RequirePermission(rbacService, "alerts", "write")).Post("/notes", h.Alerts.CreateAlertNote)

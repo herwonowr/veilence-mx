@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,7 +18,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Skeleton } from "@/components/ui/skeleton"
+import { TableSkeleton, type SkeletonColumn } from "@/components/table-skeleton"
+import { TableError } from "@/components/table-error"
+import { ConfirmDialog, type ConfirmDialogDetail } from "@/components/confirm-dialog"
 import { Monitor, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useSessions, useRevokeSession } from "@/features/account"
@@ -36,8 +38,14 @@ function parseUserAgent(ua: string): string {
 }
 
 function SessionsContent() {
-  const { data: sessionsRes, isLoading } = useSessions()
+  const { data: sessionsRes, isLoading, isError, refetch } = useSessions()
   const { logout } = useAuth()
+
+  // Revoke confirmation state
+  const [revokeTarget, setRevokeTarget] = useState<{
+    id: number
+    details: ConfirmDialogDetail[]
+  } | null>(null)
 
   const handleRevoked = useCallback(async () => {
     const refreshToken = getStoredRefreshToken()
@@ -60,6 +68,15 @@ function SessionsContent() {
   }, [logout])
 
   const revokeMutation = useRevokeSession({ onRevoked: handleRevoked })
+
+  const sessionsSkeletonColumns: SkeletonColumn[] = [
+    { width: "w-20", header: "Browser / Client" },
+    { width: "w-24", header: "IP Address" },
+    { width: "w-24", header: "Created" },
+    { width: "w-24", header: "Last Active" },
+    { width: "w-20", header: "Expires" },
+    { width: "w-8", header: "Actions" },
+  ]
 
   const sessions = sessionsRes?.data ?? []
 
@@ -85,20 +102,18 @@ function SessionsContent() {
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="space-y-2 p-4">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
+            <TableSkeleton columns={sessionsSkeletonColumns} rows={5} />
+          ) : isError ? (
+            <TableError colSpan={6} onRetry={() => refetch()} />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Browser / Client</TableHead>
                   <TableHead>IP Address</TableHead>
-                  <TableHead>Created</TableHead>
+                  <TableHead className="hidden md:table-cell">Created</TableHead>
                   <TableHead>Last Active</TableHead>
-                  <TableHead>Expires</TableHead>
+                  <TableHead className="hidden lg:table-cell">Expires</TableHead>
                   <TableHead className="w-16">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -111,23 +126,31 @@ function SessionsContent() {
                     <TableCell className="font-mono text-xs">
                       {session.ipAddress}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                       {new Date(session.createdAt).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(session.lastActive).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                       {new Date(session.expiresAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        onClick={() => revokeMutation.mutate(session.id)}
+                        onClick={() =>
+                          setRevokeTarget({
+                            id: session.id,
+                            details: [
+                              { label: "Device", value: parseUserAgent(session.userAgent) },
+                              { label: "IP Address", value: session.ipAddress },
+                              { label: "Last Active", value: new Date(session.lastActive).toLocaleString() },
+                            ],
+                          })
+                        }
                         disabled={revokeMutation.isPending}
-                        title="Revoke session"
-                        aria-label="Revoke session"
+                        aria-label={`Revoke session for ${parseUserAgent(session.userAgent)}`}
                       >
                         <Trash2 className="size-4 text-destructive" />
                       </Button>
@@ -149,6 +172,21 @@ function SessionsContent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Revoke Session Confirmation */}
+      <ConfirmDialog
+        open={!!revokeTarget}
+        onOpenChange={(open) => { if (!open) setRevokeTarget(null) }}
+        title="Revoke Session?"
+        description="Are you sure you want to revoke this session? The device will be signed out immediately."
+        details={revokeTarget?.details}
+        actionLabel="Revoke"
+        onConfirm={async () => {
+          if (revokeTarget) {
+            await revokeMutation.mutateAsync(revokeTarget.id)
+          }
+        }}
+      />
     </div>
   )
 }
