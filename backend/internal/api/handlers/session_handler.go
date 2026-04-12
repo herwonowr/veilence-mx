@@ -74,6 +74,7 @@ func (h *SessionHandlers) ListSessions(w http.ResponseWriter, r *http.Request) {
 }
 
 // RevokeSession deletes a specific session belonging to the authenticated user.
+// It refuses to delete the caller's current session (identified via X-Refresh-Token header).
 // DELETE /api/v1/sessions/:id
 func (h *SessionHandlers) RevokeSession(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
@@ -86,6 +87,16 @@ func (h *SessionHandlers) RevokeSession(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "invalid session ID")
 		return
+	}
+
+	// Prevent deleting the current session — identify it via X-Refresh-Token header
+	if rt := r.Header.Get("X-Refresh-Token"); rt != "" {
+		rtHash := sha256.Sum256([]byte(rt))
+		currentTokenHash := hex.EncodeToString(rtHash[:])
+		if err := h.Auth.GuardCurrentSession(userID, uint(id), currentTokenHash); err != nil {
+			respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 
 	if err := h.Auth.RevokeSession(userID, uint(id)); err != nil {

@@ -294,6 +294,8 @@ type SessionRepository interface {
 	Create(ctx context.Context, session *Session) error
 	// UpdateLastActive updates the last_active timestamp for a session.
 	UpdateLastActive(ctx context.Context, id uint, lastActive time.Time) error
+	// UpdateTokenHash updates the token_hash for a session (called after refresh token rotation).
+	UpdateTokenHash(ctx context.Context, id uint, tokenHash string) error
 	// Delete removes a session by ID.
 	Delete(ctx context.Context, id uint) error
 	// DeleteExpired removes all sessions that have passed their expiration time.

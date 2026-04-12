@@ -249,8 +249,9 @@ func (s *Service) RefreshTokens(refreshToken string) (*TokenPair, error) {
 	// Update the session's token hash to the new refresh token hash
 	if sessionErr == nil {
 		newTokenHash := hashRefreshToken(tokens.RefreshToken)
-		session.TokenHash = newTokenHash
-		// Use a direct DB update if available; otherwise just log
+		if updateErr := s.sessions.UpdateTokenHash(ctx, session.ID, newTokenHash); updateErr != nil {
+			slog.Warn("failed to update session token hash", "session_id", session.ID, "error", updateErr)
+		}
 		if updateErr := s.sessions.UpdateLastActive(ctx, session.ID, time.Now()); updateErr != nil {
 			slog.Warn("failed to update session last active", "session_id", session.ID, "error", updateErr)
 		}
@@ -707,6 +708,31 @@ func (s *Service) ListSessions(userID uint) ([]domain.Session, error) {
 		return nil, fmt.Errorf("listing sessions: %w", err)
 	}
 	return sessions, nil
+}
+
+// ErrCannotRevokeCurrentSession is returned when trying to delete the current session.
+var ErrCannotRevokeCurrentSession = errors.New("cannot revoke the current session")
+
+// GuardCurrentSession checks whether the given session ID corresponds to the
+// caller's current session (identified by currentTokenHash). Returns an error
+// if it is, preventing the caller from accidentally logging themselves out.
+func (s *Service) GuardCurrentSession(userID, sessionID uint, currentTokenHash string) error {
+	ctx := context.Background()
+
+	session, err := s.sessions.FindByID(ctx, sessionID)
+	if err != nil {
+		return nil // Session not found — let RevokeSession handle the 404
+	}
+
+	if session.UserID != userID {
+		return nil // Not the user's session — let RevokeSession handle the 404
+	}
+
+	if session.TokenHash == currentTokenHash {
+		return ErrCannotRevokeCurrentSession
+	}
+
+	return nil
 }
 
 // RevokeSession deletes a specific session, verifying it belongs to the user.

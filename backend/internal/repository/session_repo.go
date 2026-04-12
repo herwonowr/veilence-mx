@@ -75,6 +75,14 @@ func (r *SessionRepo) UpdateLastActive(ctx context.Context, id uint, lastActive 
 	return nil
 }
 
+func (r *SessionRepo) UpdateTokenHash(ctx context.Context, id uint, tokenHash string) error {
+	result := r.db.WithContext(ctx).Model(&models.Session{}).Where("id = ?", id).Update("token_hash", tokenHash)
+	if result.Error != nil {
+		return fmt.Errorf("updating session token_hash: %w", result.Error)
+	}
+	return nil
+}
+
 func (r *SessionRepo) Delete(ctx context.Context, id uint) error {
 	if err := r.db.WithContext(ctx).Delete(&models.Session{}, id).Error; err != nil {
 		return fmt.Errorf("deleting session: %w", err)

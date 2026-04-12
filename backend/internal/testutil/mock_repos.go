@@ -1564,6 +1564,7 @@ type MockSessionRepository struct {
 		FindByTokenHash       error
 		Create                error
 		UpdateLastActive      error
+		UpdateTokenHash       error
 		Delete                error
 		DeleteExpired         error
 		CountByUserID         error
@@ -1575,6 +1576,7 @@ type MockSessionRepository struct {
 		FindByTokenHash       int
 		Create                int
 		UpdateLastActive      int
+		UpdateTokenHash       int
 		Delete                int
 		DeleteExpired         int
 		CountByUserID         int
@@ -1660,6 +1662,21 @@ func (m *MockSessionRepository) UpdateLastActive(_ context.Context, id uint, las
 		return fmt.Errorf("session not found")
 	}
 	s.LastActive = lastActive
+	return nil
+}
+
+func (m *MockSessionRepository) UpdateTokenHash(_ context.Context, id uint, tokenHash string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Calls.UpdateTokenHash++
+	if m.Errors.UpdateTokenHash != nil {
+		return m.Errors.UpdateTokenHash
+	}
+	s, ok := m.sessions[id]
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+	s.TokenHash = tokenHash
 	return nil
 }
 

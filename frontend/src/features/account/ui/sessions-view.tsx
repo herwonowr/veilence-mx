@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/ui/components/button"
 import {
   Card,
@@ -23,11 +23,7 @@ import { TableEmptyState } from "@/ui/feedback/empty-state"
 import { ConfirmDialog, type ConfirmDialogDetail } from "@/ui/feedback/confirm-dialog"
 import { Monitor, Trash2, ShieldCheck } from "lucide-react"
 import { Badge } from "@/ui/components/badge"
-import { toast } from "sonner"
 import { useSessions, useRevokeSession } from "@/features/account/hooks/use-sessions"
-import { useAuth } from "@/core/providers/auth-provider"
-import { apiRefreshToken } from "@/domains/auth"
-import { getStoredRefreshToken } from "@/core"
 
 const parseUserAgent = (ua: string): string => {
   if (ua.includes("Chrome") && !ua.includes("Edg")) return "Chrome"
@@ -41,7 +37,6 @@ const parseUserAgent = (ua: string): string => {
 
 export const SessionsView = () => {
   const { data: sessionsRes, isLoading, isError, refetch } = useSessions()
-  const { logout } = useAuth()
 
   // Revoke confirmation state
   const [revokeTarget, setRevokeTarget] = useState<{
@@ -49,27 +44,12 @@ export const SessionsView = () => {
     details: ConfirmDialogDetail[]
   } | null>(null)
 
-  const handleRevoked = useCallback(async () => {
-    const refreshToken = getStoredRefreshToken()
-    if (!refreshToken) {
-      // No refresh token means the session is already invalid
-      toast.info("Session ended — you have been signed out")
-      await logout()
-      return
-    }
-
-    try {
-      await apiRefreshToken(refreshToken)
-      // Refresh succeeded — the revoked session was not the current one
-      toast.success("Session revoked")
-    } catch {
-      // Refresh failed — the user revoked their own current session
-      toast.info("Session ended — you have been signed out")
-      await logout()
-    }
-  }, [logout])
-
-  const revokeMutation = useRevokeSession({ onRevoked: handleRevoked })
+  // The current session's delete button is disabled in the UI, so a successful
+  // revoke is always for a non-current session. No token refresh needed — the
+  // previous approach called apiRefreshToken to "test" if the current session
+  // was still alive, but that consumed the refresh token via rotation without
+  // storing the new one, causing a race condition that logged the user out.
+  const revokeMutation = useRevokeSession()
 
   const sessionsSkeletonColumns: SkeletonColumn[] = [
     { width: "w-20", header: "Browser / Client" },
