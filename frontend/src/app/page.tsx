@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { DashboardCharts } from "@/components/dashboard-charts"
 import { TableEmptyState } from "@/components/empty-state"
+import { formatEcosystem } from "@/lib/utils"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/lib/auth-context"
 import { useDashboardStats, useRecentReleases, useChartData } from "@/features/dashboard"
@@ -305,7 +306,7 @@ function DashboardData() {
                     </Link>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
-                    <Badge variant="outline">{release.packageEcosystem}</Badge>
+                    <Badge variant="outline">{formatEcosystem(release.packageEcosystem)}</Badge>
                   </TableCell>
                   <TableCell className="font-mono text-sm">{release.version}</TableCell>
                   <TableCell>

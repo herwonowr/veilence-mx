@@ -30,6 +30,7 @@ import { CheckCircle, Activity } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FilterChips, type ActiveFilter } from "@/components/filter-chips"
 import { SearchInput } from "@/components/search-input"
+import { formatEcosystem } from "@/lib/utils"
 import {
   useReactTable,
   getCoreRowModel,
@@ -154,7 +155,7 @@ function ReleasesContent() {
         accessorKey: "packageEcosystem",
         header: ({ column }) => <SortableHeader column={column} title="Ecosystem" />,
         cell: ({ row }) => (
-          <Badge variant="outline">{row.original.packageEcosystem}</Badge>
+          <Badge variant="outline">{formatEcosystem(row.original.packageEcosystem)}</Badge>
         ),
       },
       {

@@ -19,6 +19,7 @@ import { ArrowLeft, Activity, Package as PackageIcon } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { RequireOrg } from "@/components/require-org"
 import { DetailError } from "@/components/detail-error"
+import { formatEcosystem } from "@/lib/utils"
 import { usePackage, usePackageReleases, useAnalysisHistory } from "@/features/packages"
 import type { Classification } from "@/types"
 
@@ -97,7 +98,7 @@ function PackageDetailContent({
         </Link>
         <h1 className="text-3xl font-bold">{pkg.name}</h1>
         <div className="flex flex-wrap items-center gap-2 mt-2">
-          <Badge variant="outline">{pkg.ecosystem}</Badge>
+          <Badge variant="outline">{formatEcosystem(pkg.ecosystem)}</Badge>
           <span className="font-mono text-sm text-muted-foreground">v{pkg.latestVersion}</span>
           {pkg.description && (
             <span className="text-sm text-muted-foreground">— {pkg.description}</span>

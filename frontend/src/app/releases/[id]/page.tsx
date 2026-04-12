@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { ProtectedRoute } from "@/components/protected-route"
 import { RequireOrg } from "@/components/require-org"
 import { DetailError } from "@/components/detail-error"
+import { formatEcosystem } from "@/lib/utils"
 import { useRelease, useReanalyzeRelease } from "@/features/packages"
 
 function classificationColor(c: Classification) {
@@ -144,7 +145,7 @@ function ReleaseDetailContent({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-2">
-          <Badge variant="outline">{release.package?.ecosystem}</Badge>
+          <Badge variant="outline">{formatEcosystem(release.package?.ecosystem ?? "")}</Badge>
           <Badge variant="secondary">{release.status}</Badge>
           <span className="text-sm text-muted-foreground">
             Published {new Date(release.publishedAt).toLocaleDateString()}

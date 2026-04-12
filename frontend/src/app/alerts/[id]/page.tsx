@@ -12,6 +12,7 @@ import { ArrowLeft, MessageSquare, Send, Loader2, ExternalLink } from "lucide-re
 import { ProtectedRoute } from "@/components/protected-route"
 import { RequireOrg } from "@/components/require-org"
 import { DetailError } from "@/components/detail-error"
+import { formatEcosystem } from "@/lib/utils"
 import { useAlert, useUpdateAlert, useAlertNotes, useCreateAlertNote } from "@/features/alerts"
 import type { AlertSeverity } from "@/types"
 
@@ -136,7 +137,7 @@ function AlertDetailContent({
                 className="text-primary hover:underline font-medium"
               >
                 {alert.packageName}
-                <span className="text-xs text-muted-foreground ml-1">({alert.packageEcosystem})</span>
+                <span className="text-xs text-muted-foreground ml-1">({formatEcosystem(alert.packageEcosystem)})</span>
               </Link>
             </div>
             <div>

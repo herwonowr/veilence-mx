@@ -47,6 +47,7 @@ import { TableError } from "@/components/table-error"
 import { TableEmptyState } from "@/components/empty-state"
 import { FilterChips, type ActiveFilter } from "@/components/filter-chips"
 import { SearchInput } from "@/components/search-input"
+import { formatEcosystem } from "@/lib/utils"
 import Link from "next/link"
 import {
   useReactTable,
@@ -207,7 +208,7 @@ function PackagesContent() {
         accessorKey: "ecosystem",
         header: ({ column }) => <SortableHeader column={column} title="Ecosystem" />,
         cell: ({ row }) => (
-          <Badge variant="outline">{row.original.ecosystem}</Badge>
+          <Badge variant="outline">{formatEcosystem(row.original.ecosystem)}</Badge>
         ),
       },
       {

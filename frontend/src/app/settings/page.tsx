@@ -138,7 +138,7 @@ function SettingsContent() {
             />
             <FormField
               id="npm-interval"
-              label="npm Poll Interval"
+              label="NPM Poll Interval"
               value={localSettings.npm_poll_interval ?? ""}
               onChange={(e) =>
                 updateSetting("npm_poll_interval", e.target.value)
@@ -168,7 +168,7 @@ function SettingsContent() {
             />
             <FormField
               id="npm-top-n"
-              label="npm Top N"
+              label="NPM Top N"
               type="number"
               value={localSettings.npm_top_n ?? ""}
               onChange={(e) => updateSetting("npm_top_n", e.target.value)}
