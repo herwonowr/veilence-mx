@@ -1,0 +1,58 @@
+import type { Ecosystem, ReleaseStatus, Classification, AnalyzerType } from "@/domains/common"
+
+export interface Package {
+  id: number
+  name: string
+  ecosystem: Ecosystem
+  latestVersion: string
+  description: string
+  isCustom: boolean
+  rank: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreatePackageRequest {
+  name: string
+  ecosystem: string
+}
+
+export interface BulkImportFormat {
+  format: "requirements_txt" | "package_json" | "list"
+  content: string
+}
+
+export interface BulkImportError {
+  name: string
+  error: string
+}
+
+export interface BulkImportResult {
+  imported: number
+  skipped: number
+  errors: BulkImportError[]
+}
+
+export interface AnalysisHistoryEntry {
+  releaseId: number
+  version: string
+  classification: Classification
+  confidence: number
+  reasoning: string
+  modelUsed: string
+  analyzerType: AnalyzerType
+  analyzedAt: string
+  publishedAt: string
+}
+
+export interface Release {
+  id: number
+  packageId: number
+  version: string
+  publishedAt: string
+  tarballUrl: string
+  sha256: string
+  status: ReleaseStatus
+  errorMessage?: string
+  createdAt: string
+}

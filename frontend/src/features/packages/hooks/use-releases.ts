@@ -4,29 +4,29 @@ import {
   useQueryClient,
   type UseQueryOptions,
 } from "@tanstack/react-query"
-import { getRelease, reanalyzeRelease } from "@/lib/api-client"
-import type { ApiResponse, ReleaseDetail } from "@/types"
+import { getRelease, reanalyzeRelease } from "@/domains/releases"
+import type { ApiResponse } from "@/domains/common"
+import type { ReleaseDetail } from "@/domains/releases"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
+import { sanitizeErrorMessage } from "@/core"
 
 export const releaseKeys = {
   all: ["releases"] as const,
   detail: (id: number) => [...releaseKeys.all, "detail", id] as const,
 }
 
-export function useRelease(
+export const useRelease = (
   id: number,
   options?: Partial<UseQueryOptions<ApiResponse<ReleaseDetail>>>
-) {
-  return useQuery({
+) =>
+  useQuery({
     queryKey: releaseKeys.detail(id),
     queryFn: () => getRelease(id),
     enabled: id > 0,
     ...options,
   })
-}
 
-export function useReanalyzeRelease(releaseId: number) {
+export const useReanalyzeRelease = (releaseId: number) => {
   const queryClient = useQueryClient()
 
   return useMutation({

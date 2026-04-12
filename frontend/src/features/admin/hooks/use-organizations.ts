@@ -17,17 +17,17 @@ import {
   apiRemoveMember,
   apiUpdateMemberRole,
   apiGetAuditLogs,
-} from "@/lib/api-client"
+} from "@/domains/admin"
+import type { ApiResponse } from "@/domains/common"
 import type {
-  ApiResponse,
   Organization,
   OrgMember,
   Role,
   Permission,
   AuditLog,
-} from "@/types"
+} from "@/domains/admin"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
+import { sanitizeErrorMessage } from "@/core"
 
 export const orgKeys = {
   all: ["organizations"] as const,
@@ -40,9 +40,9 @@ export const orgKeys = {
     [...orgKeys.all, "audit-logs", orgId, params] as const,
 }
 
-export function useOrganizations(
+export const useOrganizations = (
   options?: Partial<UseQueryOptions<ApiResponse<Organization[]>>>
-) {
+) => {
   return useQuery({
     queryKey: orgKeys.lists(),
     queryFn: () => apiGetOrgs(),
@@ -50,10 +50,10 @@ export function useOrganizations(
   })
 }
 
-export function useOrganization(
+export const useOrganization = (
   id: number,
   options?: Partial<UseQueryOptions<ApiResponse<Organization>>>
-) {
+) => {
   return useQuery({
     queryKey: orgKeys.detail(id),
     queryFn: () => apiGetOrg(id),
@@ -62,7 +62,7 @@ export function useOrganization(
   })
 }
 
-export function useCreateOrganization() {
+export const useCreateOrganization = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -77,7 +77,7 @@ export function useCreateOrganization() {
   })
 }
 
-export function useUpdateOrganization() {
+export const useUpdateOrganization = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -99,7 +99,7 @@ export function useUpdateOrganization() {
   })
 }
 
-export function useDeleteOrganization() {
+export const useDeleteOrganization = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -114,10 +114,10 @@ export function useDeleteOrganization() {
   })
 }
 
-export function useOrgMembers(
+export const useOrgMembers = (
   orgId: number,
   options?: Partial<UseQueryOptions<ApiResponse<OrgMember[]>>>
-) {
+) => {
   return useQuery({
     queryKey: orgKeys.members(orgId),
     queryFn: () => apiGetOrgMembers(orgId),
@@ -126,10 +126,10 @@ export function useOrgMembers(
   })
 }
 
-export function useOrgRoles(
+export const useOrgRoles = (
   orgId: number,
   options?: Partial<UseQueryOptions<ApiResponse<Role[]>>>
-) {
+) => {
   return useQuery({
     queryKey: orgKeys.roles(orgId),
     queryFn: () => apiGetOrgRoles(orgId),
@@ -138,9 +138,9 @@ export function useOrgRoles(
   })
 }
 
-export function usePermissions(
+export const usePermissions = (
   options?: Partial<UseQueryOptions<ApiResponse<Permission[]>>>
-) {
+) => {
   return useQuery({
     queryKey: orgKeys.permissions(),
     queryFn: () => apiGetPermissions(),
@@ -148,7 +148,7 @@ export function usePermissions(
   })
 }
 
-export function useInviteMember() {
+export const useInviteMember = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -170,7 +170,7 @@ export function useInviteMember() {
   })
 }
 
-export function useRemoveMember() {
+export const useRemoveMember = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -188,7 +188,7 @@ export function useRemoveMember() {
   })
 }
 
-export function useUpdateMemberRole() {
+export const useUpdateMemberRole = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -213,7 +213,7 @@ export function useUpdateMemberRole() {
   })
 }
 
-export function useAuditLogs(
+export const useAuditLogs = (
   orgId: number,
   params?: {
     action?: string
@@ -224,7 +224,7 @@ export function useAuditLogs(
     limit?: number
   },
   options?: Partial<UseQueryOptions<ApiResponse<AuditLog[]>>>
-) {
+) => {
   return useQuery({
     queryKey: orgKeys.auditLogs(orgId, params as Record<string, unknown>),
     queryFn: () => apiGetAuditLogs(orgId, params),

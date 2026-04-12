@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ThemeProvider } from "@/components/theme-provider";
-import { AuthProvider } from "@/lib/auth-context";
-import { QueryProvider } from "@/lib/query-client";
-import { AppShell } from "@/components/app-shell";
-import { Toaster } from "@/components/toaster";
+import { ThemeProvider } from "@/core/providers/theme-provider";
+import { AuthProvider } from "@/core/providers/auth-provider";
+import { QueryProvider } from "@/core/providers/query-provider";
+import { AppShell } from "@/features/shell";
+import { NotificationBell } from "@/features/notifications";
+import { OrgSelector } from "@/features/admin";
+import { Toaster } from "@/ui/feedback/toaster";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -22,11 +24,11 @@ export const metadata: Metadata = {
   description: "Supply Chain Compromise Monitor for Python and NPM",
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
+}>) => {
   return (
     <html
       lang="en"
@@ -43,7 +45,12 @@ export default function RootLayout({
         <ThemeProvider>
           <QueryProvider>
             <AuthProvider>
-              <AppShell>{children}</AppShell>
+              <AppShell
+                notificationSlot={<NotificationBell />}
+                orgSelectorSlot={<OrgSelector />}
+              >
+                {children}
+              </AppShell>
               <Toaster />
             </AuthProvider>
           </QueryProvider>
@@ -52,3 +59,4 @@ export default function RootLayout({
     </html>
   );
 }
+export default RootLayout

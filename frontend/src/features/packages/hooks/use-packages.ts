@@ -13,10 +13,11 @@ import {
   syncTopPackages,
   bulkImportPackages,
   getAnalysisHistory,
-} from "@/lib/api-client"
-import type { ApiResponse, Package, Release, AnalysisHistoryEntry } from "@/types"
+} from "@/domains/packages"
+import type { ApiResponse } from "@/domains/common"
+import type { Package, Release, AnalysisHistoryEntry } from "@/domains/packages"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
+import { sanitizeErrorMessage } from "@/core"
 
 export const packageKeys = {
   all: ["packages"] as const,
@@ -31,7 +32,7 @@ export const packageKeys = {
     [...packageKeys.all, "analysis-history", packageId] as const,
 }
 
-export function usePackages(
+export const usePackages = (
   params?: {
     ecosystem?: string
     search?: string
@@ -41,41 +42,38 @@ export function usePackages(
     sortDir?: string
   },
   options?: Partial<UseQueryOptions<ApiResponse<Package[]>>>
-) {
-  return useQuery({
+) =>
+  useQuery({
     queryKey: packageKeys.list(params as Record<string, unknown>),
     queryFn: () => getPackages(params),
     ...options,
   })
-}
 
-export function usePackage(
+export const usePackage = (
   id: number,
   options?: Partial<UseQueryOptions<ApiResponse<Package>>>
-) {
-  return useQuery({
+) =>
+  useQuery({
     queryKey: packageKeys.detail(id),
     queryFn: () => getPackage(id),
     enabled: id > 0,
     ...options,
   })
-}
 
-export function usePackageReleases(
+export const usePackageReleases = (
   packageId: number,
   page = 1,
   limit = 50,
   options?: Partial<UseQueryOptions<ApiResponse<Release[]>>>
-) {
-  return useQuery({
+) =>
+  useQuery({
     queryKey: packageKeys.releases(packageId, page, limit),
     queryFn: () => getPackageReleases(packageId, page, limit),
     enabled: packageId > 0,
     ...options,
   })
-}
 
-export function useCreatePackage() {
+export const useCreatePackage = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -91,7 +89,7 @@ export function useCreatePackage() {
   })
 }
 
-export function useDeletePackage() {
+export const useDeletePackage = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -106,7 +104,7 @@ export function useDeletePackage() {
   })
 }
 
-export function useSyncTopPackages() {
+export const useSyncTopPackages = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -121,7 +119,7 @@ export function useSyncTopPackages() {
   })
 }
 
-export function useBulkImportPackages() {
+export const useBulkImportPackages = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -143,14 +141,13 @@ export function useBulkImportPackages() {
   })
 }
 
-export function useAnalysisHistory(
+export const useAnalysisHistory = (
   packageId: number,
   options?: Partial<UseQueryOptions<ApiResponse<AnalysisHistoryEntry[]>>>
-) {
-  return useQuery({
+) =>
+  useQuery({
     queryKey: packageKeys.analysisHistory(packageId),
     queryFn: () => getAnalysisHistory(packageId),
     enabled: packageId > 0,
     ...options,
   })
-}

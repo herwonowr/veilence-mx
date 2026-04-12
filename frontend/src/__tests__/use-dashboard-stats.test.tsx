@@ -11,8 +11,9 @@
 
 import { renderHook, waitFor, act } from "@testing-library/react"
 import { useState, useEffect, useCallback } from "react"
-import * as apiClient from "@/lib/api-client"
-import type { DashboardStats, ApiResponse } from "@/types"
+import * as apiClient from "@/core/http"
+import type { DashboardStats } from "@/domains/dashboard"
+import type { ApiResponse } from "@/domains/common"
 
 // Mock the API client
 vi.mock("@/lib/api-client", async (importOriginal) => {

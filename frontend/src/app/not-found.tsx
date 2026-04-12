@@ -1,9 +1,9 @@
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/ui/components/button"
+import { Card, CardContent } from "@/ui/components/card"
 import { FileQuestion } from "lucide-react"
 
-export default function NotFound() {
+const NotFound = () => {
   return (
     <div className="flex min-h-[50vh] items-center justify-center p-4">
       <Card className="max-w-md w-full">
@@ -23,3 +23,4 @@ export default function NotFound() {
     </div>
   )
 }
+export default NotFound

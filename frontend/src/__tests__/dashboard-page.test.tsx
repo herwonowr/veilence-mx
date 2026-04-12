@@ -4,10 +4,10 @@
 
 import { waitFor } from "@/test-utils"
 import { http, HttpResponse } from "msw"
-import { server } from "./msw-server"
+import { server } from "@/__tests__/msw-server"
 
 // Mock auth context to provide authenticated state
-vi.mock("@/lib/auth-context", () => ({
+vi.mock("@/core/providers/auth-provider", () => ({
   useAuth: vi.fn(),
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))

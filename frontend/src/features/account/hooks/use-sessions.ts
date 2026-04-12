@@ -4,19 +4,20 @@ import {
   useQueryClient,
   type UseQueryOptions,
 } from "@tanstack/react-query"
-import { apiGetSessions, apiRevokeSession } from "@/lib/api-client"
-import type { ApiResponse, Session } from "@/types"
+import { apiGetSessions, apiRevokeSession } from "@/domains/auth"
+import type { ApiResponse } from "@/domains/common"
+import type { Session } from "@/domains/auth"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
+import { sanitizeErrorMessage } from "@/core"
 
 export const sessionKeys = {
   all: ["sessions"] as const,
   list: () => [...sessionKeys.all, "list"] as const,
 }
 
-export function useSessions(
+export const useSessions = (
   options?: Partial<UseQueryOptions<ApiResponse<Session[]>>>
-) {
+) => {
   return useQuery({
     queryKey: sessionKeys.list(),
     queryFn: () => apiGetSessions(),
@@ -24,9 +25,9 @@ export function useSessions(
   })
 }
 
-export function useRevokeSession(options?: {
+export const useRevokeSession = (options?: {
   onRevoked?: () => void | Promise<void>
-}) {
+}) => {
   const queryClient = useQueryClient()
 
   return useMutation({

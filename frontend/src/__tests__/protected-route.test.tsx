@@ -1,6 +1,6 @@
 import { render, screen } from "@/test-utils"
-import { ProtectedRoute } from "@/components/protected-route"
-import { useAuth } from "@/lib/auth-context"
+import { ProtectedRoute } from "@/features/auth"
+import { useAuth } from "@/core/providers/auth-provider"
 
 const mockPush = vi.fn()
 const mockPathname = vi.fn(() => "/dashboard")
@@ -20,7 +20,7 @@ vi.mock("next/navigation", () => ({
 }))
 
 // Override the auth-context mock per test
-vi.mock("@/lib/auth-context", () => ({
+vi.mock("@/core/providers/auth-provider", () => ({
   useAuth: vi.fn(),
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))

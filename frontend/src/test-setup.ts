@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest"
-import { server } from "./__tests__/msw-server"
+import { server } from "@/__tests__/msw-server"
 
 // ── MSW server lifecycle ──────────────────────────────────────
 // Registered here (setupFiles) so server.listen() is guaranteed

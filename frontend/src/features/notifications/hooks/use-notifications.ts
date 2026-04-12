@@ -9,8 +9,9 @@ import {
   apiListNotifications,
   apiMarkNotificationRead,
   apiMarkAllNotificationsRead,
-} from "@/lib/api-client"
-import type { ApiResponse, Notification } from "@/types"
+} from "@/domains/notifications"
+import type { ApiResponse } from "@/domains/common"
+import type { Notification } from "@/domains/notifications"
 
 export const notificationKeys = {
   all: ["notifications"] as const,
@@ -19,10 +20,10 @@ export const notificationKeys = {
     [...notificationKeys.all, "list", params] as const,
 }
 
-export function useUnreadCount(
+export const useUnreadCount = (
   enabled = true,
   options?: Partial<UseQueryOptions<ApiResponse<{ count: number }>>>
-) {
+) => {
   return useQuery({
     queryKey: notificationKeys.unreadCount(),
     queryFn: () => apiGetUnreadCount(),
@@ -33,10 +34,10 @@ export function useUnreadCount(
   })
 }
 
-export function useNotifications(
+export const useNotifications = (
   params?: { page?: number; limit?: number },
   options?: Partial<UseQueryOptions<ApiResponse<Notification[]>>>
-) {
+) => {
   return useQuery({
     queryKey: notificationKeys.list(params as Record<string, unknown>),
     queryFn: () => apiListNotifications(params),
@@ -44,7 +45,7 @@ export function useNotifications(
   })
 }
 
-export function useMarkNotificationRead() {
+export const useMarkNotificationRead = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -102,7 +103,7 @@ export function useMarkNotificationRead() {
   })
 }
 
-export function useMarkAllNotificationsRead() {
+export const useMarkAllNotificationsRead = () => {
   const queryClient = useQueryClient()
 
   return useMutation({

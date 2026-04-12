@@ -4,11 +4,11 @@
 
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { LoginForm } from "@/features/auth/components/login-form"
-import { useAuth } from "@/lib/auth-context"
+import { LoginForm } from "@/features/auth"
+import { useAuth } from "@/core/providers/auth-provider"
 
 // Mock auth context
-vi.mock("@/lib/auth-context", () => ({
+vi.mock("@/core/providers/auth-provider", () => ({
   useAuth: vi.fn(),
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))

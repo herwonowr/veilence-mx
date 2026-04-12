@@ -4,10 +4,11 @@ import {
   useQueryClient,
   type UseQueryOptions,
 } from "@tanstack/react-query"
-import { getAlerts, getAlert, updateAlertStatus, getAlertNotes, createAlertNote } from "@/lib/api-client"
-import type { ApiResponse, Alert, AlertNote } from "@/types"
+import { getAlerts, getAlert, updateAlertStatus, getAlertNotes, createAlertNote } from "@/domains/alerts"
+import type { ApiResponse } from "@/domains/common"
+import type { Alert, AlertNote } from "@/domains/alerts"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
+import { sanitizeErrorMessage } from "@/core"
 
 export const alertKeys = {
   all: ["alerts"] as const,
@@ -18,19 +19,18 @@ export const alertKeys = {
   notes: (alertId: number) => [...alertKeys.all, "notes", alertId] as const,
 }
 
-export function useAlert(
+export const useAlert = (
   id: number,
   options?: Partial<UseQueryOptions<ApiResponse<Alert>>>
-) {
-  return useQuery({
+) =>
+  useQuery({
     queryKey: alertKeys.detail(id),
     queryFn: () => getAlert(id),
     enabled: id > 0,
     ...options,
   })
-}
 
-export function useAlerts(
+export const useAlerts = (
   params?: {
     severity?: string
     status?: string
@@ -41,15 +41,14 @@ export function useAlerts(
     sortDir?: string
   },
   options?: Partial<UseQueryOptions<ApiResponse<Alert[]>>>
-) {
-  return useQuery({
+) =>
+  useQuery({
     queryKey: alertKeys.list(params as Record<string, unknown>),
     queryFn: () => getAlerts(params),
     ...options,
   })
-}
 
-export function useUpdateAlert() {
+export const useUpdateAlert = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -100,19 +99,18 @@ export function useUpdateAlert() {
 
 // ─── Alert Notes ──────────────────────────────────────────────
 
-export function useAlertNotes(
+export const useAlertNotes = (
   alertId: number,
   options?: Partial<UseQueryOptions<ApiResponse<AlertNote[]>>>
-) {
-  return useQuery({
+) =>
+  useQuery({
     queryKey: alertKeys.notes(alertId),
     queryFn: () => getAlertNotes(alertId),
     enabled: alertId > 0,
     ...options,
   })
-}
 
-export function useCreateAlertNote(alertId: number) {
+export const useCreateAlertNote = (alertId: number) => {
   const queryClient = useQueryClient()
 
   return useMutation({

@@ -8,9 +8,9 @@ import {
   apiCreateRule,
   apiDeleteRule,
   testNotificationChannel,
-} from "@/lib/api-client"
+} from "@/domains/notifications"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
+import { sanitizeErrorMessage } from "@/core"
 
 export const channelKeys = {
   all: ["channels"] as const,
@@ -24,7 +24,7 @@ export const ruleKeys = {
   list: (orgId: number) => [...ruleKeys.lists(), orgId] as const,
 }
 
-export function useChannels(orgId: number | null) {
+export const useChannels = (orgId: number | null) => {
   return useQuery({
     queryKey: channelKeys.list(orgId ?? 0),
     queryFn: () => apiListChannels(orgId!),
@@ -33,7 +33,7 @@ export function useChannels(orgId: number | null) {
   })
 }
 
-export function useCreateChannel(orgId: number) {
+export const useCreateChannel = (orgId: number) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (data: { name: string; type: string; config: string }) =>
@@ -48,7 +48,7 @@ export function useCreateChannel(orgId: number) {
   })
 }
 
-export function useUpdateChannel(orgId: number) {
+export const useUpdateChannel = (orgId: number) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({
@@ -70,7 +70,7 @@ export function useUpdateChannel(orgId: number) {
   })
 }
 
-export function useDeleteChannel(orgId: number) {
+export const useDeleteChannel = (orgId: number) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => apiDeleteChannel(orgId, id),
@@ -84,7 +84,7 @@ export function useDeleteChannel(orgId: number) {
   })
 }
 
-export function useRules(orgId: number | null) {
+export const useRules = (orgId: number | null) => {
   return useQuery({
     queryKey: ruleKeys.list(orgId ?? 0),
     queryFn: () => apiListRules(orgId!),
@@ -93,7 +93,7 @@ export function useRules(orgId: number | null) {
   })
 }
 
-export function useCreateRule(orgId: number) {
+export const useCreateRule = (orgId: number) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (data: { channelId: number; severity: string }) =>
@@ -108,7 +108,7 @@ export function useCreateRule(orgId: number) {
   })
 }
 
-export function useDeleteRule(orgId: number) {
+export const useDeleteRule = (orgId: number) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => apiDeleteRule(orgId, id),
@@ -122,7 +122,7 @@ export function useDeleteRule(orgId: number) {
   })
 }
 
-export function useTestChannel(orgId: number) {
+export const useTestChannel = (orgId: number) => {
   return useMutation({
     mutationFn: (channelId: number) => testNotificationChannel(orgId, channelId),
     onSuccess: () => {

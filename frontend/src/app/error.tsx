@@ -1,17 +1,17 @@
 "use client"
 
 import { useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/ui/components/button"
+import { Card, CardContent } from "@/ui/components/card"
 import { AlertTriangle } from "lucide-react"
 
-export default function ErrorPage({
+const ErrorPage = ({
   error,
   unstable_retry,
 }: {
   error: Error & { digest?: string }
   unstable_retry: () => void
-}) {
+}) => {
   useEffect(() => {
     console.error("Runtime error:", error)
   }, [error])
@@ -40,3 +40,4 @@ export default function ErrorPage({
     </div>
   )
 }
+export default ErrorPage

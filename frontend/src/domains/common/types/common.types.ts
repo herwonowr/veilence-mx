@@ -1,0 +1,22 @@
+// Re-export ApiResponse from core (source of truth for the HTTP layer shape)
+export type { ApiResponse } from "@/core/http"
+
+export type Ecosystem = "python" | "npm"
+export type Classification = "benign" | "suspicious" | "malicious" | "baseline"
+export type AnalyzerType = "api" | "cli" | "copilot"
+export type AlertSeverity = "low" | "medium" | "high" | "critical"
+export type AlertStatus = "new" | "acknowledged" | "resolved"
+export type ReleaseStatus = "pending" | "diffing" | "analyzing" | "completed" | "error"
+export type SortDirection = "asc" | "desc"
+
+export interface PaginationMeta {
+  page: number
+  limit: number
+  total: number
+}
+
+export interface PaginatedResponse<T> {
+  data: T[]
+  error: string | null
+  meta: PaginationMeta
+}

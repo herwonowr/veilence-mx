@@ -6,8 +6,9 @@ import {
   getDashboardStats,
   getChartData,
   getRecentReleases,
-} from "@/lib/api-client"
-import type { ApiResponse, DashboardStats, ChartData, RecentRelease } from "@/types"
+} from "@/domains/dashboard"
+import type { ApiResponse } from "@/domains/common"
+import type { DashboardStats, ChartData, RecentRelease } from "@/domains/dashboard"
 
 export const dashboardKeys = {
   all: ["dashboard"] as const,
@@ -18,30 +19,28 @@ export const dashboardKeys = {
     [...dashboardKeys.all, "recent-releases", params] as const,
 }
 
-export function useDashboardStats(
+export const useDashboardStats = (
   options?: Partial<UseQueryOptions<ApiResponse<DashboardStats>>>
-) {
-  return useQuery({
+) =>
+  useQuery({
     queryKey: dashboardKeys.stats(),
     queryFn: () => getDashboardStats(),
-    staleTime: 30 * 1000, // stale-while-revalidate: 30s
+    staleTime: 30 * 1000,
     ...options,
   })
-}
 
-export function useChartData(
+export const useChartData = (
   params?: { from?: string; to?: string },
   options?: Partial<UseQueryOptions<ApiResponse<ChartData>>>
-) {
-  return useQuery({
+) =>
+  useQuery({
     queryKey: dashboardKeys.charts(params),
     queryFn: () => getChartData(params),
     staleTime: 30 * 1000,
     ...options,
   })
-}
 
-export function useRecentReleases(
+export const useRecentReleases = (
   params?: {
     page?: number
     limit?: number
@@ -54,11 +53,10 @@ export function useRecentReleases(
     latestPerPackage?: boolean
   },
   options?: Partial<UseQueryOptions<ApiResponse<RecentRelease[]>>>
-) {
-  return useQuery({
+) =>
+  useQuery({
     queryKey: dashboardKeys.recentReleases(params as Record<string, unknown>),
     queryFn: () => getRecentReleases(params),
     staleTime: 30 * 1000,
     ...options,
   })
-}

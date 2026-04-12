@@ -8,25 +8,18 @@
  *   const alerts = fixtures.alerts(5) // array of 5 alerts
  */
 
-import type {
-  User,
-  Organization,
-  Package,
-  Release,
-  Alert,
-  DashboardStats,
-  ChartData,
-  Notification,
-  ApiKeyInfo,
-  Session,
-  QueueStatsResponse,
-  RecentRelease,
-  NotificationChannel,
-} from "@/types"
+import type { User, Session } from "@/domains/auth"
+import type { Organization } from "@/domains/admin"
+import type { Package, Release } from "@/domains/packages"
+import type { Alert } from "@/domains/alerts"
+import type { DashboardStats, ChartData, RecentRelease } from "@/domains/dashboard"
+import type { Notification, NotificationChannel } from "@/domains/notifications"
+import type { ApiKeyInfo } from "@/domains/account"
+import type { QueueStatsResponse } from "@/domains/queue"
 
 // ─── User Fixtures ──────────────────────────────────────────────
 
-export function createUser(overrides: Partial<User> = {}): User {
+export const createUser = (overrides: Partial<User> = {}): User => {
   return {
     id: 1,
     email: "test@example.com",
@@ -43,7 +36,7 @@ export function createUser(overrides: Partial<User> = {}): User {
 
 // ─── Organization Fixtures ──────────────────────────────────────
 
-export function createOrg(overrides: Partial<Organization> = {}): Organization {
+export const createOrg = (overrides: Partial<Organization> = {}): Organization => {
   return {
     id: 1,
     name: "Test Org",
@@ -59,7 +52,7 @@ export function createOrg(overrides: Partial<Organization> = {}): Organization {
 
 // ─── Package Fixtures ───────────────────────────────────────────
 
-export function createPackage(overrides: Partial<Package> = {}): Package {
+export const createPackage = (overrides: Partial<Package> = {}): Package => {
   return {
     id: 1,
     name: "test-package",
@@ -74,7 +67,7 @@ export function createPackage(overrides: Partial<Package> = {}): Package {
   }
 }
 
-export function createPackages(count: number, base: Partial<Package> = {}): Package[] {
+export const createPackages = (count: number, base: Partial<Package> = {}): Package[] => {
   return Array.from({ length: count }, (_, i) =>
     createPackage({
       id: i + 1,
@@ -86,7 +79,7 @@ export function createPackages(count: number, base: Partial<Package> = {}): Pack
 
 // ─── Release Fixtures ───────────────────────────────────────────
 
-export function createRelease(overrides: Partial<Release> = {}): Release {
+export const createRelease = (overrides: Partial<Release> = {}): Release => {
   return {
     id: 1,
     packageId: 1,
@@ -100,7 +93,7 @@ export function createRelease(overrides: Partial<Release> = {}): Release {
   }
 }
 
-export function createRecentRelease(overrides: Partial<RecentRelease> = {}): RecentRelease {
+export const createRecentRelease = (overrides: Partial<RecentRelease> = {}): RecentRelease => {
   return {
     ...createRelease(),
     packageName: "test-package",
@@ -112,7 +105,7 @@ export function createRecentRelease(overrides: Partial<RecentRelease> = {}): Rec
 
 // ─── Alert Fixtures ─────────────────────────────────────────────
 
-export function createAlert(overrides: Partial<Alert> = {}): Alert {
+export const createAlert = (overrides: Partial<Alert> = {}): Alert => {
   return {
     id: 1,
     analysisId: 1,
@@ -128,7 +121,7 @@ export function createAlert(overrides: Partial<Alert> = {}): Alert {
   }
 }
 
-export function createAlerts(count: number, base: Partial<Alert> = {}): Alert[] {
+export const createAlerts = (count: number, base: Partial<Alert> = {}): Alert[] => {
   const severities: Alert["severity"][] = ["low", "medium", "high", "critical"]
   return Array.from({ length: count }, (_, i) =>
     createAlert({
@@ -141,7 +134,7 @@ export function createAlerts(count: number, base: Partial<Alert> = {}): Alert[] 
 
 // ─── Dashboard Fixtures ─────────────────────────────────────────
 
-export function createDashboardStats(overrides: Partial<DashboardStats> = {}): DashboardStats {
+export const createDashboardStats = (overrides: Partial<DashboardStats> = {}): DashboardStats => {
   return {
     totalPackages: 150,
     totalReleases: 1200,
@@ -152,7 +145,7 @@ export function createDashboardStats(overrides: Partial<DashboardStats> = {}): D
   }
 }
 
-export function createChartData(overrides: Partial<ChartData> = {}): ChartData {
+export const createChartData = (overrides: Partial<ChartData> = {}): ChartData => {
   return {
     releaseActivity: [
       { date: "2026-03-30", releases: 10 },
@@ -185,7 +178,7 @@ export function createChartData(overrides: Partial<ChartData> = {}): ChartData {
 
 // ─── Notification Fixtures ──────────────────────────────────────
 
-export function createNotification(overrides: Partial<Notification> = {}): Notification {
+export const createNotification = (overrides: Partial<Notification> = {}): Notification => {
   return {
     id: 1,
     orgId: 1,
@@ -200,7 +193,7 @@ export function createNotification(overrides: Partial<Notification> = {}): Notif
   }
 }
 
-export function createNotifications(count: number, base: Partial<Notification> = {}): Notification[] {
+export const createNotifications = (count: number, base: Partial<Notification> = {}): Notification[] => {
   return Array.from({ length: count }, (_, i) =>
     createNotification({
       id: i + 1,
@@ -211,9 +204,9 @@ export function createNotifications(count: number, base: Partial<Notification> =
   )
 }
 
-export function createNotificationChannel(
+export const createNotificationChannel = (
   overrides: Partial<NotificationChannel> = {}
-): NotificationChannel {
+): NotificationChannel => {
   return {
     id: 1,
     orgId: 1,
@@ -229,7 +222,7 @@ export function createNotificationChannel(
 
 // ─── API Key Fixtures ───────────────────────────────────────────
 
-export function createApiKey(overrides: Partial<ApiKeyInfo> = {}): ApiKeyInfo {
+export const createApiKey = (overrides: Partial<ApiKeyInfo> = {}): ApiKeyInfo => {
   return {
     id: 1,
     userId: 1,
@@ -246,7 +239,7 @@ export function createApiKey(overrides: Partial<ApiKeyInfo> = {}): ApiKeyInfo {
 
 // ─── Session Fixtures ───────────────────────────────────────────
 
-export function createSession(overrides: Partial<Session> = {}): Session {
+export const createSession = (overrides: Partial<Session> = {}): Session => {
   return {
     id: 1,
     userId: 1,
@@ -261,9 +254,9 @@ export function createSession(overrides: Partial<Session> = {}): Session {
 
 // ─── Queue Fixtures ─────────────────────────────────────────────
 
-export function createQueueStats(
+export const createQueueStats = (
   overrides: Partial<QueueStatsResponse> = {}
-): QueueStatsResponse {
+): QueueStatsResponse => {
   return {
     diff: { pending: 5, processing: 2, completed: 100, failed: 1, dead: 0 },
     analyze: { pending: 3, processing: 1, completed: 80, failed: 0, dead: 0 },
@@ -277,13 +270,13 @@ export function createQueueStats(
  * Creates a full mock return value for useAuth().
  * Use with: vi.mocked(useAuth).mockReturnValue(createAuthState())
  */
-export function createAuthState(overrides: {
+export const createAuthState = (overrides: {
   user?: User | null
   isAuthenticated?: boolean
   isLoading?: boolean
   currentOrg?: Organization | null
   organizations?: Organization[]
-} = {}) {
+} = {}) => {
   const user = overrides.user !== undefined ? overrides.user : createUser()
   return {
     user,
@@ -304,7 +297,7 @@ export function createAuthState(overrides: {
  * Creates unauthenticated auth state.
  * Use with: vi.mocked(useAuth).mockReturnValue(createUnauthState())
  */
-export function createUnauthState() {
+export const createUnauthState = () => {
   return createAuthState({
     user: null,
     isAuthenticated: false,
@@ -318,7 +311,7 @@ export function createUnauthState() {
 /**
  * Wraps data in the standard API response envelope.
  */
-export function apiResponse<T>(data: T, meta?: { page: number; limit: number; total: number }) {
+export const apiResponse = <T,>(data: T, meta?: { page: number; limit: number; total: number }) => {
   return {
     data,
     error: null,
@@ -329,7 +322,7 @@ export function apiResponse<T>(data: T, meta?: { page: number; limit: number; to
 /**
  * Creates an API error response.
  */
-export function apiError(error: string) {
+export const apiError = (error: string) => {
   return {
     data: null,
     error,

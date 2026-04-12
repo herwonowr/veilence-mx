@@ -5,7 +5,7 @@
  */
 
 import { http, HttpResponse } from "msw"
-import { server } from "./msw-server"
+import { server } from "@/__tests__/msw-server"
 
 const mockPush = vi.fn()
 let mockToken: string | null = null
@@ -36,7 +36,7 @@ vi.mock("sonner", () => ({
 
 // Import after mocks are hoisted
 import { render, screen, waitFor } from "@/test-utils"
-import { ResetPasswordForm } from "@/features/auth/components/reset-password-form"
+import { ResetPasswordForm } from "@/features/auth"
 
 describe("ResetPasswordForm", () => {
   beforeEach(() => {

@@ -4,8 +4,8 @@
 
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { RegisterForm } from "@/features/auth/components/register-form"
-import { useAuth } from "@/lib/auth-context"
+import { RegisterForm } from "@/features/auth"
+import { useAuth } from "@/core/providers/auth-provider"
 
 const mockPush = vi.fn()
 
@@ -22,7 +22,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }))
 
-vi.mock("@/lib/auth-context", () => ({
+vi.mock("@/core/providers/auth-provider", () => ({
   useAuth: vi.fn(),
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))

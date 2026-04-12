@@ -9,8 +9,9 @@ import {
   getDeadJobs,
   retryDeadJobs,
   retryDeadJob,
-} from "@/lib/api-client"
-import type { ApiResponse, QueueStatsResponse, QueueJob } from "@/types"
+} from "@/domains/queue"
+import type { ApiResponse } from "@/domains/common"
+import type { QueueStatsResponse, QueueJob } from "@/domains/queue"
 
 export const queueKeys = {
   all: ["queue"] as const,
@@ -18,9 +19,9 @@ export const queueKeys = {
   dead: (type?: string) => [...queueKeys.all, "dead", type] as const,
 }
 
-export function useQueueStats(
+export const useQueueStats = (
   options?: Partial<UseQueryOptions<ApiResponse<QueueStatsResponse>>>
-) {
+) => {
   return useQuery({
     queryKey: queueKeys.stats(),
     queryFn: () => getQueueStats(),
@@ -28,10 +29,10 @@ export function useQueueStats(
   })
 }
 
-export function useDeadJobs(
+export const useDeadJobs = (
   type?: string,
   options?: Partial<UseQueryOptions<ApiResponse<QueueJob[]>>>
-) {
+) => {
   return useQuery({
     queryKey: queueKeys.dead(type),
     queryFn: () => getDeadJobs(type),
@@ -39,7 +40,7 @@ export function useDeadJobs(
   })
 }
 
-export function useRetryDeadJobs() {
+export const useRetryDeadJobs = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -50,7 +51,7 @@ export function useRetryDeadJobs() {
   })
 }
 
-export function useRetryDeadJob() {
+export const useRetryDeadJob = () => {
   const queryClient = useQueryClient()
 
   return useMutation({

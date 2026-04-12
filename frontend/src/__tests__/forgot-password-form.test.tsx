@@ -4,8 +4,8 @@
 
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { ForgotPasswordForm } from "@/features/auth/components/forgot-password-form"
-import * as apiClient from "@/lib/api-client"
+import { ForgotPasswordForm } from "@/features/auth"
+import * as apiClient from "@/core/http"
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -30,7 +30,7 @@ vi.mock("@/lib/api-client", async (importOriginal) => {
   }
 })
 
-vi.mock("@/lib/auth-context", () => ({
+vi.mock("@/core/providers/auth-provider", () => ({
   useAuth: vi.fn(() => ({
     user: null,
     isAuthenticated: false,

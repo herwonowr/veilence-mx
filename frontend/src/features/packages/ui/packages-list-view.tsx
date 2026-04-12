@@ -1,0 +1,446 @@
+"use client"
+
+import { useEffect, useState, useMemo, useCallback } from "react"
+import { useRouter } from "next/navigation"
+import { useDebouncedValue } from "@/core/hooks/use-debounced-value"
+import { useSortParams } from "@/core/hooks/use-sort-params"
+import { Button } from "@/ui/components/button"
+import { Badge } from "@/ui/components/badge"
+import { Input } from "@/ui/components/input"
+import { Card, CardContent, CardHeader } from "@/ui/components/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/ui/components/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/ui/components/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/ui/components/alert-dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/ui/components/select"
+import type { Package } from "@/domains/packages"
+import type { Ecosystem } from "@/domains/common"
+import { Plus, Trash2, RefreshCw, Upload } from "lucide-react"
+import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
+import { TableError } from "@/ui/feedback/table-error"
+import { TableEmptyState } from "@/ui/feedback/empty-state"
+import { FilterChips, type ActiveFilter } from "@/ui/data/filter-chips"
+import { SearchInput } from "@/ui/form/search-input"
+import { formatEcosystem } from "@/domains/common"
+import Link from "next/link"
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  type ColumnDef,
+  type PaginationState,
+} from "@tanstack/react-table"
+import { DataTablePagination } from "@/ui/data/data-table-pagination"
+import { SortableHeader } from "@/ui/data/sortable-header"
+import { useResponsiveColumns, type ColumnBreakpoints } from "@/core/hooks/use-responsive-columns"
+import { packageSchema } from "@/domains/packages"
+import { ZodError } from "zod"
+import {
+  usePackages,
+  useCreatePackage,
+  useDeletePackage,
+  useSyncTopPackages,
+} from "@/features/packages/hooks/use-packages"
+
+export const PackagesListView = () => {
+  const router = useRouter()
+  const [ecosystemFilter, setEcosystemFilter] = useState("")
+  const [search, setSearch] = useState("")
+  const debouncedSearch = useDebouncedValue(search, 300)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [newName, setNewName] = useState("")
+  const [newEcosystem, setNewEcosystem] = useState<Ecosystem>("python")
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 20,
+  })
+  const [sorting, setSorting] = useSortParams()
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null)
+  const [createErrors, setCreateErrors] = useState<Record<string, string>>({})
+
+  const packageColumnBreakpoints: ColumnBreakpoints = useMemo(() => ({
+    rank: "desktop",
+    isCustom: "tablet",
+  }), [])
+  const columnVisibility = useResponsiveColumns(packageColumnBreakpoints)
+
+  const sort = sorting[0]
+  const { data: packagesRes, isLoading, isFetching, isError, refetch } = usePackages({
+    ecosystem: ecosystemFilter || undefined,
+    search: debouncedSearch || undefined,
+    page: pagination.pageIndex + 1,
+    limit: pagination.pageSize,
+    sortBy: sort?.id,
+    sortDir: sort ? (sort.desc ? "desc" : "asc") : undefined,
+  })
+
+  const packages = packagesRes?.data ?? []
+  const total = packagesRes?.meta?.total ?? 0
+
+  const createMutation = useCreatePackage()
+  const deleteMutation = useDeletePackage()
+  const syncMutation = useSyncTopPackages()
+
+  // Reset to first page when filters or sort change
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+  }, [ecosystemFilter, debouncedSearch, sorting])
+
+  const hasActiveFilters = !!(search || ecosystemFilter)
+
+  const clearAllFilters = () => {
+    setSearch("")
+    setEcosystemFilter("")
+    setSorting([])
+  }
+
+  const activeFilters: ActiveFilter[] = [
+    ...(ecosystemFilter
+      ? [{ label: "Ecosystem", value: ecosystemFilter === "python" ? "Python" : "NPM", onRemove: () => setEcosystemFilter("") }]
+      : []),
+    ...(search
+      ? [{ label: "Search", value: search, onRemove: () => setSearch("") }]
+      : []),
+  ]
+
+  const handleCreate = async () => {
+    setCreateErrors({})
+    try {
+      const data = packageSchema.parse({ name: newName, ecosystem: newEcosystem })
+      await createMutation.mutateAsync({ name: data.name, ecosystem: data.ecosystem })
+      setDialogOpen(false)
+      setNewName("")
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const fieldErrors: Record<string, string> = {}
+        for (const issue of err.issues) {
+          const key = issue.path[0]
+          if (typeof key === "string") fieldErrors[key] = issue.message
+        }
+        setCreateErrors(fieldErrors)
+      }
+    }
+  }
+
+  const handleDelete = useCallback(
+    (id: number, name: string) => {
+      setDeleteTarget({ id, name })
+    },
+    []
+  )
+
+  const confirmDelete = useCallback(() => {
+    if (deleteTarget) {
+      deleteMutation.mutate(deleteTarget.id)
+      setDeleteTarget(null)
+    }
+  }, [deleteTarget, deleteMutation])
+
+  const handleSync = () => {
+    syncMutation.mutate(undefined)
+  }
+
+  const skeletonColumns: SkeletonColumn[] = [
+    { width: "w-32", header: "Name" },
+    { width: "w-16", header: "Ecosystem" },
+    { width: "w-20", header: "Latest Version" },
+    { width: "w-12", header: "Rank" },
+    { width: "w-16", header: "Type" },
+    { width: "w-8", header: "" },
+  ]
+
+  const columns = useMemo<ColumnDef<Package>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: ({ column }) => <SortableHeader column={column} title="Name" />,
+        cell: ({ row }) => (
+          <Link
+            href={`/packages/${row.original.id}`}
+            className="font-medium hover:underline"
+          >
+            {row.original.name}
+          </Link>
+        ),
+      },
+      {
+        accessorKey: "ecosystem",
+        header: ({ column }) => <SortableHeader column={column} title="Ecosystem" />,
+        cell: ({ row }) => (
+          <Badge variant="outline">{formatEcosystem(row.original.ecosystem)}</Badge>
+        ),
+      },
+      {
+        accessorKey: "latestVersion",
+        header: ({ column }) => <SortableHeader column={column} title="Latest Version" />,
+        cell: ({ row }) => row.original.latestVersion || "—",
+      },
+      {
+        accessorKey: "rank",
+        header: ({ column }) => <SortableHeader column={column} title="Rank" />,
+        cell: ({ row }) => row.original.rank ?? "—",
+      },
+      {
+        accessorKey: "isCustom",
+        header: "Type",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Badge variant={row.original.isCustom ? "default" : "secondary"}>
+            {row.original.isCustom ? "Custom" : "Top-N"}
+          </Badge>
+        ),
+      },
+      {
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        size: 48,
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Delete package ${row.original.name}`}
+            onClick={() => handleDelete(row.original.id, row.original.name)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        ),
+      },
+    ],
+    [handleDelete]
+  )
+
+  const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize))
+
+  const table = useReactTable({
+    data: packages,
+    columns,
+    pageCount,
+    state: { pagination, sorting, columnVisibility },
+    onPaginationChange: setPagination,
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    manualPagination: true,
+    manualSorting: true,
+  })
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-3xl font-bold">Packages</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={handleSync} disabled={syncMutation.isPending}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+            Sync Top Packages
+          </Button>
+          <Link href="/packages/import">
+            <Button variant="outline">
+              <Upload className="h-4 w-4 mr-2" />
+              Bulk Import
+            </Button>
+          </Link>
+          <Dialog open={dialogOpen} onOpenChange={(open) => setDialogOpen(open)}>
+            <DialogTrigger
+              render={
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Package
+                </Button>
+              }
+            />
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Custom Package</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div>
+                  <label htmlFor="package-name" className="text-sm font-medium">
+                    Package Name
+                  </label>
+                  <Input
+                    id="package-name"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="e.g., requests"
+                  />
+                  {createErrors.name && (
+                    <p className="text-xs text-destructive mt-1" role="alert">{createErrors.name}</p>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="package-ecosystem" className="text-sm font-medium">
+                    Ecosystem
+                  </label>
+                  <Select
+                    value={newEcosystem}
+                    onValueChange={(v) => { if (v) setNewEcosystem(v as Ecosystem) }}
+                  >
+                    <SelectTrigger id="package-ecosystem">
+                      <SelectValue>{newEcosystem === "python" ? "Python" : "NPM"}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="python">Python</SelectItem>
+                      <SelectItem value="npm">NPM</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={handleCreate} className="w-full" disabled={createMutation.isPending}>
+                  Add Package
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-end gap-4">
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                onClear={() => setSearch("")}
+                isLoading={isFetching && !!debouncedSearch}
+                placeholder="Search packages..."
+                aria-label="Search packages"
+              />
+              <div className="space-y-1">
+                <label htmlFor="packages-ecosystem-filter" className="text-xs font-medium text-muted-foreground">
+                  Ecosystem
+                </label>
+                <Select
+                  value={ecosystemFilter || "all"}
+                  onValueChange={(v) => setEcosystemFilter(v === "all" ? "" : (v ?? ""))}
+                >
+                  <SelectTrigger id="packages-ecosystem-filter" className="w-32">
+                    <SelectValue>{ecosystemFilter === "python" ? "Python" : ecosystemFilter === "npm" ? "NPM" : "All"}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="python">Python</SelectItem>
+                    <SelectItem value="npm">NPM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {hasActiveFilters && (
+              <FilterChips filters={activeFilters} onClearAll={clearAllFilters} />
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+          {isLoading ? (
+            <TableSkeleton columns={skeletonColumns} rows={5} />
+          ) : isError ? (
+            <TableError colSpan={columns.length} onRetry={() => refetch()} />
+          ) : (
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    const sorted = header.column.getIsSorted()
+                    return (
+                    <TableHead
+                      key={header.id}
+                      style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
+                      aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                    )
+                  })}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    clickable
+                    onClick={() => router.push(`/packages/${row.original.id}`)}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableEmptyState
+                  colSpan={columns.length}
+                  icon={<Plus className="h-8 w-8" />}
+                  title="No packages found."
+                  description="Add your first package or sync the top packages to start monitoring."
+                >
+                  <Button size="sm" onClick={() => setDialogOpen(true)}>
+                    Add Package
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleSync} disabled={syncMutation.isPending}>
+                    Sync Top Packages
+                  </Button>
+                </TableEmptyState>
+              )}
+            </TableBody>
+          </Table>
+          )}
+          </div>
+
+          <DataTablePagination table={table} total={total} />
+        </CardContent>
+      </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Package</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This action
+              cannot be undone. All releases and analysis data for this package will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}

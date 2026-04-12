@@ -8,18 +8,18 @@ import {
   getSettings,
   updateSettings,
   reanalyzeAll,
-} from "@/lib/api-client"
-import type { ApiResponse } from "@/types"
+} from "@/domains/settings"
+import type { ApiResponse } from "@/domains/common"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
+import { sanitizeErrorMessage } from "@/core"
 
 export const settingsKeys = {
   all: ["settings"] as const,
 }
 
-export function useSettings(
+export const useSettings = (
   options?: Partial<UseQueryOptions<ApiResponse<Record<string, string>>>>
-) {
+) => {
   return useQuery({
     queryKey: settingsKeys.all,
     queryFn: () => getSettings(),
@@ -27,7 +27,7 @@ export function useSettings(
   })
 }
 
-export function useUpdateSettings() {
+export const useUpdateSettings = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -42,7 +42,7 @@ export function useUpdateSettings() {
   })
 }
 
-export function useReanalyzeAll() {
+export const useReanalyzeAll = () => {
   return useMutation({
     mutationFn: () => reanalyzeAll(),
   })

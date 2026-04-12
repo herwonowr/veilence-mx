@@ -8,19 +8,20 @@ import {
   apiGetApiKeys,
   apiCreateApiKey,
   apiDeleteApiKey,
-} from "@/lib/api-client"
-import type { ApiResponse, ApiKeyInfo, APIKeyScope } from "@/types"
+} from "@/domains/account"
+import type { ApiResponse } from "@/domains/common"
+import type { ApiKeyInfo, APIKeyScope } from "@/domains/account"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
+import { sanitizeErrorMessage } from "@/core"
 
 export const apiKeyKeys = {
   all: ["api-keys"] as const,
   list: () => [...apiKeyKeys.all, "list"] as const,
 }
 
-export function useApiKeys(
+export const useApiKeys = (
   options?: Partial<UseQueryOptions<ApiResponse<ApiKeyInfo[]>>>
-) {
+) => {
   return useQuery({
     queryKey: apiKeyKeys.list(),
     queryFn: () => apiGetApiKeys(),
@@ -28,7 +29,7 @@ export function useApiKeys(
   })
 }
 
-export function useCreateApiKey() {
+export const useCreateApiKey = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -43,7 +44,7 @@ export function useCreateApiKey() {
   })
 }
 
-export function useDeleteApiKey() {
+export const useDeleteApiKey = () => {
   const queryClient = useQueryClient()
 
   return useMutation({

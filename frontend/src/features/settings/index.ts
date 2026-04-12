@@ -3,5 +3,8 @@ export {
   useUpdateSettings,
   useReanalyzeAll,
   settingsKeys,
-} from "./hooks/use-settings"
-export { useQueueStats, useDeadJobs, useRetryDeadJobs, useRetryDeadJob, queueKeys } from "./hooks/use-queue"
+} from "@/features/settings/hooks/use-settings"
+export { useQueueStats, useDeadJobs, useRetryDeadJobs, useRetryDeadJob, queueKeys } from "@/features/settings/hooks/use-queue"
+
+export { SettingsView } from "@/features/settings/ui/settings-view"
+export { QueueView } from "@/features/settings/ui/queue-view"

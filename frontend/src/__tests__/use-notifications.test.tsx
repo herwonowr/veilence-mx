@@ -5,14 +5,14 @@
 import { renderHook, waitFor, act } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { http, HttpResponse } from "msw"
-import { server } from "./msw-server"
+import { server } from "@/__tests__/msw-server"
 import {
   useNotifications,
   useUnreadCount,
   useMarkNotificationRead,
 } from "@/features/notifications"
 
-vi.mock("@/lib/auth-context", () => ({
+vi.mock("@/core/providers/auth-provider", () => ({
   useAuth: vi.fn(() => ({
     user: null,
     isAuthenticated: false,

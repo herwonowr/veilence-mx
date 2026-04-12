@@ -1,16 +1,16 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/ui/components/button"
+import { Card, CardContent } from "@/ui/components/card"
 import { AlertTriangle } from "lucide-react"
 
-export default function GlobalError({
+const GlobalError = ({
   error,
   unstable_retry,
 }: {
   error: Error & { digest?: string }
   unstable_retry: () => void
-}) {
+}) => {
   return (
     <html>
       <body className="min-h-screen flex items-center justify-center bg-background text-foreground p-4">
@@ -37,3 +37,4 @@ export default function GlobalError({
     </html>
   )
 }
+export default GlobalError

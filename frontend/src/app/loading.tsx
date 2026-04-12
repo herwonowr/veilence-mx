@@ -1,6 +1,6 @@
-import { Skeleton } from "@/components/ui/skeleton"
+import { Skeleton } from "@/ui/components/skeleton"
 
-export default function Loading() {
+const Loading = () => {
   return (
     <div className="flex-1 space-y-4 p-4 md:p-6">
       <Skeleton className="h-8 w-48" />
@@ -13,3 +13,4 @@ export default function Loading() {
     </div>
   )
 }
+export default Loading

@@ -4,7 +4,7 @@ export {
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
   notificationKeys,
-} from "./hooks/use-notifications"
+} from "@/features/notifications/hooks/use-notifications"
 
 export {
   useChannels,
@@ -17,4 +17,7 @@ export {
   useDeleteRule,
   channelKeys,
   ruleKeys,
-} from "./hooks/use-channels"
+} from "@/features/notifications/hooks/use-channels"
+
+export { NotificationBell } from "@/features/notifications/ui/notification-bell"
+export { ChannelsView } from "@/features/notifications/ui/channels-view"

@@ -3,11 +3,11 @@ import {
   apiUpdateProfile,
   apiChangePassword,
   apiSendVerificationEmail,
-} from "@/lib/api-client"
+} from "@/domains/auth"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/lib/error-sanitizer"
+import { sanitizeErrorMessage } from "@/core"
 
-export function useUpdateProfile() {
+export const useUpdateProfile = () => {
   return useMutation({
     mutationFn: (data: { firstName: string; lastName: string }) =>
       apiUpdateProfile(data),
@@ -20,7 +20,7 @@ export function useUpdateProfile() {
   })
 }
 
-export function useChangePassword() {
+export const useChangePassword = () => {
   return useMutation({
     mutationFn: (data: { currentPassword: string; newPassword: string }) =>
       apiChangePassword(data),
@@ -33,7 +33,7 @@ export function useChangePassword() {
   })
 }
 
-export function useSendVerification() {
+export const useSendVerification = () => {
   return useMutation({
     mutationFn: () => apiSendVerificationEmail(),
     onSuccess: () => {
