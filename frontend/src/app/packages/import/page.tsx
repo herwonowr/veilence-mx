@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Upload, FileText, Loader2, AlertCircle, CheckCircle2, CloudUpload } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useBulkImportPackages, usePackages } from "@/features/packages"
@@ -365,8 +366,8 @@ function BulkImportContent() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <textarea
-              className="w-full min-h-[160px] rounded-md border border-input bg-background px-3 py-2 text-sm font-mono placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+            <Textarea
+              className="min-h-[160px] font-mono"
               placeholder={`# requirements.txt format:\nrequests>=2.28.0\nflask==3.0.0\nnumpy\n\n# Or paste package.json content`}
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}

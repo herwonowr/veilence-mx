@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import Link from "next/link"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -23,6 +24,7 @@ import {
 import type { RecentRelease, Classification } from "@/types"
 import { TableSkeleton, type SkeletonColumn } from "@/components/table-skeleton"
 import { TableError } from "@/components/table-error"
+import { TableEmptyState } from "@/components/empty-state"
 import { CheckCircle, Activity } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FilterChips, type ActiveFilter } from "@/components/filter-chips"
@@ -57,6 +59,7 @@ export default function ReleasesPage() {
 }
 
 function ReleasesContent() {
+  const router = useRouter()
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search, 300)
   const [registryFilter, setRegistryFilter] = useState("")
@@ -325,7 +328,11 @@ function ReleasesContent() {
             <TableBody>
               {table.getRowModel().rows.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
+                  <TableRow
+                    key={row.id}
+                    clickable
+                    onClick={() => router.push(`/releases/${row.original.id}`)}
+                  >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -334,20 +341,18 @@ function ReleasesContent() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center py-8">
-                    <div className="flex flex-col items-center gap-3">
-                      <Activity className="h-8 w-8 text-muted-foreground" />
-                      <p className="text-muted-foreground">No releases yet.</p>
-                      <p className="text-xs text-muted-foreground">Add packages to start monitoring releases.</p>
-                      <Link href="/packages">
-                        <Button variant="outline" size="sm">
-                          Go to Packages
-                        </Button>
-                      </Link>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                <TableEmptyState
+                  colSpan={columns.length}
+                  icon={<Activity className="h-8 w-8" />}
+                  title="No releases yet."
+                  description="Add packages to start monitoring releases."
+                >
+                  <Link href="/packages">
+                    <Button variant="outline" size="sm">
+                      Go to Packages
+                    </Button>
+                  </Link>
+                </TableEmptyState>
               )}
             </TableBody>
           </Table>

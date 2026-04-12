@@ -98,7 +98,13 @@ export function NotificationBell() {
         markReadMutation.mutate(notification.id)
       }
       setOpen(false)
-      router.push("/alerts")
+
+      // Deep link to specific alert if alertId is available
+      if (notification.alertId) {
+        router.push(`/alerts/${notification.alertId}`)
+      } else {
+        router.push("/alerts")
+      }
     },
     [router, markReadMutation]
   )

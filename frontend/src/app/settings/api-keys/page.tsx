@@ -33,6 +33,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { TableSkeleton, type SkeletonColumn } from "@/components/table-skeleton"
 import { TableError } from "@/components/table-error"
+import { TableEmptyState } from "@/components/empty-state"
 import { ConfirmDialog, type ConfirmDialogDetail } from "@/components/confirm-dialog"
 import { Key, Plus, Trash2, Copy, Check, Loader2 } from "lucide-react"
 import { useApiKeys, useCreateApiKey, useDeleteApiKey } from "@/features/account"
@@ -337,14 +338,17 @@ function ApiKeysContent() {
                   </TableRow>
                 ))}
                 {keys.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="text-center py-8 text-muted-foreground"
-                    >
-                      No API keys yet. Create one to get started.
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyState
+                    colSpan={8}
+                    icon={<Key className="h-8 w-8" />}
+                    title="No API keys yet."
+                    description="Create an API key to enable programmatic access to the Veilence-MX API."
+                  >
+                    <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+                      <Plus className="mr-2 size-4" />
+                      Create API Key
+                    </Button>
+                  </TableEmptyState>
                 )}
               </TableBody>
             </Table>

@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowLeft, FileCode, Plus, Minus, WrapText, RotateCcw, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProtectedRoute } from "@/components/protected-route"
+import { DetailError } from "@/components/detail-error"
 import { useRelease, useReanalyzeRelease } from "@/features/packages"
 
 function classificationColor(c: Classification) {
@@ -28,7 +29,7 @@ function confidenceColor(confidence: number): string {
 function DiffViewer({ content, wordWrap }: { content: string; wordWrap: boolean }) {
   const lines = content.split("\n")
   return (
-    <div className="overflow-auto rounded-lg border text-xs font-mono max-h-175" role="region" aria-label="Diff viewer">
+    <div className="overflow-auto rounded-lg border text-xs font-mono max-h-175" role="region" aria-label="Diff viewer" tabIndex={0}>
       {lines.map((line, i) => {
         let bgClass = ""
         let textClass = "text-foreground"
@@ -80,9 +81,18 @@ function ReleaseDetailContent({
     notFound()
   }
 
-  const { data: releaseRes } = useRelease(releaseId)
+  const { data: releaseRes, isError, refetch } = useRelease(releaseId)
   const reanalyzeMutation = useReanalyzeRelease(releaseId)
   const release = releaseRes?.data ?? null
+
+  if (isError) return (
+    <DetailError
+      message="Failed to load release details. The release may not exist or the server is unavailable."
+      onRetry={() => refetch()}
+      backHref="/releases"
+      backLabel="Releases"
+    />
+  )
 
   if (!release) return (
     <div className="space-y-6 p-8">
@@ -157,7 +167,14 @@ function ReleaseDetailContent({
                   {(release.analysis.confidence * 100).toFixed(0)}%
                 </span>
               </div>
-              <div className="h-2 w-full rounded-full bg-muted">
+              <div
+                className="h-2 w-full rounded-full bg-muted"
+                role="progressbar"
+                aria-valuenow={Math.round(release.analysis.confidence * 100)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Analysis confidence"
+              >
                 <div
                   className={`h-2 rounded-full transition-all ${confidenceColor(release.analysis.confidence)}`}
                   style={{ width: `${release.analysis.confidence * 100}%` }}

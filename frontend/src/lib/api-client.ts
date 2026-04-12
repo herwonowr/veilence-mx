@@ -707,7 +707,12 @@ export async function apiMarkAllNotificationsRead(): Promise<
 // ─── Sessions ──────────────────────────────────────────────────
 
 export async function apiGetSessions(): Promise<ApiResponse<Session[]>> {
-  return fetchApi<Session[]>("/api/auth/sessions")
+  const headers: Record<string, string> = {}
+  const refreshToken = getStoredRefreshToken()
+  if (refreshToken) {
+    headers["X-Refresh-Token"] = refreshToken
+  }
+  return fetchApi<Session[]>("/api/auth/sessions", { headers })
 }
 
 export async function apiRevokeSession(

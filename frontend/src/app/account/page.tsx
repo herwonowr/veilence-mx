@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import type { APIKeyScope } from "@/types"
 import {
   profileSchema,
   passwordChangeSchema,
@@ -13,48 +12,26 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { FormField } from "@/components/form-field"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
   Save,
   Loader2,
   Key,
-  Plus,
-  Trash2,
   ShieldCheck,
   ShieldAlert,
   Mail,
   User,
   Lock,
   Monitor,
+  ArrowRight,
 } from "lucide-react"
+import { Label } from "@/components/ui/label"
+import Link from "next/link"
 import { ProtectedRoute } from "@/components/protected-route"
-import { ConfirmDialog, type ConfirmDialogDetail } from "@/components/confirm-dialog"
 import {
   useUpdateProfile,
   useChangePassword,
   useSendVerification,
   useApiKeys,
-  useCreateApiKey,
-  useDeleteApiKey,
   useSessions,
-  useRevokeSession,
 } from "@/features/account"
 import { ZodError } from "zod"
 
@@ -343,260 +320,62 @@ function PasswordSection() {
   )
 }
 
-// ─── API Keys Section ──────────────────────────────────────────
+// ─── API Keys Summary ──────────────────────────────────────────
 
 function ApiKeysSection() {
   const { data: keysRes, isLoading } = useApiKeys()
-  const createMutation = useCreateApiKey()
-  const deleteMutation = useDeleteApiKey()
-
-  const [createOpen, setCreateOpen] = useState(false)
-  const [keyName, setKeyName] = useState("")
-  const [keyScope, setKeyScope] = useState<APIKeyScope>("read")
-  const [newKeyValue, setNewKeyValue] = useState<string | null>(null)
-
-  // Delete confirmation state
-  const [deleteTarget, setDeleteTarget] = useState<{
-    id: number
-    details: ConfirmDialogDetail[]
-  } | null>(null)
 
   const keys = keysRes?.data ?? []
-
-  const handleCreate = async () => {
-    if (!keyName) return
-    try {
-      const res = await createMutation.mutateAsync({
-        name: keyName,
-        scope: keyScope,
-      })
-      setNewKeyValue(res.data.apiKey)
-      setKeyName("")
-      setKeyScope("read")
-      setCreateOpen(false)
-    } catch {
-      // Error handled by mutation
-    }
-  }
+  const activeCount = keys.filter((k) => k.isActive).length
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="size-5" />
-            API Keys
-          </CardTitle>
-          <CardDescription>
-            Manage API keys for programmatic access.
-          </CardDescription>
-        </div>
-        <Dialog open={createOpen} onOpenChange={(open) => setCreateOpen(open)}>
-          <DialogTrigger
-            render={
-              <Button size="sm">
-                <Plus className="mr-1 size-4" />
-                Create Key
-              </Button>
-            }
-          />
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create API Key</DialogTitle>
-              <DialogDescription>
-                Give your key a descriptive name and select a scope.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 pt-2">
-              <div className="space-y-2">
-                <Label htmlFor="key-name">Key Name</Label>
-                <Input
-                  id="key-name"
-                  placeholder="e.g., CI/CD Pipeline"
-                  value={keyName}
-                  onChange={(e) => setKeyName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Scope</Label>
-                <div className="flex gap-2">
-                  {(["read", "write", "admin"] as const).map((s) => (
-                    <Button
-                      key={s}
-                      type="button"
-                      variant={keyScope === s ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setKeyScope(s)}
-                    >
-                      {s === "read" ? "Read Only" : s === "write" ? "Read/Write" : "Admin"}
-                    </Button>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {keyScope === "read" && "Can only read data (GET requests)"}
-                  {keyScope === "write" && "Can read and write, but not delete"}
-                  {keyScope === "admin" && "Full access to all operations"}
-                </p>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                onClick={handleCreate}
-                disabled={!keyName || createMutation.isPending}
-              >
-                {createMutation.isPending && (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                )}
-                Create
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Key className="size-5" />
+          API Keys
+        </CardTitle>
+        <CardDescription>
+          Manage API keys for programmatic access.
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        {newKeyValue && (
-          <div className="mb-4 rounded-md border border-green-200 bg-green-50 p-3 dark:border-green-900 dark:bg-green-950/30">
-            <p className="mb-1 text-sm font-medium text-green-800 dark:text-green-300">
-              API key created — copy it now, it won&apos;t be shown again:
-            </p>
-            <code className="block break-all rounded bg-green-100 px-2 py-1 text-xs dark:bg-green-900/50">
-              {newKeyValue}
-            </code>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-2"
-              onClick={() => setNewKeyValue(null)}
-            >
-              Dismiss
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {isLoading ? (
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <Badge variant="secondary" className="text-sm">
+                  {activeCount} active {activeCount === 1 ? "key" : "keys"}
+                </Badge>
+                {keys.length > activeCount && (
+                  <span className="text-xs text-muted-foreground">
+                    ({keys.length} total)
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+          <Link href="/settings/api-keys">
+            <Button variant="outline" size="sm">
+              Manage API Keys
+              <ArrowRight className="ml-2 size-4" />
             </Button>
-          </div>
-        )}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : keys.length === 0 ? (
-          <p className="py-8 text-center text-muted-foreground">
-            No API keys. Create one for programmatic access.
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Key</TableHead>
-                <TableHead>Scope</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Last Used</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-16" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {keys.map((key) => (
-                <TableRow key={key.id}>
-                  <TableCell className="font-medium">{key.name}</TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {key.keyPrefix}...
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        key.scope === "admin"
-                          ? "destructive"
-                          : key.scope === "write"
-                            ? "default"
-                            : "secondary"
-                      }
-                    >
-                      {key.scope ?? "admin"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {new Date(key.createdAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {key.lastUsedAt
-                      ? new Date(key.lastUsedAt).toLocaleDateString()
-                      : "Never"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={key.isActive ? "default" : "secondary"}>
-                      {key.isActive ? "Active" : "Revoked"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {key.isActive && (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() =>
-                          setDeleteTarget({
-                            id: key.id,
-                            details: [
-                              { label: "Name", value: key.name },
-                              { label: "Key Prefix", value: `${key.keyPrefix}...` },
-                              { label: "Scope", value: key.scope ?? "admin" },
-                            ],
-                          })
-                        }
-                        aria-label={`Delete API key ${key.name}`}
-                      >
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-
-        {/* Delete API Key Confirmation */}
-        <ConfirmDialog
-          open={!!deleteTarget}
-          onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
-          title="Delete API Key?"
-          description="Are you sure you want to delete this API key? Any applications using this key will lose access immediately."
-          details={deleteTarget?.details}
-          actionLabel="Delete"
-          onConfirm={async () => {
-            if (deleteTarget) {
-              await deleteMutation.mutateAsync(deleteTarget.id)
-              setDeleteTarget(null)
-            }
-          }}
-        />
+          </Link>
+        </div>
       </CardContent>
     </Card>
   )
 }
 
-// ─── Sessions Section ──────────────────────────────────────────
+// ─── Sessions Summary ──────────────────────────────────────────
 
 function SessionsSection() {
   const { data: sessionsRes, isLoading } = useSessions()
-  const revokeMutation = useRevokeSession()
-
-  // Revoke confirmation state
-  const [revokeTarget, setRevokeTarget] = useState<{
-    id: number
-    details: ConfirmDialogDetail[]
-  } | null>(null)
 
   const sessions = sessionsRes?.data ?? []
-
-  function parseUserAgent(ua: string): string {
-    // Extract a short browser/device description from User-Agent
-    if (ua.includes("Chrome") && !ua.includes("Edg")) return "Chrome"
-    if (ua.includes("Edg")) return "Edge"
-    if (ua.includes("Firefox")) return "Firefox"
-    if (ua.includes("Safari") && !ua.includes("Chrome")) return "Safari"
-    if (ua.includes("curl")) return "curl"
-    if (ua.length > 50) return ua.slice(0, 50) + "..."
-    return ua || "Unknown"
-  }
+  const activeCount = sessions.length
 
   return (
     <Card>
@@ -606,89 +385,27 @@ function SessionsSection() {
           Active Sessions
         </CardTitle>
         <CardDescription>
-          Manage your active sessions. Revoke any session you don&apos;t recognize.
+          View and manage your active sessions across devices.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {isLoading ? (
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            ) : (
+              <Badge variant="secondary" className="text-sm">
+                {activeCount} active {activeCount === 1 ? "session" : "sessions"}
+              </Badge>
+            )}
           </div>
-        ) : sessions.length === 0 ? (
-          <p className="py-8 text-center text-muted-foreground">
-            No active sessions found.
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Browser / Client</TableHead>
-                <TableHead>IP Address</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Last Active</TableHead>
-                <TableHead>Expires</TableHead>
-                <TableHead className="w-16" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sessions.map((session) => (
-                <TableRow key={session.id}>
-                  <TableCell className="text-sm">
-                    {parseUserAgent(session.userAgent)}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {session.ipAddress}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {new Date(session.createdAt).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {new Date(session.lastActive).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {new Date(session.expiresAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() =>
-                        setRevokeTarget({
-                          id: session.id,
-                          details: [
-                            { label: "Device", value: parseUserAgent(session.userAgent) },
-                            { label: "IP Address", value: session.ipAddress },
-                            { label: "Last Active", value: new Date(session.lastActive).toLocaleString() },
-                          ],
-                        })
-                      }
-                      disabled={revokeMutation.isPending}
-                      aria-label={`Revoke session for ${parseUserAgent(session.userAgent)}`}
-                    >
-                      <Trash2 className="size-4 text-destructive" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-
-        {/* Revoke Session Confirmation */}
-        <ConfirmDialog
-          open={!!revokeTarget}
-          onOpenChange={(open) => { if (!open) setRevokeTarget(null) }}
-          title="Revoke Session?"
-          description="Are you sure you want to revoke this session? The device will be signed out immediately."
-          details={revokeTarget?.details}
-          actionLabel="Revoke"
-          onConfirm={async () => {
-            if (revokeTarget) {
-              await revokeMutation.mutateAsync(revokeTarget.id)
-              setRevokeTarget(null)
-            }
-          }}
-        />
+          <Link href="/settings/sessions">
+            <Button variant="outline" size="sm">
+              Manage Sessions
+              <ArrowRight className="ml-2 size-4" />
+            </Button>
+          </Link>
+        </div>
       </CardContent>
     </Card>
   )

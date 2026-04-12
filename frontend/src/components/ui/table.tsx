@@ -52,14 +52,33 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   )
 }
 
-function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
+interface TableRowProps extends React.ComponentProps<"tr"> {
+  /** When true, the row becomes focusable via Tab and Enter/Space triggers onClick. */
+  clickable?: boolean
+}
+
+function TableRow({ className, clickable, onClick, onKeyDown, ...props }: TableRowProps) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>) => {
+    if (clickable && onClick && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault()
+      onClick(e as unknown as React.MouseEvent<HTMLTableRowElement>)
+    }
+    onKeyDown?.(e)
+  }
+
   return (
     <tr
       data-slot="table-row"
+      tabIndex={clickable ? 0 : undefined}
+      role={clickable ? "link" : undefined}
       className={cn(
         "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        clickable &&
+          "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]",
         className
       )}
+      onClick={onClick}
+      onKeyDown={clickable || onKeyDown ? handleKeyDown : undefined}
       {...props}
     />
   )

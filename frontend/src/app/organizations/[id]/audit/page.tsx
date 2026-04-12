@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { ProtectedRoute } from "@/components/protected-route"
 import { Button } from "@/components/ui/button"
@@ -22,13 +23,16 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { TableEmptyState } from "@/components/empty-state"
 import {
+  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   Filter,
   ScrollText,
 } from "lucide-react"
 import { useAuditLogs } from "@/features/admin"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 
 function AuditLogContent() {
   const params = useParams<{ id: string }>()
@@ -39,14 +43,16 @@ function AuditLogContent() {
   // Filters
   const [action, setAction] = useState("")
   const [resource, setResource] = useState("")
+  const debouncedAction = useDebouncedValue(action, 300)
+  const debouncedResource = useDebouncedValue(resource, 300)
   const [fromDate, setFromDate] = useState("")
   const [toDate, setToDate] = useState("")
   const [page, setPage] = useState(1)
   const limit = 20
 
   const { data: logsRes, isLoading } = useAuditLogs(validOrgId, {
-    action: action || undefined,
-    resource: resource || undefined,
+    action: debouncedAction || undefined,
+    resource: debouncedResource || undefined,
     from: fromDate || undefined,
     to: toDate || undefined,
     page,
@@ -70,26 +76,21 @@ function AuditLogContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => router.push(`/organizations/${orgId}`)}
-            aria-label="Back to organization"
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <ScrollText className="size-7" />
-              Audit Log
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              View activity history for this organization
-            </p>
-          </div>
-        </div>
+      <div>
+        <Link
+          href={`/organizations/${orgId}`}
+          className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Organization
+        </Link>
+        <h1 className="text-3xl font-bold flex items-center gap-2">
+          <ScrollText className="size-7" />
+          Audit Log
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          View activity history for this organization
+        </p>
       </div>
 
       {/* Filters */}
@@ -206,14 +207,12 @@ function AuditLogContent() {
                   </TableRow>
                 ))}
                 {logs.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="text-center py-8 text-muted-foreground"
-                    >
-                      No audit logs found
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyState
+                    colSpan={5}
+                    icon={<ScrollText className="h-8 w-8" />}
+                    title="No audit logs found."
+                    description="Activity history will appear here as actions are performed in this organization."
+                  />
                 )}
               </TableBody>
             </Table>

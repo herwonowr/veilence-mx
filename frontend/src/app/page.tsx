@@ -16,11 +16,14 @@ import {
 } from "@/components/ui/table"
 import type { Classification } from "@/types"
 import { Skeleton } from "@/components/ui/skeleton"
+import { TableSkeleton, type SkeletonColumn } from "@/components/table-skeleton"
+import { TableError } from "@/components/table-error"
 import { Package, Activity, AlertTriangle, Shield, Clock, CheckCircle, RefreshCw, Building2, Plus, BookOpen, CircleCheck, Circle } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { DashboardCharts } from "@/components/dashboard-charts"
+import { TableEmptyState } from "@/components/empty-state"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/lib/auth-context"
 import { useDashboardStats, useRecentReleases, useChartData } from "@/features/dashboard"
@@ -71,13 +74,11 @@ function DashboardOnboarding({ hasAnyOrg, user }: OnboardingProps) {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
-
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
-        <h2 className="text-2xl font-bold mb-2">
+        <h1 className="text-2xl font-bold mb-2">
           Welcome to Veilence-MX{user?.firstName ? `, ${user.firstName}` : ""}!
-        </h2>
+        </h1>
         <p className="text-muted-foreground mb-6 max-w-md">
           {hasAnyOrg
             ? "Select an organization from the sidebar to view your supply chain monitoring dashboard."
@@ -128,6 +129,7 @@ function DashboardOnboarding({ hasAnyOrg, user }: OnboardingProps) {
 // ─── Dashboard Data (org selected) ──────────────────────────
 
 function DashboardData() {
+  const router = useRouter()
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [intervalSec, setIntervalSec] = useState(30)
   const [chartRange, setChartRange] = useState<{ from?: string; to?: string }>({})
@@ -139,11 +141,19 @@ function DashboardData() {
   })
   const stats = statsRes?.data ?? null
 
-  const { data: releasesRes } = useRecentReleases(
+  const { data: releasesRes, isLoading: releasesLoading, isError: releasesError, refetch: refetchReleases } = useRecentReleases(
     { page: 1, limit: 15, latestPerPackage: true },
     { refetchInterval }
   )
   const releases = releasesRes?.data ?? []
+
+  const releasesSkeletonColumns: SkeletonColumn[] = [
+    { width: "w-28", header: "Package" },
+    { width: "w-16", header: "Registry" },
+    { width: "w-20", header: "Version" },
+    { width: "w-16", header: "Status" },
+    { width: "w-20", header: "Classification" },
+  ]
 
   const chartParams = chartRange.from || chartRange.to ? chartRange : undefined
   const { data: chartRes } = useChartData(chartParams, {
@@ -264,6 +274,11 @@ function DashboardData() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
+          {releasesLoading ? (
+            <TableSkeleton columns={releasesSkeletonColumns} rows={5} />
+          ) : releasesError ? (
+            <TableError colSpan={5} onRetry={() => refetchReleases()} />
+          ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -276,7 +291,11 @@ function DashboardData() {
             </TableHeader>
             <TableBody>
               {releases.map((release) => (
-                <TableRow key={release.id}>
+                <TableRow
+                  key={release.id}
+                  clickable
+                  onClick={() => router.push(`/releases/${release.id}`)}
+                >
                   <TableCell className="font-medium">
                     <Link
                       href={`/releases/${release.id}`}
@@ -311,14 +330,22 @@ function DashboardData() {
                 </TableRow>
               ))}
               {releases.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    No releases yet. Add packages to start monitoring.
-                  </TableCell>
-                </TableRow>
+                <TableEmptyState
+                  colSpan={5}
+                  icon={<Activity className="h-8 w-8" />}
+                  title="No releases yet."
+                  description="Add packages to start monitoring releases."
+                >
+                  <Link href="/packages">
+                    <Button variant="outline" size="sm">
+                      Go to Packages
+                    </Button>
+                  </Link>
+                </TableEmptyState>
               )}
             </TableBody>
           </Table>
+          )}
           </div>
         </CardContent>
       </Card>

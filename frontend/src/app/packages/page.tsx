@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -42,6 +43,7 @@ import type { Package, Registry } from "@/types"
 import { Plus, Trash2, RefreshCw, Upload } from "lucide-react"
 import { TableSkeleton, type SkeletonColumn } from "@/components/table-skeleton"
 import { TableError } from "@/components/table-error"
+import { TableEmptyState } from "@/components/empty-state"
 import { FilterChips, type ActiveFilter } from "@/components/filter-chips"
 import { SearchInput } from "@/components/search-input"
 import Link from "next/link"
@@ -75,6 +77,7 @@ export default function PackagesPage() {
 }
 
 function PackagesContent() {
+  const router = useRouter()
   const [registryFilter, setRegistryFilter] = useState("")
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search, 300)
@@ -392,7 +395,11 @@ function PackagesContent() {
             <TableBody>
               {table.getRowModel().rows.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
+                  <TableRow
+                    key={row.id}
+                    clickable
+                    onClick={() => router.push(`/packages/${row.original.id}`)}
+                  >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -401,22 +408,19 @@ function PackagesContent() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center py-8">
-                    <div className="flex flex-col items-center gap-3">
-                      <Plus className="h-8 w-8 text-muted-foreground" />
-                      <p className="text-muted-foreground">No packages found.</p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Button size="sm" onClick={() => setDialogOpen(true)}>
-                          Add Package
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={handleSync} disabled={syncMutation.isPending}>
-                          Sync Top Packages
-                        </Button>
-                      </div>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                <TableEmptyState
+                  colSpan={columns.length}
+                  icon={<Plus className="h-8 w-8" />}
+                  title="No packages found."
+                  description="Add your first package or sync the top packages to start monitoring."
+                >
+                  <Button size="sm" onClick={() => setDialogOpen(true)}>
+                    Add Package
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleSync} disabled={syncMutation.isPending}>
+                    Sync Top Packages
+                  </Button>
+                </TableEmptyState>
               )}
             </TableBody>
           </Table>

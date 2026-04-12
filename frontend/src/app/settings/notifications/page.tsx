@@ -35,6 +35,7 @@ import {
   Zap,
 } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
+import { EmptyState } from "@/components/empty-state"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/lib/auth-context"
 import {
@@ -259,9 +260,16 @@ function ChannelsSection({
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : channels.length === 0 ? (
-          <p className="py-8 text-center text-muted-foreground">
-            No channels configured. Add one to start receiving notifications.
-          </p>
+          <EmptyState
+            icon={<BellRing className="h-8 w-8" />}
+            title="No channels configured."
+            description="Add a notification channel to start receiving alerts via email, Slack, or webhook."
+          >
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-1 size-4" />
+              Add Channel
+            </Button>
+          </EmptyState>
         ) : (
           <div className="space-y-3">
             {channels.map((channel) => (
@@ -571,9 +579,16 @@ function RulesSection({
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : rules.length === 0 ? (
-          <p className="py-8 text-center text-muted-foreground">
-            No routing rules configured. Add a rule to start routing alerts.
-          </p>
+          <EmptyState
+            icon={<Route className="h-8 w-8" />}
+            title="No routing rules configured."
+            description="Add a rule to route alerts of specific severities to your notification channels."
+          >
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-1 size-4" />
+              Add Rule
+            </Button>
+          </EmptyState>
         ) : (
           <div className="space-y-3">
             {rules.map((rule) => (

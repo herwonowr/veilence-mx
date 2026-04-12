@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -26,6 +27,7 @@ import Link from "next/link"
 import { Bell, ShieldCheck } from "lucide-react"
 import { TableSkeleton, type SkeletonColumn } from "@/components/table-skeleton"
 import { TableError } from "@/components/table-error"
+import { TableEmptyState } from "@/components/empty-state"
 import { FilterChips, type ActiveFilter } from "@/components/filter-chips"
 import {
   useReactTable,
@@ -57,6 +59,7 @@ export default function AlertsPage() {
 }
 
 function AlertsContent() {
+  const router = useRouter()
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search, 300)
   const [severityFilter, setSeverityFilter] = useState("")
@@ -325,7 +328,11 @@ function AlertsContent() {
             <TableBody>
               {table.getRowModel().rows.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
+                  <TableRow
+                    key={row.id}
+                    clickable
+                    onClick={() => router.push(`/alerts/${row.original.id}`)}
+                  >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -334,36 +341,34 @@ function AlertsContent() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center py-8">
-                    <div className="flex flex-col items-center gap-3">
-                      {hasActiveFilters ? (
-                        <>
-                          <Bell className="h-8 w-8 text-muted-foreground" />
-                          <p className="text-muted-foreground">No alerts match your filters.</p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={clearAllFilters}
-                          >
-                            Clear Filters
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <ShieldCheck className="h-8 w-8 text-green-600" />
-                          <p className="text-muted-foreground font-medium">All clear!</p>
-                          <p className="text-sm text-muted-foreground">No alerts found. Your packages are looking safe.</p>
-                          <Link href="/packages">
-                            <Button variant="outline" size="sm">
-                              View Packages
-                            </Button>
-                          </Link>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
+                hasActiveFilters ? (
+                  <TableEmptyState
+                    colSpan={columns.length}
+                    icon={<Bell className="h-8 w-8" />}
+                    title="No alerts match your filters."
+                  >
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearAllFilters}
+                    >
+                      Clear Filters
+                    </Button>
+                  </TableEmptyState>
+                ) : (
+                  <TableEmptyState
+                    colSpan={columns.length}
+                    icon={<ShieldCheck className="h-8 w-8 text-green-600" />}
+                    title="All clear!"
+                    description="No alerts found. Your packages are looking safe."
+                  >
+                    <Link href="/packages">
+                      <Button variant="outline" size="sm">
+                        View Packages
+                      </Button>
+                    </Link>
+                  </TableEmptyState>
+                )
               )}
             </TableBody>
           </Table>

@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -39,10 +38,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { getDashboardStats } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
 import { OrgSelector } from "@/components/org-selector"
+import { useDashboardStats } from "@/features/dashboard"
 import type { LucideIcon } from "lucide-react"
+
+function UserAvatar({ name }: { name: string }) {
+  const initial = name.charAt(0).toUpperCase()
+  return (
+    <span
+      className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground"
+      aria-hidden="true"
+    >
+      {initial}
+    </span>
+  )
+}
 
 interface NavItem {
   title: string
@@ -68,26 +79,13 @@ const settingsItems: NavItem[] = [
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
-  const [alertCount, setAlertCount] = useState(0)
   const { user, isAuthenticated, logout } = useAuth()
 
-  useEffect(() => {
-    if (!isAuthenticated) return
-
-    function fetchAlertCount() {
-      getDashboardStats()
-        .then((res) => {
-          setAlertCount(res.data?.activeAlerts ?? 0)
-        })
-        .catch(() => {
-          // Sidebar badge fetch — non-critical, no user action involved
-        })
-    }
-
-    fetchAlertCount()
-    const interval = setInterval(fetchAlertCount, 30_000)
-    return () => clearInterval(interval)
-  }, [isAuthenticated])
+  const { data: statsRes } = useDashboardStats({
+    refetchInterval: 30_000,
+    enabled: isAuthenticated,
+  })
+  const alertCount = statsRes?.data?.activeAlerts ?? 0
 
   return (
     <Sidebar variant="inset" collapsible="icon" {...props}>
@@ -186,8 +184,8 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     />
                   }
                 >
-                  <User className="size-4 shrink-0" />
-                  <div className="flex flex-1 flex-col text-left text-sm leading-tight min-w-0">
+                  <UserAvatar name={user.firstName || user.email} />
+                  <div className="flex min-w-0 flex-1 flex-col text-left text-sm leading-tight">
                     <span className="truncate font-medium">
                       {user.firstName} {user.lastName}
                     </span>

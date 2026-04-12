@@ -43,6 +43,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ConfirmDialog, type ConfirmDialogDetail } from "@/components/confirm-dialog"
 import {
+  ArrowLeft,
   Loader2,
   Save,
   Trash2,
@@ -89,6 +90,7 @@ function OrgDetailContent() {
   const isOrgOwner = org?.ownerId === user?.id
   const canInvite = isOrgOwner || hasPermission("members", "invite")
   const canRemove = isOrgOwner || hasPermission("members", "remove")
+  const canUpdateRole = isOrgOwner || hasPermission("members", "update_role")
   const canUpdateOrg = isOrgOwner
 
   // Edit form
@@ -210,18 +212,27 @@ function OrgDetailContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{org.name}</h1>
-          <p className="text-sm text-muted-foreground font-mono">{org.slug}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href={`/organizations/${org.id}/audit`}>
-            <Button variant="outline" size="sm">
-              <ScrollText className="mr-2 size-4" />
-              Audit Log
-            </Button>
-          </Link>
+      <div>
+        <Link
+          href="/organizations"
+          className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Organizations
+        </Link>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">{org.name}</h1>
+            <p className="text-sm text-muted-foreground font-mono">{org.slug}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href={`/organizations/${org.id}/audit`}>
+              <Button variant="outline" size="sm">
+                <ScrollText className="mr-2 size-4" />
+                Audit Log
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -339,7 +350,7 @@ function OrgDetailContent() {
                           onValueChange={(v) =>
                             handleUpdateRole(member.userId, parseInt(String(v), 10))
                           }
-                          disabled={member.userId === user?.id || !canRemove}
+                          disabled={member.userId === user?.id || !canUpdateRole}
                         >
                           <SelectTrigger className="w-28">
                             <SelectValue />

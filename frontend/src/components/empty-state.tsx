@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import { TableRow, TableCell } from "@/components/ui/table"
 
 interface EmptyStateProps {
   icon?: React.ReactNode
@@ -37,5 +38,21 @@ export function EmptyState({
       )}
       {children && <div className="flex flex-wrap items-center gap-2 mt-1">{children}</div>}
     </div>
+  )
+}
+
+/**
+ * TableEmptyState — wraps EmptyState inside a TableRow/TableCell for use in <TableBody>.
+ */
+export function TableEmptyState({
+  colSpan,
+  ...props
+}: EmptyStateProps & { colSpan: number }) {
+  return (
+    <TableRow>
+      <TableCell colSpan={colSpan} className="text-center">
+        <EmptyState {...props} className={cn("py-8", props.className)} />
+      </TableCell>
+    </TableRow>
   )
 }

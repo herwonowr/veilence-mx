@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, MessageSquare, Send, Loader2, ExternalLink } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { DetailError } from "@/components/detail-error"
 import { useAlert, useUpdateAlert, useAlertNotes, useCreateAlertNote } from "@/features/alerts"
 import type { AlertSeverity } from "@/types"
 
@@ -43,7 +45,7 @@ function AlertDetailContent({
     notFound()
   }
 
-  const { data: alertRes } = useAlert(alertId)
+  const { data: alertRes, isError, refetch } = useAlert(alertId)
   const updateMutation = useUpdateAlert()
   const { data: notesRes, isLoading: notesLoading } = useAlertNotes(alertId)
   const createNoteMutation = useCreateAlertNote(alertId)
@@ -65,6 +67,15 @@ function AlertDetailContent({
       handleAddNote()
     }
   }
+
+  if (isError) return (
+    <DetailError
+      message="Failed to load alert details. The alert may not exist or the server is unavailable."
+      onRetry={() => refetch()}
+      backHref="/alerts"
+      backLabel="Alerts"
+    />
+  )
 
   return (
     <div className="space-y-6">
@@ -168,8 +179,7 @@ function AlertDetailContent({
         <CardContent className="space-y-4">
           {/* Add note form */}
           <div className="space-y-2">
-            <textarea
-              className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+            <Textarea
               placeholder="Add a note... (Ctrl+Enter to submit)"
               value={noteContent}
               onChange={(e) => setNoteContent(e.target.value)}

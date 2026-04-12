@@ -20,8 +20,10 @@ import {
 } from "@/components/ui/table"
 import { TableSkeleton, type SkeletonColumn } from "@/components/table-skeleton"
 import { TableError } from "@/components/table-error"
+import { TableEmptyState } from "@/components/empty-state"
 import { ConfirmDialog, type ConfirmDialogDetail } from "@/components/confirm-dialog"
-import { Monitor, Trash2 } from "lucide-react"
+import { Monitor, Trash2, ShieldCheck } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { useSessions, useRevokeSession } from "@/features/account"
 import { useAuth } from "@/lib/auth-context"
@@ -119,9 +121,21 @@ function SessionsContent() {
               </TableHeader>
               <TableBody>
                 {sessions.map((session) => (
-                  <TableRow key={session.id}>
+                  <TableRow
+                    key={session.id}
+                    className={session.isCurrent ? "bg-primary/5" : undefined}
+                    aria-label={session.isCurrent ? "Current session" : undefined}
+                  >
                     <TableCell className="text-sm font-medium">
-                      {parseUserAgent(session.userAgent)}
+                      <span className="flex items-center gap-2">
+                        {parseUserAgent(session.userAgent)}
+                        {session.isCurrent && (
+                          <Badge variant="secondary" className="gap-1">
+                            <ShieldCheck className="size-3" />
+                            Current session
+                          </Badge>
+                        )}
+                      </span>
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {session.ipAddress}
@@ -136,36 +150,45 @@ function SessionsContent() {
                       {new Date(session.expiresAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() =>
-                          setRevokeTarget({
-                            id: session.id,
-                            details: [
-                              { label: "Device", value: parseUserAgent(session.userAgent) },
-                              { label: "IP Address", value: session.ipAddress },
-                              { label: "Last Active", value: new Date(session.lastActive).toLocaleString() },
-                            ],
-                          })
-                        }
-                        disabled={revokeMutation.isPending}
-                        aria-label={`Revoke session for ${parseUserAgent(session.userAgent)}`}
-                      >
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
+                      {session.isCurrent ? (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled
+                          aria-label="Cannot revoke current session"
+                        >
+                          <Trash2 className="size-4 text-muted-foreground/40" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() =>
+                            setRevokeTarget({
+                              id: session.id,
+                              details: [
+                                { label: "Device", value: parseUserAgent(session.userAgent) },
+                                { label: "IP Address", value: session.ipAddress },
+                                { label: "Last Active", value: new Date(session.lastActive).toLocaleString() },
+                              ],
+                            })
+                          }
+                          disabled={revokeMutation.isPending}
+                          aria-label={`Revoke session for ${parseUserAgent(session.userAgent)}`}
+                        >
+                          <Trash2 className="size-4 text-destructive" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
                 {sessions.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      className="text-center py-8 text-muted-foreground"
-                    >
-                      No active sessions found.
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyState
+                    colSpan={6}
+                    icon={<Monitor className="h-8 w-8" />}
+                    title="No active sessions found."
+                    description="Your session information will appear here when you sign in on other devices."
+                  />
                 )}
               </TableBody>
             </Table>

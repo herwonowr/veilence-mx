@@ -2,6 +2,7 @@
 
 import { use } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { notFound } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -16,6 +17,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowLeft, Activity, Package as PackageIcon } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { DetailError } from "@/components/detail-error"
 import { usePackage, usePackageReleases, useAnalysisHistory } from "@/features/packages"
 import type { Classification } from "@/types"
 
@@ -43,6 +45,7 @@ function PackageDetailContent({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params)
+  const router = useRouter()
   const packageId = parseInt(id, 10)
 
   // NaN validation: show 404 for non-numeric IDs
@@ -50,13 +53,22 @@ function PackageDetailContent({
     notFound()
   }
 
-  const { data: pkgRes } = usePackage(packageId)
+  const { data: pkgRes, isError, refetch } = usePackage(packageId)
   const { data: releasesRes } = usePackageReleases(packageId)
   const { data: historyRes } = useAnalysisHistory(packageId)
 
   const pkg = pkgRes?.data ?? null
   const releases = releasesRes?.data ?? []
   const analysisHistory = historyRes?.data ?? []
+
+  if (isError) return (
+    <DetailError
+      message="Failed to load package details. The package may not exist or the server is unavailable."
+      onRetry={() => refetch()}
+      backHref="/packages"
+      backLabel="Packages"
+    />
+  )
 
   if (!pkg) return (
     <div className="space-y-6 p-8">
@@ -106,7 +118,11 @@ function PackageDetailContent({
             </TableHeader>
             <TableBody>
               {releases.map((release) => (
-                <TableRow key={release.id}>
+                <TableRow
+                  key={release.id}
+                  clickable
+                  onClick={() => router.push(`/releases/${release.id}`)}
+                >
                   <TableCell className="font-mono font-medium">
                     <Link
                       href={`/releases/${release.id}`}

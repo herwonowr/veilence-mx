@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
+import { FormField } from "@/components/form-field"
 import { Badge } from "@/components/ui/badge"
-import { Save, RefreshCw, Play, RotateCcw, Mail } from "lucide-react"
+import { Save, RefreshCw, Play, RotateCcw, Mail, AlertCircle } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { settingsSchema } from "@/lib/validations"
 import { ZodError } from "zod"
@@ -34,6 +34,9 @@ function SettingsContent() {
 
   const queueStats = queueRes?.data ?? null
 
+  // The server-loaded settings (source of truth for dirty detection)
+  const serverSettings = settingsRes?.data ?? null
+
   // React-recommended "store previous props" pattern for syncing derived state
   if (settingsRes?.data) {
     const key = JSON.stringify(settingsRes.data)
@@ -43,11 +46,31 @@ function SettingsContent() {
     }
   }
 
+  // Dirty state: has anything changed from server-loaded values?
+  const isDirty = useMemo(() => {
+    if (!serverSettings) return false
+    return Object.keys(localSettings).some(
+      (key) => localSettings[key] !== serverSettings[key]
+    )
+  }, [localSettings, serverSettings])
+
+  // Warn before closing/refreshing the browser tab with unsaved changes
+  useEffect(() => {
+    if (!isDirty) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      // Modern browsers show a generic message; returnValue is required for legacy
+      e.returnValue = ""
+    }
+    window.addEventListener("beforeunload", handler)
+    return () => window.removeEventListener("beforeunload", handler)
+  }, [isDirty])
+
   const updateSetting = (key: string, value: string) => {
     setLocalSettings((prev) => ({ ...prev, [key]: value }))
   }
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     setValidationErrors({})
     try {
       settingsSchema.parse(localSettings)
@@ -62,7 +85,7 @@ function SettingsContent() {
         setValidationErrors(fieldErrors)
       }
     }
-  }
+  }, [localSettings, updateMutation])
 
   const handleReanalyze = async () => {
     setQueueMessage("")
@@ -99,38 +122,28 @@ function SettingsContent() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="pypi-interval" className="text-sm font-medium">
-                PyPI Poll Interval
-              </label>
-              <Input
-                id="pypi-interval"
-                value={localSettings.pypi_poll_interval ?? ""}
-                onChange={(e) =>
-                  updateSetting("pypi_poll_interval", e.target.value)
-                }
-                placeholder="5m"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Go duration format (e.g., 5m, 1h, 30s)
-              </p>
-            </div>
-            <div>
-              <label htmlFor="npm-interval" className="text-sm font-medium">
-                npm Poll Interval
-              </label>
-              <Input
-                id="npm-interval"
-                value={localSettings.npm_poll_interval ?? ""}
-                onChange={(e) =>
-                  updateSetting("npm_poll_interval", e.target.value)
-                }
-                placeholder="5m"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Go duration format (e.g., 5m, 1h, 30s)
-              </p>
-            </div>
+            <FormField
+              id="pypi-interval"
+              label="PyPI Poll Interval"
+              value={localSettings.pypi_poll_interval ?? ""}
+              onChange={(e) =>
+                updateSetting("pypi_poll_interval", e.target.value)
+              }
+              placeholder="5m"
+              error={validationErrors.pypi_poll_interval}
+              description="Go duration format (e.g., 5m, 1h, 30s)"
+            />
+            <FormField
+              id="npm-interval"
+              label="npm Poll Interval"
+              value={localSettings.npm_poll_interval ?? ""}
+              onChange={(e) =>
+                updateSetting("npm_poll_interval", e.target.value)
+              }
+              placeholder="5m"
+              error={validationErrors.npm_poll_interval}
+              description="Go duration format (e.g., 5m, 1h, 30s)"
+            />
           </div>
         </CardContent>
       </Card>
@@ -141,43 +154,43 @@ function SettingsContent() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="pypi-top-n" className="text-sm font-medium">
-                PyPI Top N
-              </label>
-              <Input
-                id="pypi-top-n"
-                type="number"
-                value={localSettings.pypi_top_n ?? ""}
-                onChange={(e) => updateSetting("pypi_top_n", e.target.value)}
-                placeholder="100"
-              />
-            </div>
-            <div>
-              <label htmlFor="npm-top-n" className="text-sm font-medium">
-                npm Top N
-              </label>
-              <Input
-                id="npm-top-n"
-                type="number"
-                value={localSettings.npm_top_n ?? ""}
-                onChange={(e) => updateSetting("npm_top_n", e.target.value)}
-                placeholder="100"
-              />
-            </div>
+            <FormField
+              id="pypi-top-n"
+              label="PyPI Top N"
+              type="number"
+              value={localSettings.pypi_top_n ?? ""}
+              onChange={(e) => updateSetting("pypi_top_n", e.target.value)}
+              placeholder="100"
+              error={validationErrors.pypi_top_n}
+            />
+            <FormField
+              id="npm-top-n"
+              label="npm Top N"
+              type="number"
+              value={localSettings.npm_top_n ?? ""}
+              onChange={(e) => updateSetting("npm_top_n", e.target.value)}
+              placeholder="100"
+              error={validationErrors.npm_top_n}
+            />
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Version Analysis Depth</CardTitle>
+          <CardTitle id="version-depth-mode-label">Version Analysis Depth</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
             How many versions below latest to analyze when a package update is detected.
           </p>
-          <div className="flex flex-col gap-3">
+          <div
+            className="flex flex-col gap-3"
+            role="radiogroup"
+            aria-labelledby="version-depth-mode-label"
+            aria-describedby={validationErrors.version_depth_mode ? "version-depth-mode-error" : undefined}
+            aria-invalid={!!validationErrors.version_depth_mode}
+          >
             <label htmlFor="depth-latest" className="flex items-center gap-2 cursor-pointer">
               <input
                 id="depth-latest"
@@ -205,13 +218,16 @@ function SettingsContent() {
               <span className="text-xs text-muted-foreground">— analyze up to N versions below latest</span>
             </label>
           </div>
+          {validationErrors.version_depth_mode && (
+            <p id="version-depth-mode-error" className="text-sm text-destructive" role="alert">
+              {validationErrors.version_depth_mode}
+            </p>
+          )}
           {localSettings.version_depth_mode === "custom" && (
             <div className="ml-6 max-w-xs">
-              <label htmlFor="depth-count" className="text-sm font-medium">
-                Number of versions (1–5)
-              </label>
-              <Input
+              <FormField
                 id="depth-count"
+                label="Number of versions (1–5)"
                 type="number"
                 min={1}
                 max={5}
@@ -220,6 +236,7 @@ function SettingsContent() {
                   updateSetting("version_depth_count", e.target.value)
                 }
                 placeholder="3"
+                error={validationErrors.version_depth_count}
               />
             </div>
           )}
@@ -240,23 +257,18 @@ function SettingsContent() {
             </p>
           </div>
           <Separator />
-          <div>
-            <label htmlFor="diff-size-limit" className="text-sm font-medium">
-              Diff Size Limit (bytes)
-            </label>
-            <Input
-              id="diff-size-limit"
-              type="number"
-              value={localSettings.diff_size_limit ?? ""}
-              onChange={(e) =>
-                updateSetting("diff_size_limit", e.target.value)
-              }
-              placeholder="102400"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Maximum diff size sent to LLM for analysis. Default: 100KB.
-            </p>
-          </div>
+          <FormField
+            id="diff-size-limit"
+            label="Diff Size Limit (bytes)"
+            type="number"
+            value={localSettings.diff_size_limit ?? ""}
+            onChange={(e) =>
+              updateSetting("diff_size_limit", e.target.value)
+            }
+            placeholder="102400"
+            error={validationErrors.diff_size_limit}
+            description="Maximum diff size sent to LLM for analysis. Default: 100KB."
+          />
         </CardContent>
       </Card>
 
@@ -281,15 +293,28 @@ function SettingsContent() {
                   updateSetting("email_digest_enabled", e.target.checked ? "true" : "false")
                 }
                 className="accent-primary h-4 w-4"
+                aria-describedby={validationErrors.email_digest_enabled ? "digest-enabled-error" : undefined}
+                aria-invalid={!!validationErrors.email_digest_enabled}
               />
               <span className="text-sm font-medium">Enable email digest</span>
             </label>
           </div>
+          {validationErrors.email_digest_enabled && (
+            <p id="digest-enabled-error" className="text-sm text-destructive" role="alert">
+              {validationErrors.email_digest_enabled}
+            </p>
+          )}
           {localSettings.email_digest_enabled === "true" && (
             <div className="space-y-4 ml-6">
               <div>
-                <span className="text-sm font-medium">Frequency</span>
-                <div className="flex flex-col gap-2 mt-1">
+                <span className="text-sm font-medium" id="digest-frequency-label">Frequency</span>
+                <div
+                  className="flex flex-col gap-2 mt-1"
+                  role="radiogroup"
+                  aria-labelledby="digest-frequency-label"
+                  aria-describedby={validationErrors.email_digest_frequency ? "digest-frequency-error" : undefined}
+                  aria-invalid={!!validationErrors.email_digest_frequency}
+                >
                   <label htmlFor="digest-daily" className="flex items-center gap-2 cursor-pointer">
                     <input
                       id="digest-daily"
@@ -315,23 +340,23 @@ function SettingsContent() {
                     <span className="text-sm">Weekly</span>
                   </label>
                 </div>
+                {validationErrors.email_digest_frequency && (
+                  <p id="digest-frequency-error" className="text-sm text-destructive mt-1" role="alert">
+                    {validationErrors.email_digest_frequency}
+                  </p>
+                )}
               </div>
-              <div>
-                <label htmlFor="digest-recipients" className="text-sm font-medium">
-                  Recipients
-                </label>
-                <Input
-                  id="digest-recipients"
-                  value={localSettings.email_digest_recipients ?? ""}
-                  onChange={(e) =>
-                    updateSetting("email_digest_recipients", e.target.value)
-                  }
-                  placeholder="admin@example.com, ops@example.com"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Comma-separated email addresses
-                </p>
-              </div>
+              <FormField
+                id="digest-recipients"
+                label="Recipients"
+                value={localSettings.email_digest_recipients ?? ""}
+                onChange={(e) =>
+                  updateSetting("email_digest_recipients", e.target.value)
+                }
+                placeholder="admin@example.com, ops@example.com"
+                error={validationErrors.email_digest_recipients}
+                description="Comma-separated email addresses"
+              />
             </div>
           )}
         </CardContent>
@@ -428,24 +453,39 @@ function SettingsContent() {
         </CardContent>
       </Card>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-4">
-          <Button onClick={handleSave} disabled={updateMutation.isPending}>
-            <Save className="h-4 w-4 mr-2" />
-            {updateMutation.isPending ? "Saving..." : "Save Settings"}
-          </Button>
-          {updateMutation.isSuccess && (
-            <span className="text-sm text-green-600">Settings saved successfully.</span>
-          )}
-        </div>
-        {Object.keys(validationErrors).length > 0 && (
-          <div className="text-sm text-destructive" role="alert">
-            {Object.values(validationErrors).map((msg) => (
-              <p key={msg}>{msg}</p>
-            ))}
-          </div>
+      <div className="flex items-center gap-4">
+        <Button onClick={handleSave} disabled={updateMutation.isPending}>
+          <Save className="h-4 w-4 mr-2" />
+          {updateMutation.isPending ? "Saving..." : "Save Settings"}
+        </Button>
+        {updateMutation.isSuccess && (
+          <span className="text-sm text-green-600">Settings saved successfully.</span>
         )}
       </div>
+
+      {/* Spacer for sticky footer */}
+      {isDirty && <div className="h-16" />}
+
+      {/* Sticky unsaved changes footer */}
+      {isDirty && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
+          <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
+            <div className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400">
+              <AlertCircle className="h-4 w-4" />
+              <span className="font-medium">You have unsaved changes</span>
+            </div>
+            <div className="flex items-center gap-3">
+              {updateMutation.isSuccess && (
+                <span className="text-sm text-green-600">Saved!</span>
+              )}
+              <Button onClick={handleSave} disabled={updateMutation.isPending} size="sm">
+                <Save className="h-4 w-4 mr-2" />
+                {updateMutation.isPending ? "Saving..." : "Save Settings"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

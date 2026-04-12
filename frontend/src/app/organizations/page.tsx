@@ -26,6 +26,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
+import { EmptyState } from "@/components/empty-state"
 import { Building2, Plus, Loader2 } from "lucide-react"
 import Link from "next/link"
 
@@ -158,16 +159,17 @@ function OrganizationsContent() {
 
       {organizations.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Building2 className="size-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">No organizations yet</h3>
-            <p className="text-sm text-muted-foreground mt-1 mb-4">
-              Create your first organization to get started.
-            </p>
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="mr-2 size-4" />
-              Create Organization
-            </Button>
+          <CardContent>
+            <EmptyState
+              icon={<Building2 className="h-12 w-12" />}
+              title="No organizations yet"
+              description="Create your first organization to get started."
+            >
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="mr-2 size-4" />
+                Create Organization
+              </Button>
+            </EmptyState>
           </CardContent>
         </Card>
       ) : (

@@ -31,6 +31,7 @@ import {
   ListOrdered,
 } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { EmptyState } from "@/components/empty-state"
 import { useQueueStats, useDeadJobs, useRetryDeadJobs } from "@/features/settings"
 import type { QueueStats } from "@/types"
 import { toast } from "sonner"
@@ -170,9 +171,11 @@ function QueueContent() {
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
           ) : deadJobs.length === 0 ? (
-            <p className="py-8 text-center text-muted-foreground">
-              No dead jobs. All systems operational.
-            </p>
+            <EmptyState
+              icon={<CheckCircle2 className="h-8 w-8 text-green-600" />}
+              title="No dead jobs."
+              description="All systems operational. No jobs have exceeded their max retry attempts."
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table>

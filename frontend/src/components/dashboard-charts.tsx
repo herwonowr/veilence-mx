@@ -2,6 +2,8 @@
 
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Label, Pie, PieChart, XAxis, YAxis } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmptyState } from "@/components/empty-state"
+import { BarChart3, PieChart as PieChartIcon, TrendingUp } from "lucide-react"
 import {
   type ChartConfig,
   ChartContainer,
@@ -19,7 +21,7 @@ import {
 } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import { RotateCcw, CalendarIcon } from "lucide-react"
 import type { ChartData } from "@/types"
 import { useState } from "react"
@@ -163,7 +165,7 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <Select value={preset} onValueChange={(v) => { if (v) handlePresetChange(v) }}>
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="w-44" aria-label="Chart time range">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -180,7 +182,11 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
         {isCustom && (
           <>
             <Popover open={fromOpen} onOpenChange={setFromOpen}>
-              <PopoverTrigger className={buttonVariants({ variant: "outline", size: "sm" }) + " w-40 justify-start text-left font-normal"}>
+              <PopoverTrigger
+                render={
+                  <Button variant="outline" size="sm" className="w-40 justify-start text-left font-normal" aria-label="Select start date" />
+                }
+              >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {fromDate ? fromDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Start date"}
               </PopoverTrigger>
@@ -196,7 +202,11 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
             </Popover>
             <span className="text-sm text-muted-foreground">to</span>
             <Popover open={toOpen} onOpenChange={setToOpen}>
-              <PopoverTrigger className={buttonVariants({ variant: "outline", size: "sm" }) + " w-40 justify-start text-left font-normal"}>
+              <PopoverTrigger
+                render={
+                  <Button variant="outline" size="sm" className="w-40 justify-start text-left font-normal" aria-label="Select end date" />
+                }
+              >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {toDate ? toDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "End date"}
               </PopoverTrigger>
@@ -227,6 +237,14 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
           <CardTitle className="text-base">{activityTitle}</CardTitle>
         </CardHeader>
         <CardContent>
+          {data.releaseActivity.length === 0 ? (
+            <EmptyState
+              icon={<TrendingUp className="h-8 w-8" />}
+              title="No data for this period"
+              description="Release activity will appear here once packages are monitored."
+              className="h-62.5"
+            />
+          ) : (
           <ChartContainer config={activityConfig} className="h-62.5 w-full">
             <AreaChart accessibilityLayer data={data.releaseActivity}>
               <CartesianGrid vertical={false} />
@@ -271,6 +289,7 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
               />
             </AreaChart>
           </ChartContainer>
+          )}
         </CardContent>
       </Card>
 
@@ -280,6 +299,14 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
           <CardTitle className="text-base">Classification Distribution</CardTitle>
         </CardHeader>
         <CardContent>
+          {totalClassifications === 0 ? (
+            <EmptyState
+              icon={<PieChartIcon className="h-8 w-8" />}
+              title="No data for this period"
+              description="Classification data will appear after releases are analyzed."
+              className="aspect-square h-62.5 mx-auto"
+            />
+          ) : (
           <ChartContainer config={classificationConfig} className="mx-auto aspect-square h-62.5">
             <PieChart>
               <ChartTooltip content={<ChartTooltipContent nameKey="classification" hideLabel />} />
@@ -311,6 +338,7 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
               <ChartLegend content={<ChartLegendContent nameKey="classification" />} />
             </PieChart>
           </ChartContainer>
+          )}
         </CardContent>
       </Card>
 
@@ -320,6 +348,14 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
           <CardTitle className="text-base">Packages by Registry</CardTitle>
         </CardHeader>
         <CardContent>
+          {totalPackages === 0 ? (
+            <EmptyState
+              icon={<PieChartIcon className="h-8 w-8" />}
+              title="No data for this period"
+              description="Package registry data will appear once packages are added."
+              className="aspect-square h-62.5 mx-auto"
+            />
+          ) : (
           <ChartContainer config={registryConfig} className="mx-auto aspect-square h-62.5">
             <PieChart>
               <ChartTooltip content={<ChartTooltipContent nameKey="registry" hideLabel />} />
@@ -351,6 +387,7 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
               <ChartLegend content={<ChartLegendContent nameKey="registry" />} />
             </PieChart>
           </ChartContainer>
+          )}
         </CardContent>
       </Card>
 
@@ -360,6 +397,14 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
           <CardTitle className="text-base">Alerts by Severity</CardTitle>
         </CardHeader>
         <CardContent>
+          {data.alertsBySeverity.length === 0 ? (
+            <EmptyState
+              icon={<BarChart3 className="h-8 w-8" />}
+              title="No data for this period"
+              description="Alert severity data will appear when alerts are generated."
+              className="h-62.5"
+            />
+          ) : (
           <ChartContainer config={severityConfig} className="h-62.5 w-full">
             <BarChart accessibilityLayer data={data.alertsBySeverity}>
               <CartesianGrid vertical={false} />
@@ -382,6 +427,7 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
               </Bar>
             </BarChart>
           </ChartContainer>
+          )}
         </CardContent>
       </Card>
 
@@ -391,6 +437,14 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
           <CardTitle className="text-base">Release Processing Status</CardTitle>
         </CardHeader>
         <CardContent>
+          {statusData.reduce((sum, s) => sum + s.count, 0) === 0 ? (
+            <EmptyState
+              icon={<PieChartIcon className="h-8 w-8" />}
+              title="No data for this period"
+              description="Release status data will appear once releases are processed."
+              className="aspect-square h-62.5 mx-auto"
+            />
+          ) : (
           <ChartContainer config={statusConfig} className="mx-auto aspect-square h-62.5">
             <PieChart>
               <ChartTooltip content={<ChartTooltipContent nameKey="status" hideLabel />} />
@@ -423,6 +477,7 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
               <ChartLegend content={<ChartLegendContent nameKey="status" />} />
             </PieChart>
           </ChartContainer>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -217,6 +217,7 @@ export interface Session {
   createdAt: string
   lastActive: string
   expiresAt: string
+  isCurrent: boolean
 }
 
 export interface Notification {
@@ -224,6 +225,7 @@ export interface Notification {
   orgId: number
   userId: number
   channelId: number
+  alertId?: number
   title: string
   message: string
   isRead: boolean

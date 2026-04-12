@@ -10,7 +10,7 @@ import (
 type Organization struct {
 	ID          uint           `gorm:"primarykey" json:"id"`
 	Name        string         `gorm:"not null;type:varchar(100)" json:"name"`
-	Slug        string         `gorm:"uniqueIndex;not null;type:varchar(100)" json:"slug"`
+	Slug        string         `gorm:"not null;type:varchar(100)" json:"slug"`
 	Description string         `gorm:"type:text" json:"description"`
 	OwnerID     uint           `gorm:"not null" json:"ownerId"`
 	IsActive    bool           `gorm:"not null;default:true" json:"isActive"`
