@@ -32,6 +32,13 @@ import {
 import { Badge } from "@/ui/components/badge"
 import { Calendar } from "@/ui/components/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/components/popover"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/ui/components/select"
 import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
 import { TableError } from "@/ui/feedback/table-error"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
@@ -244,14 +251,14 @@ export const ApiKeysView = () => {
                       />
                       <div className="border-t border-border px-3 py-3 space-y-3">
                         <div className="flex items-center gap-2">
-                          <label htmlFor="expire-hour" className="text-sm text-muted-foreground whitespace-nowrap">
+                          <span className="text-sm text-muted-foreground whitespace-nowrap">
                             Time:
-                          </label>
-                          <select
-                            id="expire-hour"
-                            value={selectedHour}
-                            onChange={(e) => {
-                              const h = Number(e.target.value)
+                          </span>
+                          <Select
+                            value={String(selectedHour)}
+                            onValueChange={(value) => {
+                              if (value === null) return
+                              const h = Number(value)
                               setSelectedHour(h)
                               if (expiresAt) {
                                 const updated = new Date(expiresAt)
@@ -259,21 +266,24 @@ export const ApiKeysView = () => {
                                 setExpiresAt(updated)
                               }
                             }}
-                            className="h-8 rounded-md border border-input bg-background px-2 text-sm focus:border-ring focus:ring-2 focus:ring-ring/50 focus:outline-none"
-                            aria-label="Hour"
                           >
-                            {Array.from({ length: 24 }, (_, i) => (
-                              <option key={i} value={i}>
-                                {String(i).padStart(2, "0")}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger size="sm" aria-label="Hour">
+                              <SelectValue>{String(selectedHour).padStart(2, "0")}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 24 }, (_, i) => (
+                                <SelectItem key={i} value={String(i)}>
+                                  {String(i).padStart(2, "0")}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <span className="text-sm font-medium text-muted-foreground">:</span>
-                          <select
-                            id="expire-minute"
-                            value={selectedMinute}
-                            onChange={(e) => {
-                              const m = Number(e.target.value)
+                          <Select
+                            value={String(selectedMinute)}
+                            onValueChange={(value) => {
+                              if (value === null) return
+                              const m = Number(value)
                               setSelectedMinute(m)
                               if (expiresAt) {
                                 const updated = new Date(expiresAt)
@@ -281,15 +291,18 @@ export const ApiKeysView = () => {
                                 setExpiresAt(updated)
                               }
                             }}
-                            className="h-8 rounded-md border border-input bg-background px-2 text-sm focus:border-ring focus:ring-2 focus:ring-ring/50 focus:outline-none"
-                            aria-label="Minute"
                           >
-                            {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
-                              <option key={m} value={m}>
-                                {String(m).padStart(2, "0")}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger size="sm" aria-label="Minute">
+                              <SelectValue>{String(selectedMinute).padStart(2, "0")}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
+                                <SelectItem key={m} value={String(m)}>
+                                  {String(m).padStart(2, "0")}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <Button
                           type="button"
