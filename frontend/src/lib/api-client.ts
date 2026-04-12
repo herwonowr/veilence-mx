@@ -168,6 +168,13 @@ async function fetchApi<T>(
         credentials: "include",
         headers,
       })
+    } else {
+      // Token refresh failed — session is expired
+      clearTokens()
+      clearOrgId()
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("auth:session-expired"))
+      }
     }
   }
 

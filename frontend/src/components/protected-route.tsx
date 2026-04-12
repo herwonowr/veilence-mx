@@ -23,12 +23,9 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     }
   }, [isLoading, isAuthenticated, router, pathname])
 
-  // Before mount, render children to match server HTML and avoid hydration mismatch.
-  // After mount, show loading skeleton while auth state is being resolved.
+  // Before mount AND while loading, show skeleton.
+  // Server snapshot (hasMounted=false) renders nothing via skeleton → no hydration mismatch.
   if (!hasMounted || isLoading) {
-    if (!hasMounted) {
-      return <>{children}</>
-    }
     return (
       <div className="flex-1 space-y-4 p-4 md:p-6">
         <Skeleton className="h-8 w-48" />

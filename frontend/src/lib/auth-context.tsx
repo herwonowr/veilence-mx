@@ -150,7 +150,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             storeTokens(data.accessToken, data.refreshToken)
           }
         } catch {
-          // Token refresh failed silently
+          // Proactive refresh failed — session likely expired
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("auth:session-expired"))
+          }
         }
       },
       10 * 60 * 1000
@@ -261,6 +264,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [isAuthenticated, logout])
+
+  // Auto-logout when API detects session expiry (401 with failed refresh)
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      toast.error("Your session has expired. Please log in again.")
+      logout()
+    }
+
+    window.addEventListener("auth:session-expired", handleSessionExpired)
+    return () => {
+      window.removeEventListener("auth:session-expired", handleSessionExpired)
+    }
+  }, [logout])
 
   const setCurrentOrg = useCallback((org: Organization) => {
     setCurrentOrgState(org)
