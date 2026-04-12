@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState, useMemo, useCallback } from "react"
+import { Suspense, useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
+import { useSortParams } from "@/hooks/use-sort-params"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -53,7 +54,9 @@ function severityVariant(s: AlertSeverity) {
 export default function AlertsPage() {
   return (
     <ProtectedRoute>
-      <AlertsContent />
+      <Suspense>
+        <AlertsContent />
+      </Suspense>
     </ProtectedRoute>
   )
 }
@@ -68,11 +71,10 @@ function AlertsContent() {
     pageIndex: 0,
     pageSize: 20,
   })
-  const [sorting, setSorting] = useState<SortingState>([])
+  const [sorting, setSorting] = useSortParams()
 
   const alertColumnBreakpoints: ColumnBreakpoints = useMemo(() => ({
     createdAt: "desktop",
-    actions: "desktop",
     message: "tablet",
   }), [])
   const columnVisibility = useResponsiveColumns(alertColumnBreakpoints)
@@ -161,7 +163,7 @@ function AlertsContent() {
         accessorKey: "message",
         header: ({ column }) => <SortableHeader column={column} title="Message" />,
         cell: ({ row }) => (
-          <span className="max-w-md truncate block">{row.original.message}</span>
+          <span className="max-w-[200px] truncate block">{row.original.message}</span>
         ),
       },
       {

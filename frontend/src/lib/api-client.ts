@@ -671,6 +671,15 @@ export async function retryDeadJobs(
   )
 }
 
+export async function retryDeadJob(
+  jobId: string
+): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi<{ message: string }>(
+    `/api/queue/dead/${jobId}/retry`,
+    { method: "POST" }
+  )
+}
+
 // ─── Notifications ──────────────────────────────────────────────
 
 export async function apiGetUnreadCount(): Promise<

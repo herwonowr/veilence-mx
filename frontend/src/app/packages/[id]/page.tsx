@@ -173,13 +173,11 @@ function PackageDetailContent({
               {analysisHistory.map((entry, i) => (
                 <div key={`${entry.releaseId}-${i}`} className="relative flex gap-4 pb-6 last:pb-0">
                   {/* Timeline dot */}
-                  <div className="relative z-10 mt-1.5 flex h-[10px] w-[10px] shrink-0 items-center justify-center rounded-full ring-2 ring-background"
-                    style={{
-                      marginLeft: "14px",
-                      backgroundColor: entry.classification === "malicious" ? "var(--color-destructive)" :
-                        entry.classification === "suspicious" ? "var(--color-primary)" :
-                        "var(--color-muted-foreground)",
-                    }}
+                  <div className={`relative z-10 ml-[14px] mt-1.5 flex h-[10px] w-[10px] shrink-0 items-center justify-center rounded-full ring-2 ring-background ${
+                    entry.classification === "malicious" ? "bg-destructive" :
+                    entry.classification === "suspicious" ? "bg-primary" :
+                    "bg-muted-foreground"
+                  }`}
                   />
 
                   <div className="flex-1 min-w-0">

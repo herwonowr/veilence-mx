@@ -27,8 +27,10 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { EmptyState } from "@/components/empty-state"
-import { Building2, Plus, Loader2 } from "lucide-react"
+import { Building2, Plus, Loader2, Users, Package } from "lucide-react"
 import Link from "next/link"
+import { useOrgMembers } from "@/features/admin"
+import { usePackages } from "@/features/packages"
 
 function OrganizationsContent() {
   const { organizations, refreshOrgs, setCurrentOrg } = useAuth()
@@ -175,33 +177,55 @@ function OrganizationsContent() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {organizations.map((org: Organization) => (
-            <Link key={org.id} href={`/organizations/${org.id}`}>
-              <Card className="cursor-pointer transition-colors hover:bg-muted/50">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">{org.name}</CardTitle>
-                    <Badge variant={org.isActive ? "secondary" : "outline"}>
-                      {org.isActive ? "Active" : "Inactive"}
-                    </Badge>
-                  </div>
-                  <CardDescription className="font-mono text-xs">
-                    {org.slug}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {org.description || "No description"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Created {new Date(org.createdAt).toLocaleDateString()}
-                  </p>
-                </CardContent>
-              </Card>
-            </Link>
+            <OrgCard key={org.id} org={org} />
           ))}
         </div>
       )}
     </div>
+  )
+}
+
+function OrgCard({ org }: { org: Organization }) {
+  const { data: membersRes } = useOrgMembers(org.id)
+  const { data: packagesRes } = usePackages({ page: 1, limit: 1 })
+
+  const memberCount = membersRes?.data?.length ?? null
+  const packageCount = packagesRes?.meta?.total ?? null
+
+  return (
+    <Link href={`/organizations/${org.id}`}>
+      <Card className="cursor-pointer transition-colors hover:bg-muted/50">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">{org.name}</CardTitle>
+            <Badge variant={org.isActive ? "secondary" : "outline"}>
+              {org.isActive ? "Active" : "Inactive"}
+            </Badge>
+          </div>
+          <CardDescription className="font-mono text-xs">
+            {org.slug}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {org.description || "No description"}
+          </p>
+          <div className="flex items-center gap-4 mt-3">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Users className="size-3.5" />
+              {memberCount !== null ? memberCount : "—"} {memberCount === 1 ? "member" : "members"}
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Package className="size-3.5" />
+              {packageCount !== null ? packageCount : "—"} {packageCount === 1 ? "package" : "packages"}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Created {new Date(org.createdAt).toLocaleDateString()}
+          </p>
+        </CardContent>
+      </Card>
+    </Link>
   )
 }
 

@@ -206,9 +206,9 @@ function ChannelsSection({
             </DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="space-y-2">
-                <Label htmlFor="channel-name">Name</Label>
+                <Label htmlFor="channel-create-name">Name</Label>
                 <Input
-                  id="channel-name"
+                  id="channel-create-name"
                   placeholder="e.g., Team Slack"
                   value={channelName}
                   onChange={(e) => setChannelName(e.target.value)}
@@ -364,30 +364,30 @@ function ChannelConfigFields({
     case "email":
       return (
         <div className="space-y-2">
-          <Label htmlFor="smtp-host">SMTP Host</Label>
+          <Label htmlFor="channel-email-host">SMTP Host</Label>
           <Input
-            id="smtp-host"
+            id="channel-email-host"
             placeholder="smtp.example.com"
             value={parsed.host ?? ""}
             onChange={(e) => updateField("host", e.target.value)}
           />
-          <Label htmlFor="smtp-port">SMTP Port</Label>
+          <Label htmlFor="channel-email-port">SMTP Port</Label>
           <Input
-            id="smtp-port"
+            id="channel-email-port"
             placeholder="587"
             value={parsed.port ?? ""}
             onChange={(e) => updateField("port", e.target.value)}
           />
-          <Label htmlFor="smtp-from">From Address</Label>
+          <Label htmlFor="channel-email-from">From Address</Label>
           <Input
-            id="smtp-from"
+            id="channel-email-from"
             placeholder="alerts@example.com"
             value={parsed.from ?? ""}
             onChange={(e) => updateField("from", e.target.value)}
           />
-          <Label htmlFor="smtp-to">To Address</Label>
+          <Label htmlFor="channel-email-to">To Address</Label>
           <Input
-            id="smtp-to"
+            id="channel-email-to"
             placeholder="team@example.com"
             value={parsed.to ?? ""}
             onChange={(e) => updateField("to", e.target.value)}
@@ -397,9 +397,9 @@ function ChannelConfigFields({
     case "slack":
       return (
         <div className="space-y-2">
-          <Label htmlFor="slack-url">Slack Webhook URL</Label>
+          <Label htmlFor="channel-slack-url">Slack Webhook URL</Label>
           <Input
-            id="slack-url"
+            id="channel-slack-url"
             placeholder="https://hooks.slack.com/services/..."
             value={parsed.webhookUrl ?? ""}
             onChange={(e) => updateField("webhookUrl", e.target.value)}
@@ -409,16 +409,16 @@ function ChannelConfigFields({
     case "webhook":
       return (
         <div className="space-y-2">
-          <Label htmlFor="webhook-url">Webhook URL</Label>
+          <Label htmlFor="channel-webhook-url">Webhook URL</Label>
           <Input
-            id="webhook-url"
+            id="channel-webhook-url"
             placeholder="https://api.example.com/webhook"
             value={parsed.url ?? ""}
             onChange={(e) => updateField("url", e.target.value)}
           />
-          <Label htmlFor="webhook-secret">Secret (optional)</Label>
+          <Label htmlFor="channel-webhook-secret">Secret (optional)</Label>
           <Input
-            id="webhook-secret"
+            id="channel-webhook-secret"
             type="password"
             placeholder="Signing secret for HMAC verification"
             value={parsed.secret ?? ""}

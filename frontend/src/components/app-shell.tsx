@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation"
 import { AppSidebar } from "@/components/app-sidebar"
+import { CommandPalette } from "@/components/command-palette"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
@@ -22,6 +23,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <SiteHeader />
         <main id="main-content" className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
       </SidebarInset>
+      <CommandPalette />
     </SidebarProvider>
   )
 }

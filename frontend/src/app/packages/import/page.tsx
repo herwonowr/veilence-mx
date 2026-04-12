@@ -183,6 +183,23 @@ function BulkImportContent() {
     parseContent(textInput)
   }, [textInput, parseContent])
 
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const pasted = e.clipboardData.getData("text")
+      // After paste, the textarea value will be updated by React's onChange.
+      // Use the pasted text directly for immediate parsing.
+      const combined = textInput.slice(0, e.currentTarget.selectionStart) +
+        pasted +
+        textInput.slice(e.currentTarget.selectionEnd)
+      // Defer so the textarea state updates first
+      setTimeout(() => {
+        setTextInput(combined)
+        parseContent(combined)
+      }, 0)
+    },
+    [textInput, parseContent]
+  )
+
   // ─── Selection ───
 
   const selectedCount = entries.filter((e) => e.selected).length
@@ -254,13 +271,21 @@ function BulkImportContent() {
   return (
     <div className="space-y-6">
       <div>
-        <Link
-          href="/packages"
-          className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Packages
-        </Link>
+        <nav aria-label="Breadcrumb" className="mb-2">
+          <ol className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <li>
+              <Link
+                href="/packages"
+                className="flex items-center gap-1 hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Packages
+              </Link>
+            </li>
+            <li aria-hidden="true">/</li>
+            <li className="text-foreground font-medium">Import</li>
+          </ol>
+        </nav>
         <h1 className="text-3xl font-bold">Bulk Import</h1>
         <p className="mt-1 text-muted-foreground">
           Import packages from requirements.txt or package.json files.
@@ -371,6 +396,7 @@ function BulkImportContent() {
               placeholder={`# requirements.txt format:\nrequests>=2.28.0\nflask==3.0.0\nnumpy\n\n# Or paste package.json content`}
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
+              onPaste={handlePaste}
               aria-label="Paste package list content"
             />
             <Button variant="outline" onClick={handleTextParse} className="w-full">

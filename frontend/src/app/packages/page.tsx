@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState, useMemo, useCallback } from "react"
+import { Suspense, useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
+import { useSortParams } from "@/hooks/use-sort-params"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -71,7 +72,9 @@ import {
 export default function PackagesPage() {
   return (
     <ProtectedRoute>
-      <PackagesContent />
+      <Suspense>
+        <PackagesContent />
+      </Suspense>
     </ProtectedRoute>
   )
 }
@@ -88,14 +91,13 @@ function PackagesContent() {
     pageIndex: 0,
     pageSize: 20,
   })
-  const [sorting, setSorting] = useState<SortingState>([])
+  const [sorting, setSorting] = useSortParams()
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null)
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({})
 
   const packageColumnBreakpoints: ColumnBreakpoints = useMemo(() => ({
     rank: "desktop",
-    isCustom: "desktop",
-    latestVersion: "tablet",
+    isCustom: "tablet",
   }), [])
   const columnVisibility = useResponsiveColumns(packageColumnBreakpoints)
 

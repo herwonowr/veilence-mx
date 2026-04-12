@@ -4,4 +4,4 @@ export {
   useReanalyzeAll,
   settingsKeys,
 } from "./hooks/use-settings"
-export { useQueueStats, useDeadJobs, useRetryDeadJobs, queueKeys } from "./hooks/use-queue"
+export { useQueueStats, useDeadJobs, useRetryDeadJobs, useRetryDeadJob, queueKeys } from "./hooks/use-queue"

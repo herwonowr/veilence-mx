@@ -8,6 +8,7 @@ import {
   getQueueStats,
   getDeadJobs,
   retryDeadJobs,
+  retryDeadJob,
 } from "@/lib/api-client"
 import type { ApiResponse, QueueStatsResponse, QueueJob } from "@/types"
 
@@ -43,6 +44,17 @@ export function useRetryDeadJobs() {
 
   return useMutation({
     mutationFn: (type?: string) => retryDeadJobs(type),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queueKeys.all })
+    },
+  })
+}
+
+export function useRetryDeadJob() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (jobId: string) => retryDeadJob(jobId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queueKeys.all })
     },

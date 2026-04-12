@@ -2,8 +2,9 @@
 
 import { useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, CheckCheck, Loader2 } from "lucide-react"
+import { Bell, CheckCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Popover,
   PopoverContent,
@@ -153,8 +154,17 @@ export function NotificationBell() {
 
         <div className="max-h-80 overflow-y-auto">
           {isLoading && notifications.length === 0 ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <div className="divide-y">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex flex-col gap-2 px-3 py-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-12 shrink-0 rounded-full" />
+                  </div>
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              ))}
             </div>
           ) : notifications.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">

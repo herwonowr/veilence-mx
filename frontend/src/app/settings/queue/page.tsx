@@ -32,7 +32,7 @@ import {
 } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { EmptyState } from "@/components/empty-state"
-import { useQueueStats, useDeadJobs, useRetryDeadJobs } from "@/features/settings"
+import { useQueueStats, useDeadJobs, useRetryDeadJobs, useRetryDeadJob } from "@/features/settings"
 import type { QueueStats } from "@/types"
 import { toast } from "sonner"
 
@@ -61,6 +61,7 @@ function QueueContent() {
   } = useDeadJobs(deadJobType, { refetchInterval: 10_000 })
 
   const retryMutation = useRetryDeadJobs()
+  const retrySingleMutation = useRetryDeadJob()
 
   const stats = queueRes?.data ?? null
   const deadJobs = deadRes?.data ?? []
@@ -71,6 +72,15 @@ function QueueContent() {
       toast.success(`Retried ${data.count} dead job(s)`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to retry")
+    }
+  }
+
+  const handleRetrySingle = async (jobId: string) => {
+    try {
+      await retrySingleMutation.mutateAsync(jobId)
+      toast.success("Job queued for retry")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to retry job")
     }
   }
 
@@ -187,6 +197,7 @@ function QueueContent() {
                     <TableHead>Attempts</TableHead>
                     <TableHead>Last Error</TableHead>
                     <TableHead>Created</TableHead>
+                    <TableHead className="w-16">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -213,6 +224,17 @@ function QueueContent() {
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {new Date(job.createdAt * 1000).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleRetrySingle(job.id)}
+                          disabled={retrySingleMutation.isPending}
+                          aria-label={`Retry job ${job.id.slice(0, 8)}`}
+                        >
+                          <RefreshCw className="size-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

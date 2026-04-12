@@ -1,5 +1,6 @@
 "use client"
 
+import React, { useEffect, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -30,6 +31,7 @@ import {
   SidebarMenuButton,
   SidebarRail,
   SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import {
   DropdownMenu,
@@ -80,6 +82,16 @@ const settingsItems: NavItem[] = [
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const { user, isAuthenticated, logout } = useAuth()
+  const { setOpenMobile, isMobile } = useSidebar()
+
+  // Close mobile sheet on route change
+  const prevPathname = useRef(pathname)
+  useEffect(() => {
+    if (isMobile && prevPathname.current !== pathname) {
+      setOpenMobile(false)
+    }
+    prevPathname.current = pathname
+  }, [pathname, isMobile, setOpenMobile])
 
   const { data: statsRes } = useDashboardStats({
     refetchInterval: 30_000,

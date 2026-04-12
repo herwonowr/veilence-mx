@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { Suspense, useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
+import { useSortParams } from "@/hooks/use-sort-params"
 import Link from "next/link"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -53,7 +54,9 @@ function classificationVariant(c: Classification) {
 export default function ReleasesPage() {
   return (
     <ProtectedRoute>
-      <ReleasesContent />
+      <Suspense>
+        <ReleasesContent />
+      </Suspense>
     </ProtectedRoute>
   )
 }
@@ -69,12 +72,11 @@ function ReleasesContent() {
     pageIndex: 0,
     pageSize: 20,
   })
-  const [sorting, setSorting] = useState<SortingState>([])
+  const [sorting, setSorting] = useSortParams()
 
   const releaseColumnBreakpoints: ColumnBreakpoints = useMemo(() => ({
-    packageRegistry: "desktop",
-    classification: "desktop",
-    publishedAt: "tablet",
+    publishedAt: "desktop",
+    packageRegistry: "tablet",
   }), [])
   const columnVisibility = useResponsiveColumns(releaseColumnBreakpoints)
 
