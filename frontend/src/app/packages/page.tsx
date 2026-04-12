@@ -60,6 +60,7 @@ import { DataTablePagination } from "@/components/data-table-pagination"
 import { SortableHeader } from "@/components/sortable-header"
 import { useResponsiveColumns, type ColumnBreakpoints } from "@/hooks/use-responsive-columns"
 import { ProtectedRoute } from "@/components/protected-route"
+import { RequireOrg } from "@/components/require-org"
 import { packageSchema } from "@/lib/validations"
 import { ZodError } from "zod"
 import {
@@ -72,9 +73,11 @@ import {
 export default function PackagesPage() {
   return (
     <ProtectedRoute>
-      <Suspense>
-        <PackagesContent />
-      </Suspense>
+      <RequireOrg feature="packages">
+        <Suspense>
+          <PackagesContent />
+        </Suspense>
+      </RequireOrg>
     </ProtectedRoute>
   )
 }

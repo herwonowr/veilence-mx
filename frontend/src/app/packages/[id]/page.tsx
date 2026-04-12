@@ -17,6 +17,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowLeft, Activity, Package as PackageIcon } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { RequireOrg } from "@/components/require-org"
 import { DetailError } from "@/components/detail-error"
 import { usePackage, usePackageReleases, useAnalysisHistory } from "@/features/packages"
 import type { Classification } from "@/types"
@@ -34,7 +35,9 @@ export default function PackageDetailPage({
 }) {
   return (
     <ProtectedRoute>
-      <PackageDetailContent params={params} />
+      <RequireOrg feature="package details">
+        <PackageDetailContent params={params} />
+      </RequireOrg>
     </ProtectedRoute>
   )
 }

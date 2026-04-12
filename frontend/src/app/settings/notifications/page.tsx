@@ -37,6 +37,7 @@ import {
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { EmptyState } from "@/components/empty-state"
 import { ProtectedRoute } from "@/components/protected-route"
+import { RequireOrg } from "@/components/require-org"
 import { useAuth } from "@/lib/auth-context"
 import {
   useChannels,
@@ -74,7 +75,9 @@ const SEVERITY_COLORS: Record<string, string> = {
 export default function NotificationChannelsPage() {
   return (
     <ProtectedRoute>
-      <ChannelsContent />
+      <RequireOrg feature="notification settings">
+        <ChannelsContent />
+      </RequireOrg>
     </ProtectedRoute>
   )
 }

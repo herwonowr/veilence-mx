@@ -42,6 +42,7 @@ import { DataTablePagination } from "@/components/data-table-pagination"
 import { SortableHeader } from "@/components/sortable-header"
 import { useResponsiveColumns, type ColumnBreakpoints } from "@/hooks/use-responsive-columns"
 import { ProtectedRoute } from "@/components/protected-route"
+import { RequireOrg } from "@/components/require-org"
 import { useRecentReleases } from "@/features/dashboard"
 
 function classificationVariant(c: Classification) {
@@ -54,9 +55,11 @@ function classificationVariant(c: Classification) {
 export default function ReleasesPage() {
   return (
     <ProtectedRoute>
-      <Suspense>
-        <ReleasesContent />
-      </Suspense>
+      <RequireOrg feature="releases">
+        <Suspense>
+          <ReleasesContent />
+        </Suspense>
+      </RequireOrg>
     </ProtectedRoute>
   )
 }

@@ -42,6 +42,7 @@ import { DataTablePagination } from "@/components/data-table-pagination"
 import { SortableHeader } from "@/components/sortable-header"
 import { useResponsiveColumns, type ColumnBreakpoints } from "@/hooks/use-responsive-columns"
 import { ProtectedRoute } from "@/components/protected-route"
+import { RequireOrg } from "@/components/require-org"
 import { useAlerts, useUpdateAlert } from "@/features/alerts"
 
 function severityVariant(s: AlertSeverity) {
@@ -54,9 +55,11 @@ function severityVariant(s: AlertSeverity) {
 export default function AlertsPage() {
   return (
     <ProtectedRoute>
-      <Suspense>
-        <AlertsContent />
-      </Suspense>
+      <RequireOrg feature="alerts">
+        <Suspense>
+          <AlertsContent />
+        </Suspense>
+      </RequireOrg>
     </ProtectedRoute>
   )
 }

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Upload, FileText, Loader2, AlertCircle, CheckCircle2, CloudUpload } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { RequireOrg } from "@/components/require-org"
 import { useBulkImportPackages, usePackages } from "@/features/packages"
 
 type ImportFormat = "requirements_txt" | "package_json" | "list"
@@ -55,7 +56,9 @@ function detectFormat(text: string, fileName?: string): ImportFormat {
 export default function BulkImportPage() {
   return (
     <ProtectedRoute>
-      <BulkImportContent />
+      <RequireOrg feature="package import">
+        <BulkImportContent />
+      </RequireOrg>
     </ProtectedRoute>
   )
 }

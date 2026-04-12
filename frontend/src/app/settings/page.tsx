@@ -8,6 +8,7 @@ import { FormField } from "@/components/form-field"
 import { Badge } from "@/components/ui/badge"
 import { Save, RefreshCw, Play, RotateCcw, Mail, AlertCircle } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { RequireOrg } from "@/components/require-org"
 import { settingsSchema } from "@/lib/validations"
 import { ZodError } from "zod"
 import { useSettings, useUpdateSettings, useReanalyzeAll, useQueueStats, useRetryDeadJobs } from "@/features/settings"
@@ -15,7 +16,9 @@ import { useSettings, useUpdateSettings, useReanalyzeAll, useQueueStats, useRetr
 export default function SettingsPage() {
   return (
     <ProtectedRoute>
-      <SettingsContent />
+      <RequireOrg feature="settings">
+        <SettingsContent />
+      </RequireOrg>
     </ProtectedRoute>
   )
 }

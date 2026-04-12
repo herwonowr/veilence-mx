@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowLeft, FileCode, Plus, Minus, WrapText, RotateCcw, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProtectedRoute } from "@/components/protected-route"
+import { RequireOrg } from "@/components/require-org"
 import { DetailError } from "@/components/detail-error"
 import { useRelease, useReanalyzeRelease } from "@/features/packages"
 
@@ -62,7 +63,9 @@ export default function ReleaseDetailPage({
 }) {
   return (
     <ProtectedRoute>
-      <ReleaseDetailContent params={params} />
+      <RequireOrg feature="release details">
+        <ReleaseDetailContent params={params} />
+      </RequireOrg>
     </ProtectedRoute>
   )
 }

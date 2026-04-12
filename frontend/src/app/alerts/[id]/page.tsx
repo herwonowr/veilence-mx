@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, MessageSquare, Send, Loader2, ExternalLink } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { RequireOrg } from "@/components/require-org"
 import { DetailError } from "@/components/detail-error"
 import { useAlert, useUpdateAlert, useAlertNotes, useCreateAlertNote } from "@/features/alerts"
 import type { AlertSeverity } from "@/types"
@@ -28,7 +29,9 @@ export default function AlertDetailPage({
 }) {
   return (
     <ProtectedRoute>
-      <AlertDetailContent params={params} />
+      <RequireOrg feature="alert details">
+        <AlertDetailContent params={params} />
+      </RequireOrg>
     </ProtectedRoute>
   )
 }

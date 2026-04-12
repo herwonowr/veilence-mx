@@ -31,6 +31,7 @@ import {
   ListOrdered,
 } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { RequireOrg } from "@/components/require-org"
 import { EmptyState } from "@/components/empty-state"
 import { useQueueStats, useDeadJobs, useRetryDeadJobs, useRetryDeadJob } from "@/features/settings"
 import type { QueueStats } from "@/types"
@@ -39,7 +40,9 @@ import { toast } from "sonner"
 export default function QueuePage() {
   return (
     <ProtectedRoute>
-      <QueueContent />
+      <RequireOrg feature="queue management">
+        <QueueContent />
+      </RequireOrg>
     </ProtectedRoute>
   )
 }
