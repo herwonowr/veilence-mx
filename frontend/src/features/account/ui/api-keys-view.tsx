@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import type { APIKeyScope } from "@/domains/account"
-import { Button } from "@/ui/components/button"
+import { Button, buttonVariants } from "@/ui/components/button"
 import { Input } from "@/ui/components/input"
 import { Label } from "@/ui/components/label"
 import {
@@ -30,12 +30,15 @@ import {
   TableRow,
 } from "@/ui/components/table"
 import { Badge } from "@/ui/components/badge"
+import { Calendar } from "@/ui/components/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/ui/components/popover"
 import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
 import { TableError } from "@/ui/feedback/table-error"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
 import { ConfirmDialog, type ConfirmDialogDetail } from "@/ui/feedback/confirm-dialog"
-import { Key, Plus, Trash2, Copy, Check, Loader2 } from "lucide-react"
+import { Key, Plus, Trash2, Copy, Check, Loader2, CalendarIcon } from "lucide-react"
 import { useApiKeys, useCreateApiKey, useDeleteApiKey } from "@/features/account/hooks/use-api-keys"
+import { cn } from "@/core/utils"
 
 const SCOPE_OPTIONS: { value: APIKeyScope; label: string; description: string }[] = [
   { value: "read", label: "Read Only", description: "Can only read data (GET requests)" },
@@ -73,7 +76,10 @@ export const ApiKeysView = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [keyName, setKeyName] = useState("")
   const [keyScope, setKeyScope] = useState<APIKeyScope>("read")
-  const [expiresAt, setExpiresAt] = useState("")
+  const [expiresAt, setExpiresAt] = useState<Date | undefined>(undefined)
+  const [selectedHour, setSelectedHour] = useState(23)
+  const [selectedMinute, setSelectedMinute] = useState(55)
+  const [dateOpen, setDateOpen] = useState(false)
   const [createError, setCreateError] = useState("")
 
   // Show key dialog
@@ -97,14 +103,16 @@ export const ApiKeysView = () => {
       const { data } = await createMutation.mutateAsync({
         name: keyName,
         scope: keyScope,
-        expiresAt: expiresAt || undefined,
+        expiresAt: expiresAt ? expiresAt.toISOString() : undefined,
       })
       setNewKeyValue(data.apiKey)
       setCreateDialogOpen(false)
       setShowKeyDialogOpen(true)
       setKeyName("")
       setKeyScope("read")
-      setExpiresAt("")
+      setExpiresAt(undefined)
+      setSelectedHour(23)
+      setSelectedMinute(55)
     } catch (err) {
       setCreateError(
         err instanceof Error ? err.message : "Failed to create API key"
@@ -194,13 +202,106 @@ export const ApiKeysView = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="key-expiry">Expiration (optional)</Label>
-                  <Input
-                    id="key-expiry"
-                    type="datetime-local"
-                    value={expiresAt}
-                    onChange={(e) => setExpiresAt(e.target.value)}
-                  />
+                  <Label>Expiration (optional)</Label>
+                  <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                    <PopoverTrigger
+                      render={
+                        <button
+                          type="button"
+                          className={cn(
+                            buttonVariants({ variant: "outline", size: "sm" }),
+                            "w-full justify-start text-left font-normal"
+                          )}
+                          aria-label="Select expiration date and time"
+                        />
+                      }
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {expiresAt
+                        ? expiresAt.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          }) +
+                          ` at ${String(expiresAt.getHours()).padStart(2, "0")}:${String(expiresAt.getMinutes()).padStart(2, "0")}`
+                        : "Select expiration date"}
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={expiresAt}
+                        onSelect={(date) => {
+                          if (!date) return
+                          const hour = expiresAt ? expiresAt.getHours() : selectedHour
+                          const minute = expiresAt ? expiresAt.getMinutes() : selectedMinute
+                          const combined = new Date(date)
+                          combined.setHours(hour, minute, 0, 0)
+                          setExpiresAt(combined)
+                          setSelectedHour(hour)
+                          setSelectedMinute(minute)
+                        }}
+                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                      />
+                      <div className="border-t border-border px-3 py-3 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <label htmlFor="expire-hour" className="text-sm text-muted-foreground whitespace-nowrap">
+                            Time:
+                          </label>
+                          <select
+                            id="expire-hour"
+                            value={selectedHour}
+                            onChange={(e) => {
+                              const h = Number(e.target.value)
+                              setSelectedHour(h)
+                              if (expiresAt) {
+                                const updated = new Date(expiresAt)
+                                updated.setHours(h)
+                                setExpiresAt(updated)
+                              }
+                            }}
+                            className="h-8 rounded-md border border-input bg-background px-2 text-sm focus:border-ring focus:ring-2 focus:ring-ring/50 focus:outline-none"
+                            aria-label="Hour"
+                          >
+                            {Array.from({ length: 24 }, (_, i) => (
+                              <option key={i} value={i}>
+                                {String(i).padStart(2, "0")}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="text-sm font-medium text-muted-foreground">:</span>
+                          <select
+                            id="expire-minute"
+                            value={selectedMinute}
+                            onChange={(e) => {
+                              const m = Number(e.target.value)
+                              setSelectedMinute(m)
+                              if (expiresAt) {
+                                const updated = new Date(expiresAt)
+                                updated.setMinutes(m)
+                                setExpiresAt(updated)
+                              }
+                            }}
+                            className="h-8 rounded-md border border-input bg-background px-2 text-sm focus:border-ring focus:ring-2 focus:ring-ring/50 focus:outline-none"
+                            aria-label="Minute"
+                          >
+                            {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
+                              <option key={m} value={m}>
+                                {String(m).padStart(2, "0")}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => setDateOpen(false)}
+                        >
+                          Confirm
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   <p className="text-xs text-muted-foreground">
                     Leave empty for no expiration
                   </p>
