@@ -166,7 +166,7 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
       <div className="flex flex-wrap items-center gap-3">
         <Select value={preset} onValueChange={(v) => { if (v) handlePresetChange(v) }}>
           <SelectTrigger className="w-44" aria-label="Chart time range">
-            <SelectValue />
+            <SelectValue>{presetLabels[preset] ?? preset}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="24h">Last 24 Hours</SelectItem>
@@ -397,7 +397,7 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
           <CardTitle className="text-base">Alerts by Severity</CardTitle>
         </CardHeader>
         <CardContent>
-          {data.alertsBySeverity.length === 0 ? (
+          {data.alertsBySeverity.reduce((sum, s) => sum + s.count, 0) === 0 ? (
             <EmptyState
               icon={<BarChart3 className="h-8 w-8" />}
               title="No data for this period"

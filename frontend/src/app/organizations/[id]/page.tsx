@@ -66,6 +66,7 @@ import {
 } from "@/features/admin"
 
 function OrgDetailContent() {
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
   const params = useParams<{ id: string }>()
   const orgId = parseInt(params.id, 10)
   const validOrgId = isNaN(orgId) ? 0 : orgId
@@ -299,7 +300,7 @@ function OrgDetailContent() {
                         <SelectContent>
                           {roles.map((role) => (
                             <SelectItem key={role.id} value={String(role.id)}>
-                              {role.name}
+                              {capitalize(role.name)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -353,12 +354,12 @@ function OrgDetailContent() {
                           disabled={member.userId === user?.id || !canUpdateRole}
                         >
                           <SelectTrigger className="w-28">
-                            <SelectValue />
+                            <SelectValue>{member.role?.name ? capitalize(member.role.name) : "..."}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             {roles.map((role) => (
                               <SelectItem key={role.id} value={String(role.id)}>
-                                {role.name}
+                                {capitalize(role.name)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -430,7 +431,7 @@ function OrgDetailContent() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base flex items-center gap-2">
                       <ShieldCheck className="size-4" />
-                      {role.name}
+                      {capitalize(role.name)}
                     </CardTitle>
                     {role.isSystem && (
                       <Badge variant="secondary">System</Badge>
