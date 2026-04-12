@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect } from "react"
 
 export type Breakpoint = "mobile" | "tablet" | "desktop" | "xl"

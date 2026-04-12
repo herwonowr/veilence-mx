@@ -1,3 +1,5 @@
+"use client"
+
 import { useMemo } from "react"
 import { useBreakpoint, isAtLeast, type Breakpoint } from "@/core/hooks/use-breakpoint"
 import type { VisibilityState } from "@tanstack/react-table"

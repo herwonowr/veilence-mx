@@ -1,3 +1,5 @@
+"use client"
+
 // Infrastructure
 export { config } from "@/core/config"
 export { fetchApi, getStoredAccessToken, getStoredRefreshToken, storeTokens, clearTokens, getStoredOrgId, storeOrgId, clearOrgId, type ApiResponse } from "@/core/http"

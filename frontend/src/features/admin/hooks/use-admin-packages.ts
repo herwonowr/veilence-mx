@@ -1,3 +1,5 @@
+"use client"
+
 import {
   useQuery,
   type UseQueryOptions,

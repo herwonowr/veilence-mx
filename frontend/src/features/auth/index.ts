@@ -1,3 +1,5 @@
+"use client"
+
 export { LoginForm } from "@/features/auth/ui/login-form"
 export { RegisterForm } from "@/features/auth/ui/register-form"
 export { ForgotPasswordForm } from "@/features/auth/ui/forgot-password-form"
