@@ -136,7 +136,7 @@ const DashboardData = () => {
   ]
 
   const chartParams = chartRange.from || chartRange.to ? chartRange : undefined
-  const { data: chartRes } = useChartData(chartParams, {
+  const { data: chartRes, isLoading: chartsLoading } = useChartData(chartParams, {
     refetchInterval,
   })
   const chartData = chartRes?.data ?? null
@@ -231,7 +231,7 @@ const DashboardData = () => {
         </Card>
       </div>
 
-      {chartData ? (
+      {!chartsLoading && chartData ? (
         <DashboardCharts data={chartData} range={chartRange} onRangeChange={setChartRange} />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

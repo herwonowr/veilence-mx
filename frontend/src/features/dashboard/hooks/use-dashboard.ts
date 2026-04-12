@@ -2,6 +2,7 @@
 
 import {
   useQuery,
+  keepPreviousData,
   type UseQueryOptions,
 } from "@tanstack/react-query"
 import {
@@ -39,6 +40,7 @@ export const useChartData = (
     queryKey: dashboardKeys.charts(params),
     queryFn: () => getChartData(params),
     staleTime: 30 * 1000,
+    placeholderData: keepPreviousData,
     ...options,
   })
 
