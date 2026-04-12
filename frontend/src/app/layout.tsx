@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Veilence-MX",
-  description: "Supply Chain Compromise Monitor for PyPI and npm",
+  description: "Supply Chain Compromise Monitor for Python and npm",
 };
 
 export default function RootLayout({

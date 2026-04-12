@@ -21,7 +21,7 @@ func TestReleaseRepo_CreateAndFindByID(t *testing.T) {
 	repo := repository.NewReleaseRepo(db)
 
 	// Prerequisite: create a package
-	pkg := &models.Package{OrgID: 1, Name: "requests", Registry: "pypi"}
+	pkg := &models.Package{OrgID: 1, Name: "requests", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg).Error)
 
 	release := &domain.Release{
@@ -56,7 +56,7 @@ func TestReleaseRepo_FindByPackageID(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewReleaseRepo(db)
 
-	pkg := &models.Package{OrgID: 1, Name: "flask", Registry: "pypi"}
+	pkg := &models.Package{OrgID: 1, Name: "flask", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg).Error)
 
 	for i := 0; i < 3; i++ {
@@ -79,7 +79,7 @@ func TestReleaseRepo_FindByPackageID_Pagination(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewReleaseRepo(db)
 
-	pkg := &models.Package{OrgID: 1, Name: "numpy", Registry: "pypi"}
+	pkg := &models.Package{OrgID: 1, Name: "numpy", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg).Error)
 
 	for i := 0; i < 5; i++ {
@@ -117,7 +117,7 @@ func TestReleaseRepo_Update(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewReleaseRepo(db)
 
-	pkg := &models.Package{OrgID: 1, Name: "django", Registry: "pypi"}
+	pkg := &models.Package{OrgID: 1, Name: "django", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg).Error)
 
 	release := &domain.Release{
@@ -179,9 +179,9 @@ func TestAlertRepo_FindByOrgID(t *testing.T) {
 	repo := repository.NewAlertRepo(db)
 
 	// Create prerequisite packages so the JOIN succeeds
-	pkg1 := &models.Package{OrgID: 1, Name: "requests", Registry: "pypi"}
+	pkg1 := &models.Package{OrgID: 1, Name: "requests", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg1).Error)
-	pkg2 := &models.Package{OrgID: 2, Name: "express", Registry: "npm"}
+	pkg2 := &models.Package{OrgID: 2, Name: "express", Ecosystem: "npm"}
 	require.NoError(t, db.Create(pkg2).Error)
 
 	// Create alerts for two orgs
@@ -211,7 +211,7 @@ func TestAlertRepo_FindByOrgID_WithFilters(t *testing.T) {
 	repo := repository.NewAlertRepo(db)
 
 	// Create prerequisite package so the JOIN succeeds
-	pkg := &models.Package{OrgID: 1, Name: "requests", Registry: "pypi"}
+	pkg := &models.Package{OrgID: 1, Name: "requests", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg).Error)
 
 	severities := []domain.AlertSeverity{domain.AlertSeverityLow, domain.AlertSeverityHigh, domain.AlertSeverityCritical}
@@ -522,7 +522,7 @@ func TestDiffRepo_CreateAndFindByID(t *testing.T) {
 	repo := repository.NewDiffRepo(db)
 
 	// Create prerequisite package and releases
-	pkg := &models.Package{OrgID: 1, Name: "lodash", Registry: "npm"}
+	pkg := &models.Package{OrgID: 1, Name: "lodash", Ecosystem: "npm"}
 	require.NoError(t, db.Create(pkg).Error)
 
 	r1 := &models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed", PublishedAt: time.Now()}
@@ -563,7 +563,7 @@ func TestDiffRepo_FindByReleaseID(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewDiffRepo(db)
 
-	pkg := &models.Package{OrgID: 1, Name: "express", Registry: "npm"}
+	pkg := &models.Package{OrgID: 1, Name: "express", Ecosystem: "npm"}
 	require.NoError(t, db.Create(pkg).Error)
 
 	r1 := &models.Release{PackageID: pkg.ID, Version: "4.0.0", Status: "completed", PublishedAt: time.Now()}
@@ -602,7 +602,7 @@ func TestAnalysisRepo_CreateAndFindByID(t *testing.T) {
 	repo := repository.NewAnalysisRepo(db)
 
 	// Create prerequisite chain: package → release → diff
-	pkg := &models.Package{OrgID: 1, Name: "react", Registry: "npm"}
+	pkg := &models.Package{OrgID: 1, Name: "react", Ecosystem: "npm"}
 	require.NoError(t, db.Create(pkg).Error)
 	r1 := &models.Release{PackageID: pkg.ID, Version: "17.0.0", Status: "completed", PublishedAt: time.Now()}
 	r2 := &models.Release{PackageID: pkg.ID, Version: "18.0.0", Status: "completed", PublishedAt: time.Now()}
@@ -645,7 +645,7 @@ func TestAnalysisRepo_FindByDiffID(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewAnalysisRepo(db)
 
-	pkg := &models.Package{OrgID: 1, Name: "vue", Registry: "npm"}
+	pkg := &models.Package{OrgID: 1, Name: "vue", Ecosystem: "npm"}
 	require.NoError(t, db.Create(pkg).Error)
 	r1 := &models.Release{PackageID: pkg.ID, Version: "2.0.0", Status: "completed", PublishedAt: time.Now()}
 	r2 := &models.Release{PackageID: pkg.ID, Version: "3.0.0", Status: "completed", PublishedAt: time.Now()}
@@ -685,7 +685,7 @@ func TestAnalysisRepo_CountByDiffID(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewAnalysisRepo(db)
 
-	pkg := &models.Package{OrgID: 1, Name: "angular", Registry: "npm"}
+	pkg := &models.Package{OrgID: 1, Name: "angular", Ecosystem: "npm"}
 	require.NoError(t, db.Create(pkg).Error)
 	r1 := &models.Release{PackageID: pkg.ID, Version: "14.0.0", Status: "completed", PublishedAt: time.Now()}
 	r2 := &models.Release{PackageID: pkg.ID, Version: "15.0.0", Status: "completed", PublishedAt: time.Now()}
@@ -1183,8 +1183,8 @@ func TestDashboardRepo_GetStats(t *testing.T) {
 	repo := repository.NewDashboardRepo(db)
 
 	// Seed packages for org 1
-	pkg1 := &models.Package{OrgID: 1, Name: "requests", Registry: "pypi"}
-	pkg2 := &models.Package{OrgID: 1, Name: "flask", Registry: "pypi"}
+	pkg1 := &models.Package{OrgID: 1, Name: "requests", Ecosystem: "python"}
+	pkg2 := &models.Package{OrgID: 1, Name: "flask", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg1).Error)
 	require.NoError(t, db.Create(pkg2).Error)
 
@@ -1214,32 +1214,32 @@ func TestDashboardRepo_GetStats_EmptyOrg(t *testing.T) {
 	assert.Equal(t, int64(0), stats.ActiveAlerts)
 }
 
-func TestDashboardRepo_GetRegistryDistribution(t *testing.T) {
+func TestDashboardRepo_GetEcosystemDistribution(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewDashboardRepo(db)
 
-	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "requests", Registry: "pypi"}).Error)
-	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "flask", Registry: "pypi"}).Error)
-	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "lodash", Registry: "npm"}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "requests", Ecosystem: "python"}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "flask", Ecosystem: "python"}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "lodash", Ecosystem: "npm"}).Error)
 
-	dist, err := repo.GetRegistryDistribution(ctx, 1)
+	dist, err := repo.GetEcosystemDistribution(ctx, 1)
 	require.NoError(t, err)
 	assert.Len(t, dist, 2)
 
 	// Check counts
 	distMap := make(map[string]int64)
 	for _, d := range dist {
-		distMap[d.Registry] = d.Count
+		distMap[d.Ecosystem] = d.Count
 	}
-	assert.Equal(t, int64(2), distMap["pypi"])
+	assert.Equal(t, int64(2), distMap["python"])
 	assert.Equal(t, int64(1), distMap["npm"])
 }
 
-func TestDashboardRepo_GetRegistryDistribution_Empty(t *testing.T) {
+func TestDashboardRepo_GetEcosystemDistribution_Empty(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewDashboardRepo(db)
 
-	dist, err := repo.GetRegistryDistribution(ctx, 999)
+	dist, err := repo.GetEcosystemDistribution(ctx, 999)
 	require.NoError(t, err)
 	assert.Len(t, dist, 0)
 }
@@ -1284,7 +1284,7 @@ func TestDashboardRepo_GetUnanalyzedDiffIDs(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewDashboardRepo(db)
 
-	pkg := &models.Package{OrgID: 1, Name: "test-unanalyzed", Registry: "pypi"}
+	pkg := &models.Package{OrgID: 1, Name: "test-unanalyzed", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg).Error)
 
 	r1 := &models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed", PublishedAt: time.Now()}
@@ -1305,7 +1305,7 @@ func TestDashboardRepo_GetUnanalyzedDiffIDs_AllAnalyzed(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewDashboardRepo(db)
 
-	pkg := &models.Package{OrgID: 1, Name: "test-analyzed", Registry: "pypi"}
+	pkg := &models.Package{OrgID: 1, Name: "test-analyzed", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg).Error)
 
 	r1 := &models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed", PublishedAt: time.Now()}
@@ -1477,19 +1477,19 @@ func TestPackageRepo_FindByOrgAndName(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewPackageRepo(db)
 
-	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "express", Registry: "npm"}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "express", Ecosystem: "npm"}).Error)
 
-	found, err := repo.FindByOrgAndName(ctx, 1, "express", domain.RegistryNPM)
+	found, err := repo.FindByOrgAndName(ctx, 1, "express", domain.EcosystemNPM)
 	require.NoError(t, err)
 	assert.Equal(t, "express", found.Name)
-	assert.Equal(t, domain.RegistryNPM, found.Registry)
+	assert.Equal(t, domain.EcosystemNPM, found.Ecosystem)
 }
 
 func TestPackageRepo_FindByOrgAndName_NotFound(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewPackageRepo(db)
 
-	_, err := repo.FindByOrgAndName(ctx, 1, "nonexistent", domain.RegistryPyPI)
+	_, err := repo.FindByOrgAndName(ctx, 1, "nonexistent", domain.EcosystemPython)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -1498,7 +1498,7 @@ func TestPackageRepo_Create(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewPackageRepo(db)
 
-	pkg := &domain.Package{OrgID: 1, Name: "pandas", Registry: domain.RegistryPyPI, Description: "Data analysis"}
+	pkg := &domain.Package{OrgID: 1, Name: "pandas", Ecosystem: domain.EcosystemPython, Description: "Data analysis"}
 	err := repo.Create(ctx, pkg)
 	require.NoError(t, err)
 	assert.NotZero(t, pkg.ID)
@@ -1508,7 +1508,7 @@ func TestPackageRepo_Update(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewPackageRepo(db)
 
-	pkg := &domain.Package{OrgID: 1, Name: "scipy", Registry: domain.RegistryPyPI}
+	pkg := &domain.Package{OrgID: 1, Name: "scipy", Ecosystem: domain.EcosystemPython}
 	require.NoError(t, repo.Create(ctx, pkg))
 
 	pkg.LatestVersion = "1.12.0"
@@ -1522,20 +1522,20 @@ func TestPackageRepo_Update(t *testing.T) {
 	assert.Equal(t, "Scientific computing", found.Description)
 }
 
-func TestPackageRepo_CountByOrg_WithRegistryFilter(t *testing.T) {
+func TestPackageRepo_CountByOrg_WithEcosystemFilter(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewPackageRepo(db)
 
-	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "p1", Registry: "pypi"}).Error)
-	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "p2", Registry: "pypi"}).Error)
-	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "p3", Registry: "npm"}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "p1", Ecosystem: "python"}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "p2", Ecosystem: "python"}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "p3", Ecosystem: "npm"}).Error)
 
-	pypi := domain.RegistryPyPI
+	pypi := domain.EcosystemPython
 	count, err := repo.CountByOrg(ctx, 1, &pypi)
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), count)
 
-	npm := domain.RegistryNPM
+	npm := domain.EcosystemNPM
 	count, err = repo.CountByOrg(ctx, 1, &npm)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), count)
@@ -2044,7 +2044,7 @@ func TestDashboardRepo_GetClassificationDistribution(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewDashboardRepo(db)
 
-	pkg := &models.Package{OrgID: 1, Name: "test-class", Registry: "pypi"}
+	pkg := &models.Package{OrgID: 1, Name: "test-class", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg).Error)
 	r1 := &models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed", PublishedAt: time.Now()}
 	r2 := &models.Release{PackageID: pkg.ID, Version: "1.1.0", Status: "completed", PublishedAt: time.Now()}
@@ -2076,7 +2076,7 @@ func TestDashboardRepo_GetReleaseStatusDistribution(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewDashboardRepo(db)
 
-	pkg := &models.Package{OrgID: 1, Name: "test-status-dist", Registry: "pypi"}
+	pkg := &models.Package{OrgID: 1, Name: "test-status-dist", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg).Error)
 
 	statuses := []string{"pending", "completed", "completed", "error"}
@@ -2105,7 +2105,7 @@ func TestDashboardRepo_GetBaselineCount(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewDashboardRepo(db)
 
-	pkg := &models.Package{OrgID: 1, Name: "test-baseline", Registry: "pypi"}
+	pkg := &models.Package{OrgID: 1, Name: "test-baseline", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg).Error)
 
 	// Create a completed release WITHOUT a diff (should count as baseline)

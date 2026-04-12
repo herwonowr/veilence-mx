@@ -18,9 +18,9 @@ type classificationCount struct {
 	Count          int64  `json:"count"`
 }
 
-type registryCount struct {
-	Registry string `json:"registry"`
-	Count    int64  `json:"count"`
+type ecosystemCount struct {
+	Ecosystem string `json:"ecosystem"`
+	Count     int64  `json:"count"`
 }
 
 type alertSeverityCount struct {
@@ -36,7 +36,7 @@ type releaseStatusCount struct {
 type chartData struct {
 	ReleaseActivity  []releaseActivityPoint `json:"releaseActivity"`
 	Classifications  []classificationCount  `json:"classifications"`
-	Registries       []registryCount        `json:"registries"`
+	Ecosystems       []ecosystemCount       `json:"ecosystems"`
 	AlertsBySeverity []alertSeverityCount   `json:"alertsBySeverity"`
 	ReleaseStatuses  []releaseStatusCount   `json:"releaseStatuses"`
 }
@@ -122,22 +122,22 @@ func (h *DashboardHandlers) GetChartData(w http.ResponseWriter, r *http.Request)
 		data.Classifications = []classificationCount{}
 	}
 
-	// 3. Registry distribution, scoped to org
-	regRows, err := h.Dashboard.GetRegistryDistribution(ctx, orgID)
+	// 3. Ecosystem distribution, scoped to org
+	regRows, err := h.Dashboard.GetEcosystemDistribution(ctx, orgID)
 	if err != nil {
-		slog.Error("failed to get registry distribution", "org_id", orgID, "error", err)
+		slog.Error("failed to get ecosystem distribution", "org_id", orgID, "error", err)
 		respondError(w, http.StatusInternalServerError, "failed to get chart data")
 		return
 	}
 
 	for _, row := range regRows {
-		data.Registries = append(data.Registries, registryCount{
-			Registry: row.Registry,
+		data.Ecosystems = append(data.Ecosystems, ecosystemCount{
+			Ecosystem: row.Ecosystem,
 			Count:    row.Count,
 		})
 	}
-	if len(data.Registries) == 0 {
-		data.Registries = []registryCount{}
+	if len(data.Ecosystems) == 0 {
+		data.Ecosystems = []ecosystemCount{}
 	}
 
 	// 4. Alerts by severity (within range), scoped to org

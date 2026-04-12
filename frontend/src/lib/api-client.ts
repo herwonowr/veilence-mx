@@ -533,7 +533,7 @@ export async function getRecentReleases(params?: {
   sortBy?: string
   sortDir?: string
   search?: string
-  registry?: string
+  ecosystem?: string
   status?: string
   classification?: string
   latestPerPackage?: boolean
@@ -544,7 +544,7 @@ export async function getRecentReleases(params?: {
   if (params?.sortBy) searchParams.set("sort_by", params.sortBy)
   if (params?.sortDir) searchParams.set("sort_dir", params.sortDir)
   if (params?.search) searchParams.set("search", params.search)
-  if (params?.registry) searchParams.set("registry", params.registry)
+  if (params?.ecosystem) searchParams.set("ecosystem", params.ecosystem)
   if (params?.status) searchParams.set("status", params.status)
   if (params?.classification) searchParams.set("classification", params.classification)
   if (params?.latestPerPackage) searchParams.set("latest_per_package", "true")
@@ -554,7 +554,7 @@ export async function getRecentReleases(params?: {
 }
 
 export async function getPackages(params?: {
-  registry?: string
+  ecosystem?: string
   search?: string
   page?: number
   limit?: number
@@ -562,7 +562,7 @@ export async function getPackages(params?: {
   sortDir?: string
 }): Promise<ApiResponse<Package[]>> {
   const searchParams = new URLSearchParams()
-  if (params?.registry) searchParams.set("registry", params.registry)
+  if (params?.ecosystem) searchParams.set("ecosystem", params.ecosystem)
   if (params?.search) searchParams.set("search", params.search)
   if (params?.page) searchParams.set("page", String(params.page))
   if (params?.limit) searchParams.set("limit", String(params.limit))
@@ -577,11 +577,11 @@ export async function getPackage(id: number): Promise<ApiResponse<Package>> {
 
 export async function createPackage(
   name: string,
-  registry: string
+  ecosystem: string
 ): Promise<ApiResponse<Package>> {
   return fetchApi<Package>("/api/packages", {
     method: "POST",
-    body: JSON.stringify({ name, registry }),
+    body: JSON.stringify({ name, ecosystem }),
   })
 }
 
@@ -631,9 +631,9 @@ export async function updateSettings(
 }
 
 export async function syncTopPackages(
-  registry?: string
+  ecosystem?: string
 ): Promise<ApiResponse<{ message: string }>> {
-  const query = registry ? `?registry=${registry}` : ""
+  const query = ecosystem ? `?ecosystem=${ecosystem}` : ""
   return fetchApi<{ message: string }>(`/api/sync/top-packages${query}`, {
     method: "POST",
   })

@@ -40,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { Package, Registry } from "@/types"
+import type { Package, Ecosystem } from "@/types"
 import { Plus, Trash2, RefreshCw, Upload } from "lucide-react"
 import { TableSkeleton, type SkeletonColumn } from "@/components/table-skeleton"
 import { TableError } from "@/components/table-error"
@@ -84,12 +84,12 @@ export default function PackagesPage() {
 
 function PackagesContent() {
   const router = useRouter()
-  const [registryFilter, setRegistryFilter] = useState("")
+  const [ecosystemFilter, setEcosystemFilter] = useState("")
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search, 300)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [newName, setNewName] = useState("")
-  const [newRegistry, setNewRegistry] = useState<Registry>("pypi")
+  const [newEcosystem, setNewEcosystem] = useState<Ecosystem>("python")
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 20,
@@ -106,7 +106,7 @@ function PackagesContent() {
 
   const sort = sorting[0]
   const { data: packagesRes, isLoading, isFetching, isError, refetch } = usePackages({
-    registry: registryFilter || undefined,
+    ecosystem: ecosystemFilter || undefined,
     search: debouncedSearch || undefined,
     page: pagination.pageIndex + 1,
     limit: pagination.pageSize,
@@ -124,19 +124,19 @@ function PackagesContent() {
   // Reset to first page when filters or sort change
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-  }, [registryFilter, debouncedSearch, sorting])
+  }, [ecosystemFilter, debouncedSearch, sorting])
 
-  const hasActiveFilters = !!(search || registryFilter)
+  const hasActiveFilters = !!(search || ecosystemFilter)
 
   const clearAllFilters = () => {
     setSearch("")
-    setRegistryFilter("")
+    setEcosystemFilter("")
     setSorting([])
   }
 
   const activeFilters: ActiveFilter[] = [
-    ...(registryFilter
-      ? [{ label: "Registry", value: registryFilter === "pypi" ? "PyPI" : "npm", onRemove: () => setRegistryFilter("") }]
+    ...(ecosystemFilter
+      ? [{ label: "Ecosystem", value: ecosystemFilter === "python" ? "Python" : "npm", onRemove: () => setEcosystemFilter("") }]
       : []),
     ...(search
       ? [{ label: "Search", value: search, onRemove: () => setSearch("") }]
@@ -146,8 +146,8 @@ function PackagesContent() {
   const handleCreate = async () => {
     setCreateErrors({})
     try {
-      const data = packageSchema.parse({ name: newName, registry: newRegistry })
-      await createMutation.mutateAsync({ name: data.name, registry: data.registry })
+      const data = packageSchema.parse({ name: newName, ecosystem: newEcosystem })
+      await createMutation.mutateAsync({ name: data.name, ecosystem: data.ecosystem })
       setDialogOpen(false)
       setNewName("")
     } catch (err) {
@@ -182,7 +182,7 @@ function PackagesContent() {
 
   const skeletonColumns: SkeletonColumn[] = [
     { width: "w-32", header: "Name" },
-    { width: "w-16", header: "Registry" },
+    { width: "w-16", header: "Ecosystem" },
     { width: "w-20", header: "Latest Version" },
     { width: "w-12", header: "Rank" },
     { width: "w-16", header: "Type" },
@@ -204,10 +204,10 @@ function PackagesContent() {
         ),
       },
       {
-        accessorKey: "registry",
-        header: ({ column }) => <SortableHeader column={column} title="Registry" />,
+        accessorKey: "ecosystem",
+        header: ({ column }) => <SortableHeader column={column} title="Ecosystem" />,
         cell: ({ row }) => (
-          <Badge variant="outline">{row.original.registry}</Badge>
+          <Badge variant="outline">{row.original.ecosystem}</Badge>
         ),
       },
       {
@@ -308,18 +308,18 @@ function PackagesContent() {
                   )}
                 </div>
                 <div>
-                  <label htmlFor="package-registry" className="text-sm font-medium">
-                    Registry
+                  <label htmlFor="package-ecosystem" className="text-sm font-medium">
+                    Ecosystem
                   </label>
                   <Select
-                    value={newRegistry}
-                    onValueChange={(v) => { if (v) setNewRegistry(v as Registry) }}
+                    value={newEcosystem}
+                    onValueChange={(v) => { if (v) setNewEcosystem(v as Ecosystem) }}
                   >
-                    <SelectTrigger id="package-registry">
-                      <SelectValue />
+                    <SelectTrigger id="package-ecosystem">
+                      <SelectValue>{newEcosystem === "python" ? "Python" : "npm"}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pypi">PyPI</SelectItem>
+                      <SelectItem value="python">Python</SelectItem>
                       <SelectItem value="npm">npm</SelectItem>
                     </SelectContent>
                   </Select>
@@ -346,19 +346,19 @@ function PackagesContent() {
                 aria-label="Search packages"
               />
               <div className="space-y-1">
-                <label htmlFor="packages-registry-filter" className="text-xs font-medium text-muted-foreground">
-                  Registry
+                <label htmlFor="packages-ecosystem-filter" className="text-xs font-medium text-muted-foreground">
+                  Ecosystem
                 </label>
                 <Select
-                  value={registryFilter || "all"}
-                  onValueChange={(v) => setRegistryFilter(v === "all" ? "" : (v ?? ""))}
+                  value={ecosystemFilter || "all"}
+                  onValueChange={(v) => setEcosystemFilter(v === "all" ? "" : (v ?? ""))}
                 >
-                  <SelectTrigger id="packages-registry-filter" className="w-32">
-                    <SelectValue placeholder="All" />
+                  <SelectTrigger id="packages-ecosystem-filter" className="w-32">
+                    <SelectValue>{ecosystemFilter === "python" ? "Python" : ecosystemFilter === "npm" ? "npm" : "All"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="pypi">PyPI</SelectItem>
+                    <SelectItem value="python">Python</SelectItem>
                     <SelectItem value="npm">npm</SelectItem>
                   </SelectContent>
                 </Select>

@@ -53,7 +53,7 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
 			ctx,
 			diff.DiffContent,
 			pkg.Name,
-			string(pkg.Registry),
+			string(pkg.Ecosystem),
 			prevRelease.Version,
 			diff.Release.Version,
 		)

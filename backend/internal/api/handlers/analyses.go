@@ -27,7 +27,7 @@ func (h *DashboardHandlers) GetDashboardStats(w http.ResponseWriter, r *http.Req
 type recentRelease struct {
 	models.Release
 	PackageName     string `json:"packageName"`
-	PackageRegistry string `json:"packageRegistry"`
+	PackageEcosystem string `json:"packageEcosystem"`
 	Classification  string `json:"classification,omitempty"`
 }
 
@@ -44,10 +44,10 @@ func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Req
 		"publishedAt":     "releases.published_at",
 		"status":          "releases.status",
 		"packageName":     "packages.name",
-		"packageRegistry": "packages.registry",
+		"packageEcosystem": "packages.ecosystem",
 	}, "releases.created_at DESC")
 
-	registryFilter := r.URL.Query().Get("registry")
+	ecosystemFilter := r.URL.Query().Get("ecosystem")
 	statusFilter := r.URL.Query().Get("status")
 	search := r.URL.Query().Get("search")
 	latestPerPackage := r.URL.Query().Get("latest_per_package") == "true"
@@ -59,8 +59,8 @@ func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Req
 	if latestPerPackage {
 		query = query.Where("releases.id IN (SELECT DISTINCT ON (package_id) id FROM releases ORDER BY package_id, created_at DESC)")
 	}
-	if registryFilter != "" {
-		query = query.Where("packages.registry = ?", registryFilter)
+	if ecosystemFilter != "" {
+		query = query.Where("packages.ecosystem = ?", ecosystemFilter)
 	}
 	if statusFilter != "" {
 		query = query.Where("releases.status = ?", statusFilter)
@@ -137,7 +137,7 @@ func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Req
 		rr := recentRelease{
 			Release:         rel,
 			PackageName:     rel.Package.Name,
-			PackageRegistry: string(rel.Package.Registry),
+			PackageEcosystem: string(rel.Package.Ecosystem),
 		}
 
 		// Look up classification from pre-loaded maps

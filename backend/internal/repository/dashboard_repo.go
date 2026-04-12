@@ -124,24 +124,24 @@ func (r *DashboardRepo) GetBaselineCount(ctx context.Context, orgID uint, from, 
 	return count, nil
 }
 
-func (r *DashboardRepo) GetRegistryDistribution(ctx context.Context, orgID uint) ([]domain.RegistryCount, error) {
+func (r *DashboardRepo) GetEcosystemDistribution(ctx context.Context, orgID uint) ([]domain.EcosystemCount, error) {
 	var rows []struct {
-		Registry string
-		Count    int64
+		Ecosystem string
+		Count     int64
 	}
 
 	err := r.db.WithContext(ctx).Model(&models.Package{}).
-		Select("registry, COUNT(*) as count").
+		Select("ecosystem, COUNT(*) as count").
 		Where("org_id = ?", orgID).
-		Group("registry").
+		Group("ecosystem").
 		Scan(&rows).Error
 	if err != nil {
-		return nil, fmt.Errorf("querying registry distribution: %w", err)
+		return nil, fmt.Errorf("querying ecosystem distribution: %w", err)
 	}
 
-	result := make([]domain.RegistryCount, len(rows))
+	result := make([]domain.EcosystemCount, len(rows))
 	for i, row := range rows {
-		result[i] = domain.RegistryCount{Registry: row.Registry, Count: row.Count}
+		result[i] = domain.EcosystemCount{Ecosystem: row.Ecosystem, Count: row.Count}
 	}
 	return result, nil
 }

@@ -48,7 +48,7 @@ export function useRecentReleases(
     sortBy?: string
     sortDir?: string
     search?: string
-    registry?: string
+    ecosystem?: string
     status?: string
     classification?: string
     latestPerPackage?: boolean

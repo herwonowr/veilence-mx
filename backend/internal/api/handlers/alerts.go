@@ -17,8 +17,8 @@ import (
 // alertWithDetails includes the associated package info.
 type alertWithDetails struct {
 	models.Alert
-	PackageName     string `json:"packageName"`
-	PackageRegistry string `json:"packageRegistry"`
+	PackageName      string `json:"packageName"`
+	PackageEcosystem string `json:"packageEcosystem"`
 }
 
 // ListAlerts returns a paginated list of alerts scoped to the current org.
@@ -85,8 +85,8 @@ func (h *AlertHandlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
 	for i, a := range alerts {
 		result[i] = alertWithDetails{
 			Alert:           a,
-			PackageName:     a.Package.Name,
-			PackageRegistry: string(a.Package.Registry),
+			PackageName:      a.Package.Name,
+			PackageEcosystem: string(a.Package.Ecosystem),
 		}
 	}
 
@@ -94,7 +94,7 @@ func (h *AlertHandlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAlert returns a single alert by ID, scoped to the current org.
-// Returns the alert with associated package info (packageName, packageRegistry).
+// Returns the alert with associated package info (packageName, packageEcosystem).
 func (h *AlertHandlers) GetAlert(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
@@ -112,8 +112,8 @@ func (h *AlertHandlers) GetAlert(w http.ResponseWriter, r *http.Request) {
 
 	result := alertWithDetails{
 		Alert:           alert,
-		PackageName:     alert.Package.Name,
-		PackageRegistry: string(alert.Package.Registry),
+		PackageName:      alert.Package.Name,
+		PackageEcosystem: string(alert.Package.Ecosystem),
 	}
 
 	respondJSON(w, http.StatusOK, result, nil)

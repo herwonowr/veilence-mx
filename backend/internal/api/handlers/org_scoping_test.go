@@ -56,11 +56,11 @@ func TestGetSettings_OrgScoped(t *testing.T) {
 	h := newSettingsHandlers(db)
 
 	// Create settings for org 1
-	db.Create(&models.Setting{OrgID: 1, Key: "pypi_poll_interval", Value: "5m"})
+	db.Create(&models.Setting{OrgID: 1, Key: "python_poll_interval", Value: "5m"})
 	db.Create(&models.Setting{OrgID: 1, Key: "npm_poll_interval", Value: "10m"})
 
 	// Create settings for org 2
-	db.Create(&models.Setting{OrgID: 2, Key: "pypi_poll_interval", Value: "30m"})
+	db.Create(&models.Setting{OrgID: 2, Key: "python_poll_interval", Value: "30m"})
 
 	// Org 1 should see its own settings
 	req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
@@ -72,7 +72,7 @@ func TestGetSettings_OrgScoped(t *testing.T) {
 	var resp map[string]any
 	json.NewDecoder(w.Body).Decode(&resp)
 	data := resp["data"].(map[string]any)
-	assert.Equal(t, "5m", data["pypi_poll_interval"])
+	assert.Equal(t, "5m", data["python_poll_interval"])
 	assert.Equal(t, "10m", data["npm_poll_interval"])
 
 	// Org 2 should see only its own setting
@@ -84,7 +84,7 @@ func TestGetSettings_OrgScoped(t *testing.T) {
 
 	json.NewDecoder(w.Body).Decode(&resp)
 	data = resp["data"].(map[string]any)
-	assert.Equal(t, "30m", data["pypi_poll_interval"])
+	assert.Equal(t, "30m", data["python_poll_interval"])
 	assert.Nil(t, data["npm_poll_interval"]) // org 2 has no npm setting
 }
 
@@ -93,7 +93,7 @@ func TestGetSettings_CrossOrg_ReturnsEmpty(t *testing.T) {
 	h := newSettingsHandlers(db)
 
 	// Create settings for org 1 only
-	db.Create(&models.Setting{OrgID: 1, Key: "pypi_poll_interval", Value: "5m"})
+	db.Create(&models.Setting{OrgID: 1, Key: "python_poll_interval", Value: "5m"})
 
 	// Org 99 should see nothing (cross-org)
 	req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
@@ -113,7 +113,7 @@ func TestUpdateSettings_OrgScoped(t *testing.T) {
 	h := newSettingsHandlers(db)
 
 	// Update settings for org 1
-	body := `{"pypi_poll_interval":"15m"}`
+	body := `{"python_poll_interval":"15m"}`
 	req := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(body))
 	req = withOrgID(req, 1)
 	w := httptest.NewRecorder()
@@ -122,7 +122,7 @@ func TestUpdateSettings_OrgScoped(t *testing.T) {
 
 	// Verify the setting belongs to org 1
 	var setting models.Setting
-	db.Where("org_id = ? AND key = ?", 1, "pypi_poll_interval").First(&setting)
+	db.Where("org_id = ? AND key = ?", 1, "python_poll_interval").First(&setting)
 	assert.Equal(t, "15m", setting.Value)
 	assert.Equal(t, uint(1), setting.OrgID)
 
@@ -139,7 +139,7 @@ func TestGetRelease_CrossOrg_Returns404(t *testing.T) {
 	h := newPackageHandlers(db)
 
 	// Create a package for org 1
-	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
+	pkg := models.Package{Name: "requests", Ecosystem: "python", OrgID: 1}
 	db.Create(&pkg)
 	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -162,7 +162,7 @@ func TestGetRelease_SameOrg_ReturnsData(t *testing.T) {
 	h := newPackageHandlers(db)
 
 	// Create a package for org 1
-	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
+	pkg := models.Package{Name: "requests", Ecosystem: "python", OrgID: 1}
 	db.Create(&pkg)
 	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -190,7 +190,7 @@ func TestListPackageReleases_CrossOrg_Returns404(t *testing.T) {
 	h := newPackageHandlers(db)
 
 	// Create a package for org 1
-	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
+	pkg := models.Package{Name: "requests", Ecosystem: "python", OrgID: 1}
 	db.Create(&pkg)
 	db.Create(&models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"})
 
@@ -214,9 +214,9 @@ func TestListAlerts_OrgScoped(t *testing.T) {
 	h := newAlertHandlers(db)
 
 	// Create packages for different orgs
-	pkg1 := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
+	pkg1 := models.Package{Name: "requests", Ecosystem: "python", OrgID: 1}
 	db.Create(&pkg1)
-	pkg2 := models.Package{Name: "express", Registry: "npm", OrgID: 2}
+	pkg2 := models.Package{Name: "express", Ecosystem: "npm", OrgID: 2}
 	db.Create(&pkg2)
 
 	// Create releases and analyses for setting up alerts
@@ -274,7 +274,7 @@ func TestListAlerts_CrossOrg_ReturnsEmpty(t *testing.T) {
 	db := setupOrgTestDB(t)
 	h := newAlertHandlers(db)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
+	pkg := models.Package{Name: "requests", Ecosystem: "python", OrgID: 1}
 	db.Create(&pkg)
 	rel1 := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel1)
@@ -304,7 +304,7 @@ func TestUpdateAlert_CrossOrg_Returns404(t *testing.T) {
 	db := setupOrgTestDB(t)
 	h := newAlertHandlers(db)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
+	pkg := models.Package{Name: "requests", Ecosystem: "python", OrgID: 1}
 	db.Create(&pkg)
 	rel1 := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel1)
@@ -342,7 +342,7 @@ func TestAlertOrgID_SetFromPackage(t *testing.T) {
 	db := setupOrgTestDB(t)
 
 	// Simulate what the pipeline does: create a package with OrgID, then an alert referencing it
-	pkg := models.Package{Name: "evil-pkg", Registry: "pypi", OrgID: 42}
+	pkg := models.Package{Name: "evil-pkg", Ecosystem: "python", OrgID: 42}
 	db.Create(&pkg)
 	rel1 := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel1)
@@ -377,7 +377,7 @@ func TestPipelineProcessDiff_SetsAlertOrgID(t *testing.T) {
 	db := setupOrgTestDB(t)
 
 	// Set up the full chain: pkg (orgID=7) -> release -> diff -> analysis -> alert
-	pkg := models.Package{Name: "backdoor-lib", Registry: "npm", OrgID: 7}
+	pkg := models.Package{Name: "backdoor-lib", Ecosystem: "npm", OrgID: 7}
 	db.Create(&pkg)
 
 	rel1 := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
@@ -424,14 +424,14 @@ func TestFullOrgIsolation(t *testing.T) {
 	ah := newAlertHandlers(db)
 
 	// Set up org 1 data
-	pkg1 := models.Package{Name: "safe-lib", Registry: "pypi", OrgID: 1}
+	pkg1 := models.Package{Name: "safe-lib", Ecosystem: "python", OrgID: 1}
 	db.Create(&pkg1)
-	db.Create(&models.Setting{OrgID: 1, Key: "pypi_poll_interval", Value: "5m"})
+	db.Create(&models.Setting{OrgID: 1, Key: "python_poll_interval", Value: "5m"})
 
 	// Set up org 2 data
-	pkg2 := models.Package{Name: "another-lib", Registry: "npm", OrgID: 2}
+	pkg2 := models.Package{Name: "another-lib", Ecosystem: "npm", OrgID: 2}
 	db.Create(&pkg2)
-	db.Create(&models.Setting{OrgID: 2, Key: "pypi_poll_interval", Value: "20m"})
+	db.Create(&models.Setting{OrgID: 2, Key: "python_poll_interval", Value: "20m"})
 
 	// Verify settings isolation
 	t.Run("settings isolation", func(t *testing.T) {
@@ -443,7 +443,7 @@ func TestFullOrgIsolation(t *testing.T) {
 		var resp map[string]any
 		json.NewDecoder(w.Body).Decode(&resp)
 		data := resp["data"].(map[string]any)
-		assert.Equal(t, "5m", data["pypi_poll_interval"])
+		assert.Equal(t, "5m", data["python_poll_interval"])
 	})
 
 	// Verify release listing isolation

@@ -16,7 +16,7 @@ type Result struct {
 // Analyzer defines the interface for LLM-based diff analysis.
 type Analyzer interface {
 	// Analyze classifies a diff as benign, suspicious, or malicious.
-	Analyze(ctx context.Context, diff string, packageName string, registry string, oldVersion string, newVersion string) (*Result, error)
+	Analyze(ctx context.Context, diff string, packageName string, ecosystem string, oldVersion string, newVersion string) (*Result, error)
 
 	// Type returns the analyzer type identifier.
 	Type() string

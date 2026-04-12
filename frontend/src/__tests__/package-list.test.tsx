@@ -55,18 +55,18 @@ describe("Package list data flow", () => {
     const packages = result.current.data?.data
     expect(packages).toHaveLength(3)
     expect(packages?.[0]).toHaveProperty("name")
-    expect(packages?.[0]).toHaveProperty("registry")
+    expect(packages?.[0]).toHaveProperty("ecosystem")
     expect(packages?.[0]).toHaveProperty("latestVersion")
   })
 
-  it("filters by registry", async () => {
+  it("filters by ecosystem", async () => {
     server.use(
       http.get("http://localhost:8080/api/packages", ({ request }) => {
         const url = new URL(request.url)
-        const registry = url.searchParams.get("registry")
-        if (registry === "npm") {
+        const ecosystem = url.searchParams.get("ecosystem")
+        if (ecosystem === "npm") {
           return HttpResponse.json({
-            data: [createPackage({ id: 1, name: "lodash", registry: "npm" })],
+            data: [createPackage({ id: 1, name: "lodash", ecosystem: "npm" })],
             error: null,
             meta: { page: 1, limit: 20, total: 1 },
           })
@@ -80,7 +80,7 @@ describe("Package list data flow", () => {
     )
 
     const { result } = renderHook(
-      () => usePackages({ registry: "npm" }),
+      () => usePackages({ ecosystem: "npm" }),
       { wrapper: createWrapper() }
     )
 
@@ -89,7 +89,7 @@ describe("Package list data flow", () => {
     })
 
     expect(result.current.data?.data).toHaveLength(1)
-    expect(result.current.data?.data[0].registry).toBe("npm")
+    expect(result.current.data?.data[0].ecosystem).toBe("npm")
   })
 
   it("shows empty state", async () => {
@@ -118,14 +118,14 @@ describe("Package list data flow", () => {
 
 describe("Package creation form data flow", () => {
   it("creates a package via API", async () => {
-    let capturedBody: { name: string; registry: string } | null = null
+    let capturedBody: { name: string; ecosystem: string } | null = null
 
     server.use(
       http.post("http://localhost:8080/api/packages", async ({ request }) => {
-        capturedBody = (await request.json()) as { name: string; registry: string }
+        capturedBody = (await request.json()) as { name: string; ecosystem: string }
         return HttpResponse.json(
           {
-            data: createPackage({ name: capturedBody.name, registry: capturedBody.registry as "npm" | "pypi" }),
+            data: createPackage({ name: capturedBody.name, ecosystem: capturedBody.ecosystem as "npm" | "python" }),
             error: null,
           },
           { status: 201 }
@@ -138,14 +138,14 @@ describe("Package creation form data flow", () => {
     })
 
     await act(async () => {
-      result.current.mutate({ name: "requests", registry: "pypi" })
+      result.current.mutate({ name: "requests", ecosystem: "python" })
     })
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true)
     })
     expect(capturedBody?.name).toBe("requests")
-    expect(capturedBody?.registry).toBe("pypi")
+    expect(capturedBody?.ecosystem).toBe("python")
   })
 
   it("handles duplicate package error", async () => {
@@ -164,7 +164,7 @@ describe("Package creation form data flow", () => {
 
     await act(async () => {
       try {
-        await result.current.mutateAsync({ name: "existing-pkg", registry: "npm" })
+        await result.current.mutateAsync({ name: "existing-pkg", ecosystem: "npm" })
       } catch {
         // Expected
       }

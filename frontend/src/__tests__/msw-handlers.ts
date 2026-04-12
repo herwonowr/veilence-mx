@@ -45,8 +45,8 @@ export const handlers = [
     return HttpResponse.json({
       data: [
         createRecentRelease({ id: 1, packageName: "requests", version: "2.32.0" }),
-        createRecentRelease({ id: 2, packageName: "lodash", version: "4.17.22", packageRegistry: "npm" }),
-        createRecentRelease({ id: 3, packageName: "flask", version: "3.1.0", packageRegistry: "pypi" }),
+        createRecentRelease({ id: 2, packageName: "lodash", version: "4.17.22", packageEcosystem: "npm" }),
+        createRecentRelease({ id: 3, packageName: "flask", version: "3.1.0", packageEcosystem: "python" }),
       ],
       error: null,
       meta: { page: 1, limit: 20, total: 3 },
@@ -70,10 +70,10 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE}/api/packages`, async ({ request }) => {
-    const body = (await request.json()) as { name: string; registry: string }
+    const body = (await request.json()) as { name: string; ecosystem: string }
     return HttpResponse.json(
       {
-        data: createPackage({ name: body.name, registry: body.registry as "npm" | "pypi" }),
+        data: createPackage({ name: body.name, ecosystem: body.ecosystem as "npm" | "python" }),
         error: null,
       },
       { status: 201 }
@@ -113,7 +113,7 @@ export const handlers = [
   http.get(`${API_BASE}/api/settings`, () => {
     return HttpResponse.json({
       data: {
-        pypi_poll_interval: "5m",
+        python_poll_interval: "5m",
         npm_poll_interval: "5m",
         max_concurrent_analyses: "3",
         analyzer_type: "api",

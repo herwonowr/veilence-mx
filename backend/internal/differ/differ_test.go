@@ -343,9 +343,9 @@ func TestNew_CustomConfig(t *testing.T) {
 	assert.Equal(t, 50000, d.config.DiffSizeLimit)
 }
 
-func TestGetRegistry(t *testing.T) {
+func TestGetEcosystem(t *testing.T) {
 	d := New(nil, nil, nil, Config{}, nil)
 	assert.Nil(t, d.getRegistry("unknown"))
-	assert.Nil(t, d.getRegistry("pypi"))
+	assert.Nil(t, d.getRegistry("python"))
 	assert.Nil(t, d.getRegistry("npm"))
 }

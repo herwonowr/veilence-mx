@@ -701,7 +701,7 @@ func TestIntegration_PackageCRUD_OrgScoped(t *testing.T) {
 	orgID := result["data"].(map[string]any)["id"].(float64)
 
 	// Create package (using X-Org-ID header for org scoping)
-	pkgBody := map[string]string{"name": "django", "registry": "pypi"}
+	pkgBody := map[string]string{"name": "django", "ecosystem": "python"}
 
 	csrfToken, cookies := ts.getCSRFToken(t)
 	req, err := http.NewRequest("POST", ts.server.URL+"/api/packages", bytes.NewReader(mustJSON(t, pkgBody)))
@@ -846,7 +846,7 @@ func TestIntegration_AuditLogsCreated(t *testing.T) {
 
 	// Perform an org-scoped action that creates an audit log (create a package)
 	csrfToken, cookies := ts.getCSRFToken(t)
-	pkgBody := mustJSON(t, map[string]string{"name": "audit-pkg", "registry": "pypi"})
+	pkgBody := mustJSON(t, map[string]string{"name": "audit-pkg", "ecosystem": "python"})
 	req, err := http.NewRequest("POST", ts.server.URL+"/api/packages", bytes.NewReader(pkgBody))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
@@ -1041,7 +1041,7 @@ func TestIntegration_SettingsCRUD(t *testing.T) {
 
 	// Update settings via org-scoped endpoint
 	csrfToken, cookies := ts.getCSRFToken(t)
-	settingsBody := `{"pypi_poll_interval":"10m"}`
+	settingsBody := `{"python_poll_interval":"10m"}`
 	req, err := http.NewRequest("PUT", ts.server.URL+"/api/settings", bytes.NewReader([]byte(settingsBody)))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
@@ -1057,7 +1057,7 @@ func TestIntegration_SettingsCRUD(t *testing.T) {
 	settingsResult := parseResponse(t, settingsResp)
 	assert.Equal(t, http.StatusOK, settingsResp.StatusCode)
 	settingsData := settingsResult["data"].(map[string]any)
-	assert.Equal(t, "10m", settingsData["pypi_poll_interval"])
+	assert.Equal(t, "10m", settingsData["python_poll_interval"])
 }
 
 // =====================================================================

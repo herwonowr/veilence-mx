@@ -20,13 +20,13 @@ export const registerSchema = z
 
 export const packageSchema = z.object({
   name: z.string().min(1, "Package name is required").trim(),
-  registry: z.enum(["pypi", "npm"], { message: "Select a registry" }),
+  ecosystem: z.enum(["python", "npm"], { message: "Select an ecosystem" }),
 })
 
 export const settingsSchema = z.object({
-  pypi_poll_interval: z.string().optional(),
+  python_poll_interval: z.string().optional(),
   npm_poll_interval: z.string().optional(),
-  pypi_top_n: z.string().optional(),
+  python_top_n: z.string().optional(),
   npm_top_n: z.string().optional(),
   version_depth_mode: z.enum(["latest", "custom"]).optional(),
   version_depth_count: z.string().optional(),

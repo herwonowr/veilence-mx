@@ -267,7 +267,7 @@ function AlertsContent() {
                   onValueChange={(v) => setSeverityFilter(v === "all" ? "" : (v ?? ""))}
                 >
                   <SelectTrigger id="alerts-severity-filter" className="w-40">
-                    <SelectValue placeholder="All Severities" />
+                    <SelectValue>{severityFilter ? severityFilter.charAt(0).toUpperCase() + severityFilter.slice(1) : "All Severities"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Severities</SelectItem>
@@ -287,7 +287,7 @@ function AlertsContent() {
                   onValueChange={(v) => setStatusFilter(v === "all" ? "" : (v ?? ""))}
                 >
                   <SelectTrigger id="alerts-status-filter" className="w-40">
-                    <SelectValue placeholder="All Statuses" />
+                    <SelectValue>{statusFilter ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) : "All Statuses"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>

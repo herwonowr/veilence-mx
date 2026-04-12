@@ -33,8 +33,8 @@ const classificationConfig = {
   baseline: { label: "Baseline", color: "#6b7280" },
 } satisfies ChartConfig
 
-const registryConfig = {
-  pypi: { label: "PyPI", color: "#3b82f6" },
+const ecosystemConfig = {
+  python: { label: "Python", color: "#3b82f6" },
   npm: { label: "npm", color: "#ef4444" },
 } satisfies ChartConfig
 
@@ -133,9 +133,9 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
     fill: classificationConfig[c.classification as keyof typeof classificationConfig]?.color ?? "#6b7280",
   }))
 
-  const registryData = data.registries.map((r) => ({
+  const ecosystemData = data.ecosystems.map((r) => ({
     ...r,
-    fill: registryConfig[r.registry as keyof typeof registryConfig]?.color ?? "#6b7280",
+    fill: ecosystemConfig[r.ecosystem as keyof typeof ecosystemConfig]?.color ?? "#6b7280",
   }))
 
   const statusData = data.releaseStatuses.map((s) => ({
@@ -144,7 +144,7 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
   }))
 
   const totalClassifications = classificationData.reduce((sum, c) => sum + c.count, 0)
-  const totalPackages = registryData.reduce((sum, r) => sum + r.count, 0)
+  const totalPackages = ecosystemData.reduce((sum, r) => sum + r.count, 0)
 
   const presetLabels: Record<string, string> = {
     "24h": "Last 24 Hours",
@@ -342,27 +342,27 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
         </CardContent>
       </Card>
 
-      {/* Registry Distribution - Pie Chart */}
+      {/* Ecosystem Distribution - Pie Chart */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Packages by Registry</CardTitle>
+          <CardTitle className="text-base">Packages by Ecosystem</CardTitle>
         </CardHeader>
         <CardContent>
           {totalPackages === 0 ? (
             <EmptyState
               icon={<PieChartIcon className="h-8 w-8" />}
               title="No data for this period"
-              description="Package registry data will appear once packages are added."
+              description="Package ecosystem data will appear once packages are added."
               className="aspect-square h-62.5 mx-auto"
             />
           ) : (
-          <ChartContainer config={registryConfig} className="mx-auto aspect-square h-62.5">
+          <ChartContainer config={ecosystemConfig} className="mx-auto aspect-square h-62.5">
             <PieChart>
-              <ChartTooltip content={<ChartTooltipContent nameKey="registry" hideLabel />} />
+              <ChartTooltip content={<ChartTooltipContent nameKey="ecosystem" hideLabel />} />
               <Pie
-                data={registryData}
+                data={ecosystemData}
                 dataKey="count"
-                nameKey="registry"
+                nameKey="ecosystem"
                 innerRadius={60}
                 strokeWidth={4}
               >
@@ -384,7 +384,7 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
                   }}
                 />
               </Pie>
-              <ChartLegend content={<ChartLegendContent nameKey="registry" />} />
+              <ChartLegend content={<ChartLegendContent nameKey="ecosystem" />} />
             </PieChart>
           </ChartContainer>
           )}

@@ -80,7 +80,7 @@ type AlertHandlers struct {
 type SettingsHandlers struct {
 	DB     *gorm.DB
 	Poller *poller.Poller
-	PyPI   registry.Registry
+	Python registry.Registry
 	NPM    registry.Registry
 	Audit  *audit.Service
 }
@@ -111,7 +111,7 @@ func NewHandlers(
 	auditService *audit.Service,
 	notificationService *notifications.Service,
 	pollerService *poller.Poller,
-	pypiClient registry.Registry,
+	pythonClient registry.Registry,
 	npmClient registry.Registry,
 	jobQueue *queue.Queue,
 	dashboardRepo domain.DashboardRepository,
@@ -149,7 +149,7 @@ func NewHandlers(
 		Settings: &SettingsHandlers{
 			DB:     db,
 			Poller: pollerService,
-			PyPI:   pypiClient,
+			Python: pythonClient,
 			NPM:    npmClient,
 			Audit:  auditService,
 		},

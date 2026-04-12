@@ -241,7 +241,7 @@ func TestPackageRepo_CreateAndFindByID(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewPackageRepo(db)
 
-	pkg := &models.Package{OrgID: 1, Name: "requests", Registry: "pypi"}
+	pkg := &models.Package{OrgID: 1, Name: "requests", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg).Error)
 
 	found, err := repo.FindByID(ctx, pkg.ID)
@@ -253,9 +253,9 @@ func TestPackageRepo_FindByOrgID(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewPackageRepo(db)
 
-	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "pkg1", Registry: "pypi"}).Error)
-	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "pkg2", Registry: "npm"}).Error)
-	require.NoError(t, db.Create(&models.Package{OrgID: 2, Name: "pkg3", Registry: "pypi"}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "pkg1", Ecosystem: "python"}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "pkg2", Ecosystem: "npm"}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 2, Name: "pkg3", Ecosystem: "python"}).Error)
 
 	pkgs, total, err := repo.FindByOrgID(ctx, 1, 1, 10, "name asc")
 	require.NoError(t, err)
@@ -267,8 +267,8 @@ func TestPackageRepo_CountByOrg(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewPackageRepo(db)
 
-	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "p1", Registry: "pypi"}).Error)
-	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "p2", Registry: "npm"}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "p1", Ecosystem: "python"}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "p2", Ecosystem: "npm"}).Error)
 
 	count, err := repo.CountByOrg(ctx, 1, nil)
 	require.NoError(t, err)
@@ -279,7 +279,7 @@ func TestPackageRepo_SoftDelete(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewPackageRepo(db)
 
-	pkg := &models.Package{OrgID: 1, Name: "to-delete", Registry: "pypi"}
+	pkg := &models.Package{OrgID: 1, Name: "to-delete", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg).Error)
 
 	err := repo.SoftDelete(ctx, 1, pkg.ID)
@@ -306,7 +306,7 @@ func TestPackageRepo_SoftDelete_CrossTenantBlocked(t *testing.T) {
 	repo := repository.NewPackageRepo(db)
 
 	// Package belongs to org 1
-	pkg := &models.Package{OrgID: 1, Name: "secret-pkg", Registry: "pypi"}
+	pkg := &models.Package{OrgID: 1, Name: "secret-pkg", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg).Error)
 
 	// Org 2 attempts to delete org 1's package — must fail

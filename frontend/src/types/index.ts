@@ -1,4 +1,4 @@
-export type Registry = "pypi" | "npm"
+export type Ecosystem = "python" | "npm"
 export type Classification = "benign" | "suspicious" | "malicious" | "baseline"
 export type AnalyzerType = "api" | "cli" | "copilot"
 export type AlertSeverity = "low" | "medium" | "high" | "critical"
@@ -8,7 +8,7 @@ export type ReleaseStatus = "pending" | "diffing" | "analyzing" | "completed" | 
 export interface Package {
   id: number
   name: string
-  registry: Registry
+  ecosystem: Ecosystem
   latestVersion: string
   description: string
   isCustom: boolean
@@ -60,7 +60,7 @@ export interface Alert {
   status: AlertStatus
   message: string
   packageName: string
-  packageRegistry: string
+  packageEcosystem: string
   createdAt: string
   updatedAt: string
 }
@@ -75,7 +75,7 @@ export interface DashboardStats {
 
 export interface RecentRelease extends Release {
   packageName: string
-  packageRegistry: string
+  packageEcosystem: string
   classification?: Classification
 }
 
@@ -101,7 +101,7 @@ export interface ApiResponse<T> {
 export interface ChartData {
   releaseActivity: { date: string; releases: number }[]
   classifications: { classification: string; count: number }[]
-  registries: { registry: string; count: number }[]
+  ecosystems: { ecosystem: string; count: number }[]
   alertsBySeverity: { severity: string; count: number }[]
   releaseStatuses: { status: string; count: number }[]
 }

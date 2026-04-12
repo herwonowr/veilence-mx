@@ -277,7 +277,7 @@ describe("api-client", () => {
         ok: true,
         status: 200,
         json: async () => ({
-          data: { name: "test-package", registry: "npm" },
+          data: { name: "test-package", ecosystem: "npm" },
           error: null,
         }),
       }
@@ -386,7 +386,7 @@ describe("api-client", () => {
         ok: true,
         status: 200,
         json: async () => ({
-          data: { name: "test-package", registry: "npm" },
+          data: { name: "test-package", ecosystem: "npm" },
           error: null,
         }),
       }

@@ -203,7 +203,7 @@ func TestCheckPackage_NewRelease(t *testing.T) {
 	
 
 	mock := &mockRegistry{
-		name: "pypi",
+		name: "python",
 		packages: map[string]*registry.PackageInfo{
 			"requests": {
 				Name:        "requests",
@@ -218,7 +218,7 @@ func TestCheckPackage_NewRelease(t *testing.T) {
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 
 	err := p.checkPackage(context.Background(), mock, pkg)
@@ -237,7 +237,7 @@ func TestCheckPackage_NewRelease_IncludesBaseline(t *testing.T) {
 	
 
 	mock := &mockRegistry{
-		name: "pypi",
+		name: "python",
 		packages: map[string]*registry.PackageInfo{
 			"requests": {
 				Name:        "requests",
@@ -256,7 +256,7 @@ func TestCheckPackage_NewRelease_IncludesBaseline(t *testing.T) {
 	// but checkPackage should also include 2.30.0 as baseline
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 
 	err := p.checkPackage(context.Background(), mock, pkg)
@@ -278,7 +278,7 @@ func TestCheckPackage_ExistingRelease_NoBaseline(t *testing.T) {
 	
 
 	mock := &mockRegistry{
-		name: "pypi",
+		name: "python",
 		packages: map[string]*registry.PackageInfo{
 			"requests": {
 				Name:    "requests",
@@ -293,7 +293,7 @@ func TestCheckPackage_ExistingRelease_NoBaseline(t *testing.T) {
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 	// Already have a previous release — no baseline needed
 	db.Create(&models.Release{PackageID: pkg.ID, Version: "2.31.0", Status: models.ReleaseStatusCompleted})
@@ -314,7 +314,7 @@ func TestCheckPackage_ExistingRelease(t *testing.T) {
 	
 
 	mock := &mockRegistry{
-		name: "pypi",
+		name: "python",
 		packages: map[string]*registry.PackageInfo{
 			"requests": {
 				Name:    "requests",
@@ -328,7 +328,7 @@ func TestCheckPackage_ExistingRelease(t *testing.T) {
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 	db.Create(&models.Release{PackageID: pkg.ID, Version: "2.31.0", Status: models.ReleaseStatusCompleted})
 
@@ -342,18 +342,18 @@ func TestCheckPackage_ExistingRelease(t *testing.T) {
 	assert.Empty(t, nil)
 }
 
-func TestCheckPackage_RegistryError(t *testing.T) {
+func TestCheckPackage_EcosystemError(t *testing.T) {
 	db := setupTestDB(t)
 	
 
 	mock := &mockRegistry{
-		name:   "pypi",
+		name:   "python",
 		getErr: fmt.Errorf("network timeout"),
 	}
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 
 	err := p.checkPackage(context.Background(), mock, pkg)
@@ -366,7 +366,7 @@ func TestCheckPackage_UpdatesMetadata(t *testing.T) {
 	
 
 	mock := &mockRegistry{
-		name: "pypi",
+		name: "python",
 		packages: map[string]*registry.PackageInfo{
 			"requests": {
 				Name:        "requests",
@@ -381,7 +381,7 @@ func TestCheckPackage_UpdatesMetadata(t *testing.T) {
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 
 	p.checkPackage(context.Background(), mock, pkg)
@@ -397,7 +397,7 @@ func TestSyncTopPackages_NewPackages(t *testing.T) {
 	
 
 	mock := &mockRegistry{
-		name:        "pypi",
+		name:        "python",
 		topPackages: []string{"requests", "boto3", "flask"},
 	}
 
@@ -425,10 +425,10 @@ func TestSyncTopPackages_UpdateExisting(t *testing.T) {
 	
 
 	rank := uint(10)
-	db.Create(&models.Package{OrgID: 1, Name: "requests", Registry: "pypi", Rank: &rank, IsCustom: true})
+	db.Create(&models.Package{OrgID: 1, Name: "requests", Ecosystem: "python", Rank: &rank, IsCustom: true})
 
 	mock := &mockRegistry{
-		name:        "pypi",
+		name:        "python",
 		topPackages: []string{"requests"},
 	}
 
@@ -443,12 +443,12 @@ func TestSyncTopPackages_UpdateExisting(t *testing.T) {
 	assert.False(t, pkg.IsCustom)
 }
 
-func TestSyncTopPackages_RegistryError(t *testing.T) {
+func TestSyncTopPackages_EcosystemError(t *testing.T) {
 	db := setupTestDB(t)
 	
 
 	mock := &mockRegistry{
-		name:   "pypi",
+		name:   "python",
 		topErr: fmt.Errorf("API unavailable"),
 	}
 

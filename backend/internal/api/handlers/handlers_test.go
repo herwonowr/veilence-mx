@@ -100,8 +100,8 @@ func newSettingsHandlers(db *gorm.DB) *handlers.SettingsHandlers {
 func TestGetDashboardStats(t *testing.T) {
 	db := setupTestDB(t)
 	h := newDashboardHandlers(db)
-	db.Create(&models.Package{Name: "requests", Registry: "pypi"})
-	db.Create(&models.Package{Name: "express", Registry: "npm"})
+	db.Create(&models.Package{Name: "requests", Ecosystem: "python"})
+	db.Create(&models.Package{Name: "express", Ecosystem: "npm"})
 	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/stats", nil)
 	w := httptest.NewRecorder()
 	h.GetDashboardStats(w, req)
@@ -118,7 +118,7 @@ func TestGetDashboardStats_WithReleases(t *testing.T) {
 	db := setupTestDB(t)
 	h := newDashboardHandlers(db)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 
 	db.Create(&models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: models.ReleaseStatusCompleted})
@@ -141,17 +141,17 @@ func TestGetDashboardStats_WithReleases(t *testing.T) {
 func TestListPackages(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
-	db.Create(&models.Package{Name: "requests", Registry: "pypi"})
-	db.Create(&models.Package{Name: "flask", Registry: "pypi", IsCustom: true})
-	db.Create(&models.Package{Name: "express", Registry: "npm"})
+	db.Create(&models.Package{Name: "requests", Ecosystem: "python"})
+	db.Create(&models.Package{Name: "flask", Ecosystem: "python", IsCustom: true})
+	db.Create(&models.Package{Name: "express", Ecosystem: "npm"})
 	tests := []struct {
 		name      string
 		query     string
 		wantCount int
 	}{
 		{"all packages", "", 3},
-		{"filter pypi", "registry=pypi", 2},
-		{"filter npm", "registry=npm", 1},
+		{"filter python", "ecosystem=python", 2},
+		{"filter npm", "ecosystem=npm", 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -172,7 +172,7 @@ func TestListPackages_Pagination(t *testing.T) {
 	h := newPackageHandlers(db)
 
 	for i := range 25 {
-		db.Create(&models.Package{Name: fmt.Sprintf("pkg-%02d", i), Registry: "pypi"})
+		db.Create(&models.Package{Name: fmt.Sprintf("pkg-%02d", i), Ecosystem: "python"})
 	}
 
 	// Default: page=1, limit=20
@@ -202,8 +202,8 @@ func TestListPackages_Pagination(t *testing.T) {
 func TestListPackages_FilterCustom(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
-	db.Create(&models.Package{Name: "requests", Registry: "pypi", IsCustom: false})
-	db.Create(&models.Package{Name: "my-pkg", Registry: "pypi", IsCustom: true})
+	db.Create(&models.Package{Name: "requests", Ecosystem: "python", IsCustom: false})
+	db.Create(&models.Package{Name: "my-pkg", Ecosystem: "python", IsCustom: true})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/packages?is_custom=true", nil)
 	w := httptest.NewRecorder()
@@ -223,10 +223,10 @@ func TestCreatePackage(t *testing.T) {
 		body       string
 		wantStatus int
 	}{
-		{"valid pypi", `{"name":"django","registry":"pypi"}`, http.StatusCreated},
-		{"valid npm", `{"name":"express","registry":"npm"}`, http.StatusCreated},
-		{"missing name", `{"name":"","registry":"pypi"}`, http.StatusBadRequest},
-		{"bad registry", `{"name":"test","registry":"rubygems"}`, http.StatusBadRequest},
+		{"valid python", `{"name":"django","ecosystem":"python"}`, http.StatusCreated},
+		{"valid npm", `{"name":"express","ecosystem":"npm"}`, http.StatusCreated},
+		{"missing name", `{"name":"","ecosystem":"python"}`, http.StatusBadRequest},
+		{"bad ecosystem", `{"name":"test","ecosystem":"rubygems"}`, http.StatusBadRequest},
 		{"bad json", `{invalid}`, http.StatusBadRequest},
 	}
 	for _, tt := range tests {
@@ -244,9 +244,9 @@ func TestCreatePackage_Duplicate(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	db.Create(&models.Package{Name: "requests", Registry: "pypi"})
+	db.Create(&models.Package{Name: "requests", Ecosystem: "python"})
 
-	req := httptest.NewRequest(http.MethodPost, "/api/packages", strings.NewReader(`{"name":"requests","registry":"pypi"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/packages", strings.NewReader(`{"name":"requests","ecosystem":"python"}`))
 	w := httptest.NewRecorder()
 	h.CreatePackage(w, req)
 	assert.Equal(t, http.StatusConflict, w.Code)
@@ -256,7 +256,7 @@ func TestCreatePackage_SetsIsCustom(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/packages", strings.NewReader(`{"name":"custom-pkg","registry":"npm"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/packages", strings.NewReader(`{"name":"custom-pkg","ecosystem":"npm"}`))
 	w := httptest.NewRecorder()
 	h.CreatePackage(w, req)
 	assert.Equal(t, http.StatusCreated, w.Code)
@@ -269,7 +269,7 @@ func TestCreatePackage_SetsIsCustom(t *testing.T) {
 func TestGetPackage(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 	r := chi.NewRouter()
 	r.Get("/api/packages/{id}", h.GetPackage)
@@ -310,7 +310,7 @@ func TestDeletePackage(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	pkg := models.Package{Name: "to-delete", Registry: "npm"}
+	pkg := models.Package{Name: "to-delete", Ecosystem: "npm"}
 	db.Create(&pkg)
 
 	r := chi.NewRouter()
@@ -345,13 +345,13 @@ func TestListPackageReleases(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 	db.Create(&models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"})
 	db.Create(&models.Release{PackageID: pkg.ID, Version: "1.1.0", Status: "pending"})
 
 	// Other package releases should not be included
-	pkg2 := models.Package{Name: "flask", Registry: "pypi"}
+	pkg2 := models.Package{Name: "flask", Ecosystem: "python"}
 	db.Create(&pkg2)
 	db.Create(&models.Release{PackageID: pkg2.ID, Version: "2.0.0", Status: "completed"})
 
@@ -388,7 +388,7 @@ func TestGetRelease(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -412,7 +412,7 @@ func TestGetRelease_WithDiffAndAnalysis(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 	rel1 := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel1)
@@ -457,7 +457,7 @@ func TestGetAlert(t *testing.T) {
 	db := setupTestDB(t)
 	h := newAlertHandlers(db)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
+	pkg := models.Package{Name: "requests", Ecosystem: "python", OrgID: 1}
 	db.Create(&pkg)
 	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -482,7 +482,7 @@ func TestGetAlert(t *testing.T) {
 	assert.Equal(t, "Malicious detected", data["message"])
 	assert.Equal(t, "critical", data["severity"])
 	assert.Equal(t, "requests", data["packageName"])
-	assert.Equal(t, "pypi", data["packageRegistry"])
+	assert.Equal(t, "python", data["packageEcosystem"])
 }
 
 func TestGetAlert_NotFound(t *testing.T) {
@@ -515,7 +515,7 @@ func TestGetAlert_OrgScoping(t *testing.T) {
 	db := setupTestDB(t)
 	h := newAlertHandlers(db)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 5}
+	pkg := models.Package{Name: "requests", Ecosystem: "python", OrgID: 5}
 	db.Create(&pkg)
 	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -541,7 +541,7 @@ func TestListAlerts(t *testing.T) {
 	db := setupTestDB(t)
 	h := newAlertHandlers(db)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 	rel1 := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel1)
@@ -584,7 +584,7 @@ func TestListAlerts(t *testing.T) {
 func TestUpdateAlert(t *testing.T) {
 	db := setupTestDB(t)
 	h := newAlertHandlers(db)
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 	rel1 := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel1)
@@ -648,7 +648,7 @@ func TestUpdateAlert_InvalidID(t *testing.T) {
 func TestGetSettings(t *testing.T) {
 	db := setupTestDB(t)
 	h := newSettingsHandlers(db)
-	db.Create(&models.Setting{Key: "pypi_poll_interval", Value: "5m"})
+	db.Create(&models.Setting{Key: "python_poll_interval", Value: "5m"})
 	db.Create(&models.Setting{Key: "npm_poll_interval", Value: "10m"})
 	req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
 	w := httptest.NewRecorder()
@@ -657,7 +657,7 @@ func TestGetSettings(t *testing.T) {
 	var resp map[string]any
 	json.NewDecoder(w.Body).Decode(&resp)
 	data := resp["data"].(map[string]any)
-	assert.Equal(t, "5m", data["pypi_poll_interval"])
+	assert.Equal(t, "5m", data["python_poll_interval"])
 	assert.Equal(t, "10m", data["npm_poll_interval"])
 }
 
@@ -674,7 +674,7 @@ func TestUpdateSettings_ValidKeys(t *testing.T) {
 	db := setupTestDB(t)
 	h := newSettingsHandlers(db)
 
-	body := `{"pypi_poll_interval":"10m","npm_poll_interval":"15m"}`
+	body := `{"python_poll_interval":"10m","npm_poll_interval":"15m"}`
 	req := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(body))
 	w := httptest.NewRecorder()
 	h.UpdateSettings(w, req)
@@ -684,7 +684,7 @@ func TestUpdateSettings_ValidKeys(t *testing.T) {
 	var resp map[string]any
 	json.NewDecoder(w.Body).Decode(&resp)
 	data := resp["data"].(map[string]any)
-	assert.Equal(t, "10m", data["pypi_poll_interval"])
+	assert.Equal(t, "10m", data["python_poll_interval"])
 	assert.Equal(t, "15m", data["npm_poll_interval"])
 }
 
@@ -693,16 +693,16 @@ func TestUpdateSettings_Upsert(t *testing.T) {
 	h := newSettingsHandlers(db)
 
 	// Create initial
-	db.Create(&models.Setting{Key: "pypi_poll_interval", Value: "5m"})
+	db.Create(&models.Setting{Key: "python_poll_interval", Value: "5m"})
 
 	// Update existing
-	req := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(`{"pypi_poll_interval":"30m"}`))
+	req := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(`{"python_poll_interval":"30m"}`))
 	w := httptest.NewRecorder()
 	h.UpdateSettings(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	var setting models.Setting
-	db.Where("key = ?", "pypi_poll_interval").First(&setting)
+	db.Where("key = ?", "python_poll_interval").First(&setting)
 	assert.Equal(t, "30m", setting.Value)
 }
 
@@ -765,7 +765,7 @@ func TestGetRecentReleases(t *testing.T) {
 	db := setupTestDB(t)
 	h := newDashboardHandlers(db)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 	db.Create(&models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"})
 	db.Create(&models.Release{PackageID: pkg.ID, Version: "1.1.0", Status: "pending"})
@@ -783,7 +783,7 @@ func TestGetRecentReleases(t *testing.T) {
 	// Should have package info
 	first := data[0].(map[string]any)
 	assert.Equal(t, "requests", first["packageName"])
-	assert.Equal(t, "pypi", first["packageRegistry"])
+	assert.Equal(t, "python", first["packageEcosystem"])
 }
 
 // --- Reanalyze ---
@@ -802,7 +802,7 @@ func TestReanalyzeAll_WithDiffs(t *testing.T) {
 	db := setupTestDB(t)
 	h := &handlers.DashboardHandlers{DB: db, Dashboard: repository.NewDashboardRepo(db), Queue: nil}
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 	rel1 := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel1)
@@ -847,7 +847,7 @@ func TestParsePagination(t *testing.T) {
 	}
 
 	for i := range 5 {
-		db.Create(&models.Package{Name: fmt.Sprintf("pkg-%d", i), Registry: "pypi"})
+		db.Create(&models.Package{Name: fmt.Sprintf("pkg-%d", i), Ecosystem: "python"})
 	}
 
 	for _, tt := range tests {
@@ -874,9 +874,9 @@ func TestListAlerts_Search(t *testing.T) {
 	db := setupTestDB(t)
 	h := newAlertHandlers(db)
 
-	pkg1 := models.Package{Name: "requests", Registry: "pypi"}
+	pkg1 := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg1)
-	pkg2 := models.Package{Name: "express", Registry: "npm"}
+	pkg2 := models.Package{Name: "express", Ecosystem: "npm"}
 	db.Create(&pkg2)
 
 	// Set up required chain for alerts
@@ -933,7 +933,7 @@ func TestListAlertNotes(t *testing.T) {
 	db := setupTestDB(t)
 	h := newAlertHandlers(db)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -983,7 +983,7 @@ func TestCreateAlertNote(t *testing.T) {
 	db.Exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, email TEXT, first_name TEXT, last_name TEXT, password_hash TEXT, is_active INTEGER DEFAULT 1, email_verified INTEGER DEFAULT 0, last_login_at TEXT, created_at TEXT, updated_at TEXT, deleted_at TEXT)")
 	db.Exec("INSERT INTO users (id, email, first_name, last_name, password_hash) VALUES (1, 'user@example.com', 'Test', 'User', 'hash')")
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -1013,7 +1013,7 @@ func TestCreateAlertNote_EmptyContent(t *testing.T) {
 	db := setupTestDB(t)
 	h := newAlertHandlers(db)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -1040,7 +1040,7 @@ func TestImportPackages(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	body := `{"packages":[{"name":"django","registry":"pypi"},{"name":"express","registry":"npm"}]}`
+	body := `{"packages":[{"name":"django","ecosystem":"python"},{"name":"express","ecosystem":"npm"}]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
 	w := httptest.NewRecorder()
 	h.ImportPackages(w, req)
@@ -1063,9 +1063,9 @@ func TestImportPackages_Duplicates(t *testing.T) {
 	h := newPackageHandlers(db)
 
 	// Pre-create a package
-	db.Create(&models.Package{Name: "django", Registry: "pypi"})
+	db.Create(&models.Package{Name: "django", Ecosystem: "python"})
 
-	body := `{"packages":[{"name":"django","registry":"pypi"},{"name":"flask","registry":"pypi"}]}`
+	body := `{"packages":[{"name":"django","ecosystem":"python"},{"name":"flask","ecosystem":"python"}]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
 	w := httptest.NewRecorder()
 	h.ImportPackages(w, req)
@@ -1078,11 +1078,11 @@ func TestImportPackages_Duplicates(t *testing.T) {
 	assert.Equal(t, float64(1), data["skipped"])
 }
 
-func TestImportPackages_InvalidRegistry(t *testing.T) {
+func TestImportPackages_InvalidEcosystem(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	body := `{"packages":[{"name":"test","registry":"rubygems"}]}`
+	body := `{"packages":[{"name":"test","ecosystem":"rubygems"}]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
 	w := httptest.NewRecorder()
 	h.ImportPackages(w, req)
@@ -1114,7 +1114,7 @@ func TestImportPackages_TooMany(t *testing.T) {
 	// Build a body with 501 packages
 	entries := make([]string, 501)
 	for i := range entries {
-		entries[i] = fmt.Sprintf(`{"name":"pkg-%d","registry":"pypi"}`, i)
+		entries[i] = fmt.Sprintf(`{"name":"pkg-%d","ecosystem":"python"}`, i)
 	}
 	body := `{"packages":[` + strings.Join(entries, ",") + `]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
@@ -1166,7 +1166,7 @@ func TestImportPackages_ListFormat(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	content := "pypi:requests\nnpm:express\npypi:flask\n# comment\n\nnpm:lodash"
+	content := "python:requests\nnpm:express\npython:flask\n# comment\n\nnpm:lodash"
 	body := fmt.Sprintf(`{"format":"list","content":%q}`, content)
 	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
 	w := httptest.NewRecorder()
@@ -1205,7 +1205,7 @@ func TestImportPackages_InvalidPackageName(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	body := `{"packages":[{"name":"valid-pkg","registry":"pypi"},{"name":"evil pkg!","registry":"pypi"},{"name":"ok.pkg","registry":"npm"}]}`
+	body := `{"packages":[{"name":"valid-pkg","ecosystem":"python"},{"name":"evil pkg!","ecosystem":"python"},{"name":"ok.pkg","ecosystem":"npm"}]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-import", strings.NewReader(body))
 	w := httptest.NewRecorder()
 	h.ImportPackages(w, req)
@@ -1223,7 +1223,7 @@ func TestCreatePackage_InvalidName(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	body := `{"name":"invalid name!@#$","registry":"pypi"}`
+	body := `{"name":"invalid name!@#$","ecosystem":"python"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/packages", strings.NewReader(body))
 	w := httptest.NewRecorder()
 	h.CreatePackage(w, req)
@@ -1235,7 +1235,7 @@ func TestCreatePackage_NameTooLong(t *testing.T) {
 	h := newPackageHandlers(db)
 
 	longName := strings.Repeat("a", 201)
-	body := fmt.Sprintf(`{"name":"%s","registry":"pypi"}`, longName)
+	body := fmt.Sprintf(`{"name":"%s","ecosystem":"python"}`, longName)
 	req := httptest.NewRequest(http.MethodPost, "/api/packages", strings.NewReader(body))
 	w := httptest.NewRecorder()
 	h.CreatePackage(w, req)
@@ -1246,7 +1246,7 @@ func TestCreatePackage_ScopedNpmPackage(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	body := `{"name":"@angular/core","registry":"npm"}`
+	body := `{"name":"@angular/core","ecosystem":"npm"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/packages", strings.NewReader(body))
 	w := httptest.NewRecorder()
 	h.CreatePackage(w, req)
@@ -1259,7 +1259,7 @@ func TestReanalyzeRelease_NoQueue(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db) // Queue is nil
 
-	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 0}
+	pkg := models.Package{Name: "requests", Ecosystem: "python", OrgID: 0}
 	db.Create(&pkg)
 	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -1294,7 +1294,7 @@ func TestReanalyzeRelease_SuccessNoDiff(t *testing.T) {
 	mq := &mockEnqueuer{}
 	h := newPackageHandlersWithQueue(db, mq)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 0}
+	pkg := models.Package{Name: "requests", Ecosystem: "python", OrgID: 0}
 	db.Create(&pkg)
 	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -1330,7 +1330,7 @@ func TestReanalyzeRelease_SuccessWithDiff(t *testing.T) {
 	mq := &mockEnqueuer{}
 	h := newPackageHandlersWithQueue(db, mq)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 0}
+	pkg := models.Package{Name: "requests", Ecosystem: "python", OrgID: 0}
 	db.Create(&pkg)
 	rel1 := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel1)
@@ -1371,7 +1371,7 @@ func TestReanalyzeRelease_OrgScoping(t *testing.T) {
 	h := newPackageHandlersWithQueue(db, mq)
 
 	// Create a release belonging to org 5; request context has orgID=0 (default, no middleware)
-	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 5}
+	pkg := models.Package{Name: "requests", Ecosystem: "python", OrgID: 5}
 	db.Create(&pkg)
 	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -1392,7 +1392,7 @@ func TestReanalyzeRelease_EnqueueError(t *testing.T) {
 	mq := &mockEnqueuer{err: fmt.Errorf("redis connection refused")}
 	h := newPackageHandlersWithQueue(db, mq)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 0}
+	pkg := models.Package{Name: "requests", Ecosystem: "python", OrgID: 0}
 	db.Create(&pkg)
 	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -1428,7 +1428,7 @@ func TestGetAnalysisHistory(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi"}
+	pkg := models.Package{Name: "requests", Ecosystem: "python"}
 	db.Create(&pkg)
 
 	// Baseline release (completed, no diff)
@@ -1478,7 +1478,7 @@ func TestGetAnalysisHistory_Empty(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	pkg := models.Package{Name: "brand-new", Registry: "pypi"}
+	pkg := models.Package{Name: "brand-new", Ecosystem: "python"}
 	db.Create(&pkg)
 
 	r := chi.NewRouter()

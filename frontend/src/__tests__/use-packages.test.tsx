@@ -112,7 +112,7 @@ describe("usePackages", () => {
     )
 
     const { result } = renderHook(
-      () => usePackages({ registry: "npm", search: "lodash", page: 2, limit: 10 }),
+      () => usePackages({ ecosystem: "npm", search: "lodash", page: 2, limit: 10 }),
       { wrapper: createWrapper() }
     )
 
@@ -120,7 +120,7 @@ describe("usePackages", () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    expect(capturedUrl).toContain("registry=npm")
+    expect(capturedUrl).toContain("ecosystem=npm")
     expect(capturedUrl).toContain("search=lodash")
     expect(capturedUrl).toContain("page=2")
     expect(capturedUrl).toContain("limit=10")
@@ -134,7 +134,7 @@ describe("useCreatePackage", () => {
     })
 
     await act(async () => {
-      result.current.mutate({ name: "new-pkg", registry: "npm" })
+      result.current.mutate({ name: "new-pkg", ecosystem: "npm" })
     })
 
     await waitFor(() => {

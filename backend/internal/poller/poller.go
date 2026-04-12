@@ -18,7 +18,7 @@ import (
 
 // Config holds configuration for the poller.
 type Config struct {
-	PyPIInterval        time.Duration
+	PythonInterval      time.Duration
 	NPMInterval         time.Duration
 	Concurrency         int
 	TopNRefreshInterval time.Duration
@@ -86,27 +86,27 @@ const MaxOrgConcurrency = 5
 // Poller polls package registries for new releases.
 type Poller struct {
 	db       *gorm.DB
-	pypi     registry.Registry
+	python   registry.Registry
 	npm      registry.Registry
 	config   Config
 	queue    *queue.Queue
 	mu       sync.Mutex
 	settings *settingsCache
 
-	// lastPollAt tracks when each (orgID, registry) pair was last polled.
+	// lastPollAt tracks when each (orgID, ecosystem) pair was last polled.
 	// Protected by lastPollMu.
 	lastPollMu sync.RWMutex
 	lastPollAt map[string]time.Time
 }
 
 // New creates a new Poller instance.
-func New(db *gorm.DB, pypi registry.Registry, npm registry.Registry, config Config, q *queue.Queue) *Poller {
+func New(db *gorm.DB, python registry.Registry, npm registry.Registry, config Config, q *queue.Queue) *Poller {
 	if config.Concurrency <= 0 {
 		config.Concurrency = 5
 	}
 	return &Poller{
 		db:         db,
-		pypi:       pypi,
+		python:     python,
 		npm:        npm,
 		config:     config,
 		queue:      q,
@@ -124,8 +124,8 @@ func (p *Poller) InvalidateSettingsCache() {
 
 // Start begins the polling loops for both registries.
 func (p *Poller) Start(ctx context.Context) {
-	slog.Info("starting poller", "pypi_interval", p.config.PyPIInterval, "npm_interval", p.config.NPMInterval)
-	go p.pollLoop(ctx, p.pypi, p.config.PyPIInterval)
+	slog.Info("starting poller", "python_interval", p.config.PythonInterval, "npm_interval", p.config.NPMInterval)
+	go p.pollLoop(ctx, p.python, p.config.PythonInterval)
 	go p.pollLoop(ctx, p.npm, p.config.NPMInterval)
 }
 
@@ -138,7 +138,7 @@ func (p *Poller) pollLoop(ctx context.Context, reg registry.Registry, defaultInt
 	for {
 		select {
 		case <-ctx.Done():
-			slog.Info("poller shutting down", "registry", reg.Name())
+			slog.Info("poller shutting down", "ecosystem", reg.Name())
 			return
 		case <-ticker.C:
 			p.pollRegistry(ctx, reg, defaultInterval)
@@ -154,7 +154,7 @@ func pollRegistryKey(orgID uint, regName string) string {
 // getOrgPollInterval returns the poll interval for a specific org and registry.
 // Falls back to the global default interval if no per-org setting exists.
 func (p *Poller) getOrgPollInterval(orgID uint, reg registry.Registry, defaultInterval time.Duration) time.Duration {
-	settingKey := models.SettingPyPIPollInterval
+	settingKey := models.SettingPythonPollInterval
 	if reg.Name() == "npm" {
 		settingKey = models.SettingNPMPollInterval
 	}
@@ -190,20 +190,20 @@ func (p *Poller) markOrgPolled(orgID uint, regName string) {
 }
 
 func (p *Poller) pollRegistry(ctx context.Context, reg registry.Registry, defaultInterval time.Duration) {
-	slog.Info("polling registry", "registry", reg.Name())
+	slog.Info("polling ecosystem", "ecosystem", reg.Name())
 
-	// Fetch distinct org IDs that have packages in this registry
+	// Fetch distinct org IDs that have packages in this ecosystem
 	var orgIDs []uint
 	if err := p.db.Model(&models.Package{}).
-		Where("registry = ?", reg.Name()).
+		Where("ecosystem = ?", reg.Name()).
 		Distinct("org_id").
 		Pluck("org_id", &orgIDs).Error; err != nil {
-		slog.Error("failed to load org IDs for registry", "registry", reg.Name(), "error", err)
+		slog.Error("failed to load org IDs for ecosystem", "ecosystem", reg.Name(), "error", err)
 		return
 	}
 
 	if len(orgIDs) == 0 {
-		slog.Info("no packages to poll", "registry", reg.Name())
+		slog.Info("no packages to poll", "ecosystem", reg.Name())
 		return
 	}
 
@@ -217,7 +217,7 @@ func (p *Poller) pollRegistry(ctx context.Context, reg registry.Registry, defaul
 	}
 
 	if len(dueOrgIDs) == 0 {
-		slog.Debug("no orgs due for polling", "registry", reg.Name())
+		slog.Debug("no orgs due for polling", "ecosystem", reg.Name())
 		return
 	}
 
@@ -240,15 +240,15 @@ func (p *Poller) pollRegistry(ctx context.Context, reg registry.Registry, defaul
 	}
 
 	wg.Wait()
-	slog.Info("polling complete", "registry", reg.Name(), "orgs_polled", len(dueOrgIDs), "packages_checked", totalChecked)
+	slog.Info("polling complete", "ecosystem", reg.Name(), "orgs_polled", len(dueOrgIDs), "packages_checked", totalChecked)
 }
 
-// pollOrgPackages polls all packages for a single org in a single registry.
+// pollOrgPackages polls all packages for a single org in a single ecosystem.
 // Returns the number of packages checked.
 func (p *Poller) pollOrgPackages(ctx context.Context, reg registry.Registry, orgID uint) int {
 	var packages []models.Package
-	if err := p.db.Where("registry = ? AND org_id = ?", reg.Name(), orgID).Find(&packages).Error; err != nil {
-		slog.Error("failed to load packages", "registry", reg.Name(), "org_id", orgID, "error", err)
+	if err := p.db.Where("ecosystem = ? AND org_id = ?", reg.Name(), orgID).Find(&packages).Error; err != nil {
+		slog.Error("failed to load packages", "ecosystem", reg.Name(), "org_id", orgID, "error", err)
 		return 0
 	}
 
@@ -266,7 +266,7 @@ func (p *Poller) pollOrgPackages(ctx context.Context, reg registry.Registry, org
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			if err := p.checkPackage(ctx, reg, pkg); err != nil {
-				slog.Error("failed to check package", "package", pkg.Name, "registry", reg.Name(), "org_id", orgID, "error", err)
+				slog.Error("failed to check package", "package", pkg.Name, "ecosystem", reg.Name(), "org_id", orgID, "error", err)
 			}
 		}(pkg)
 	}
@@ -326,7 +326,7 @@ func (p *Poller) checkPackage(ctx context.Context, reg registry.Registry, pkg mo
 			continue
 		}
 
-		slog.Info("new release detected", "package", pkg.Name, "version", v.Version, "registry", reg.Name())
+		slog.Info("new release detected", "package", pkg.Name, "version", v.Version, "ecosystem", reg.Name())
 
 		// Enqueue diff job via Redis queue
 		if p.queue != nil {
@@ -398,7 +398,7 @@ func (p *Poller) SyncTopPackages(ctx context.Context, reg registry.Registry, lim
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	slog.Info("syncing top packages", "registry", reg.Name(), "limit", limit, "org_id", orgID)
+	slog.Info("syncing top packages", "ecosystem", reg.Name(), "limit", limit, "org_id", orgID)
 
 	names, err := reg.GetTopPackages(ctx, limit)
 	if err != nil {
@@ -408,12 +408,12 @@ func (p *Poller) SyncTopPackages(ctx context.Context, reg registry.Registry, lim
 	for i, name := range names {
 		rank := uint(i + 1)
 		var existing models.Package
-		result := p.db.Where("org_id = ? AND name = ? AND registry = ?", orgID, name, reg.Name()).Limit(1).Find(&existing)
+		result := p.db.Where("org_id = ? AND name = ? AND ecosystem = ?", orgID, name, reg.Name()).Limit(1).Find(&existing)
 		if result.RowsAffected == 0 {
 			pkg := models.Package{
 				OrgID:    orgID,
 				Name:     name,
-				Registry: models.Registry(reg.Name()),
+				Ecosystem: models.Ecosystem(reg.Name()),
 				IsCustom: false,
 				Rank:     &rank,
 			}
@@ -429,6 +429,6 @@ func (p *Poller) SyncTopPackages(ctx context.Context, reg registry.Registry, lim
 		}
 	}
 
-	slog.Info("top packages synced", "registry", reg.Name(), "count", len(names), "org_id", orgID)
+	slog.Info("top packages synced", "ecosystem", reg.Name(), "count", len(names), "org_id", orgID)
 	return nil
 }

@@ -63,7 +63,7 @@ export function createPackage(overrides: Partial<Package> = {}): Package {
   return {
     id: 1,
     name: "test-package",
-    registry: "npm",
+    ecosystem: "npm",
     latestVersion: "1.0.0",
     description: "A test package",
     isCustom: false,
@@ -104,7 +104,7 @@ export function createRecentRelease(overrides: Partial<RecentRelease> = {}): Rec
   return {
     ...createRelease(),
     packageName: "test-package",
-    packageRegistry: "npm",
+    packageEcosystem: "npm",
     classification: "benign",
     ...overrides,
   }
@@ -121,7 +121,7 @@ export function createAlert(overrides: Partial<Alert> = {}): Alert {
     status: "new",
     message: "Suspicious code pattern detected",
     packageName: "test-package",
-    packageRegistry: "npm",
+    packageEcosystem: "npm",
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -164,9 +164,9 @@ export function createChartData(overrides: Partial<ChartData> = {}): ChartData {
       { classification: "suspicious", count: 20 },
       { classification: "malicious", count: 3 },
     ],
-    registries: [
-      { registry: "npm", count: 80 },
-      { registry: "pypi", count: 70 },
+    ecosystems: [
+      { ecosystem: "npm", count: 80 },
+      { ecosystem: "python", count: 70 },
     ],
     alertsBySeverity: [
       { severity: "low", count: 5 },

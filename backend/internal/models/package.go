@@ -6,22 +6,22 @@ import (
 	"gorm.io/gorm"
 )
 
-// Registry represents a package registry source.
-type Registry string
+// Ecosystem represents a package ecosystem source.
+type Ecosystem string
 
 const (
-	// RegistryPyPI is the Python Package Index.
-	RegistryPyPI Registry = "pypi"
-	// RegistryNPM is the npm registry.
-	RegistryNPM Registry = "npm"
+	// EcosystemPython is the Python Package Index.
+	EcosystemPython Ecosystem = "python"
+	// EcosystemNPM is the npm ecosystem.
+	EcosystemNPM Ecosystem = "npm"
 )
 
-// Package represents a monitored package from PyPI or npm.
+// Package represents a monitored package from Python (PyPI) or npm.
 type Package struct {
 	ID            uint           `gorm:"primarykey" json:"id"`
 	OrgID         uint           `gorm:"not null;index" json:"orgId"`
 	Name          string         `gorm:"not null" json:"name"`
-	Registry      Registry       `gorm:"not null;type:varchar(10)" json:"registry"`
+	Ecosystem     Ecosystem      `gorm:"column:ecosystem;not null;type:varchar(10)" json:"ecosystem"`
 	LatestVersion string         `gorm:"type:varchar(100)" json:"latestVersion"`
 	Description   string         `gorm:"type:text" json:"description"`
 	IsCustom      bool           `gorm:"not null;default:false" json:"isCustom"`

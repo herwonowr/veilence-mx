@@ -15,29 +15,29 @@ type ImportFormat = "requirements_txt" | "package_json" | "list"
 
 type ParsedEntry = {
   name: string
-  registry: string
+  ecosystem: string
   status: "new" | "exists" | "error"
   error?: string
   selected: boolean
 }
 
-function parseRequirementsTxt(text: string): { name: string; registry: string }[] {
+function parseRequirementsTxt(text: string): { name: string; ecosystem: string }[] {
   return text
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith("#") && !line.startsWith("-"))
     .map((line) => {
       const name = line.split(/[=<>~!\[;@]/)[0].trim()
-      return { name, registry: "pypi" }
+      return { name, ecosystem: "python" }
     })
     .filter((p) => p.name.length > 0)
 }
 
-function parsePackageJson(text: string): { name: string; registry: string }[] {
+function parsePackageJson(text: string): { name: string; ecosystem: string }[] {
   try {
     const pkg = JSON.parse(text)
     const deps = { ...pkg.dependencies, ...pkg.devDependencies }
-    return Object.keys(deps).map((name) => ({ name, registry: "npm" }))
+    return Object.keys(deps).map((name) => ({ name, ecosystem: "npm" }))
   } catch {
     return []
   }
@@ -82,17 +82,17 @@ function BulkImportContent() {
   const { data: existingRes } = usePackages({ limit: 500 })
   const existingNames = useMemo(() => {
     const pkgs = existingRes?.data ?? []
-    return new Set(pkgs.map((p) => `${p.name}:${p.registry}`))
+    return new Set(pkgs.map((p) => `${p.name}:${p.ecosystem}`))
   }, [existingRes])
 
   // ─── Parsing helpers ───
 
   const buildEntries = useCallback(
-    (raw: { name: string; registry: string }[]): ParsedEntry[] => {
+    (raw: { name: string; ecosystem: string }[]): ParsedEntry[] => {
       return raw.map((pkg) => ({
         ...pkg,
-        status: existingNames.has(`${pkg.name}:${pkg.registry}`) ? "exists" as const : "new" as const,
-        selected: !existingNames.has(`${pkg.name}:${pkg.registry}`),
+        status: existingNames.has(`${pkg.name}:${pkg.ecosystem}`) ? "exists" as const : "new" as const,
+        selected: !existingNames.has(`${pkg.name}:${pkg.ecosystem}`),
       }))
     },
     [existingNames]
@@ -264,7 +264,7 @@ function BulkImportContent() {
       setEntries((prev) =>
         prev.map((e) => ({
           ...e,
-          status: existingNames.has(`${e.name}:${e.registry}`) ? "exists" : "new",
+          status: existingNames.has(`${e.name}:${e.ecosystem}`) ? "exists" : "new",
         }))
       )
     }
@@ -332,7 +332,7 @@ function BulkImportContent() {
               Upload File
             </CardTitle>
             <CardDescription>
-              Upload a requirements.txt (PyPI) or package.json (npm) file.
+              Upload a requirements.txt (Python) or package.json (npm) file.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -496,7 +496,7 @@ function BulkImportContent() {
             <div className="max-h-80 overflow-y-auto space-y-0.5" role="list" aria-label="Parsed packages">
               {entries.map((entry, i) => (
                 <label
-                  key={`${entry.name}-${entry.registry}-${i}`}
+                  key={`${entry.name}-${entry.ecosystem}-${i}`}
                   className={`flex items-center gap-3 rounded-md px-2 py-1.5 cursor-pointer transition-colors hover:bg-muted/50 ${
                     entry.selected ? "bg-muted/30" : ""
                   }`}
@@ -511,7 +511,7 @@ function BulkImportContent() {
                   />
                   <span className="text-sm font-mono truncate">{entry.name}</span>
                   <Badge variant="outline" className="shrink-0 text-xs">
-                    {entry.registry}
+                    {entry.ecosystem}
                   </Badge>
                   <StatusBadge status={entry.status} />
                 </label>

@@ -295,7 +295,7 @@ function OrgDetailContent() {
                         onValueChange={(v) => setInviteRoleId(v ? parseInt(String(v), 10) : null)}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a role" />
+                          <SelectValue>{inviteRoleId != null ? capitalize(roles.find(r => r.id === inviteRoleId)?.name ?? "") : "Select a role"}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {roles.map((role) => (

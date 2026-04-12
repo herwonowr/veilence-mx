@@ -26,10 +26,10 @@ type ClassificationCount struct {
 	Count          int64
 }
 
-// RegistryCount holds a registry type and its package count.
-type RegistryCount struct {
-	Registry string
-	Count    int64
+// EcosystemCount holds an ecosystem type and its package count.
+type EcosystemCount struct {
+	Ecosystem string
+	Count     int64
 }
 
 // AlertSeverityCount holds an alert severity and its count.
@@ -55,8 +55,8 @@ type DashboardRepository interface {
 	GetClassificationDistribution(ctx context.Context, orgID uint, from, to time.Time) ([]ClassificationCount, error)
 	// GetBaselineCount returns the number of completed releases without diffs within a date range.
 	GetBaselineCount(ctx context.Context, orgID uint, from, to time.Time) (int64, error)
-	// GetRegistryDistribution returns package counts per registry for an org.
-	GetRegistryDistribution(ctx context.Context, orgID uint) ([]RegistryCount, error)
+	// GetEcosystemDistribution returns package counts per ecosystem for an org.
+	GetEcosystemDistribution(ctx context.Context, orgID uint) ([]EcosystemCount, error)
 	// GetAlertsBySeverity returns alert counts per severity within a date range for an org.
 	GetAlertsBySeverity(ctx context.Context, orgID uint, from, to time.Time) ([]AlertSeverityCount, error)
 	// GetReleaseStatusDistribution returns release status counts within a date range for an org.

@@ -33,7 +33,7 @@ export const packageKeys = {
 
 export function usePackages(
   params?: {
-    registry?: string
+    ecosystem?: string
     search?: string
     page?: number
     limit?: number
@@ -79,8 +79,8 @@ export function useCreatePackage() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ name, registry }: { name: string; registry: string }) =>
-      createPackage(name, registry),
+    mutationFn: ({ name, ecosystem }: { name: string; ecosystem: string }) =>
+      createPackage(name, ecosystem),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: packageKeys.lists() })
       toast.success("Package added")
@@ -110,7 +110,7 @@ export function useSyncTopPackages() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (registry?: string) => syncTopPackages(registry),
+    mutationFn: (ecosystem?: string) => syncTopPackages(ecosystem),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: packageKeys.lists() })
       toast.success("Top packages synced")

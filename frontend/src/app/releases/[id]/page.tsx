@@ -144,7 +144,7 @@ function ReleaseDetailContent({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-2">
-          <Badge variant="outline">{release.package?.registry}</Badge>
+          <Badge variant="outline">{release.package?.ecosystem}</Badge>
           <Badge variant="secondary">{release.status}</Badge>
           <span className="text-sm text-muted-foreground">
             Published {new Date(release.publishedAt).toLocaleDateString()}

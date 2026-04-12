@@ -226,7 +226,7 @@ function ChannelsSection({
                   }}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select type" />
+                    <SelectValue>{channelType === "email" ? "Email (SMTP)" : channelType === "slack" ? "Slack (Webhook)" : channelType === "webhook" ? "Webhook" : "Select type"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="email">Email (SMTP)</SelectItem>
@@ -516,7 +516,7 @@ function RulesSection({
                   }}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select severity" />
+                    <SelectValue>{ruleSeverity ? <span className="capitalize">{ruleSeverity}</span> : "Select severity"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {SEVERITIES.map((s) => (
@@ -541,7 +541,7 @@ function RulesSection({
                     }}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select channel" />
+                      <SelectValue>{ruleChannel ? channels.find(c => c.id === ruleChannel)?.name ?? "Select channel" : "Select channel"}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {channels.map((ch) => (

@@ -57,10 +57,10 @@ func (r *PackageRepo) FindByOrgID(ctx context.Context, orgID uint, page, limit i
 	return result, total, nil
 }
 
-func (r *PackageRepo) FindByOrgAndName(ctx context.Context, orgID uint, name string, registry domain.Registry) (*domain.Package, error) {
+func (r *PackageRepo) FindByOrgAndName(ctx context.Context, orgID uint, name string, ecosystem domain.Ecosystem) (*domain.Package, error) {
 	var m models.Package
 	err := r.db.WithContext(ctx).
-		Where("org_id = ? AND name = ? AND registry = ?", orgID, name, string(registry)).
+		Where("org_id = ? AND name = ? AND ecosystem = ?", orgID, name, string(ecosystem)).
 		First(&m).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -102,10 +102,10 @@ func (r *PackageRepo) SoftDelete(ctx context.Context, orgID, id uint) error {
 	return nil
 }
 
-func (r *PackageRepo) CountByOrg(ctx context.Context, orgID uint, registry *domain.Registry) (int64, error) {
+func (r *PackageRepo) CountByOrg(ctx context.Context, orgID uint, ecosystem *domain.Ecosystem) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&models.Package{}).Where("org_id = ?", orgID)
-	if registry != nil {
-		query = query.Where("registry = ?", string(*registry))
+	if ecosystem != nil {
+		query = query.Where("ecosystem = ?", string(*ecosystem))
 	}
 	var count int64
 	if err := query.Count(&count).Error; err != nil {
@@ -121,7 +121,7 @@ func packageToDomain(m *models.Package) *domain.Package {
 		ID:            m.ID,
 		OrgID:         m.OrgID,
 		Name:          m.Name,
-		Registry:      domain.Registry(m.Registry),
+		Ecosystem:     domain.Ecosystem(m.Ecosystem),
 		LatestVersion: m.LatestVersion,
 		Description:   m.Description,
 		IsCustom:      m.IsCustom,
@@ -136,7 +136,7 @@ func packageToModel(d *domain.Package) *models.Package {
 		ID:            d.ID,
 		OrgID:         d.OrgID,
 		Name:          d.Name,
-		Registry:      models.Registry(d.Registry),
+		Ecosystem:     models.Ecosystem(d.Ecosystem),
 		LatestVersion: d.LatestVersion,
 		Description:   d.Description,
 		IsCustom:      d.IsCustom,

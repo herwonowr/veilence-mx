@@ -35,7 +35,7 @@ interface TableSkeletonProps {
  * <TableSkeleton
  *   columns={[
  *     { width: "w-32", header: "Name" },
- *     { width: "w-16", header: "Registry" },
+ *     { width: "w-16", header: "Ecosystem" },
  *     { width: "w-20", header: "Version" },
  *   ]}
  *   rows={5}

@@ -22,9 +22,9 @@ func (Setting) TableName() string {
 
 // Default setting keys.
 const (
-	SettingPyPIPollInterval    = "pypi_poll_interval"
+	SettingPythonPollInterval  = "python_poll_interval"
 	SettingNPMPollInterval     = "npm_poll_interval"
-	SettingPyPITopN            = "pypi_top_n"
+	SettingPythonTopN          = "python_top_n"
 	SettingNPMTopN             = "npm_top_n"
 	SettingAnalyzerMode        = "analyzer_mode"
 	SettingTopNRefreshInterval = "top_n_refresh_interval"

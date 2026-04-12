@@ -136,7 +136,7 @@ function AlertDetailContent({
                 className="text-primary hover:underline font-medium"
               >
                 {alert.packageName}
-                <span className="text-xs text-muted-foreground ml-1">({alert.packageRegistry})</span>
+                <span className="text-xs text-muted-foreground ml-1">({alert.packageEcosystem})</span>
               </Link>
             </div>
             <div>

@@ -43,7 +43,7 @@ function createWrapper() {
 }
 
 describe("Package creation form", () => {
-  it("submits with name and registry", async () => {
+  it("submits with name and ecosystem", async () => {
     let capturedBody: Record<string, string> | null = null
 
     server.use(
@@ -51,7 +51,7 @@ describe("Package creation form", () => {
         capturedBody = (await request.json()) as Record<string, string>
         return HttpResponse.json(
           {
-            data: createPackage({ name: capturedBody.name, registry: capturedBody.registry as "npm" | "pypi" }),
+            data: createPackage({ name: capturedBody.name, ecosystem: capturedBody.ecosystem as "npm" | "python" }),
             error: null,
           },
           { status: 201 }
@@ -64,13 +64,13 @@ describe("Package creation form", () => {
     })
 
     await act(async () => {
-      result.current.mutate({ name: "lodash", registry: "npm" })
+      result.current.mutate({ name: "lodash", ecosystem: "npm" })
     })
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true)
     })
-    expect(capturedBody).toEqual({ name: "lodash", registry: "npm" })
+    expect(capturedBody).toEqual({ name: "lodash", ecosystem: "npm" })
   })
 
   it("handles server validation error", async () => {
@@ -89,7 +89,7 @@ describe("Package creation form", () => {
 
     await act(async () => {
       try {
-        await result.current.mutateAsync({ name: "", registry: "npm" })
+        await result.current.mutateAsync({ name: "", ecosystem: "npm" })
       } catch {
         // Expected
       }
@@ -106,7 +106,7 @@ describe("Package creation form", () => {
     })
 
     await act(async () => {
-      result.current.mutate({ name: "express", registry: "npm" })
+      result.current.mutate({ name: "express", ecosystem: "npm" })
     })
 
     await waitFor(() => {
@@ -114,13 +114,13 @@ describe("Package creation form", () => {
     })
   })
 
-  it("creates pypi package", async () => {
+  it("creates python package", async () => {
     const { result } = renderHook(() => useCreatePackage(), {
       wrapper: createWrapper(),
     })
 
     await act(async () => {
-      result.current.mutate({ name: "requests", registry: "pypi" })
+      result.current.mutate({ name: "requests", ecosystem: "python" })
     })
 
     await waitFor(() => {

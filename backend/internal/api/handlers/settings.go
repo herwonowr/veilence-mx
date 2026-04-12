@@ -41,9 +41,9 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 	}
 
 	validKeys := map[string]bool{
-		models.SettingPyPIPollInterval:       true,
+		models.SettingPythonPollInterval:     true,
 		models.SettingNPMPollInterval:        true,
-		models.SettingPyPITopN:               true,
+		models.SettingPythonTopN:             true,
 		models.SettingNPMTopN:                true,
 		models.SettingAnalyzerMode:           true,
 		models.SettingTopNRefreshInterval:    true,
@@ -96,26 +96,26 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 // SyncTopPackages triggers an immediate top-N package sync for the current org.
 func (h *SettingsHandlers) SyncTopPackages(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
-	registryParam := r.URL.Query().Get("registry")
+	ecosystemParam := r.URL.Query().Get("ecosystem")
 
-	if registryParam == "" || registryParam == "pypi" {
+	if ecosystemParam == "" || ecosystemParam == "python" {
 		// Get limit from settings or use default
 		limit := 100
 		var setting models.Setting
-		if err := h.DB.Where("org_id = ? AND key = ?", orgID, models.SettingPyPITopN).First(&setting).Error; err == nil {
+		if err := h.DB.Where("org_id = ? AND key = ?", orgID, models.SettingPythonTopN).First(&setting).Error; err == nil {
 			if v, err := json.Number(setting.Value).Int64(); err == nil {
 				limit = int(v)
 			}
 		}
 
-		if err := h.Poller.SyncTopPackages(r.Context(), h.PyPI, limit, orgID); err != nil {
-			slog.Error("failed to sync PyPI top packages", "org_id", orgID, "error", err)
-			respondError(w, http.StatusInternalServerError, "failed to sync PyPI top packages")
+		if err := h.Poller.SyncTopPackages(r.Context(), h.Python, limit, orgID); err != nil {
+			slog.Error("failed to sync Python top packages", "org_id", orgID, "error", err)
+			respondError(w, http.StatusInternalServerError, "failed to sync Python top packages")
 			return
 		}
 	}
 
-	if registryParam == "" || registryParam == "npm" {
+	if ecosystemParam == "" || ecosystemParam == "npm" {
 		limit := 100
 		var setting models.Setting
 		if err := h.DB.Where("org_id = ? AND key = ?", orgID, models.SettingNPMTopN).First(&setting).Error; err == nil {

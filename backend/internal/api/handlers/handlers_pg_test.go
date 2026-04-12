@@ -43,9 +43,9 @@ func TestIntegrationPG_AlertSearch_CaseInsensitive(t *testing.T) {
 	}
 
 	// Create test data with mixed case
-	pkg1 := models.Package{Name: "Requests", Registry: "pypi", OrgID: 0}
+	pkg1 := models.Package{Name: "Requests", Ecosystem: "python", OrgID: 0}
 	db.Create(&pkg1)
-	pkg2 := models.Package{Name: "EXPRESS", Registry: "npm", OrgID: 0}
+	pkg2 := models.Package{Name: "EXPRESS", Ecosystem: "npm", OrgID: 0}
 	db.Create(&pkg2)
 
 	rel1 := models.Release{PackageID: pkg1.ID, Version: "1.0.0", Status: "completed"}
@@ -107,9 +107,9 @@ func TestIntegrationPG_PackageSearch_CaseInsensitive(t *testing.T) {
 		Audit: audit.NewService(db),
 	}
 
-	db.Create(&models.Package{Name: "Django", Registry: "pypi", OrgID: 0})
-	db.Create(&models.Package{Name: "FLASK", Registry: "pypi", OrgID: 0})
-	db.Create(&models.Package{Name: "express", Registry: "npm", OrgID: 0})
+	db.Create(&models.Package{Name: "Django", Ecosystem: "python", OrgID: 0})
+	db.Create(&models.Package{Name: "FLASK", Ecosystem: "python", OrgID: 0})
+	db.Create(&models.Package{Name: "express", Ecosystem: "npm", OrgID: 0})
 
 	tests := []struct {
 		name      string
@@ -151,9 +151,9 @@ func TestIntegrationPG_ReleaseSearch_CaseInsensitive(t *testing.T) {
 		Dashboard: repository.NewDashboardRepo(db),
 	}
 
-	pkg1 := models.Package{Name: "Requests", Registry: "pypi", OrgID: 0}
+	pkg1 := models.Package{Name: "Requests", Ecosystem: "python", OrgID: 0}
 	db.Create(&pkg1)
-	pkg2 := models.Package{Name: "LODASH", Registry: "npm", OrgID: 0}
+	pkg2 := models.Package{Name: "LODASH", Ecosystem: "npm", OrgID: 0}
 	db.Create(&pkg2)
 
 	db.Create(&models.Release{PackageID: pkg1.ID, Version: "1.0.0", Status: "completed"})

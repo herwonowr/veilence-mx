@@ -126,14 +126,14 @@ function SettingsContent() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
-              id="pypi-interval"
-              label="PyPI Poll Interval"
-              value={localSettings.pypi_poll_interval ?? ""}
+              id="python-interval"
+              label="Python Poll Interval"
+              value={localSettings.python_poll_interval ?? ""}
               onChange={(e) =>
-                updateSetting("pypi_poll_interval", e.target.value)
+                updateSetting("python_poll_interval", e.target.value)
               }
               placeholder="5m"
-              error={validationErrors.pypi_poll_interval}
+              error={validationErrors.python_poll_interval}
               description="Go duration format (e.g., 5m, 1h, 30s)"
             />
             <FormField
@@ -158,13 +158,13 @@ function SettingsContent() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
-              id="pypi-top-n"
-              label="PyPI Top N"
+              id="python-top-n"
+              label="Python Top N"
               type="number"
-              value={localSettings.pypi_top_n ?? ""}
-              onChange={(e) => updateSetting("pypi_top_n", e.target.value)}
+              value={localSettings.python_top_n ?? ""}
+              onChange={(e) => updateSetting("python_top_n", e.target.value)}
               placeholder="100"
-              error={validationErrors.pypi_top_n}
+              error={validationErrors.python_top_n}
             />
             <FormField
               id="npm-top-n"

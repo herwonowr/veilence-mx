@@ -8,7 +8,7 @@ package models
 // 1. Package model (package.go):
 //    - Added: OrgID uint `gorm:"not null;index" json:"orgId"`
 //    - All package queries are scoped by OrgID via handlers
-//    - Unique constraint is now (org_id, name, registry)
+//    - Unique constraint is now (org_id, name, ecosystem)
 //
 // 2. Alert model (alert.go):
 //    - Added: OrgID uint `gorm:"not null;index" json:"orgId"`

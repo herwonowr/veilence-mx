@@ -68,7 +68,7 @@ function ReleasesContent() {
   const router = useRouter()
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search, 300)
-  const [registryFilter, setRegistryFilter] = useState("")
+  const [ecosystemFilter, setEcosystemFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [classificationFilter, setClassificationFilter] = useState("")
   const [pagination, setPagination] = useState<PaginationState>({
@@ -79,7 +79,7 @@ function ReleasesContent() {
 
   const releaseColumnBreakpoints: ColumnBreakpoints = useMemo(() => ({
     publishedAt: "desktop",
-    packageRegistry: "tablet",
+    packageEcosystem: "tablet",
   }), [])
   const columnVisibility = useResponsiveColumns(releaseColumnBreakpoints)
 
@@ -90,7 +90,7 @@ function ReleasesContent() {
     sortBy: sort?.id,
     sortDir: sort ? (sort.desc ? "desc" : "asc") : undefined,
     search: debouncedSearch || undefined,
-    registry: registryFilter || undefined,
+    ecosystem: ecosystemFilter || undefined,
     status: statusFilter || undefined,
     classification: classificationFilter || undefined,
   })
@@ -100,21 +100,21 @@ function ReleasesContent() {
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-  }, [sorting, debouncedSearch, registryFilter, statusFilter, classificationFilter])
+  }, [sorting, debouncedSearch, ecosystemFilter, statusFilter, classificationFilter])
 
-  const hasActiveFilters = !!(search || registryFilter || statusFilter || classificationFilter)
+  const hasActiveFilters = !!(search || ecosystemFilter || statusFilter || classificationFilter)
 
   const clearAllFilters = () => {
     setSearch("")
-    setRegistryFilter("")
+    setEcosystemFilter("")
     setStatusFilter("")
     setClassificationFilter("")
     setSorting([])
   }
 
   const activeFilters: ActiveFilter[] = [
-    ...(registryFilter
-      ? [{ label: "Registry", value: registryFilter === "pypi" ? "PyPI" : "npm", onRemove: () => setRegistryFilter("") }]
+    ...(ecosystemFilter
+      ? [{ label: "Ecosystem", value: ecosystemFilter === "python" ? "Python" : "npm", onRemove: () => setEcosystemFilter("") }]
       : []),
     ...(statusFilter
       ? [{ label: "Status", value: statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1), onRemove: () => setStatusFilter("") }]
@@ -129,7 +129,7 @@ function ReleasesContent() {
 
   const skeletonColumns: SkeletonColumn[] = [
     { width: "w-24", header: "Package" },
-    { width: "w-16", header: "Registry" },
+    { width: "w-16", header: "Ecosystem" },
     { width: "w-20", header: "Version" },
     { width: "w-24", header: "Published" },
     { width: "w-16", header: "Status" },
@@ -151,10 +151,10 @@ function ReleasesContent() {
         ),
       },
       {
-        accessorKey: "packageRegistry",
-        header: ({ column }) => <SortableHeader column={column} title="Registry" />,
+        accessorKey: "packageEcosystem",
+        header: ({ column }) => <SortableHeader column={column} title="Ecosystem" />,
         cell: ({ row }) => (
-          <Badge variant="outline">{row.original.packageRegistry}</Badge>
+          <Badge variant="outline">{row.original.packageEcosystem}</Badge>
         ),
       },
       {
@@ -239,19 +239,19 @@ function ReleasesContent() {
                 aria-label="Search releases"
               />
               <div className="space-y-1">
-                <label htmlFor="releases-registry-filter" className="text-xs font-medium text-muted-foreground">
-                  Registry
+                <label htmlFor="releases-ecosystem-filter" className="text-xs font-medium text-muted-foreground">
+                  Ecosystem
                 </label>
                 <Select
-                  value={registryFilter || "all"}
-                  onValueChange={(v) => setRegistryFilter(v === "all" ? "" : (v ?? ""))}
+                  value={ecosystemFilter || "all"}
+                  onValueChange={(v) => setEcosystemFilter(v === "all" ? "" : (v ?? ""))}
                 >
-                  <SelectTrigger id="releases-registry-filter" className="w-32">
-                    <SelectValue placeholder="All" />
+                  <SelectTrigger id="releases-ecosystem-filter" className="w-32">
+                    <SelectValue>{ecosystemFilter === "python" ? "Python" : ecosystemFilter === "npm" ? "npm" : "All"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="pypi">PyPI</SelectItem>
+                    <SelectItem value="python">Python</SelectItem>
                     <SelectItem value="npm">npm</SelectItem>
                   </SelectContent>
                 </Select>
@@ -265,7 +265,7 @@ function ReleasesContent() {
                   onValueChange={(v) => setStatusFilter(v === "all" ? "" : (v ?? ""))}
                 >
                   <SelectTrigger id="releases-status-filter" className="w-36">
-                    <SelectValue placeholder="All Statuses" />
+                    <SelectValue>{statusFilter ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) : "All Statuses"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
@@ -286,7 +286,7 @@ function ReleasesContent() {
                   onValueChange={(v) => setClassificationFilter(v === "all" ? "" : (v ?? ""))}
                 >
                   <SelectTrigger id="releases-classification-filter" className="w-40">
-                    <SelectValue placeholder="All Classifications" />
+                    <SelectValue>{classificationFilter ? classificationFilter.charAt(0).toUpperCase() + classificationFilter.slice(1) : "All Classifications"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Classifications</SelectItem>

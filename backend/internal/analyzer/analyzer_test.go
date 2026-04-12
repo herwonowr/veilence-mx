@@ -65,7 +65,7 @@ func TestCLIClient_Analyze_Success(t *testing.T) {
 		RateInterval: 1 * time.Millisecond,
 	})
 
-	result, err := client.Analyze(context.Background(), "diff content", "requests", "pypi", "1.0.0", "1.1.0")
+	result, err := client.Analyze(context.Background(), "diff content", "requests", "python", "1.0.0", "1.1.0")
 	require.NoError(t, err)
 	assert.Equal(t, "benign", result.Classification)
 	assert.Equal(t, 0.95, result.Confidence)
@@ -123,7 +123,7 @@ func TestCLIClient_Analyze_DiffTruncation(t *testing.T) {
 	})
 
 	longDiff := strings.Repeat("x", 200)
-	_, err := client.Analyze(context.Background(), longDiff, "pkg", "pypi", "1.0", "2.0")
+	_, err := client.Analyze(context.Background(), longDiff, "pkg", "python", "1.0", "2.0")
 	require.NoError(t, err)
 	assert.Contains(t, receivedPrompt, "truncated")
 }
@@ -154,7 +154,7 @@ func TestCLIClient_Analyze_429Retry(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
 	defer cancel()
 
-	result, err := client.Analyze(ctx, "diff", "pkg", "pypi", "1.0", "2.0")
+	result, err := client.Analyze(ctx, "diff", "pkg", "python", "1.0", "2.0")
 	require.NoError(t, err)
 	assert.Equal(t, "benign", result.Classification)
 	assert.Equal(t, int32(3), attempts.Load())
@@ -174,7 +174,7 @@ func TestCLIClient_Analyze_429ExhaustedRetries(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 65*time.Second)
 	defer cancel()
 
-	_, err := client.Analyze(ctx, "diff", "pkg", "pypi", "1.0", "2.0")
+	_, err := client.Analyze(ctx, "diff", "pkg", "python", "1.0", "2.0")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "rate limited")
 }
@@ -191,7 +191,7 @@ func TestCLIClient_Analyze_ServerError(t *testing.T) {
 		RateInterval: 1 * time.Millisecond,
 	})
 
-	_, err := client.Analyze(context.Background(), "diff", "pkg", "pypi", "1.0", "2.0")
+	_, err := client.Analyze(context.Background(), "diff", "pkg", "python", "1.0", "2.0")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "500")
 }
@@ -210,7 +210,7 @@ func TestCLIClient_Analyze_EmptyResponse(t *testing.T) {
 		RateInterval: 1 * time.Millisecond,
 	})
 
-	_, err := client.Analyze(context.Background(), "diff", "pkg", "pypi", "1.0", "2.0")
+	_, err := client.Analyze(context.Background(), "diff", "pkg", "python", "1.0", "2.0")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "empty response")
 }
@@ -233,7 +233,7 @@ func TestCLIClient_Analyze_InvalidJSON_FallbackExtraction(t *testing.T) {
 		RateInterval: 1 * time.Millisecond,
 	})
 
-	result, err := client.Analyze(context.Background(), "diff", "pkg", "pypi", "1.0", "2.0")
+	result, err := client.Analyze(context.Background(), "diff", "pkg", "python", "1.0", "2.0")
 	require.NoError(t, err)
 	assert.Equal(t, "suspicious", result.Classification)
 	assert.Equal(t, 0.7, result.Confidence)
@@ -257,7 +257,7 @@ func TestCLIClient_Analyze_CompletelyInvalidJSON(t *testing.T) {
 		RateInterval: 1 * time.Millisecond,
 	})
 
-	result, err := client.Analyze(context.Background(), "diff", "pkg", "pypi", "1.0", "2.0")
+	result, err := client.Analyze(context.Background(), "diff", "pkg", "python", "1.0", "2.0")
 	require.NoError(t, err)
 	// Fallback: returns suspicious with 0.5 confidence
 	assert.Equal(t, "suspicious", result.Classification)
@@ -279,7 +279,7 @@ func TestCLIClient_Analyze_ContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel immediately
 
-	_, err := client.Analyze(ctx, "diff", "pkg", "pypi", "1.0", "2.0")
+	_, err := client.Analyze(ctx, "diff", "pkg", "python", "1.0", "2.0")
 	assert.Error(t, err)
 }
 
@@ -290,7 +290,7 @@ type mockAnalyzer struct {
 	typ    string
 }
 
-func (m *mockAnalyzer) Analyze(ctx context.Context, diff string, packageName string, registry string, oldVersion string, newVersion string) (*analyzer.Result, error) {
+func (m *mockAnalyzer) Analyze(ctx context.Context, diff string, packageName string, ecosystem string, oldVersion string, newVersion string) (*analyzer.Result, error) {
 	return m.result, m.err
 }
 
@@ -320,7 +320,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 
 func seedDiffForPipeline(t *testing.T, db *gorm.DB) (models.Diff, models.Release, models.Release) {
 	t.Helper()
-	pkg := models.Package{Name: "test-pkg", Registry: "pypi"}
+	pkg := models.Package{Name: "test-pkg", Ecosystem: "python"}
 	require.NoError(t, db.Create(&pkg).Error)
 
 	rel1 := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: models.ReleaseStatusCompleted}

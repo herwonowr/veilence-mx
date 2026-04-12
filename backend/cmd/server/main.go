@@ -58,7 +58,7 @@ func main() {
 	}
 	copilotAPIURL := getEnv("COPILOT_API_URL", "http://localhost:4141")
 	copilotModel := getEnv("COPILOT_MODEL", "claude-opus-4.6")
-	pypiInterval := parseDuration(getEnv("PYPI_POLL_INTERVAL", "5m"), 5*time.Minute)
+	pythonInterval := parseDuration(getEnv("PYTHON_POLL_INTERVAL", "5m"), 5*time.Minute)
 	npmInterval := parseDuration(getEnv("NPM_POLL_INTERVAL", "5m"), 5*time.Minute)
 	concurrency := parseInt(getEnv("POLLER_CONCURRENCY", "5"), 5)
 	diffSizeLimit := parseInt(getEnv("DIFF_SIZE_LIMIT", "102400"), 102400)
@@ -74,9 +74,9 @@ func main() {
 
 	// Seed settings from .env defaults (only inserts if key doesn't exist)
 	seedDefaults := map[string]string{
-		models.SettingPyPIPollInterval:    getEnv("PYPI_POLL_INTERVAL", "5m"),
+		models.SettingPythonPollInterval:  getEnv("PYTHON_POLL_INTERVAL", "5m"),
 		models.SettingNPMPollInterval:     getEnv("NPM_POLL_INTERVAL", "5m"),
-		models.SettingPyPITopN:            getEnv("PYPI_TOP_N", "100"),
+		models.SettingPythonTopN:          getEnv("PYTHON_TOP_N", "100"),
 		models.SettingNPMTopN:             getEnv("NPM_TOP_N", "100"),
 		models.SettingTopNRefreshInterval: getEnv("TOP_N_REFRESH_INTERVAL", "24h"),
 		models.SettingDiffSizeLimit:       getEnv("DIFF_SIZE_LIMIT", "102400"),
@@ -114,17 +114,17 @@ func main() {
 	}
 	recoverStuckReleases(ctx, jobQueue, db)
 
-	pypiClient := registry.NewPyPIClient()
+	pythonClient := registry.NewPyPIClient()
 	npmClient := registry.NewNPMClient()
 
-	pollerService := poller.New(db, pypiClient, npmClient, poller.Config{
-		PyPIInterval:        pypiInterval,
+	pollerService := poller.New(db, pythonClient, npmClient, poller.Config{
+		PythonInterval:      pythonInterval,
 		NPMInterval:         npmInterval,
 		Concurrency:         concurrency,
 		TopNRefreshInterval: parseDuration(getEnv("TOP_N_REFRESH_INTERVAL", "24h"), 24*time.Hour),
 	}, jobQueue)
 
-	differService := differ.New(db, pypiClient, npmClient, differ.Config{
+	differService := differ.New(db, pythonClient, npmClient, differ.Config{
 		DiffSizeLimit: diffSizeLimit,
 	}, jobQueue)
 
@@ -202,7 +202,7 @@ func main() {
 		auditService,
 		notificationService,
 		pollerService,
-		pypiClient,
+		pythonClient,
 		npmClient,
 		jobQueue,
 		dashboardRepo,

@@ -24,7 +24,7 @@ func TestSetupTestDB_Migrates(t *testing.T) {
 	assert.NotZero(t, user.ID)
 
 	// Should be able to create a package
-	pkg := &models.Package{Name: "requests", Registry: "pypi"}
+	pkg := &models.Package{Name: "requests", Ecosystem: "python"}
 	require.NoError(t, db.Create(pkg).Error)
 	assert.NotZero(t, pkg.ID)
 }
@@ -117,7 +117,7 @@ func TestMockPackageRepo_CreateAndFind(t *testing.T) {
 	repo := testutil.NewMockPackageRepository()
 	ctx := context.Background()
 
-	pkg := &domain.Package{OrgID: 1, Name: "requests", Registry: domain.RegistryPyPI}
+	pkg := &domain.Package{OrgID: 1, Name: "requests", Ecosystem: domain.EcosystemPython}
 	require.NoError(t, repo.Create(ctx, pkg))
 	assert.Equal(t, uint(1), pkg.ID)
 
@@ -130,9 +130,9 @@ func TestMockPackageRepo_FindByOrgID(t *testing.T) {
 	repo := testutil.NewMockPackageRepository()
 	ctx := context.Background()
 
-	require.NoError(t, repo.Create(ctx, &domain.Package{OrgID: 1, Name: "p1", Registry: domain.RegistryPyPI}))
-	require.NoError(t, repo.Create(ctx, &domain.Package{OrgID: 1, Name: "p2", Registry: domain.RegistryNPM}))
-	require.NoError(t, repo.Create(ctx, &domain.Package{OrgID: 2, Name: "p3", Registry: domain.RegistryPyPI}))
+	require.NoError(t, repo.Create(ctx, &domain.Package{OrgID: 1, Name: "p1", Ecosystem: domain.EcosystemPython}))
+	require.NoError(t, repo.Create(ctx, &domain.Package{OrgID: 1, Name: "p2", Ecosystem: domain.EcosystemNPM}))
+	require.NoError(t, repo.Create(ctx, &domain.Package{OrgID: 2, Name: "p3", Ecosystem: domain.EcosystemPython}))
 
 	pkgs, total, err := repo.FindByOrgID(ctx, 1, 1, 10, "")
 	require.NoError(t, err)

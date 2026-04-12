@@ -32,7 +32,7 @@ interface CommandItem {
 const commandItems: CommandItem[] = [
   // Navigation
   { id: "dashboard", label: "Dashboard", href: "/", icon: LayoutDashboard, group: "Navigation", keywords: ["home", "overview", "stats"] },
-  { id: "packages", label: "Packages", href: "/packages", icon: Package, group: "Navigation", keywords: ["pypi", "npm", "dependencies"] },
+  { id: "packages", label: "Packages", href: "/packages", icon: Package, group: "Navigation", keywords: ["python", "npm", "dependencies"] },
   { id: "releases", label: "Releases", href: "/releases", icon: Activity, group: "Navigation", keywords: ["versions", "updates"] },
   { id: "alerts", label: "Alerts", href: "/alerts", icon: Bell, group: "Navigation", keywords: ["notifications", "warnings", "threats"] },
   { id: "organizations", label: "Organizations", href: "/organizations", icon: Building2, group: "Navigation", keywords: ["orgs", "teams"] },

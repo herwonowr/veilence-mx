@@ -2,22 +2,22 @@ package domain
 
 import "time"
 
-// Registry represents a package registry source.
-type Registry string
+// Ecosystem represents a package ecosystem source.
+type Ecosystem string
 
 const (
-	// RegistryPyPI is the Python Package Index.
-	RegistryPyPI Registry = "pypi"
-	// RegistryNPM is the npm registry.
-	RegistryNPM Registry = "npm"
+	// EcosystemPython is the Python Package Index.
+	EcosystemPython Ecosystem = "python"
+	// EcosystemNPM is the npm ecosystem.
+	EcosystemNPM Ecosystem = "npm"
 )
 
-// Package represents a monitored package from PyPI or npm.
+// Package represents a monitored package from Python (PyPI) or npm.
 type Package struct {
 	ID            uint      `json:"id"`
 	OrgID         uint      `json:"orgId"`
 	Name          string    `json:"name"`
-	Registry      Registry  `json:"registry"`
+	Ecosystem     Ecosystem `json:"ecosystem"`
 	LatestVersion string    `json:"latestVersion"`
 	Description   string    `json:"description"`
 	IsCustom      bool      `json:"isCustom"`

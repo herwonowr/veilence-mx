@@ -379,7 +379,7 @@ func (m *MockPackageRepository) FindByOrgID(_ context.Context, orgID uint, page,
 	return result[start:end], total, nil
 }
 
-func (m *MockPackageRepository) FindByOrgAndName(_ context.Context, orgID uint, name string, registry domain.Registry) (*domain.Package, error) {
+func (m *MockPackageRepository) FindByOrgAndName(_ context.Context, orgID uint, name string, ecosystem domain.Ecosystem) (*domain.Package, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.Calls.FindByOrgAndName++
@@ -387,7 +387,7 @@ func (m *MockPackageRepository) FindByOrgAndName(_ context.Context, orgID uint, 
 		return nil, m.Errors.FindByOrgAndName
 	}
 	for _, p := range m.packages {
-		if p.OrgID == orgID && p.Name == name && p.Registry == registry {
+		if p.OrgID == orgID && p.Name == name && p.Ecosystem == ecosystem {
 			clone := *p
 			return &clone, nil
 		}
@@ -442,7 +442,7 @@ func (m *MockPackageRepository) SoftDelete(_ context.Context, orgID, id uint) er
 	return nil
 }
 
-func (m *MockPackageRepository) CountByOrg(_ context.Context, orgID uint, registry *domain.Registry) (int64, error) {
+func (m *MockPackageRepository) CountByOrg(_ context.Context, orgID uint, ecosystem *domain.Ecosystem) (int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.Calls.CountByOrg++
@@ -452,7 +452,7 @@ func (m *MockPackageRepository) CountByOrg(_ context.Context, orgID uint, regist
 	var count int64
 	for _, p := range m.packages {
 		if p.OrgID == orgID {
-			if registry == nil || p.Registry == *registry {
+			if ecosystem == nil || p.Ecosystem == *ecosystem {
 				count++
 			}
 		}

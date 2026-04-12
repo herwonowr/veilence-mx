@@ -27,20 +27,20 @@ type Config struct {
 // Differ generates diffs between consecutive package releases.
 type Differ struct {
 	db     *gorm.DB
-	pypi   registry.Registry
+	python registry.Registry
 	npm    registry.Registry
 	config Config
 	queue  *queue.Queue
 }
 
 // New creates a new Differ instance.
-func New(db *gorm.DB, pypi registry.Registry, npm registry.Registry, config Config, q *queue.Queue) *Differ {
+func New(db *gorm.DB, python registry.Registry, npm registry.Registry, config Config, q *queue.Queue) *Differ {
 	if config.DiffSizeLimit <= 0 {
 		config.DiffSizeLimit = 100 * 1024 // 100KB default
 	}
 	return &Differ{
 		db:     db,
-		pypi:   pypi,
+		python: python,
 		npm:    npm,
 		config: config,
 		queue:  q,
@@ -75,9 +75,9 @@ func (d *Differ) processRelease(ctx context.Context, releaseID uint) error {
 	}
 
 	// Get the appropriate registry client
-	reg := d.getRegistry(string(release.Package.Registry))
+	reg := d.getRegistry(string(release.Package.Ecosystem))
 	if reg == nil {
-		return fmt.Errorf("unknown registry: %s", release.Package.Registry)
+		return fmt.Errorf("unknown ecosystem: %s", release.Package.Ecosystem)
 	}
 
 	// Download both tarballs
@@ -161,8 +161,8 @@ func (d *Differ) processRelease(ctx context.Context, releaseID uint) error {
 
 func (d *Differ) getRegistry(name string) registry.Registry {
 	switch name {
-	case "pypi":
-		return d.pypi
+	case "python":
+		return d.python
 	case "npm":
 		return d.npm
 	default:

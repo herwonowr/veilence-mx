@@ -120,7 +120,7 @@ func CreateOrg(t *testing.T, db *gorm.DB, opts ...func(*OrgFixture)) *models.Org
 type PkgFixture struct {
 	OrgID         uint
 	Name          string
-	Registry      models.Registry
+	Ecosystem     models.Ecosystem
 	LatestVersion string
 	IsCustom      bool
 }
@@ -130,7 +130,7 @@ func DefaultPkgFixture() PkgFixture {
 	return PkgFixture{
 		OrgID:    1,
 		Name:     "requests",
-		Registry: models.RegistryPyPI,
+		Ecosystem: models.EcosystemPython,
 		IsCustom: false,
 	}
 }
@@ -145,7 +145,7 @@ func CreatePackage(t *testing.T, db *gorm.DB, opts ...func(*PkgFixture)) *models
 	pkg := &models.Package{
 		OrgID:         f.OrgID,
 		Name:          f.Name,
-		Registry:      f.Registry,
+		Ecosystem:     f.Ecosystem,
 		LatestVersion: f.LatestVersion,
 		IsCustom:      f.IsCustom,
 	}
@@ -444,12 +444,12 @@ func NewDomainOrg(id, ownerID uint, name, slug string) *domain.Organization {
 }
 
 // NewDomainPackage creates a domain.Package with sensible defaults.
-func NewDomainPackage(id, orgID uint, name string, registry domain.Registry) *domain.Package {
+func NewDomainPackage(id, orgID uint, name string, ecosystem domain.Ecosystem) *domain.Package {
 	return &domain.Package{
-		ID:       id,
-		OrgID:    orgID,
-		Name:     name,
-		Registry: registry,
+		ID:        id,
+		OrgID:     orgID,
+		Name:      name,
+		Ecosystem: ecosystem,
 	}
 }
 

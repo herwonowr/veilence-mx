@@ -45,19 +45,19 @@ func (h *PackageHandlers) ListPackages(w http.ResponseWriter, r *http.Request) {
 	page, limit := parsePagination(r)
 	sortOrder := parseSort(r, map[string]string{
 		"name":          "name",
-		"registry":      "registry",
+		"ecosystem":     "ecosystem",
 		"latestVersion": "latest_version",
 		"rank":          "rank",
 		"isCustom":      "is_custom",
 		"createdAt":     "created_at",
 	}, "rank ASC NULLS LAST, name ASC")
-	registryFilter := r.URL.Query().Get("registry")
+	ecosystemFilter := r.URL.Query().Get("ecosystem")
 	isCustomFilter := r.URL.Query().Get("is_custom")
 	search := r.URL.Query().Get("search")
 
 	query := h.DB.Model(&models.Package{}).Where("org_id = ?", orgID)
-	if registryFilter != "" {
-		query = query.Where("registry = ?", registryFilter)
+	if ecosystemFilter != "" {
+		query = query.Where("ecosystem = ?", ecosystemFilter)
 	}
 	if isCustomFilter != "" {
 		query = query.Where("is_custom = ?", isCustomFilter == "true")
@@ -105,8 +105,8 @@ func (h *PackageHandlers) GetPackage(w http.ResponseWriter, r *http.Request) {
 }
 
 type createPackageRequest struct {
-	Name     string `json:"name"`
-	Registry string `json:"registry"`
+	Name      string `json:"name"`
+	Ecosystem string `json:"ecosystem"`
 }
 
 // CreatePackage adds a custom package to monitor within the current org.
@@ -127,21 +127,21 @@ func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) 
 		respondAppError(w, apperror.Validation(err.Error()))
 		return
 	}
-	if req.Registry != "pypi" && req.Registry != "npm" {
-		respondAppError(w, apperror.Validation("registry must be 'pypi' or 'npm'"))
+	if req.Ecosystem != "python" && req.Ecosystem != "npm" {
+		respondAppError(w, apperror.Validation("ecosystem must be 'python' or 'npm'"))
 		return
 	}
 
 	var existing models.Package
-	if tx := h.DB.Where("org_id = ? AND name = ? AND registry = ?", orgID, req.Name, req.Registry).Limit(1).Find(&existing); tx.RowsAffected > 0 {
+	if tx := h.DB.Where("org_id = ? AND name = ? AND ecosystem = ?", orgID, req.Name, req.Ecosystem).Limit(1).Find(&existing); tx.RowsAffected > 0 {
 		respondAppError(w, apperror.Conflict("package already monitored"))
 		return
 	}
 
 	pkg := models.Package{
 		OrgID:    orgID,
-		Name:     req.Name,
-		Registry: models.Registry(req.Registry),
+		Name:      req.Name,
+		Ecosystem: models.Ecosystem(req.Ecosystem),
 		IsCustom: true,
 	}
 
@@ -150,7 +150,7 @@ func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "create", "package", pkg.ID, fmt.Sprintf("added %s package %q to monitoring", req.Registry, req.Name))
+	h.Audit.LogAction(r.Context(), "create", "package", pkg.ID, fmt.Sprintf("added %s package %q to monitoring", req.Ecosystem, req.Name))
 
 	respondJSON(w, http.StatusCreated, pkg, nil)
 }
@@ -182,8 +182,8 @@ func (h *PackageHandlers) DeletePackage(w http.ResponseWriter, r *http.Request) 
 
 // importPackageEntry represents a single package in a bulk import request.
 type importPackageEntry struct {
-	Name     string `json:"name"`
-	Registry string `json:"registry"`
+	Name      string `json:"name"`
+	Ecosystem string `json:"ecosystem"`
 }
 
 // importPackagesRequest is the request body for bulk package import.
@@ -243,7 +243,7 @@ func parseRequirementsTxt(content string) ([]importPackageEntry, error) {
 		if name == "" {
 			continue
 		}
-		entries = append(entries, importPackageEntry{Name: name, Registry: "pypi"})
+		entries = append(entries, importPackageEntry{Name: name, Ecosystem: "python"})
 	}
 	if len(entries) == 0 {
 		return nil, fmt.Errorf("no packages found in requirements.txt content")
@@ -267,14 +267,14 @@ func parsePackageJSON(content string) ([]importPackageEntry, error) {
 	for name := range pkgJSON.Dependencies {
 		name = strings.TrimSpace(name)
 		if name != "" && !seen[name] {
-			entries = append(entries, importPackageEntry{Name: name, Registry: "npm"})
+			entries = append(entries, importPackageEntry{Name: name, Ecosystem: "npm"})
 			seen[name] = true
 		}
 	}
 	for name := range pkgJSON.DevDependencies {
 		name = strings.TrimSpace(name)
 		if name != "" && !seen[name] {
-			entries = append(entries, importPackageEntry{Name: name, Registry: "npm"})
+			entries = append(entries, importPackageEntry{Name: name, Ecosystem: "npm"})
 			seen[name] = true
 		}
 	}
@@ -284,8 +284,8 @@ func parsePackageJSON(content string) ([]importPackageEntry, error) {
 	return entries, nil
 }
 
-// parseListFormat parses newline-separated "registry:name" pairs.
-// Example: "pypi:requests\nnpm:express\npypi:flask"
+// parseListFormat parses newline-separated "ecosystem:name" pairs.
+// Example: "python:requests\nnpm:express\npython:flask"
 func parseListFormat(content string) ([]importPackageEntry, error) {
 	var entries []importPackageEntry
 	for _, line := range strings.Split(content, "\n") {
@@ -297,12 +297,12 @@ func parseListFormat(content string) ([]importPackageEntry, error) {
 		if len(parts) != 2 {
 			continue
 		}
-		registry := strings.TrimSpace(parts[0])
+		ecosystem := strings.TrimSpace(parts[0])
 		name := strings.TrimSpace(parts[1])
-		if registry == "" || name == "" {
+		if ecosystem == "" || name == "" {
 			continue
 		}
-		entries = append(entries, importPackageEntry{Name: name, Registry: registry})
+		entries = append(entries, importPackageEntry{Name: name, Ecosystem: ecosystem})
 	}
 	if len(entries) == 0 {
 		return nil, fmt.Errorf("no packages found in list content")
@@ -361,7 +361,7 @@ func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request)
 	}
 
 	result := importResult{}
-	validRegistries := map[string]bool{"pypi": true, "npm": true}
+	validEcosystems := map[string]bool{"python": true, "npm": true}
 
 	for _, entry := range entries {
 		if entry.Name == "" {
@@ -372,27 +372,27 @@ func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request)
 			result.Errors = append(result.Errors, importErrorEntry{Name: entry.Name, Error: err.Error()})
 			continue
 		}
-		if !validRegistries[entry.Registry] {
-			result.Errors = append(result.Errors, importErrorEntry{Name: entry.Name, Error: fmt.Sprintf("registry must be 'pypi' or 'npm', got %q", entry.Registry)})
+		if !validEcosystems[entry.Ecosystem] {
+			result.Errors = append(result.Errors, importErrorEntry{Name: entry.Name, Error: fmt.Sprintf("ecosystem must be 'python' or 'npm', got %q", entry.Ecosystem)})
 			continue
 		}
 
 		// Check for existing package
 		var existing models.Package
-		if tx := h.DB.Where("org_id = ? AND name = ? AND registry = ?", orgID, entry.Name, entry.Registry).Limit(1).Find(&existing); tx.RowsAffected > 0 {
+		if tx := h.DB.Where("org_id = ? AND name = ? AND ecosystem = ?", orgID, entry.Name, entry.Ecosystem).Limit(1).Find(&existing); tx.RowsAffected > 0 {
 			result.Skipped++
 			continue
 		}
 
 		pkg := models.Package{
 			OrgID:    orgID,
-			Name:     entry.Name,
-			Registry: models.Registry(entry.Registry),
+			Name:      entry.Name,
+			Ecosystem: models.Ecosystem(entry.Ecosystem),
 			IsCustom: true,
 		}
 
 		if err := h.DB.Create(&pkg).Error; err != nil {
-			slog.Error("failed to import package", "name", entry.Name, "registry", entry.Registry, "error", err)
+			slog.Error("failed to import package", "name", entry.Name, "ecosystem", entry.Ecosystem, "error", err)
 			result.Errors = append(result.Errors, importErrorEntry{Name: entry.Name, Error: "failed to create package"})
 			continue
 		}

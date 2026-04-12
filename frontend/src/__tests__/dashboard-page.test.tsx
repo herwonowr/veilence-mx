@@ -91,7 +91,7 @@ describe("Dashboard data hooks", () => {
     const data = result.current.data?.data
     expect(data?.releaseActivity).toBeDefined()
     expect(data?.classifications).toBeDefined()
-    expect(data?.registries).toBeDefined()
+    expect(data?.ecosystems).toBeDefined()
     expect(data?.alertsBySeverity).toBeDefined()
   })
 

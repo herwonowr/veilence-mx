@@ -110,7 +110,7 @@ describe("Alert detail data flow", () => {
             status: "acknowledged",
             message: "Malicious code detected in install script",
             packageName: "evil-pkg",
-            packageRegistry: "npm",
+            packageEcosystem: "npm",
           }),
           error: null,
         })

@@ -149,7 +149,7 @@ function DashboardData() {
 
   const releasesSkeletonColumns: SkeletonColumn[] = [
     { width: "w-28", header: "Package" },
-    { width: "w-16", header: "Registry" },
+    { width: "w-16", header: "Ecosystem" },
     { width: "w-20", header: "Version" },
     { width: "w-16", header: "Status" },
     { width: "w-20", header: "Classification" },
@@ -283,7 +283,7 @@ function DashboardData() {
             <TableHeader>
               <TableRow>
                 <TableHead>Package</TableHead>
-                <TableHead className="hidden md:table-cell">Registry</TableHead>
+                <TableHead className="hidden md:table-cell">Ecosystem</TableHead>
                 <TableHead>Version</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden lg:table-cell">Classification</TableHead>
@@ -305,7 +305,7 @@ function DashboardData() {
                     </Link>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
-                    <Badge variant="outline">{release.packageRegistry}</Badge>
+                    <Badge variant="outline">{release.packageEcosystem}</Badge>
                   </TableCell>
                   <TableCell className="font-mono text-sm">{release.version}</TableCell>
                   <TableCell>

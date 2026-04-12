@@ -101,7 +101,7 @@ func TestPyPIClient_GetTopPackages(t *testing.T) {
 
 func TestPyPIClient_Name(t *testing.T) {
 	client := registry.NewPyPIClient()
-	assert.Equal(t, "pypi", client.Name())
+	assert.Equal(t, "python", client.Name())
 }
 
 func TestPyPIClient_DownloadTarball(t *testing.T) {

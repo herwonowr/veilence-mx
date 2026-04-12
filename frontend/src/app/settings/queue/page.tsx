@@ -155,7 +155,7 @@ function QueueContent() {
               }
             >
               <SelectTrigger className="w-28">
-                <SelectValue placeholder="All types" />
+                <SelectValue>{deadJobType ? deadJobType.charAt(0).toUpperCase() + deadJobType.slice(1) : "All"}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>

@@ -88,7 +88,7 @@ type chatResponse struct {
 }
 
 // Analyze sends a diff to copilot-api for classification via GitHub Copilot.
-func (c *CLIClient) Analyze(ctx context.Context, diff string, packageName string, registry string, oldVersion string, newVersion string) (*Result, error) {
+func (c *CLIClient) Analyze(ctx context.Context, diff string, packageName string, ecosystem string, oldVersion string, newVersion string) (*Result, error) {
 	// Rate limit
 	select {
 	case <-c.rateLimiter.C:
@@ -104,8 +104,8 @@ func (c *CLIClient) Analyze(ctx context.Context, diff string, packageName string
 	}
 
 	userPrompt := fmt.Sprintf(
-		"Analyze the following diff for package \"%s\" (%s registry) between versions %s and %s:\n\n```diff\n%s\n```",
-		packageName, registry, oldVersion, newVersion, diff,
+		"Analyze the following diff for package \"%s\" (%s ecosystem) between versions %s and %s:\n\n```diff\n%s\n```",
+		packageName, ecosystem, oldVersion, newVersion, diff,
 	)
 	if truncated {
 		userPrompt += "\n\n(Note: diff was truncated due to size limits. Analyze what is visible.)"

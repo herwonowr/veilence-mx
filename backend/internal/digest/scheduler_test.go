@@ -58,7 +58,7 @@ func TestGenerateDigest_WithData(t *testing.T) {
 	now := time.Now()
 
 	// Create test data for org 1
-	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
+	pkg := models.Package{Name: "requests", Ecosystem: "python", OrgID: 1}
 	db.Create(&pkg)
 
 	rel1 := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
@@ -107,9 +107,9 @@ func TestGenerateDigest_OrgScoping(t *testing.T) {
 	now := time.Now()
 
 	// Create alerts for org 1 and org 2
-	pkg1 := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
+	pkg1 := models.Package{Name: "requests", Ecosystem: "python", OrgID: 1}
 	db.Create(&pkg1)
-	pkg2 := models.Package{Name: "express", Registry: "npm", OrgID: 2}
+	pkg2 := models.Package{Name: "express", Ecosystem: "npm", OrgID: 2}
 	db.Create(&pkg2)
 
 	rel1 := models.Release{PackageID: pkg1.ID, Version: "1.0.0", Status: "completed"}
@@ -147,7 +147,7 @@ func TestGenerateDigest_TopAlertsLimit(t *testing.T) {
 	db := setupTestDB(t)
 	s := newTestScheduler(db)
 
-	pkg := models.Package{Name: "requests", Registry: "pypi", OrgID: 1}
+	pkg := models.Package{Name: "requests", Ecosystem: "python", OrgID: 1}
 	db.Create(&pkg)
 	rel := models.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)

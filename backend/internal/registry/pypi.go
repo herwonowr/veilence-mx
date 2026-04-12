@@ -70,7 +70,7 @@ func NewPyPIClient(opts ...PyPIOption) *PyPIClient {
 	return c
 }
 
-func (c *PyPIClient) Name() string { return "pypi" }
+func (c *PyPIClient) Name() string { return "python" }
 
 // GetPackage retrieves metadata for a PyPI package.
 func (c *PyPIClient) GetPackage(ctx context.Context, name string) (*PackageInfo, error) {
