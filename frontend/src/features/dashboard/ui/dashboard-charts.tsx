@@ -22,8 +22,9 @@ import {
 } from "@/ui/components/select"
 import { Calendar } from "@/ui/components/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/components/popover"
-import { Button } from "@/ui/components/button"
+import { Button, buttonVariants } from "@/ui/components/button"
 import { RotateCcw, CalendarIcon } from "lucide-react"
+import { cn } from "@/core/utils"
 import type { ChartData } from "@/domains/dashboard"
 
 const classificationConfig = {
@@ -179,18 +180,40 @@ export const DashboardCharts = ({ data, range, onRangeChange }: DashboardChartsP
             <SelectItem value="custom">Custom Range</SelectItem>
           </SelectContent>
         </Select>
+        {/* Isolate date pickers from Select's event scope — without this,
+            calendar click events bubble through React's synthetic tree and
+            get intercepted by the Base UI Select, resetting the preset.
+            The wrapper stops propagation for the triggers; each PopoverContent
+            also stops propagation because it renders through a portal (outside
+            the wrapper in the DOM but still a React child of the Select). */}
         {isCustom && (
-          <>
+          <div
+            className="contents"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
             <Popover open={fromOpen} onOpenChange={setFromOpen}>
               <PopoverTrigger
                 render={
-                  <Button variant="outline" size="sm" className="w-40 justify-start text-left font-normal" aria-label="Select start date" />
+                  <button
+                    type="button"
+                    className={cn(
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "w-40 justify-start text-left font-normal"
+                    )}
+                    aria-label="Select start date"
+                  />
                 }
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {fromDate ? fromDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Start date"}
               </PopoverTrigger>
-              <PopoverContent align="start" className="w-auto">
+              <PopoverContent
+                align="start"
+                className="w-auto"
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
+              >
                 <Calendar
                   mode="single"
                   selected={fromDate}
@@ -204,13 +227,25 @@ export const DashboardCharts = ({ data, range, onRangeChange }: DashboardChartsP
             <Popover open={toOpen} onOpenChange={setToOpen}>
               <PopoverTrigger
                 render={
-                  <Button variant="outline" size="sm" className="w-40 justify-start text-left font-normal" aria-label="Select end date" />
+                  <button
+                    type="button"
+                    className={cn(
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "w-40 justify-start text-left font-normal"
+                    )}
+                    aria-label="Select end date"
+                  />
                 }
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {toDate ? toDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "End date"}
               </PopoverTrigger>
-              <PopoverContent align="start" className="w-auto">
+              <PopoverContent
+                align="start"
+                className="w-auto"
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
+              >
                 <Calendar
                   mode="single"
                   selected={toDate}
@@ -220,7 +255,7 @@ export const DashboardCharts = ({ data, range, onRangeChange }: DashboardChartsP
                 />
               </PopoverContent>
             </Popover>
-          </>
+          </div>
         )}
         {(range.from || range.to) && (
           <Button variant="ghost" size="sm" onClick={handleReset}>

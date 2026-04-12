@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Bell, CheckCheck } from "lucide-react"
-import { Button } from "@/ui/components/button"
+import { Button, buttonVariants } from "@/ui/components/button"
 import { Skeleton } from "@/ui/components/skeleton"
 import {
   Popover,
@@ -13,6 +13,7 @@ import {
   PopoverTrigger,
 } from "@/ui/components/popover"
 import { Badge } from "@/ui/components/badge"
+import { cn } from "@/core/utils"
 import { useAuth } from "@/core/providers/auth-provider"
 import type { Notification } from "@/domains/notifications"
 import {
@@ -117,7 +118,14 @@ export const NotificationBell = () => {
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger
         render={
-          <Button variant="ghost" size="icon" className="relative" aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"} />
+          <button
+            type="button"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "icon" }),
+              "relative"
+            )}
+            aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"}
+          />
         }
       >
         <Bell className="size-4" aria-hidden="true" />

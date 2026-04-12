@@ -3,7 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { Button } from "@/ui/components/button"
+import { Button, buttonVariants } from "@/ui/components/button"
+import { cn } from "@/core/utils"
 import { Input } from "@/ui/components/input"
 import { Label } from "@/ui/components/label"
 import {
@@ -23,8 +24,11 @@ import {
 import { Badge } from "@/ui/components/badge"
 import { Skeleton } from "@/ui/components/skeleton"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
+import { Calendar } from "@/ui/components/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/ui/components/popover"
 import {
   ArrowLeft,
+  CalendarIcon,
   ChevronLeft,
   ChevronRight,
   Filter,
@@ -32,6 +36,8 @@ import {
 } from "lucide-react"
 import { useAuditLogs } from "@/features/admin/hooks/use-organizations"
 import { useDebouncedValue } from "@/core/hooks/use-debounced-value"
+
+const formatDate = (d: Date): string => d.toISOString().split("T")[0]
 
 export const AuditLogView = () => {
   const params = useParams<{ id: string }>()
@@ -44,16 +50,30 @@ export const AuditLogView = () => {
   const [resource, setResource] = useState("")
   const debouncedAction = useDebouncedValue(action, 300)
   const debouncedResource = useDebouncedValue(resource, 300)
-  const [fromDate, setFromDate] = useState("")
-  const [toDate, setToDate] = useState("")
+  const [fromDate, setFromDate] = useState<Date | undefined>()
+  const [toDate, setToDate] = useState<Date | undefined>()
+  const [fromOpen, setFromOpen] = useState(false)
+  const [toOpen, setToOpen] = useState(false)
   const [page, setPage] = useState(1)
   const limit = 20
+
+  const handleFromSelect = (date: Date | undefined) => {
+    setFromDate(date)
+    setFromOpen(false)
+    setPage(1)
+  }
+
+  const handleToSelect = (date: Date | undefined) => {
+    setToDate(date)
+    setToOpen(false)
+    setPage(1)
+  }
 
   const { data: logsRes, isLoading } = useAuditLogs(validOrgId, {
     action: debouncedAction || undefined,
     resource: debouncedResource || undefined,
-    from: fromDate || undefined,
-    to: toDate || undefined,
+    from: fromDate ? formatDate(fromDate) : undefined,
+    to: toDate ? formatDate(toDate) : undefined,
     page,
     limit,
   })
@@ -131,32 +151,74 @@ export const AuditLogView = () => {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="filter-from" className="text-xs">
+              <Label className="text-xs">
                 From
               </Label>
-              <Input
-                id="filter-from"
-                type="date"
-                value={fromDate}
-                onChange={(e) => {
-                  setFromDate(e.target.value)
-                  setPage(1)
-                }}
-              />
+              <Popover open={fromOpen} onOpenChange={setFromOpen}>
+                <PopoverTrigger
+                  render={
+                    <button
+                      type="button"
+                      className={cn(
+                        buttonVariants({ variant: "outline" }),
+                        "w-full justify-start text-left font-normal h-8"
+                      )}
+                      aria-label="Select start date"
+                    />
+                  }
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                  {fromDate ? (
+                    fromDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                  ) : (
+                    <span className="text-muted-foreground">Pick a date</span>
+                  )}
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto">
+                  <Calendar
+                    mode="single"
+                    selected={fromDate}
+                    onSelect={handleFromSelect}
+                    disabled={(date) => toDate ? date > toDate : date > new Date()}
+                    defaultMonth={fromDate}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="filter-to" className="text-xs">
+              <Label className="text-xs">
                 To
               </Label>
-              <Input
-                id="filter-to"
-                type="date"
-                value={toDate}
-                onChange={(e) => {
-                  setToDate(e.target.value)
-                  setPage(1)
-                }}
-              />
+              <Popover open={toOpen} onOpenChange={setToOpen}>
+                <PopoverTrigger
+                  render={
+                    <button
+                      type="button"
+                      className={cn(
+                        buttonVariants({ variant: "outline" }),
+                        "w-full justify-start text-left font-normal h-8"
+                      )}
+                      aria-label="Select end date"
+                    />
+                  }
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                  {toDate ? (
+                    toDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                  ) : (
+                    <span className="text-muted-foreground">Pick a date</span>
+                  )}
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto">
+                  <Calendar
+                    mode="single"
+                    selected={toDate}
+                    onSelect={handleToSelect}
+                    disabled={(date) => fromDate ? date < fromDate || date > new Date() : date > new Date()}
+                    defaultMonth={toDate ?? fromDate}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </CardContent>
