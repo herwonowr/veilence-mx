@@ -136,7 +136,7 @@ function PackagesContent() {
 
   const activeFilters: ActiveFilter[] = [
     ...(ecosystemFilter
-      ? [{ label: "Ecosystem", value: ecosystemFilter === "python" ? "Python" : "npm", onRemove: () => setEcosystemFilter("") }]
+      ? [{ label: "Ecosystem", value: ecosystemFilter === "python" ? "Python" : "NPM", onRemove: () => setEcosystemFilter("") }]
       : []),
     ...(search
       ? [{ label: "Search", value: search, onRemove: () => setSearch("") }]
@@ -316,11 +316,11 @@ function PackagesContent() {
                     onValueChange={(v) => { if (v) setNewEcosystem(v as Ecosystem) }}
                   >
                     <SelectTrigger id="package-ecosystem">
-                      <SelectValue>{newEcosystem === "python" ? "Python" : "npm"}</SelectValue>
+                      <SelectValue>{newEcosystem === "python" ? "Python" : "NPM"}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="python">Python</SelectItem>
-                      <SelectItem value="npm">npm</SelectItem>
+                      <SelectItem value="npm">NPM</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -354,12 +354,12 @@ function PackagesContent() {
                   onValueChange={(v) => setEcosystemFilter(v === "all" ? "" : (v ?? ""))}
                 >
                   <SelectTrigger id="packages-ecosystem-filter" className="w-32">
-                    <SelectValue>{ecosystemFilter === "python" ? "Python" : ecosystemFilter === "npm" ? "npm" : "All"}</SelectValue>
+                    <SelectValue>{ecosystemFilter === "python" ? "Python" : ecosystemFilter === "npm" ? "NPM" : "All"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
                     <SelectItem value="python">Python</SelectItem>
-                    <SelectItem value="npm">npm</SelectItem>
+                    <SelectItem value="npm">NPM</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

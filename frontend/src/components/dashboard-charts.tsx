@@ -35,7 +35,7 @@ const classificationConfig = {
 
 const ecosystemConfig = {
   python: { label: "Python", color: "#3b82f6" },
-  npm: { label: "npm", color: "#ef4444" },
+  npm: { label: "NPM", color: "#ef4444" },
 } satisfies ChartConfig
 
 const severityConfig = {
@@ -128,17 +128,17 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
     setToDate(undefined)
     onRangeChange({})
   }
-  const classificationData = data.classifications.map((c) => ({
+  const classificationData = (data.classifications ?? []).map((c) => ({
     ...c,
     fill: classificationConfig[c.classification as keyof typeof classificationConfig]?.color ?? "#6b7280",
   }))
 
-  const ecosystemData = data.ecosystems.map((r) => ({
+  const ecosystemData = (data.ecosystems ?? []).map((r) => ({
     ...r,
     fill: ecosystemConfig[r.ecosystem as keyof typeof ecosystemConfig]?.color ?? "#6b7280",
   }))
 
-  const statusData = data.releaseStatuses.map((s) => ({
+  const statusData = (data.releaseStatuses ?? []).map((s) => ({
     ...s,
     fill: statusConfig[s.status as keyof typeof statusConfig]?.color ?? "#6b7280",
   }))
@@ -237,7 +237,7 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
           <CardTitle className="text-base">{activityTitle}</CardTitle>
         </CardHeader>
         <CardContent>
-          {data.releaseActivity.length === 0 ? (
+          {(data.releaseActivity ?? []).length === 0 ? (
             <EmptyState
               icon={<TrendingUp className="h-8 w-8" />}
               title="No data for this period"
@@ -246,7 +246,7 @@ export function DashboardCharts({ data, range, onRangeChange }: DashboardChartsP
             />
           ) : (
           <ChartContainer config={activityConfig} className="h-62.5 w-full">
-            <AreaChart accessibilityLayer data={data.releaseActivity}>
+            <AreaChart accessibilityLayer data={data.releaseActivity ?? []}>
               <CartesianGrid vertical={false} />
               <XAxis
                 dataKey="date"

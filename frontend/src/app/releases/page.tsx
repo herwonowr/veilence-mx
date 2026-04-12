@@ -114,7 +114,7 @@ function ReleasesContent() {
 
   const activeFilters: ActiveFilter[] = [
     ...(ecosystemFilter
-      ? [{ label: "Ecosystem", value: ecosystemFilter === "python" ? "Python" : "npm", onRemove: () => setEcosystemFilter("") }]
+      ? [{ label: "Ecosystem", value: ecosystemFilter === "python" ? "Python" : "NPM", onRemove: () => setEcosystemFilter("") }]
       : []),
     ...(statusFilter
       ? [{ label: "Status", value: statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1), onRemove: () => setStatusFilter("") }]
@@ -247,12 +247,12 @@ function ReleasesContent() {
                   onValueChange={(v) => setEcosystemFilter(v === "all" ? "" : (v ?? ""))}
                 >
                   <SelectTrigger id="releases-ecosystem-filter" className="w-32">
-                    <SelectValue>{ecosystemFilter === "python" ? "Python" : ecosystemFilter === "npm" ? "npm" : "All"}</SelectValue>
+                    <SelectValue>{ecosystemFilter === "python" ? "Python" : ecosystemFilter === "npm" ? "NPM" : "All"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
                     <SelectItem value="python">Python</SelectItem>
-                    <SelectItem value="npm">npm</SelectItem>
+                    <SelectItem value="npm">NPM</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

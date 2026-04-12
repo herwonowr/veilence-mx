@@ -332,7 +332,7 @@ function BulkImportContent() {
               Upload File
             </CardTitle>
             <CardDescription>
-              Upload a requirements.txt (Python) or package.json (npm) file.
+              Upload a requirements.txt (Python) or package.json (NPM) file.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -511,7 +511,7 @@ function BulkImportContent() {
                   />
                   <span className="text-sm font-mono truncate">{entry.name}</span>
                   <Badge variant="outline" className="shrink-0 text-xs">
-                    {entry.ecosystem}
+                    {entry.ecosystem === "npm" ? "NPM" : entry.ecosystem === "python" ? "Python" : entry.ecosystem}
                   </Badge>
                   <StatusBadge status={entry.status} />
                 </label>
