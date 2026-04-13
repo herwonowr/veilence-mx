@@ -20,6 +20,14 @@ import {
   SelectValue,
 } from "@/ui/components/select"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/ui/components/dialog"
+import {
   RefreshCw,
   RotateCcw,
   Loader2,
@@ -32,11 +40,12 @@ import {
 } from "lucide-react"
 import { EmptyState } from "@/ui/feedback/empty-state"
 import { useQueueStats, useDeadJobs, useRetryDeadJobs, useRetryDeadJob } from "@/features/settings/hooks/use-queue"
-import type { QueueStats } from "@/domains/queue"
+import type { QueueStats, QueueJob } from "@/domains/queue"
 import { toast } from "sonner"
 
 export const QueueView = () => {
   const [deadJobType, setDeadJobType] = useState<string | undefined>(undefined)
+  const [errorDetailJob, setErrorDetailJob] = useState<QueueJob | null>(null)
 
   const {
     data: queueRes,
@@ -210,8 +219,19 @@ export const QueueView = () => {
                           {job.attempts}/{job.maxAttempts}
                         </span>
                       </TableCell>
-                      <TableCell className="max-w-xs truncate text-xs text-destructive">
-                        {job.lastError ?? "-"}
+                      <TableCell className="max-w-xs text-xs text-destructive">
+                        {job.lastError ? (
+                          <button
+                            type="button"
+                            className="max-w-full cursor-pointer truncate text-left hover:underline"
+                            onClick={() => setErrorDetailJob(job)}
+                            title="Click to view full error"
+                          >
+                            {job.lastError}
+                          </button>
+                        ) : (
+                          "-"
+                        )}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {new Date(job.createdAt * 1000).toLocaleString()}
@@ -235,6 +255,26 @@ export const QueueView = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Error Detail Dialog */}
+      <Dialog
+        open={errorDetailJob !== null}
+        onOpenChange={(open) => { if (!open) setErrorDetailJob(null) }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Error Details</DialogTitle>
+            <DialogDescription>
+              Job {errorDetailJob?.id.slice(0, 8)}… — {errorDetailJob?.type} — attempt{" "}
+              {errorDetailJob?.attempts}/{errorDetailJob?.maxAttempts}
+            </DialogDescription>
+          </DialogHeader>
+          <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-3 text-xs text-destructive">
+            {errorDetailJob?.lastError ?? "No error message"}
+          </pre>
+          <DialogFooter showCloseButton />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
