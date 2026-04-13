@@ -127,7 +127,7 @@ export const SessionsView = () => {
                       {new Date(session.lastActive).toLocaleString()}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                      {new Date(session.expiresAt).toLocaleDateString()}
+                      {new Date(session.expiresAt).toLocaleString()}
                     </TableCell>
                     <TableCell>
                       {session.isCurrent ? (
