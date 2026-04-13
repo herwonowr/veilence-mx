@@ -178,28 +178,7 @@ func (c *CLIClient) Analyze(ctx context.Context, diff string, packageName string
 
 	rawResponse := chatResp.Choices[0].Message.Content
 
-	var result Result
-	if err := json.Unmarshal([]byte(rawResponse), &result); err != nil {
-		// Try to extract JSON from the response text
-		start := bytes.IndexByte([]byte(rawResponse), '{')
-		end := bytes.LastIndexByte([]byte(rawResponse), '}')
-		if start >= 0 && end > start {
-			if err2 := json.Unmarshal([]byte(rawResponse[start:end+1]), &result); err2 == nil {
-				result.RawResponse = rawResponse
-				ValidateResult(&result)
-				return &result, nil
-			}
-		}
-		return &Result{
-			Classification: "suspicious",
-			Confidence:     0.5,
-			Reasoning:      "Failed to parse LLM response. Raw: " + rawResponse,
-			RawResponse:    rawResponse,
-		}, nil
-	}
-
-	result.RawResponse = rawResponse
-	ValidateResult(&result)
-	return &result, nil
+	result := ParseLLMResponse(rawResponse)
+	return result, nil
 }
 
