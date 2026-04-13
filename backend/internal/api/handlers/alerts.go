@@ -238,3 +238,97 @@ func (h *AlertHandlers) CreateAlertNote(w http.ResponseWriter, r *http.Request) 
 
 	respondJSON(w, http.StatusCreated, note, nil)
 }
+
+// updateAlertNoteRequest is the request body for updating a note.
+type updateAlertNoteRequest struct {
+	Content string `json:"content"`
+}
+
+// UpdateAlertNote edits an existing note. Only the note's author may edit.
+func (h *AlertHandlers) UpdateAlertNote(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+	userID := rbac.UserIDFromContext(r.Context())
+
+	alertID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		respondAppError(w, apperror.BadRequest("invalid alert ID"))
+		return
+	}
+
+	noteID, err := strconv.ParseUint(chi.URLParam(r, "noteId"), 10, 64)
+	if err != nil {
+		respondAppError(w, apperror.BadRequest("invalid note ID"))
+		return
+	}
+
+	var req updateAlertNoteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondAppError(w, apperror.BadRequest("invalid request body"))
+		return
+	}
+
+	if req.Content == "" {
+		respondAppError(w, apperror.Validation("content is required"))
+		return
+	}
+
+	if len(req.Content) > domain.MaxNoteLength {
+		respondAppError(w, apperror.Validation(fmt.Sprintf("content must be at most %d characters", domain.MaxNoteLength)))
+		return
+	}
+
+	note, err := h.Notes.Update(r.Context(), orgID, uint(alertID), uint(noteID), userID, req.Content)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			respondAppError(w, apperror.NotFound("alert note"))
+			return
+		}
+		if errors.Is(err, domain.ErrForbidden) {
+			respondAppError(w, apperror.Forbidden("you can only edit your own notes"))
+			return
+		}
+		respondAppError(w, apperror.Internal("failed to update alert note"))
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "update", "alert_note", note.ID,
+		fmt.Sprintf("edited note on alert %d", alertID))
+
+	respondJSON(w, http.StatusOK, note, nil)
+}
+
+// DeleteAlertNote removes an existing note. Only the note's author may delete.
+func (h *AlertHandlers) DeleteAlertNote(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+	userID := rbac.UserIDFromContext(r.Context())
+
+	alertID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		respondAppError(w, apperror.BadRequest("invalid alert ID"))
+		return
+	}
+
+	noteID, err := strconv.ParseUint(chi.URLParam(r, "noteId"), 10, 64)
+	if err != nil {
+		respondAppError(w, apperror.BadRequest("invalid note ID"))
+		return
+	}
+
+	if err := h.Notes.Delete(r.Context(), orgID, uint(alertID), uint(noteID), userID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			respondAppError(w, apperror.NotFound("alert note"))
+			return
+		}
+		if errors.Is(err, domain.ErrForbidden) {
+			respondAppError(w, apperror.Forbidden("you can only delete your own notes"))
+			return
+		}
+		respondAppError(w, apperror.Internal("failed to delete alert note"))
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "delete", "alert_note", uint(noteID),
+		fmt.Sprintf("deleted note on alert %d", alertID))
+
+	w.WriteHeader(http.StatusNoContent)
+}

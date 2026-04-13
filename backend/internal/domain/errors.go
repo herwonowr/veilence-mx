@@ -7,4 +7,6 @@ import "errors"
 var (
 	// ErrNotFound indicates that the requested entity does not exist.
 	ErrNotFound = errors.New("not found")
+	// ErrForbidden indicates that the user does not have permission for this action.
+	ErrForbidden = errors.New("forbidden")
 )

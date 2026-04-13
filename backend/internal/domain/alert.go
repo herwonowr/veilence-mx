@@ -55,8 +55,16 @@ const MaxNoteLength = 10000
 
 // AlertNoteService defines the business logic operations for alert notes.
 type AlertNoteService interface {
-	// ListByAlert returns all notes for an alert, verifying org ownership.
+	// ListByAlert returns all notes for an alert (newest first), verifying org ownership.
 	ListByAlert(ctx context.Context, orgID, alertID uint) ([]AlertNote, error)
 	// Create adds a new note to an alert, verifying org ownership and resolving user email.
 	Create(ctx context.Context, orgID, alertID, userID uint, content string) (*AlertNote, error)
+	// Update edits an existing note's content. Verifies alert+org ownership, note ownership,
+	// and that the note belongs to the given alert (URL consistency).
+	// Returns ErrForbidden if the caller is not the owner.
+	Update(ctx context.Context, orgID, alertID, noteID, userID uint, content string) (*AlertNote, error)
+	// Delete removes a note. Verifies alert+org ownership, note ownership,
+	// and that the note belongs to the given alert (URL consistency).
+	// Returns ErrForbidden if the caller is not the owner.
+	Delete(ctx context.Context, orgID, alertID, noteID, userID uint) error
 }

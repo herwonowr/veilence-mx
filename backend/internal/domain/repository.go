@@ -120,10 +120,16 @@ type AlertFilters struct {
 
 // AlertNoteRepository defines persistence operations for AlertNote entities.
 type AlertNoteRepository interface {
-	// FindByAlertID returns all notes for an alert.
+	// FindByAlertID returns all notes for an alert, ordered by created_at DESC.
 	FindByAlertID(ctx context.Context, alertID uint) ([]AlertNote, error)
+	// FindByID returns a single alert note by ID. Returns ErrNotFound if not found.
+	FindByID(ctx context.Context, id uint) (*AlertNote, error)
 	// Create persists a new alert note.
 	Create(ctx context.Context, note *AlertNote) error
+	// Update saves changes to an existing alert note (content and updated_at).
+	Update(ctx context.Context, note *AlertNote) error
+	// Delete removes an alert note by ID.
+	Delete(ctx context.Context, id uint) error
 }
 
 // SettingRepository defines persistence operations for Setting entities.

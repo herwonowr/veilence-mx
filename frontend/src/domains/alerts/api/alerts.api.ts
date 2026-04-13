@@ -47,3 +47,21 @@ export const createAlertNote = async (
     method: "POST",
     body: JSON.stringify({ content }),
   })
+
+export const updateAlertNote = async (
+  alertId: number,
+  noteId: number,
+  content: string
+): Promise<ApiResponse<AlertNote>> =>
+  fetchApi<AlertNote>(`/api/alerts/${alertId}/notes/${noteId}`, {
+    method: "PUT",
+    body: JSON.stringify({ content }),
+  })
+
+export const deleteAlertNote = async (
+  alertId: number,
+  noteId: number
+): Promise<ApiResponse<null>> =>
+  fetchApi<null>(`/api/alerts/${alertId}/notes/${noteId}`, {
+    method: "DELETE",
+  })

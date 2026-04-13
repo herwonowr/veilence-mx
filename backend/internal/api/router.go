@@ -131,6 +131,8 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 						r.With(rbac.RequirePermission(rbacService, "alerts", "write")).Patch("/", h.Alerts.UpdateAlert)
 						r.With(rbac.RequirePermission(rbacService, "alerts", "read")).Get("/notes", h.Alerts.ListAlertNotes)
 						r.With(rbac.RequirePermission(rbacService, "alerts", "write")).Post("/notes", h.Alerts.CreateAlertNote)
+						r.With(rbac.RequirePermission(rbacService, "alerts", "write")).Put("/notes/{noteId}", h.Alerts.UpdateAlertNote)
+						r.With(rbac.RequirePermission(rbacService, "alerts", "write")).Delete("/notes/{noteId}", h.Alerts.DeleteAlertNote)
 					})
 				})
 

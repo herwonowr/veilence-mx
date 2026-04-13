@@ -8,7 +8,9 @@ export interface AlertNoteViewModel {
   userInitials: string
   content: string
   createdAt: string
+  updatedAt: string
   relativeTime: string
+  isEdited: boolean
 }
 
 const getInitials = (email: string): string => {
@@ -49,7 +51,9 @@ export const toAlertNoteViewModel = (note: AlertNote): AlertNoteViewModel => ({
   userInitials: getInitials(note.userEmail),
   content: note.content,
   createdAt: note.createdAt,
+  updatedAt: note.updatedAt,
   relativeTime: formatRelativeTime(note.createdAt),
+  isEdited: new Date(note.updatedAt).getTime() - new Date(note.createdAt).getTime() > 1000,
 })
 
 export const toAlertNoteViewModels = (notes: AlertNote[]): AlertNoteViewModel[] =>

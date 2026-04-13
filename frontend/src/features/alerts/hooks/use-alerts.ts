@@ -6,7 +6,7 @@ import {
   useQueryClient,
   type UseQueryOptions,
 } from "@tanstack/react-query"
-import { getAlerts, getAlert, updateAlertStatus, getAlertNotes, createAlertNote } from "@/domains/alerts"
+import { getAlerts, getAlert, updateAlertStatus, getAlertNotes, createAlertNote, updateAlertNote, deleteAlertNote } from "@/domains/alerts"
 import type { ApiResponse } from "@/domains/common"
 import type { Alert, AlertNote } from "@/domains/alerts"
 import { toast } from "sonner"
@@ -123,6 +123,37 @@ export const useCreateAlertNote = (alertId: number) => {
     },
     onError: (error: Error) => {
       toast.error(sanitizeErrorMessage(error, "Failed to add note"))
+    },
+  })
+}
+
+export const useUpdateAlertNote = (alertId: number) => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ noteId, content }: { noteId: number; content: string }) =>
+      updateAlertNote(alertId, noteId, content),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: alertKeys.notes(alertId) })
+      toast.success("Note updated")
+    },
+    onError: (error: Error) => {
+      toast.error(sanitizeErrorMessage(error, "Failed to update note"))
+    },
+  })
+}
+
+export const useDeleteAlertNote = (alertId: number) => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (noteId: number) => deleteAlertNote(alertId, noteId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: alertKeys.notes(alertId) })
+      toast.success("Note deleted")
+    },
+    onError: (error: Error) => {
+      toast.error(sanitizeErrorMessage(error, "Failed to delete note"))
     },
   })
 }

@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -24,7 +26,7 @@ func (r *AlertNoteRepo) FindByAlertID(ctx context.Context, alertID uint) ([]doma
 	var ms []models.AlertNote
 	if err := r.db.WithContext(ctx).
 		Where("alert_id = ?", alertID).
-		Order("created_at ASC").
+		Order("created_at DESC").
 		Find(&ms).Error; err != nil {
 		return nil, fmt.Errorf("listing alert notes: %w", err)
 	}
@@ -44,6 +46,41 @@ func (r *AlertNoteRepo) Create(ctx context.Context, note *domain.AlertNote) erro
 	note.ID = m.ID
 	note.CreatedAt = m.CreatedAt
 	note.UpdatedAt = m.UpdatedAt
+	return nil
+}
+
+func (r *AlertNoteRepo) FindByID(ctx context.Context, id uint) (*domain.AlertNote, error) {
+	var m models.AlertNote
+	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("alert note %w", domain.ErrNotFound)
+		}
+		return nil, fmt.Errorf("finding alert note: %w", err)
+	}
+	return alertNoteToDomain(&m), nil
+}
+
+func (r *AlertNoteRepo) Update(ctx context.Context, note *domain.AlertNote) error {
+	m := alertNoteToModel(note)
+	now := time.Now()
+	if err := r.db.WithContext(ctx).Model(m).Updates(map[string]any{
+		"content":    m.Content,
+		"updated_at": now,
+	}).Error; err != nil {
+		return fmt.Errorf("updating alert note: %w", err)
+	}
+	note.UpdatedAt = now
+	return nil
+}
+
+func (r *AlertNoteRepo) Delete(ctx context.Context, id uint) error {
+	result := r.db.WithContext(ctx).Delete(&models.AlertNote{}, id)
+	if result.Error != nil {
+		return fmt.Errorf("deleting alert note: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("alert note %w", domain.ErrNotFound)
+	}
 	return nil
 }
 

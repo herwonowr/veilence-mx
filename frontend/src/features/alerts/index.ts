@@ -6,6 +6,8 @@ export {
   useUpdateAlert,
   useAlertNotes,
   useCreateAlertNote,
+  useUpdateAlertNote,
+  useDeleteAlertNote,
   alertKeys,
 } from "@/features/alerts/hooks/use-alerts"
 

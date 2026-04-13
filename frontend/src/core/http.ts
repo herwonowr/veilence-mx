@@ -172,6 +172,11 @@ export const fetchApi = async <T>(
     )
   }
 
+  // Handle 204 No Content — no body to parse
+  if (response.status === 204) {
+    return { data: null as T, error: null }
+  }
+
   let body: ApiResponse<T>
   try {
     body = (await response.json()) as ApiResponse<T>

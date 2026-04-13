@@ -77,8 +77,9 @@ func TestListByAlert_Success(t *testing.T) {
 	notes, err := svc.ListByAlert(context.Background(), 1, alert.ID)
 	require.NoError(t, err)
 	assert.Len(t, notes, 2)
-	assert.Equal(t, "First note", notes[0].Content)
-	assert.Equal(t, "Second note", notes[1].Content)
+	// Notes are returned newest-first (DESC order)
+	assert.Equal(t, "Second note", notes[0].Content)
+	assert.Equal(t, "First note", notes[1].Content)
 }
 
 func TestListByAlert_EmptyList(t *testing.T) {
@@ -205,4 +206,202 @@ func TestCreate_MaxLengthContent_Succeeds(t *testing.T) {
 	note, err := svc.Create(context.Background(), 1, alert.ID, 10, maxContent)
 	require.NoError(t, err)
 	assert.Equal(t, domain.MaxNoteLength, len(note.Content))
+}
+
+// --- Update tests ---
+
+func TestUpdate_Success(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newService(db)
+	alert := createTestAlert(t, db, 1)
+
+	// Create a note as user 10
+	note, err := svc.Create(context.Background(), 1, alert.ID, 10, "original content")
+	require.NoError(t, err)
+
+	// Update by the same user
+	updated, err := svc.Update(context.Background(), 1, alert.ID, note.ID, 10, "updated content")
+	require.NoError(t, err)
+	assert.Equal(t, note.ID, updated.ID)
+	assert.Equal(t, "updated content", updated.Content)
+	assert.False(t, updated.UpdatedAt.IsZero())
+}
+
+func TestUpdate_NotOwner_ReturnsForbidden(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newService(db)
+	alert := createTestAlert(t, db, 1)
+
+	// Create a note as user 10
+	note, err := svc.Create(context.Background(), 1, alert.ID, 10, "original content")
+	require.NoError(t, err)
+
+	// User 20 tries to update — should get forbidden
+	_, err = svc.Update(context.Background(), 1, alert.ID, note.ID, 20, "hacked content")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrForbidden)
+
+	// Verify content unchanged
+	notes, err := svc.ListByAlert(context.Background(), 1, alert.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "original content", notes[0].Content)
+}
+
+func TestUpdate_NoteNotFound(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newService(db)
+	alert := createTestAlert(t, db, 1)
+
+	_, err := svc.Update(context.Background(), 1, alert.ID, 99999, 10, "new content")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+}
+
+func TestUpdate_AlertNotFound(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newService(db)
+
+	// Non-existent alert ID
+	_, err := svc.Update(context.Background(), 1, 99999, 1, 10, "new content")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+}
+
+func TestUpdate_CrossOrg_ReturnsNotFound(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newService(db)
+	alert := createTestAlert(t, db, 1)
+
+	// Create a note in org 1
+	note, err := svc.Create(context.Background(), 1, alert.ID, 10, "org 1 note")
+	require.NoError(t, err)
+
+	// Org 2 tries to update — should get not found (tenant isolation via alert check)
+	_, err = svc.Update(context.Background(), 2, alert.ID, note.ID, 10, "hacked from org 2")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+}
+
+func TestUpdate_NoteOnDifferentAlert(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newService(db)
+	alert1 := createTestAlert(t, db, 1)
+	alert2 := createTestAlert(t, db, 1)
+
+	// Create a note on alert1
+	note, err := svc.Create(context.Background(), 1, alert1.ID, 10, "note on alert 1")
+	require.NoError(t, err)
+
+	// Try to update via alert2's URL — note belongs to alert1, should get not found
+	_, err = svc.Update(context.Background(), 1, alert2.ID, note.ID, 10, "sneaky update")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+}
+
+func TestUpdate_EmptyContent(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newService(db)
+	alert := createTestAlert(t, db, 1)
+
+	note, err := svc.Create(context.Background(), 1, alert.ID, 10, "original")
+	require.NoError(t, err)
+
+	_, err = svc.Update(context.Background(), 1, alert.ID, note.ID, 10, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "content is required")
+}
+
+func TestUpdate_ContentTooLong(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newService(db)
+	alert := createTestAlert(t, db, 1)
+
+	note, err := svc.Create(context.Background(), 1, alert.ID, 10, "original")
+	require.NoError(t, err)
+
+	longContent := strings.Repeat("a", domain.MaxNoteLength+1)
+	_, err = svc.Update(context.Background(), 1, alert.ID, note.ID, 10, longContent)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at most")
+}
+
+// --- Delete tests ---
+
+func TestDelete_Success(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newService(db)
+	alert := createTestAlert(t, db, 1)
+
+	// Create a note as user 10
+	note, err := svc.Create(context.Background(), 1, alert.ID, 10, "to be deleted")
+	require.NoError(t, err)
+
+	// Delete by the same user
+	err = svc.Delete(context.Background(), 1, alert.ID, note.ID, 10)
+	require.NoError(t, err)
+
+	// Verify note is gone
+	notes, err := svc.ListByAlert(context.Background(), 1, alert.ID)
+	require.NoError(t, err)
+	assert.Len(t, notes, 0)
+}
+
+func TestDelete_NotOwner_ReturnsForbidden(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newService(db)
+	alert := createTestAlert(t, db, 1)
+
+	// Create a note as user 10
+	note, err := svc.Create(context.Background(), 1, alert.ID, 10, "my note")
+	require.NoError(t, err)
+
+	// User 20 tries to delete — should get forbidden
+	err = svc.Delete(context.Background(), 1, alert.ID, note.ID, 20)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrForbidden)
+
+	// Verify note still exists
+	notes, err := svc.ListByAlert(context.Background(), 1, alert.ID)
+	require.NoError(t, err)
+	assert.Len(t, notes, 1)
+}
+
+func TestDelete_NoteNotFound(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newService(db)
+	alert := createTestAlert(t, db, 1)
+
+	err := svc.Delete(context.Background(), 1, alert.ID, 99999, 10)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+}
+
+func TestDelete_AlertNotFound(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newService(db)
+
+	// Non-existent alert ID
+	err := svc.Delete(context.Background(), 1, 99999, 1, 10)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+}
+
+func TestDelete_CrossOrg_ReturnsNotFound(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newService(db)
+	alert := createTestAlert(t, db, 1)
+
+	// Create a note in org 1
+	note, err := svc.Create(context.Background(), 1, alert.ID, 10, "org 1 note")
+	require.NoError(t, err)
+
+	// Org 2 tries to delete — should get not found (tenant isolation via alert check)
+	err = svc.Delete(context.Background(), 2, alert.ID, note.ID, 10)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+
+	// Verify note still exists
+	var count int64
+	db.Model(&models.AlertNote{}).Count(&count)
+	assert.Equal(t, int64(1), count)
 }
