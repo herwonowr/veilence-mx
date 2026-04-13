@@ -67,12 +67,12 @@ type PackageHandlers struct {
 	Audit *audit.Service
 }
 
-// AlertHandlers handles alert listing and status update endpoints.
+// AlertHandlers handles alert listing, status update, and note endpoints.
 // NOTE: DB will be replaced by a service interface in a future sprint.
 type AlertHandlers struct {
-	DB         *gorm.DB
-	AlertNotes domain.AlertNoteRepository
-	Audit      *audit.Service
+	DB    *gorm.DB
+	Notes domain.AlertNoteService
+	Audit *audit.Service
 }
 
 // SettingsHandlers handles settings CRUD and sync trigger endpoints.
@@ -115,7 +115,7 @@ func NewHandlers(
 	npmClient registry.Registry,
 	jobQueue *queue.Queue,
 	dashboardRepo domain.DashboardRepository,
-	alertNoteRepo domain.AlertNoteRepository,
+	alertNoteService domain.AlertNoteService,
 ) *Handlers {
 	return &Handlers{
 		Auth: &AuthHandlers{
@@ -142,9 +142,9 @@ func NewHandlers(
 			Audit: auditService,
 		},
 		Alerts: &AlertHandlers{
-			DB:         db,
-			AlertNotes: alertNoteRepo,
-			Audit:      auditService,
+			DB:    db,
+			Notes: alertNoteService,
+			Audit: auditService,
 		},
 		Settings: &SettingsHandlers{
 			DB:     db,

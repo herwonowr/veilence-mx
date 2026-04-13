@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/veilence/veilence-mx/backend/internal/alertnote"
 	"github.com/veilence/veilence-mx/backend/internal/api/handlers"
 	"github.com/veilence/veilence-mx/backend/internal/audit"
 	"github.com/veilence/veilence-mx/backend/internal/models"
@@ -25,6 +26,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	err = db.AutoMigrate(
+		&models.User{},
 		&models.Package{},
 		&models.Release{},
 		&models.Diff{},
@@ -87,7 +89,11 @@ func (m *mockEnqueuer) Enqueue(_ context.Context, jobType string, referenceID ui
 
 // newAlertHandlers creates an AlertHandlers for testing.
 func newAlertHandlers(db *gorm.DB) *handlers.AlertHandlers {
-	return &handlers.AlertHandlers{DB: db, AlertNotes: repository.NewAlertNoteRepo(db), Audit: audit.NewService(db)}
+	alertNoteRepo := repository.NewAlertNoteRepo(db)
+	alertRepo := repository.NewAlertRepo(db)
+	userRepo := repository.NewUserRepo(db)
+	noteSvc := alertnote.NewService(alertNoteRepo, alertRepo, userRepo)
+	return &handlers.AlertHandlers{DB: db, Notes: noteSvc, Audit: audit.NewService(db)}
 }
 
 // newSettingsHandlers creates a SettingsHandlers for testing.

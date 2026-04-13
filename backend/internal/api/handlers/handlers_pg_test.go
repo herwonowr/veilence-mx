@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/veilence/veilence-mx/backend/internal/alertnote"
 	"github.com/veilence/veilence-mx/backend/internal/api/handlers"
 	"github.com/veilence/veilence-mx/backend/internal/audit"
 	"github.com/veilence/veilence-mx/backend/internal/models"
@@ -37,9 +38,9 @@ func TestIntegrationPG_AlertSearch_CaseInsensitive(t *testing.T) {
 	db := testutil.SetupPostgresDB(t)
 
 	h := &handlers.AlertHandlers{
-		DB:         db,
-		AlertNotes: repository.NewAlertNoteRepo(db),
-		Audit:      audit.NewService(db),
+		DB:    db,
+		Notes: alertnote.NewService(repository.NewAlertNoteRepo(db), repository.NewAlertRepo(db), repository.NewUserRepo(db)),
+		Audit: audit.NewService(db),
 	}
 
 	// Create test data with mixed case

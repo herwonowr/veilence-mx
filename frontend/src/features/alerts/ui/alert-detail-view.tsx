@@ -1,17 +1,17 @@
 "use client"
 
-import { use, useState } from "react"
+import { use } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/ui/components/card"
+import { Card, CardContent } from "@/ui/components/card"
 import { Badge } from "@/ui/components/badge"
 import { Button } from "@/ui/components/button"
 import { Skeleton } from "@/ui/components/skeleton"
-import { Textarea } from "@/ui/components/textarea"
-import { ArrowLeft, MessageSquare, Send, Loader2, ExternalLink } from "lucide-react"
+import { ArrowLeft, ExternalLink } from "lucide-react"
 import { DetailError } from "@/ui/feedback/detail-error"
 import { formatEcosystem } from "@/domains/common"
-import { useAlert, useUpdateAlert, useAlertNotes, useCreateAlertNote } from "@/features/alerts/hooks/use-alerts"
+import { useAlert, useUpdateAlert } from "@/features/alerts/hooks/use-alerts"
+import { AlertNotesTimeline } from "@/features/alerts/ui/alert-notes-timeline"
 import type { AlertSeverity } from "@/domains/common"
 
 const severityVariant = (s: AlertSeverity) => {
@@ -35,26 +35,8 @@ export const AlertDetailView = ({
 
   const { data: alertRes, isError, refetch } = useAlert(alertId)
   const updateMutation = useUpdateAlert()
-  const { data: notesRes, isLoading: notesLoading } = useAlertNotes(alertId)
-  const createNoteMutation = useCreateAlertNote(alertId)
 
-  const [noteContent, setNoteContent] = useState("")
-
-  const notes = notesRes?.data ?? []
   const alert = alertRes?.data ?? null
-
-  const handleAddNote = async () => {
-    if (!noteContent.trim()) return
-    await createNoteMutation.mutateAsync(noteContent.trim())
-    setNoteContent("")
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault()
-      handleAddNote()
-    }
-  }
 
   if (isError) return (
     <DetailError
@@ -156,72 +138,8 @@ export const AlertDetailView = ({
         </Card>
       )}
 
-      {/* Notes / Comments */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
-            Notes ({notes.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Add note form */}
-          <div className="space-y-2">
-            <Textarea
-              placeholder="Add a note... (Ctrl+Enter to submit)"
-              value={noteContent}
-              onChange={(e) => setNoteContent(e.target.value)}
-              onKeyDown={handleKeyDown}
-              aria-label="Add a note to this alert"
-            />
-            <div className="flex justify-end">
-              <Button
-                size="sm"
-                onClick={handleAddNote}
-                disabled={!noteContent.trim() || createNoteMutation.isPending}
-              >
-                {createNoteMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="mr-2 h-4 w-4" />
-                )}
-                Add Note
-              </Button>
-            </div>
-          </div>
-
-          {/* Notes list */}
-          {notesLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 2 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          ) : notes.length > 0 ? (
-            <div className="space-y-3">
-              {notes.map((note) => (
-                <div key={note.id} className="rounded-lg border p-3 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">
-                      {note.userEmail || `User #${note.userId}`}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(note.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                    {note.content}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-sm text-muted-foreground py-4">
-              No notes yet. Add a note to track investigation progress.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {/* Notes Timeline */}
+      <AlertNotesTimeline alertId={alertId} />
     </div>
   )
 }

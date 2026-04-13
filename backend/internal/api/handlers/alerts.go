@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -177,15 +178,12 @@ func (h *AlertHandlers) ListAlertNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify alert belongs to org
-	var alert models.Alert
-	if err := h.DB.Where("id = ? AND org_id = ?", alertID, orgID).First(&alert).Error; err != nil {
-		respondAppError(w, apperror.NotFound("alert"))
-		return
-	}
-
-	notes, err := h.AlertNotes.FindByAlertID(r.Context(), uint(alertID))
+	notes, err := h.Notes.ListByAlert(r.Context(), orgID, uint(alertID))
 	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			respondAppError(w, apperror.NotFound("alert"))
+			return
+		}
 		respondAppError(w, apperror.Internal("failed to list alert notes"))
 		return
 	}
@@ -209,13 +207,6 @@ func (h *AlertHandlers) CreateAlertNote(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Verify alert belongs to org
-	var alert models.Alert
-	if err := h.DB.Where("id = ? AND org_id = ?", alertID, orgID).First(&alert).Error; err != nil {
-		respondAppError(w, apperror.NotFound("alert"))
-		return
-	}
-
 	var req createAlertNoteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondAppError(w, apperror.BadRequest("invalid request body"))
@@ -227,24 +218,17 @@ func (h *AlertHandlers) CreateAlertNote(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	const maxNoteLength = 10000
-	if len(req.Content) > maxNoteLength {
-		respondAppError(w, apperror.Validation(fmt.Sprintf("content must be at most %d characters", maxNoteLength)))
+	if len(req.Content) > domain.MaxNoteLength {
+		respondAppError(w, apperror.Validation(fmt.Sprintf("content must be at most %d characters", domain.MaxNoteLength)))
 		return
 	}
 
-	// Look up user email
-	userEmail := h.getUserEmail(userID)
-
-	note := &domain.AlertNote{
-		AlertID:   uint(alertID),
-		OrgID:     orgID,
-		UserID:    userID,
-		UserEmail: userEmail,
-		Content:   req.Content,
-	}
-
-	if err := h.AlertNotes.Create(r.Context(), note); err != nil {
+	note, err := h.Notes.Create(r.Context(), orgID, uint(alertID), userID, req.Content)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			respondAppError(w, apperror.NotFound("alert"))
+			return
+		}
 		respondAppError(w, apperror.Internal("failed to create alert note"))
 		return
 	}
@@ -253,11 +237,4 @@ func (h *AlertHandlers) CreateAlertNote(w http.ResponseWriter, r *http.Request) 
 		fmt.Sprintf("added note on alert %d", alertID))
 
 	respondJSON(w, http.StatusCreated, note, nil)
-}
-
-// getUserEmail retrieves a user's email from the database.
-func (h *AlertHandlers) getUserEmail(userID uint) string {
-	var email string
-	h.DB.Table("users").Where("id = ?", userID).Pluck("email", &email)
-	return email
 }

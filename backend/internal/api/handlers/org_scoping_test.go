@@ -25,6 +25,7 @@ func setupOrgTestDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	err = db.AutoMigrate(
+		&models.User{},
 		&models.Package{},
 		&models.Release{},
 		&models.Diff{},

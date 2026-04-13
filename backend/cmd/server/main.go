@@ -15,6 +15,7 @@ import (
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 
+	"github.com/veilence/veilence-mx/backend/internal/alertnote"
 	"github.com/veilence/veilence-mx/backend/internal/analyzer"
 	"github.com/veilence/veilence-mx/backend/internal/api"
 	"github.com/veilence/veilence-mx/backend/internal/api/handlers"
@@ -190,6 +191,8 @@ func main() {
 	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, smtpConfig)
 	dashboardRepo := repository.NewDashboardRepo(db)
 	alertNoteRepo := repository.NewAlertNoteRepo(db)
+	alertRepo := repository.NewAlertRepo(db)
+	alertNoteService := alertnote.NewService(alertNoteRepo, alertRepo, userRepo)
 
 	// Start email digest scheduler
 	digestScheduler := digest.New(db, smtpConfig, digest.Config{})
@@ -206,7 +209,7 @@ func main() {
 		npmClient,
 		jobQueue,
 		dashboardRepo,
-		alertNoteRepo,
+		alertNoteService,
 	)
 
 	router := api.NewRouter(h, frontendURL, authService, rbacService)
