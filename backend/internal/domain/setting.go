@@ -24,4 +24,26 @@ const (
 	SettingDiffSizeLimit       = "diff_size_limit"
 	SettingVersionDepthMode    = "version_depth_mode"
 	SettingVersionDepthCount   = "version_depth_count"
+
+	// Email digest settings (per-org).
+	SettingEmailDigestEnabled    = "email_digest_enabled"
+	SettingEmailDigestFrequency  = "email_digest_frequency"
+	SettingEmailDigestRecipients = "email_digest_recipients"
 )
+
+// ValidSettingKeys is the canonical set of all accepted setting keys.
+// Used by the handler layer for input validation.
+var ValidSettingKeys = map[string]bool{
+	SettingPythonPollInterval:  true,
+	SettingNPMPollInterval:     true,
+	SettingPythonTopN:          true,
+	SettingNPMTopN:             true,
+	SettingAnalyzerMode:        true,
+	SettingTopNRefreshInterval: true,
+	SettingDiffSizeLimit:       true,
+	SettingVersionDepthMode:    true,
+	SettingVersionDepthCount:   true,
+	SettingEmailDigestEnabled:    true,
+	SettingEmailDigestFrequency:  true,
+	SettingEmailDigestRecipients: true,
+}

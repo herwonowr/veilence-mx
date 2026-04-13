@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/veilence/veilence-mx/backend/internal/apperror"
+	"github.com/veilence/veilence-mx/backend/internal/domain"
 	"github.com/veilence/veilence-mx/backend/internal/models"
 	"github.com/veilence/veilence-mx/backend/internal/rbac"
 )
@@ -40,23 +41,8 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	validKeys := map[string]bool{
-		models.SettingPythonPollInterval:     true,
-		models.SettingNPMPollInterval:        true,
-		models.SettingPythonTopN:             true,
-		models.SettingNPMTopN:                true,
-		models.SettingAnalyzerMode:           true,
-		models.SettingTopNRefreshInterval:    true,
-		models.SettingDiffSizeLimit:          true,
-		models.SettingVersionDepthMode:       true,
-		models.SettingVersionDepthCount:      true,
-		models.SettingEmailDigestEnabled:     true,
-		models.SettingEmailDigestFrequency:   true,
-		models.SettingEmailDigestRecipients:  true,
-	}
-
 	for key, value := range req {
-		if !validKeys[key] {
+		if !domain.ValidSettingKeys[key] {
 			respondAppError(w, apperror.Validation("invalid setting key: "+key))
 			return
 		}
