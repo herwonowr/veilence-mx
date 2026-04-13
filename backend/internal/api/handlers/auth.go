@@ -48,6 +48,22 @@ type createAPIKeyRequest struct {
 	ExpiresAt string `json:"expiresAt,omitempty"`
 }
 
+// createAPIKeyResponse is the response body for API key creation.
+// It flattens the domain.APIKey fields and includes the raw key string
+// (only available at creation time, before the key is hashed).
+type createAPIKeyResponse struct {
+	ID         uint              `json:"id"`
+	UserID     uint              `json:"userId"`
+	Name       string            `json:"name"`
+	KeyPrefix  string            `json:"keyPrefix"`
+	Scope      domain.APIKeyScope `json:"scope"`
+	LastUsedAt *time.Time        `json:"lastUsedAt,omitempty"`
+	ExpiresAt  *time.Time        `json:"expiresAt,omitempty"`
+	IsActive   bool              `json:"isActive"`
+	CreatedAt  time.Time         `json:"createdAt"`
+	APIKey     string            `json:"apiKey"`
+}
+
 // Register handles user registration.
 func (h *AuthHandlers) Register(w http.ResponseWriter, r *http.Request) {
 	var req registerRequest
@@ -250,9 +266,17 @@ func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 
 	h.Audit.LogAction(r.Context(), "create", "api_key", apiKey.ID, fmt.Sprintf("created API key %q with scope %q", req.Name, scope))
 
-	respondJSON(w, http.StatusCreated, map[string]any{
-		"apiKey": apiKey,
-		"key":    rawKey,
+	respondJSON(w, http.StatusCreated, createAPIKeyResponse{
+		ID:         apiKey.ID,
+		UserID:     apiKey.UserID,
+		Name:       apiKey.Name,
+		KeyPrefix:  apiKey.KeyPrefix,
+		Scope:      apiKey.Scope,
+		LastUsedAt: apiKey.LastUsedAt,
+		ExpiresAt:  apiKey.ExpiresAt,
+		IsActive:   apiKey.IsActive,
+		CreatedAt:  apiKey.CreatedAt,
+		APIKey:     rawKey,
 	}, nil)
 }
 

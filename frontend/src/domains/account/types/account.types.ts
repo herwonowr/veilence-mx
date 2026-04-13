@@ -18,6 +18,7 @@ export interface CreateApiKeyRequest {
   expiresAt?: string
 }
 
-export interface ApiKeyCreatedResponse extends ApiKeyInfo {
-  apiKey: string
+export interface ApiKeyCreatedResponse {
+  apiKey: ApiKeyInfo
+  key: string
 }

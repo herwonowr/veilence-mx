@@ -112,7 +112,7 @@ export const ApiKeysView = () => {
         scope: keyScope,
         expiresAt: expiresAt ? expiresAt.toISOString() : undefined,
       })
-      setNewKeyValue(data.apiKey)
+      setNewKeyValue(data.key)
       setCreateDialogOpen(false)
       setShowKeyDialogOpen(true)
       setKeyName("")
