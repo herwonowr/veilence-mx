@@ -151,7 +151,9 @@ export const RegisterForm = () => {
                 required
                 autoComplete="new-password"
               />
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 type="button"
                 className="absolute right-2 top-[30px] text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setShowPassword((prev) => !prev)}
@@ -163,7 +165,7 @@ export const RegisterForm = () => {
                 ) : (
                   <Eye className="size-4" />
                 )}
-              </button>
+              </Button>
               {passwordStrength && (
                 <div className="mt-1.5 space-y-1">
                   <div className="h-1.5 w-full rounded-full bg-muted">
@@ -189,7 +191,9 @@ export const RegisterForm = () => {
                 required
                 autoComplete="new-password"
               />
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 type="button"
                 className="absolute right-2 top-[30px] text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setShowConfirmPassword((prev) => !prev)}
@@ -201,7 +205,7 @@ export const RegisterForm = () => {
                 ) : (
                   <Eye className="size-4" />
                 )}
-              </button>
+              </Button>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 size-4 animate-spin" />}

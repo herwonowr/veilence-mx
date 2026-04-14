@@ -4,6 +4,7 @@ import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/core/providers/auth-provider"
 import { Building2, ChevronsUpDown, Plus, Settings, AlertCircle, Loader2, Check } from "lucide-react"
+import { Button } from "@/ui/components/button"
 import { Input } from "@/ui/components/input"
 import {
   DropdownMenu,
@@ -112,13 +113,14 @@ export const OrgSelector = () => {
                 <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-destructive">
                   <AlertCircle className="size-3 shrink-0" />
                   <span className="truncate">{orgsError}</span>
-                  <button
-                    type="button"
-                    className="ml-auto shrink-0 text-xs underline hover:no-underline"
+                  <Button
+                    variant="link"
+                    size="xs"
+                    className="ml-auto shrink-0 text-xs"
                     onClick={() => refreshOrgs()}
                   >
                     Retry
-                  </button>
+                  </Button>
                 </div>
               )}
 

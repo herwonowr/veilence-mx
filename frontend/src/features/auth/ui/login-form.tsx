@@ -220,7 +220,9 @@ const LoginFormInner = () => {
                 required
                 autoComplete="current-password"
               />
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 type="button"
                 className="absolute right-2 top-[30px] text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setShowPassword((prev) => !prev)}
@@ -232,7 +234,7 @@ const LoginFormInner = () => {
                 ) : (
                   <Eye className="size-4" />
                 )}
-              </button>
+              </Button>
             </div>
             <Button
               type="submit"

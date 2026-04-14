@@ -183,8 +183,8 @@ export const NotificationBell = () => {
                 const severity = classifySeverity(notification)
                 return (
                 <li key={notification.id}>
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
                     onClick={() => handleNotificationClick(notification)}
                     className={`flex w-full flex-col gap-1 px-3 py-2.5 text-left transition-colors hover:bg-muted/50 ${
                       notification.isRead ? "opacity-60" : ""
@@ -212,7 +212,7 @@ export const NotificationBell = () => {
                         <span className="size-1.5 rounded-full bg-blue-500" />
                       )}
                     </div>
-                  </button>
+                  </Button>
                 </li>
                 )
               })}

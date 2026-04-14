@@ -12,6 +12,7 @@ import {
   BreadcrumbSeparator,
 } from "@/ui/components/breadcrumb"
 import { Separator } from "@/ui/components/separator"
+import { Button } from "@/ui/components/button"
 import { SidebarTrigger } from "@/ui/components/sidebar"
 import { ThemeToggle } from "@/ui/layout/theme-toggle"
 import { Kbd } from "@/ui/components/kbd"
@@ -72,7 +73,9 @@ export const SiteHeader = ({ actionSlot }: { actionSlot?: React.ReactNode }) => 
     <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
       <SidebarTrigger className="-ml-1" aria-label="Toggle sidebar" />
       <Separator orientation="vertical" className="mr-2 data-vertical:self-center h-4!" />
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         type="button"
         onClick={() => {
           document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))
@@ -82,7 +85,7 @@ export const SiteHeader = ({ actionSlot }: { actionSlot?: React.ReactNode }) => 
       >
         <Kbd>⌘</Kbd>
         <Kbd>K</Kbd>
-      </button>
+      </Button>
       <Breadcrumb>
         <BreadcrumbList>
           {crumbs.map((crumb, index) => {

@@ -1,6 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/components/card"
+import { Button } from "@/ui/components/button"
 import {
   Tooltip,
   TooltipTrigger,
@@ -104,9 +105,9 @@ export const QueueStatsCard = ({
         <div className="space-y-1">
           {/* Clickable: Pending, Processing */}
           {clickableItems.map((item) => (
-            <button
+            <Button
               key={item.label}
-              type="button"
+              variant="ghost"
               className="flex w-full items-center justify-between rounded-md px-2 py-1.5 transition-colors duration-150 hover:bg-muted/50 cursor-pointer"
               onClick={() => onStatusClick(type, item.status)}
               aria-label={`View ${item.value} ${item.label.toLowerCase()} ${type} jobs`}
@@ -121,7 +122,7 @@ export const QueueStatsCard = ({
                 </span>
                 <ChevronRight className={`size-4 text-muted-foreground/50 ${item.value === 0 ? "opacity-40" : ""}`} />
               </div>
-            </button>
+            </Button>
           ))}
 
           {/* Static: Completed, Total Dead */}
@@ -154,8 +155,8 @@ export const QueueStatsCard = ({
           ))}
 
           {/* Clickable: Dead */}
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             className="flex w-full items-center justify-between rounded-md px-2 py-1.5 transition-colors duration-150 hover:bg-muted/50 cursor-pointer"
             onClick={() => onStatusClick(type, deadItem.status)}
             aria-label={`View ${deadItem.value} ${deadItem.label.toLowerCase()} ${type} jobs`}
@@ -170,7 +171,7 @@ export const QueueStatsCard = ({
               </span>
               <ChevronRight className={`size-4 text-muted-foreground/50 ${deadItem.value === 0 ? "opacity-40" : ""}`} />
             </div>
-          </button>
+          </Button>
         </div>
 
         {/* Progress bar */}
