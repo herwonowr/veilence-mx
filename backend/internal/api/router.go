@@ -149,8 +149,10 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 
 				// Queue monitoring (global data, but requires org membership)
 				r.With(rbac.RequirePermission(rbacService, "settings", "read")).Get("/queue/stats", h.Queue.GetQueueStats)
-				r.With(rbac.RequirePermission(rbacService, "settings", "read")).Get("/queue/dead", h.Queue.GetDeadJobs)
+				r.With(rbac.RequirePermission(rbacService, "settings", "read")).Get("/queue/jobs", h.Queue.GetQueueJobs)
+				r.With(rbac.RequirePermission(rbacService, "settings", "read")).Get("/queue/dead", h.Queue.GetDeadJobs) // Deprecated: use GET /queue/jobs?status=dead
 				r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/queue/retry-dead", h.Queue.RetryDeadJobs)
+				r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/queue/dead/{jobId}/retry", h.Queue.RetryDeadJob)
 			})
 
 			// Organization routes

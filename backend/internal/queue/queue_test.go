@@ -624,7 +624,7 @@ func TestDeadJobs_ReturnsDeadJobsSortedByRecent(t *testing.T) {
 		_ = q.Fail(ctx, job, fmt.Errorf("error %d", i))
 	}
 
-	jobs, err := q.DeadJobs(ctx, JobTypeDiff, 10)
+	jobs, _, err := q.DeadJobs(ctx, JobTypeDiff, 0, 10)
 	require.NoError(t, err)
 	assert.Len(t, jobs, 3)
 
@@ -644,7 +644,7 @@ func TestDeadJobs_RespectsLimit(t *testing.T) {
 		_ = q.Fail(ctx, job, fmt.Errorf("error %d", i))
 	}
 
-	jobs, err := q.DeadJobs(ctx, JobTypeDiff, 2)
+	jobs, _, err := q.DeadJobs(ctx, JobTypeDiff, 0, 2)
 	require.NoError(t, err)
 	assert.Len(t, jobs, 2)
 }
@@ -654,7 +654,7 @@ func TestDeadJobs_DefaultsLimitTo50(t *testing.T) {
 	ctx := context.Background()
 
 	// Pass 0 as limit, should default to 50
-	jobs, err := q.DeadJobs(ctx, JobTypeDiff, 0)
+	jobs, _, err := q.DeadJobs(ctx, JobTypeDiff, 0, 0)
 	require.NoError(t, err)
 	assert.Empty(t, jobs) // no dead jobs
 }
@@ -904,4 +904,343 @@ func TestSaveJob_DeadJobTTL(t *testing.T) {
 
 	ttl := mr.TTL(jobHash + job.ID)
 	assert.InDelta(t, (7 * 24 * time.Hour).Seconds(), ttl.Seconds(), 5)
+}
+
+// ------------------------------------------------------------
+// PendingJobs tests
+// ------------------------------------------------------------
+
+func TestPendingJobs_ReturnsJobsInFIFOOrder(t *testing.T) {
+	q, _ := newTestQueue(t)
+	ctx := context.Background()
+
+	id1, _ := q.Enqueue(ctx, JobTypeDiff, 1)
+	id2, _ := q.Enqueue(ctx, JobTypeDiff, 2)
+	id3, _ := q.Enqueue(ctx, JobTypeDiff, 3)
+
+	jobs, total, err := q.PendingJobs(ctx, JobTypeDiff, 0, 10)
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), total)
+	assert.Len(t, jobs, 3)
+
+	// FIFO: oldest first
+	assert.Equal(t, id1, jobs[0].ID)
+	assert.Equal(t, id2, jobs[1].ID)
+	assert.Equal(t, id3, jobs[2].ID)
+}
+
+func TestPendingJobs_EmptyQueue(t *testing.T) {
+	q, _ := newTestQueue(t)
+	ctx := context.Background()
+
+	jobs, total, err := q.PendingJobs(ctx, JobTypeDiff, 0, 20)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), total)
+	assert.Empty(t, jobs)
+}
+
+func TestPendingJobs_Pagination(t *testing.T) {
+	q, _ := newTestQueue(t)
+	ctx := context.Background()
+
+	ids := make([]string, 5)
+	for i := range 5 {
+		ids[i], _ = q.Enqueue(ctx, JobTypeDiff, uint(i+1))
+	}
+
+	// Page 1: first 2 jobs
+	jobs, total, err := q.PendingJobs(ctx, JobTypeDiff, 0, 2)
+	require.NoError(t, err)
+	assert.Equal(t, int64(5), total)
+	assert.Len(t, jobs, 2)
+	assert.Equal(t, ids[0], jobs[0].ID)
+	assert.Equal(t, ids[1], jobs[1].ID)
+
+	// Page 2: next 2 jobs
+	jobs, total, err = q.PendingJobs(ctx, JobTypeDiff, 2, 2)
+	require.NoError(t, err)
+	assert.Equal(t, int64(5), total)
+	assert.Len(t, jobs, 2)
+	assert.Equal(t, ids[2], jobs[0].ID)
+	assert.Equal(t, ids[3], jobs[1].ID)
+
+	// Page 3: last job
+	jobs, total, err = q.PendingJobs(ctx, JobTypeDiff, 4, 2)
+	require.NoError(t, err)
+	assert.Equal(t, int64(5), total)
+	assert.Len(t, jobs, 1)
+	assert.Equal(t, ids[4], jobs[0].ID)
+}
+
+func TestPendingJobs_PageBeyondTotal(t *testing.T) {
+	q, _ := newTestQueue(t)
+	ctx := context.Background()
+
+	_, _ = q.Enqueue(ctx, JobTypeDiff, 1)
+
+	jobs, total, err := q.PendingJobs(ctx, JobTypeDiff, 100, 20)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), total)
+	assert.Empty(t, jobs)
+}
+
+func TestPendingJobs_SkipsExpiredHashes(t *testing.T) {
+	q, mr := newTestQueue(t)
+	ctx := context.Background()
+
+	id1, _ := q.Enqueue(ctx, JobTypeDiff, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, 2)
+
+	// Expire the first job's hash
+	mr.Del(jobHash + id1)
+
+	jobs, total, err := q.PendingJobs(ctx, JobTypeDiff, 0, 10)
+	require.NoError(t, err)
+	// Total reflects list length (includes expired ID), but only 1 job loaded
+	assert.Equal(t, int64(2), total)
+	assert.Len(t, jobs, 1)
+}
+
+func TestPendingJobs_DefaultsAndCapsLimit(t *testing.T) {
+	q, _ := newTestQueue(t)
+	ctx := context.Background()
+
+	// Limit 0 → defaults to 20
+	jobs, _, err := q.PendingJobs(ctx, JobTypeDiff, 0, 0)
+	require.NoError(t, err)
+	assert.Empty(t, jobs)
+
+	// Limit > 100 → capped to 100
+	jobs, _, err = q.PendingJobs(ctx, JobTypeDiff, 0, 200)
+	require.NoError(t, err)
+	assert.Empty(t, jobs)
+}
+
+func TestPendingJobs_DoesNotCrossJobTypes(t *testing.T) {
+	q, _ := newTestQueue(t)
+	ctx := context.Background()
+
+	_, _ = q.Enqueue(ctx, JobTypeDiff, 1)
+	_, _ = q.Enqueue(ctx, JobTypeAnalyze, 2)
+
+	diffJobs, diffTotal, err := q.PendingJobs(ctx, JobTypeDiff, 0, 10)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), diffTotal)
+	assert.Len(t, diffJobs, 1)
+	assert.Equal(t, JobTypeDiff, diffJobs[0].Type)
+
+	analyzeJobs, analyzeTotal, err := q.PendingJobs(ctx, JobTypeAnalyze, 0, 10)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), analyzeTotal)
+	assert.Len(t, analyzeJobs, 1)
+	assert.Equal(t, JobTypeAnalyze, analyzeJobs[0].Type)
+}
+
+// ------------------------------------------------------------
+// ProcessingJobs tests
+// ------------------------------------------------------------
+
+func TestProcessingJobs_ReturnsJobsOrderedByStartTime(t *testing.T) {
+	q, _ := newTestQueue(t)
+	ctx := context.Background()
+
+	_, _ = q.Enqueue(ctx, JobTypeDiff, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, 2)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, 3)
+
+	// Dequeue all (moves to processing)
+	job1, _ := q.Dequeue(ctx, JobTypeDiff)
+	job2, _ := q.Dequeue(ctx, JobTypeDiff)
+	job3, _ := q.Dequeue(ctx, JobTypeDiff)
+
+	jobs, total, err := q.ProcessingJobs(ctx, JobTypeDiff, 0, 10)
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), total)
+	assert.Len(t, jobs, 3)
+
+	// All should be in processing status
+	for _, j := range jobs {
+		assert.Equal(t, StatusProcessing, j.Status)
+	}
+
+	// Should contain all dequeued jobs
+	jobIDs := []string{jobs[0].ID, jobs[1].ID, jobs[2].ID}
+	assert.Contains(t, jobIDs, job1.ID)
+	assert.Contains(t, jobIDs, job2.ID)
+	assert.Contains(t, jobIDs, job3.ID)
+}
+
+func TestProcessingJobs_EmptyQueue(t *testing.T) {
+	q, _ := newTestQueue(t)
+	ctx := context.Background()
+
+	jobs, total, err := q.ProcessingJobs(ctx, JobTypeDiff, 0, 20)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), total)
+	assert.Empty(t, jobs)
+}
+
+func TestProcessingJobs_Pagination(t *testing.T) {
+	q, _ := newTestQueue(t)
+	ctx := context.Background()
+
+	for i := range 5 {
+		_, _ = q.Enqueue(ctx, JobTypeDiff, uint(i+1))
+		_, _ = q.Dequeue(ctx, JobTypeDiff)
+	}
+
+	// Page 1: first 2
+	jobs, total, err := q.ProcessingJobs(ctx, JobTypeDiff, 0, 2)
+	require.NoError(t, err)
+	assert.Equal(t, int64(5), total)
+	assert.Len(t, jobs, 2)
+
+	// Page 2: next 2
+	jobs, _, err = q.ProcessingJobs(ctx, JobTypeDiff, 2, 2)
+	require.NoError(t, err)
+	assert.Len(t, jobs, 2)
+
+	// Page 3: last 1
+	jobs, _, err = q.ProcessingJobs(ctx, JobTypeDiff, 4, 2)
+	require.NoError(t, err)
+	assert.Len(t, jobs, 1)
+}
+
+func TestProcessingJobs_PageBeyondTotal(t *testing.T) {
+	q, _ := newTestQueue(t)
+	ctx := context.Background()
+
+	_, _ = q.Enqueue(ctx, JobTypeDiff, 1)
+	_, _ = q.Dequeue(ctx, JobTypeDiff)
+
+	jobs, total, err := q.ProcessingJobs(ctx, JobTypeDiff, 100, 20)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), total)
+	assert.Empty(t, jobs)
+}
+
+func TestProcessingJobs_SkipsExpiredHashes(t *testing.T) {
+	q, mr := newTestQueue(t)
+	ctx := context.Background()
+
+	_, _ = q.Enqueue(ctx, JobTypeDiff, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, 2)
+	job1, _ := q.Dequeue(ctx, JobTypeDiff)
+	_, _ = q.Dequeue(ctx, JobTypeDiff)
+
+	// Expire the first job's hash
+	mr.Del(jobHash + job1.ID)
+
+	jobs, total, err := q.ProcessingJobs(ctx, JobTypeDiff, 0, 10)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), total) // ZSET still has 2 members
+	assert.Len(t, jobs, 1)          // but only 1 job hash was loadable
+}
+
+func TestProcessingJobs_DoesNotCrossJobTypes(t *testing.T) {
+	q, _ := newTestQueue(t)
+	ctx := context.Background()
+
+	_, _ = q.Enqueue(ctx, JobTypeDiff, 1)
+	_, _ = q.Dequeue(ctx, JobTypeDiff)
+
+	_, _ = q.Enqueue(ctx, JobTypeAnalyze, 2)
+	_, _ = q.Dequeue(ctx, JobTypeAnalyze)
+
+	diffJobs, diffTotal, err := q.ProcessingJobs(ctx, JobTypeDiff, 0, 10)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), diffTotal)
+	assert.Len(t, diffJobs, 1)
+	assert.Equal(t, JobTypeDiff, diffJobs[0].Type)
+}
+
+// ------------------------------------------------------------
+// DeadJobs pagination tests
+// ------------------------------------------------------------
+
+func TestDeadJobs_Pagination(t *testing.T) {
+	q, _ := newTestQueue(t, withMaxAttempts(1))
+	ctx := context.Background()
+
+	for i := range 5 {
+		_, _ = q.Enqueue(ctx, JobTypeDiff, uint(i+1))
+		job, _ := q.Dequeue(ctx, JobTypeDiff)
+		_ = q.Fail(ctx, job, fmt.Errorf("error %d", i))
+	}
+
+	// Page 1: first 2
+	jobs, total, err := q.DeadJobs(ctx, JobTypeDiff, 0, 2)
+	require.NoError(t, err)
+	assert.Equal(t, int64(5), total)
+	assert.Len(t, jobs, 2)
+
+	// Page 2: next 2
+	jobs, _, err = q.DeadJobs(ctx, JobTypeDiff, 2, 2)
+	require.NoError(t, err)
+	assert.Len(t, jobs, 2)
+
+	// Page 3: last 1
+	jobs, _, err = q.DeadJobs(ctx, JobTypeDiff, 4, 2)
+	require.NoError(t, err)
+	assert.Len(t, jobs, 1)
+}
+
+func TestDeadJobs_PageBeyondTotal(t *testing.T) {
+	q, _ := newTestQueue(t, withMaxAttempts(1))
+	ctx := context.Background()
+
+	_, _ = q.Enqueue(ctx, JobTypeDiff, 1)
+	job, _ := q.Dequeue(ctx, JobTypeDiff)
+	_ = q.Fail(ctx, job, errors.New("dead"))
+
+	jobs, total, err := q.DeadJobs(ctx, JobTypeDiff, 100, 20)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), total)
+	assert.Empty(t, jobs)
+}
+
+func TestDeadJobs_SkipsExpiredHashes(t *testing.T) {
+	q, mr := newTestQueue(t, withMaxAttempts(1))
+	ctx := context.Background()
+
+	_, _ = q.Enqueue(ctx, JobTypeDiff, 1)
+	job1, _ := q.Dequeue(ctx, JobTypeDiff)
+	_ = q.Fail(ctx, job1, errors.New("dead"))
+
+	_, _ = q.Enqueue(ctx, JobTypeDiff, 2)
+	job2, _ := q.Dequeue(ctx, JobTypeDiff)
+	_ = q.Fail(ctx, job2, errors.New("dead"))
+
+	// Expire the first job's hash
+	mr.Del(jobHash + job1.ID)
+
+	jobs, total, err := q.DeadJobs(ctx, JobTypeDiff, 0, 10)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), total)
+	assert.Len(t, jobs, 1)
+}
+
+// ------------------------------------------------------------
+// LoadJob tests
+// ------------------------------------------------------------
+
+func TestLoadJob_ReturnsJob(t *testing.T) {
+	q, _ := newTestQueue(t)
+	ctx := context.Background()
+
+	jobID, _ := q.Enqueue(ctx, JobTypeDiff, 42)
+
+	job, err := q.LoadJob(ctx, jobID)
+	require.NoError(t, err)
+	assert.Equal(t, jobID, job.ID)
+	assert.Equal(t, JobTypeDiff, job.Type)
+	assert.Equal(t, uint(42), job.ReferenceID)
+}
+
+func TestLoadJob_ReturnsErrorForMissingJob(t *testing.T) {
+	q, _ := newTestQueue(t)
+	ctx := context.Background()
+
+	_, err := q.LoadJob(ctx, "nonexistent-999")
+	assert.Error(t, err)
 }

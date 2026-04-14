@@ -8,16 +8,18 @@ import {
 } from "@tanstack/react-query"
 import {
   getQueueStats,
+  getQueueJobs,
   getDeadJobs,
   retryDeadJobs,
   retryDeadJob,
 } from "@/domains/queue"
 import type { ApiResponse } from "@/domains/common"
-import type { QueueStatsResponse, QueueJob } from "@/domains/queue"
+import type { QueueStatsResponse, QueueJob, QueueJobsParams } from "@/domains/queue"
 
 export const queueKeys = {
   all: ["queue"] as const,
   stats: () => [...queueKeys.all, "stats"] as const,
+  jobs: (params: QueueJobsParams) => [...queueKeys.all, "jobs", params] as const,
   dead: (type?: string) => [...queueKeys.all, "dead", type] as const,
 }
 
@@ -27,6 +29,18 @@ export const useQueueStats = (
   return useQuery({
     queryKey: queueKeys.stats(),
     queryFn: () => getQueueStats(),
+    ...options,
+  })
+}
+
+export const useQueueJobs = (
+  params: QueueJobsParams,
+  options?: Partial<UseQueryOptions<ApiResponse<QueueJob[]>>>
+) => {
+  return useQuery({
+    queryKey: queueKeys.jobs(params),
+    queryFn: () => getQueueJobs(params),
+    refetchInterval: 10_000,
     ...options,
   })
 }

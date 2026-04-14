@@ -366,24 +366,150 @@ func (q *Queue) Stats(ctx context.Context, jobType string) (*QueueStats, error) 
 	}, nil
 }
 
-func (q *Queue) DeadJobs(ctx context.Context, jobType string, limit int) ([]Job, error) {
+// PendingJobs returns jobs from the pending list for a given type.
+// Returns jobs in FIFO order (oldest first). Supports offset/limit pagination.
+// Jobs whose hash key has expired are skipped gracefully.
+func (q *Queue) PendingJobs(ctx context.Context, jobType string, offset, limit int) ([]Job, int64, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	total, err := q.rdb.LLen(ctx, pendingList+jobType).Result()
+	if err != nil {
+		return nil, 0, fmt.Errorf("counting pending jobs: %w", err)
+	}
+
+	if total == 0 || int64(offset) >= total {
+		return []Job{}, total, nil
+	}
+
+	// LRange uses 0-based inclusive start/stop. We read from the right end (FIFO)
+	// because LPush pushes to the left and RPop pops from the right.
+	// To get FIFO order (oldest first), we reverse: oldest is at the tail.
+	start := int64(offset)
+	stop := start + int64(limit) - 1
+
+	// Pending list is reversed (LPush adds at head, RPop reads at tail).
+	// To get FIFO order, read from the tail backwards.
+	tailStart := total - 1 - stop
+	tailStop := total - 1 - start
+	if tailStart < 0 {
+		tailStart = 0
+	}
+
+	jobIDs, err := q.rdb.LRange(ctx, pendingList+jobType, tailStart, tailStop).Result()
+	if err != nil {
+		return nil, 0, fmt.Errorf("listing pending jobs: %w", err)
+	}
+
+	// Reverse to get FIFO order (oldest first)
+	for i, j := 0, len(jobIDs)-1; i < j; i, j = i+1, j-1 {
+		jobIDs[i], jobIDs[j] = jobIDs[j], jobIDs[i]
+	}
+
+	jobs := make([]Job, 0, len(jobIDs))
+	for _, id := range jobIDs {
+		job, err := q.loadJob(ctx, id)
+		if err != nil {
+			continue // expired hash key — skip gracefully
+		}
+		jobs = append(jobs, *job)
+	}
+	return jobs, total, nil
+}
+
+// ProcessingJobs returns jobs from the processing sorted set for a given type.
+// Returns jobs ordered by processing start time (oldest first). Supports offset/limit pagination.
+// Jobs whose hash key has expired are skipped gracefully.
+func (q *Queue) ProcessingJobs(ctx context.Context, jobType string, offset, limit int) ([]Job, int64, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	total, err := q.rdb.ZCard(ctx, processingSet+jobType).Result()
+	if err != nil {
+		return nil, 0, fmt.Errorf("counting processing jobs: %w", err)
+	}
+
+	if total == 0 || int64(offset) >= total {
+		return []Job{}, total, nil
+	}
+
+	jobIDs, err := q.rdb.ZRange(ctx, processingSet+jobType, int64(offset), int64(offset+limit-1)).Result()
+	if err != nil {
+		return nil, 0, fmt.Errorf("listing processing jobs: %w", err)
+	}
+
+	jobs := make([]Job, 0, len(jobIDs))
+	for _, id := range jobIDs {
+		job, err := q.loadJob(ctx, id)
+		if err != nil {
+			continue // expired hash key — skip gracefully
+		}
+		jobs = append(jobs, *job)
+	}
+	return jobs, total, nil
+}
+
+// DeadJobs returns jobs from the dead sorted set for a given type.
+// Returns jobs ordered by most recent first. Supports offset/limit pagination.
+// Jobs whose hash key has expired are skipped gracefully.
+//
+// Deprecated: For new code, use GetQueueJobs with status=dead. This method
+// signature is maintained for backward compatibility with the GET /api/queue/dead endpoint.
+func (q *Queue) DeadJobs(ctx context.Context, jobType string, offset, limit int) ([]Job, int64, error) {
 	if limit <= 0 {
 		limit = 50
 	}
-	deadIDs, err := q.rdb.ZRevRange(ctx, deadSet+jobType, 0, int64(limit-1)).Result()
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	total, err := q.rdb.ZCard(ctx, deadSet+jobType).Result()
 	if err != nil {
-		return nil, err
+		return nil, 0, fmt.Errorf("counting dead jobs: %w", err)
+	}
+
+	if total == 0 || int64(offset) >= total {
+		return []Job{}, total, nil
+	}
+
+	deadIDs, err := q.rdb.ZRevRange(ctx, deadSet+jobType, int64(offset), int64(offset+limit-1)).Result()
+	if err != nil {
+		return nil, 0, fmt.Errorf("listing dead jobs: %w", err)
 	}
 
 	jobs := make([]Job, 0, len(deadIDs))
 	for _, id := range deadIDs {
 		job, err := q.loadJob(ctx, id)
 		if err != nil {
-			continue
+			continue // expired hash key — skip gracefully
 		}
 		jobs = append(jobs, *job)
 	}
-	return jobs, nil
+	return jobs, total, nil
+}
+
+// LoadJob loads a single job by ID. Returns nil and an error if the job hash
+// has expired or does not exist. Exported for use by handlers that need to
+// look up a job (e.g., single dead job retry).
+func (q *Queue) LoadJob(ctx context.Context, jobID string) (*Job, error) {
+	return q.loadJob(ctx, jobID)
 }
 
 func (q *Queue) loadJob(ctx context.Context, jobID string) (*Job, error) {

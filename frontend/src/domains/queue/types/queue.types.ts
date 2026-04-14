@@ -23,3 +23,14 @@ export interface QueueJob {
   updatedAt: number
   nextRunAt: number
 }
+
+export type QueueJobStatus = "pending" | "processing" | "dead"
+
+export type QueueJobType = "diff" | "analyze"
+
+export interface QueueJobsParams {
+  type: QueueJobType
+  status: QueueJobStatus
+  page?: number
+  limit?: number
+}

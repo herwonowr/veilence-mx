@@ -1,10 +1,22 @@
 import { fetchApi } from "@/core"
 import type { ApiResponse } from "@/domains/common"
-import type { QueueStatsResponse, QueueJob } from "@/domains/queue/types/queue.types"
+import type { QueueStatsResponse, QueueJob, QueueJobsParams } from "@/domains/queue/types/queue.types"
 
 export const getQueueStats = async (): Promise<
   ApiResponse<QueueStatsResponse>
 > => fetchApi<QueueStatsResponse>("/api/queue/stats")
+
+export const getQueueJobs = async (
+  params: QueueJobsParams
+): Promise<ApiResponse<QueueJob[]>> => {
+  const searchParams = new URLSearchParams({
+    type: params.type,
+    status: params.status,
+    ...(params.page ? { page: String(params.page) } : {}),
+    ...(params.limit ? { limit: String(params.limit) } : {}),
+  })
+  return fetchApi<QueueJob[]>(`/api/queue/jobs?${searchParams}`)
+}
 
 export const getDeadJobs = async (
   type?: string
