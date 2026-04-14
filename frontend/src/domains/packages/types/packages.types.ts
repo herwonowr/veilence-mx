@@ -1,13 +1,19 @@
 import type { Ecosystem, ReleaseStatus, Classification, AnalyzerType } from "@/domains/common"
 
+export type PackageSource = "manual" | "discovered" | "imported"
+export type PackageStatus = "active" | "blocked" | "removed"
+
 export interface Package {
   id: number
   name: string
   ecosystem: Ecosystem
   latestVersion: string
   description: string
-  isCustom: boolean
+  source: PackageSource
+  status: PackageStatus
   rank: number | null
+  blockedAt: string | null
+  blockedReason: string | null
   createdAt: string
   updatedAt: string
 }

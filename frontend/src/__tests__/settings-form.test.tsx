@@ -52,8 +52,9 @@ describe("Settings form data flow", () => {
     })
 
     expect(result.current.data?.data).toEqual({
-      python_poll_interval: "5m",
-      npm_poll_interval: "5m",
+      monitoring_interval: "1h",
+      discovery_scan_depth: "50",
+      discovery_interval: "24h",
       max_concurrent_analyses: "3",
       analyzer_type: "api",
     })
@@ -74,8 +75,8 @@ describe("Settings form data flow", () => {
     })
 
     const newSettings = {
-      python_poll_interval: "10m",
-      npm_poll_interval: "15m",
+      monitoring_interval: "30m",
+      discovery_scan_depth: "100",
       max_concurrent_analyses: "5",
       analyzer_type: "copilot",
     }
@@ -106,7 +107,7 @@ describe("Settings form data flow", () => {
 
     await act(async () => {
       try {
-        await result.current.mutateAsync({ python_poll_interval: "invalid" })
+        await result.current.mutateAsync({ monitoring_interval: "invalid" })
       } catch {
         // Expected
       }

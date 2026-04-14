@@ -5,6 +5,8 @@ import type { Package, Release, BulkImportResult, AnalysisHistoryEntry } from "@
 export const getPackages = async (params?: {
   ecosystem?: string
   search?: string
+  status?: string
+  source?: string
   page?: number
   limit?: number
   sortBy?: string
@@ -13,6 +15,8 @@ export const getPackages = async (params?: {
   const searchParams = new URLSearchParams()
   if (params?.ecosystem) searchParams.set("ecosystem", params.ecosystem)
   if (params?.search) searchParams.set("search", params.search)
+  if (params?.status) searchParams.set("status", params.status)
+  if (params?.source) searchParams.set("source", params.source)
   if (params?.page) searchParams.set("page", String(params.page))
   if (params?.limit) searchParams.set("limit", String(params.limit))
   if (params?.sortBy) searchParams.set("sort_by", params.sortBy)
@@ -35,6 +39,22 @@ export const createPackage = async (
 export const deletePackage = async (id: number): Promise<ApiResponse<null>> =>
   fetchApi<null>(`/api/packages/${id}`, { method: "DELETE" })
 
+export const blockPackage = async (
+  id: number,
+  reason?: string
+): Promise<ApiResponse<Package>> =>
+  fetchApi<Package>(`/api/packages/${id}/block`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  })
+
+export const unblockPackage = async (
+  id: number
+): Promise<ApiResponse<Package>> =>
+  fetchApi<Package>(`/api/packages/${id}/unblock`, {
+    method: "POST",
+  })
+
 export const getPackageReleases = async (
   packageId: number,
   page = 1,
@@ -44,14 +64,19 @@ export const getPackageReleases = async (
     `/api/packages/${packageId}/releases?page=${page}&limit=${limit}`
   )
 
-export const syncTopPackages = async (
+export const discoverPackages = async (
   ecosystem?: string
 ): Promise<ApiResponse<{ message: string }>> => {
   const query = ecosystem ? `?ecosystem=${ecosystem}` : ""
-  return fetchApi<{ message: string }>(`/api/sync/top-packages${query}`, {
+  return fetchApi<{ message: string }>(`/api/sync/discover${query}`, {
     method: "POST",
   })
 }
+
+/** @deprecated Use discoverPackages instead. Will be removed in v1.2.0. */
+export const syncTopPackages = async (
+  ecosystem?: string
+): Promise<ApiResponse<{ message: string }>> => discoverPackages(ecosystem)
 
 export const bulkImportPackages = async (
   format: "requirements_txt" | "package_json" | "list",

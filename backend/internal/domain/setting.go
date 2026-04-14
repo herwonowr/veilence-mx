@@ -15,15 +15,11 @@ type Setting struct {
 
 // Default setting keys.
 const (
-	SettingPythonPollInterval  = "python_poll_interval"
-	SettingNPMPollInterval     = "npm_poll_interval"
-	SettingPythonTopN          = "python_top_n"
-	SettingNPMTopN             = "npm_top_n"
-	SettingAnalyzerMode        = "analyzer_mode"
-	SettingTopNRefreshInterval = "top_n_refresh_interval"
-	SettingDiffSizeLimit       = "diff_size_limit"
-	SettingVersionDepthMode    = "version_depth_mode"
-	SettingVersionDepthCount   = "version_depth_count"
+	SettingDiscoveryScanDepth = "discovery_scan_depth"
+	SettingDiscoveryInterval  = "discovery_interval"
+	SettingMonitoringInterval = "monitoring_interval"
+	SettingAnalyzerMode       = "analyzer_mode"
+	SettingDiffSizeLimit      = "diff_size_limit"
 
 	// Email digest settings (per-org).
 	SettingEmailDigestEnabled    = "email_digest_enabled"
@@ -34,16 +30,12 @@ const (
 // ValidSettingKeys is the canonical set of all accepted setting keys.
 // Used by the handler layer for input validation.
 var ValidSettingKeys = map[string]bool{
-	SettingPythonPollInterval:  true,
-	SettingNPMPollInterval:     true,
-	SettingPythonTopN:          true,
-	SettingNPMTopN:             true,
-	SettingAnalyzerMode:        true,
-	SettingTopNRefreshInterval: true,
-	SettingDiffSizeLimit:       true,
-	SettingVersionDepthMode:    true,
-	SettingVersionDepthCount:   true,
-	SettingEmailDigestEnabled:    true,
-	SettingEmailDigestFrequency:  true,
-	SettingEmailDigestRecipients: true,
+	SettingDiscoveryScanDepth:     true,
+	SettingDiscoveryInterval:      true,
+	SettingMonitoringInterval:     true,
+	SettingAnalyzerMode:           true,
+	SettingDiffSizeLimit:          true,
+	SettingEmailDigestEnabled:     true,
+	SettingEmailDigestFrequency:   true,
+	SettingEmailDigestRecipients:  true,
 }

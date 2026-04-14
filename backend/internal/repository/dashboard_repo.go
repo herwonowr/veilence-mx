@@ -25,21 +25,21 @@ func (r *DashboardRepo) GetStats(ctx context.Context, orgID uint) (*domain.Dashb
 	var stats domain.DashboardStats
 
 	if err := r.db.WithContext(ctx).Model(&models.Package{}).
-		Where("org_id = ?", orgID).
+		Where("org_id = ? AND status = ?", orgID, models.PackageStatusActive).
 		Count(&stats.TotalPackages).Error; err != nil {
 		return nil, fmt.Errorf("counting packages: %w", err)
 	}
 
 	if err := r.db.WithContext(ctx).Model(&models.Release{}).
 		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("packages.org_id = ?", orgID).
+		Where("packages.org_id = ? AND packages.status = ?", orgID, models.PackageStatusActive).
 		Count(&stats.TotalReleases).Error; err != nil {
 		return nil, fmt.Errorf("counting releases: %w", err)
 	}
 
 	if err := r.db.WithContext(ctx).Model(&models.Release{}).
 		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("packages.org_id = ? AND releases.status IN ?", orgID, []string{"pending", "diffing", "analyzing"}).
+		Where("packages.org_id = ? AND packages.status = ? AND releases.status IN ?", orgID, models.PackageStatusActive, []string{"pending", "diffing", "analyzing"}).
 		Count(&stats.PendingAnalyses).Error; err != nil {
 		return nil, fmt.Errorf("counting pending analyses: %w", err)
 	}
@@ -54,7 +54,7 @@ func (r *DashboardRepo) GetStats(ctx context.Context, orgID uint) (*domain.Dashb
 		Joins("JOIN diffs ON diffs.id = analyses.diff_id").
 		Joins("JOIN releases ON releases.id = diffs.release_id").
 		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("packages.org_id = ? AND analyses.classification = ?", orgID, "malicious").
+		Where("packages.org_id = ? AND packages.status = ? AND analyses.classification = ?", orgID, models.PackageStatusActive, "malicious").
 		Count(&stats.RecentMalicious).Error; err != nil {
 		return nil, fmt.Errorf("counting malicious analyses: %w", err)
 	}
@@ -71,7 +71,7 @@ func (r *DashboardRepo) GetReleaseActivity(ctx context.Context, orgID uint, from
 	err := r.db.WithContext(ctx).Model(&models.Release{}).
 		Joins("JOIN packages ON packages.id = releases.package_id").
 		Select("DATE(releases.created_at) as date, COUNT(*) as count").
-		Where("packages.org_id = ? AND releases.created_at >= ? AND releases.created_at <= ?", orgID, from, to).
+		Where("packages.org_id = ? AND packages.status = ? AND releases.created_at >= ? AND releases.created_at <= ?", orgID, models.PackageStatusActive, from, to).
 		Group("DATE(releases.created_at)").
 		Order("date ASC").
 		Scan(&rows).Error
@@ -97,7 +97,7 @@ func (r *DashboardRepo) GetClassificationDistribution(ctx context.Context, orgID
 		Joins("JOIN releases ON releases.id = diffs.release_id").
 		Joins("JOIN packages ON packages.id = releases.package_id").
 		Select("analyses.classification, COUNT(*) as count").
-		Where("packages.org_id = ? AND analyses.created_at >= ? AND analyses.created_at <= ?", orgID, from, to).
+		Where("packages.org_id = ? AND packages.status = ? AND analyses.created_at >= ? AND analyses.created_at <= ?", orgID, models.PackageStatusActive, from, to).
 		Group("analyses.classification").
 		Scan(&rows).Error
 	if err != nil {
@@ -115,8 +115,8 @@ func (r *DashboardRepo) GetBaselineCount(ctx context.Context, orgID uint, from, 
 	var count int64
 	err := r.db.WithContext(ctx).Model(&models.Release{}).
 		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("packages.org_id = ? AND releases.status = ? AND releases.id NOT IN (SELECT release_id FROM diffs) AND releases.created_at >= ? AND releases.created_at <= ?",
-			orgID, models.ReleaseStatusCompleted, from, to).
+		Where("packages.org_id = ? AND packages.status = ? AND releases.status = ? AND releases.id NOT IN (SELECT release_id FROM diffs) AND releases.created_at >= ? AND releases.created_at <= ?",
+			orgID, models.PackageStatusActive, models.ReleaseStatusCompleted, from, to).
 		Count(&count).Error
 	if err != nil {
 		return 0, fmt.Errorf("counting baselines: %w", err)
@@ -132,7 +132,7 @@ func (r *DashboardRepo) GetEcosystemDistribution(ctx context.Context, orgID uint
 
 	err := r.db.WithContext(ctx).Model(&models.Package{}).
 		Select("ecosystem, COUNT(*) as count").
-		Where("org_id = ?", orgID).
+		Where("org_id = ? AND status = ?", orgID, models.PackageStatusActive).
 		Group("ecosystem").
 		Scan(&rows).Error
 	if err != nil {
@@ -177,7 +177,7 @@ func (r *DashboardRepo) GetReleaseStatusDistribution(ctx context.Context, orgID 
 	err := r.db.WithContext(ctx).Model(&models.Release{}).
 		Joins("JOIN packages ON packages.id = releases.package_id").
 		Select("releases.status, COUNT(*) as count").
-		Where("packages.org_id = ? AND releases.created_at >= ? AND releases.created_at <= ?", orgID, from, to).
+		Where("packages.org_id = ? AND packages.status = ? AND releases.created_at >= ? AND releases.created_at <= ?", orgID, models.PackageStatusActive, from, to).
 		Group("releases.status").
 		Scan(&rows).Error
 	if err != nil {
@@ -198,7 +198,7 @@ func (r *DashboardRepo) GetUnanalyzedDiffIDs(ctx context.Context, orgID uint) ([
 		Joins("JOIN releases ON releases.id = diffs.release_id").
 		Joins("JOIN packages ON packages.id = releases.package_id").
 		Joins("LEFT JOIN analyses ON analyses.diff_id = diffs.id").
-		Where("packages.org_id = ? AND analyses.id IS NULL", orgID).
+		Where("packages.org_id = ? AND packages.status = ? AND analyses.id IS NULL", orgID, models.PackageStatusActive).
 		Pluck("diffs.id", &ids).Error
 	if err != nil {
 		return nil, fmt.Errorf("querying unanalyzed diff IDs: %w", err)

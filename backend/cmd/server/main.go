@@ -31,6 +31,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/rbac"
 	"github.com/veilence/veilence-mx/backend/internal/registry"
 	"github.com/veilence/veilence-mx/backend/internal/repository"
+	"github.com/veilence/veilence-mx/backend/internal/service"
 )
 
 func main() {
@@ -59,8 +60,8 @@ func main() {
 	}
 	copilotAPIURL := getEnv("COPILOT_API_URL", "http://localhost:4141")
 	copilotModel := getEnv("COPILOT_MODEL", "claude-opus-4.6")
-	pythonInterval := parseDuration(getEnv("PYTHON_POLL_INTERVAL", "5m"), 5*time.Minute)
-	npmInterval := parseDuration(getEnv("NPM_POLL_INTERVAL", "5m"), 5*time.Minute)
+	monitoringInterval := parseDuration(getEnv("MONITORING_INTERVAL", "1h"), 1*time.Hour)
+	discoveryInterval := parseDuration(getEnv("DISCOVERY_INTERVAL", "24h"), 24*time.Hour)
 	concurrency := parseInt(getEnv("POLLER_CONCURRENCY", "5"), 5)
 	diffSizeLimit := parseInt(getEnv("DIFF_SIZE_LIMIT", "102400"), 102400)
 	queueMaxRetries := parseInt(getEnv("QUEUE_MAX_RETRIES", "5"), 5)
@@ -75,14 +76,10 @@ func main() {
 
 	// Seed settings from .env defaults (only inserts if key doesn't exist)
 	seedDefaults := map[string]string{
-		models.SettingPythonPollInterval:  getEnv("PYTHON_POLL_INTERVAL", "5m"),
-		models.SettingNPMPollInterval:     getEnv("NPM_POLL_INTERVAL", "5m"),
-		models.SettingPythonTopN:          getEnv("PYTHON_TOP_N", "100"),
-		models.SettingNPMTopN:             getEnv("NPM_TOP_N", "100"),
-		models.SettingTopNRefreshInterval: getEnv("TOP_N_REFRESH_INTERVAL", "24h"),
-		models.SettingDiffSizeLimit:       getEnv("DIFF_SIZE_LIMIT", "102400"),
-		models.SettingVersionDepthMode:    getEnv("VERSION_DEPTH_MODE", "latest"),
-		models.SettingVersionDepthCount:   getEnv("VERSION_DEPTH_COUNT", "3"),
+		models.SettingMonitoringInterval: getEnv("MONITORING_INTERVAL", "1h"),
+		models.SettingDiscoveryScanDepth: getEnv("DISCOVERY_SCAN_DEPTH", "50"),
+		models.SettingDiscoveryInterval:  getEnv("DISCOVERY_INTERVAL", "24h"),
+		models.SettingDiffSizeLimit:      getEnv("DIFF_SIZE_LIMIT", "102400"),
 	}
 	for key, value := range seedDefaults {
 		db.Where("key = ?", key).FirstOrCreate(&models.Setting{Key: key, Value: value})
@@ -119,10 +116,9 @@ func main() {
 	npmClient := registry.NewNPMClient()
 
 	pollerService := poller.New(db, pythonClient, npmClient, poller.Config{
-		PythonInterval:      pythonInterval,
-		NPMInterval:         npmInterval,
-		Concurrency:         concurrency,
-		TopNRefreshInterval: parseDuration(getEnv("TOP_N_REFRESH_INTERVAL", "24h"), 24*time.Hour),
+		MonitoringInterval: monitoringInterval,
+		DiscoveryInterval:  discoveryInterval,
+		Concurrency:        concurrency,
 	}, jobQueue)
 
 	differService := differ.New(db, pythonClient, npmClient, differ.Config{
@@ -193,6 +189,8 @@ func main() {
 	alertNoteRepo := repository.NewAlertNoteRepo(db)
 	alertRepo := repository.NewAlertRepo(db)
 	alertNoteService := alertnote.NewService(alertNoteRepo, alertRepo, userRepo)
+	packageRepo := repository.NewPackageRepo(db)
+	packageService := service.NewPackageService(packageRepo, auditService)
 
 	// Start email digest scheduler
 	digestScheduler := digest.New(db, smtpConfig, digest.Config{})
@@ -210,6 +208,7 @@ func main() {
 		jobQueue,
 		dashboardRepo,
 		alertNoteService,
+		packageService,
 	)
 
 	router := api.NewRouter(h, frontendURL, authService, rbacService)

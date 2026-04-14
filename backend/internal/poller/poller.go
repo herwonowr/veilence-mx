@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -18,10 +19,9 @@ import (
 
 // Config holds configuration for the poller.
 type Config struct {
-	PythonInterval      time.Duration
-	NPMInterval         time.Duration
-	Concurrency         int
-	TopNRefreshInterval time.Duration
+	MonitoringInterval time.Duration
+	DiscoveryInterval  time.Duration
+	Concurrency        int
 }
 
 // settingsCache holds cached settings values with a TTL.
@@ -72,10 +72,9 @@ func (c *settingsCache) invalidate() {
 // Settings are re-read from the database after this duration.
 const SettingsCacheTTL = 1 * time.Minute
 
-// BaseTickInterval is the base polling interval used by pollLoop.
-// Each tick, the poller checks which orgs are due for polling based on
-// their per-org interval settings. This must be ≤ the smallest expected
-// per-org interval to ensure timely polling.
+// BaseTickInterval is the base polling interval used by both loops.
+// Each tick, the poller checks which orgs are due for monitoring/discovery
+// based on their per-org interval settings.
 const BaseTickInterval = 30 * time.Second
 
 // MaxOrgConcurrency limits how many orgs can be polled concurrently
@@ -83,7 +82,7 @@ const BaseTickInterval = 30 * time.Second
 // many orgs are due simultaneously.
 const MaxOrgConcurrency = 5
 
-// Poller polls package registries for new releases.
+// Poller polls package registries for new releases and discovers new packages.
 type Poller struct {
 	db       *gorm.DB
 	python   registry.Registry
@@ -93,7 +92,8 @@ type Poller struct {
 	mu       sync.Mutex
 	settings *settingsCache
 
-	// lastPollAt tracks when each (orgID, ecosystem) pair was last polled.
+	// lastPollAt tracks when each org was last polled/discovered.
+	// Keys: "orgID:monitor" and "orgID:discover"
 	// Protected by lastPollMu.
 	lastPollMu sync.RWMutex
 	lastPollAt map[string]time.Time
@@ -122,106 +122,80 @@ func (p *Poller) InvalidateSettingsCache() {
 	slog.Info("poller settings cache invalidated")
 }
 
-// Start begins the polling loops for both registries.
-func (p *Poller) Start(ctx context.Context) {
-	slog.Info("starting poller", "python_interval", p.config.PythonInterval, "npm_interval", p.config.NPMInterval)
-	go p.pollLoop(ctx, p.python, p.config.PythonInterval)
-	go p.pollLoop(ctx, p.npm, p.config.NPMInterval)
+// TriggerDiscovery resets the discovery timer for an org, making it due
+// on the next tick. Called by the settings handler when discovery_scan_depth changes.
+func (p *Poller) TriggerDiscovery(orgID uint) {
+	key := fmt.Sprintf("%d:discover", orgID)
+	p.lastPollMu.Lock()
+	delete(p.lastPollAt, key)
+	p.lastPollMu.Unlock()
+	slog.Info("discovery triggered for org", "org_id", orgID)
 }
 
-func (p *Poller) pollLoop(ctx context.Context, reg registry.Registry, defaultInterval time.Duration) {
-	// Initial poll — all orgs are immediately due since lastPollAt is empty.
-	p.pollRegistry(ctx, reg, defaultInterval)
+// Start begins the monitoring and discovery loops.
+func (p *Poller) Start(ctx context.Context) {
+	slog.Info("starting poller",
+		"monitoring_interval", p.config.MonitoringInterval,
+		"discovery_interval", p.config.DiscoveryInterval,
+	)
+	go p.monitorLoop(ctx)
+	go p.discoveryLoop(ctx)
+}
+
+// ---------------------------------------------------------------------------
+// Monitoring Loop
+// ---------------------------------------------------------------------------
+
+// monitorLoop is a single goroutine that checks ALL active packages
+// (regardless of ecosystem) for new releases.
+func (p *Poller) monitorLoop(ctx context.Context) {
+	// Initial run — all orgs are immediately due since lastPollAt is empty.
+	p.runMonitorCycle(ctx)
 
 	ticker := time.NewTicker(BaseTickInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			slog.Info("poller shutting down", "ecosystem", reg.Name())
+			slog.Info("monitor loop shutting down")
 			return
 		case <-ticker.C:
-			p.pollRegistry(ctx, reg, defaultInterval)
+			p.runMonitorCycle(ctx)
 		}
 	}
 }
 
-// pollRegistryKey returns the lastPollAt map key for an (orgID, registry) pair.
-func pollRegistryKey(orgID uint, regName string) string {
-	return fmt.Sprintf("%d:%s", orgID, regName)
-}
-
-// getOrgPollInterval returns the poll interval for a specific org and registry.
-// Falls back to the global default interval if no per-org setting exists.
-func (p *Poller) getOrgPollInterval(orgID uint, reg registry.Registry, defaultInterval time.Duration) time.Duration {
-	settingKey := models.SettingPythonPollInterval
-	if reg.Name() == "npm" {
-		settingKey = models.SettingNPMPollInterval
-	}
-
-	intervalStr := p.getSetting(settingKey, defaultInterval.String(), orgID)
-	if d, err := time.ParseDuration(intervalStr); err == nil && d > 0 {
-		return d
-	}
-	return defaultInterval
-}
-
-// isOrgDue returns true if the given org is due for polling based on its
-// per-org interval setting and the last time it was polled.
-func (p *Poller) isOrgDue(orgID uint, regName string, interval time.Duration) bool {
-	key := pollRegistryKey(orgID, regName)
-
-	p.lastPollMu.RLock()
-	last, ok := p.lastPollAt[key]
-	p.lastPollMu.RUnlock()
-
-	if !ok {
-		return true // Never polled — immediately due.
-	}
-	return time.Since(last) >= interval
-}
-
-// markOrgPolled records the current time as the last poll time for the org+registry.
-func (p *Poller) markOrgPolled(orgID uint, regName string) {
-	key := pollRegistryKey(orgID, regName)
-	p.lastPollMu.Lock()
-	p.lastPollAt[key] = time.Now()
-	p.lastPollMu.Unlock()
-}
-
-func (p *Poller) pollRegistry(ctx context.Context, reg registry.Registry, defaultInterval time.Duration) {
-	slog.Info("polling ecosystem", "ecosystem", reg.Name())
-
-	// Fetch distinct org IDs that have packages in this ecosystem
+// runMonitorCycle checks all orgs and monitors due ones.
+func (p *Poller) runMonitorCycle(ctx context.Context) {
+	// Fetch distinct org IDs that have active packages
 	var orgIDs []uint
 	if err := p.db.Model(&models.Package{}).
-		Where("ecosystem = ?", reg.Name()).
+		Where("status = ?", models.PackageStatusActive).
 		Distinct("org_id").
 		Pluck("org_id", &orgIDs).Error; err != nil {
-		slog.Error("failed to load org IDs for ecosystem", "ecosystem", reg.Name(), "error", err)
+		slog.Error("failed to load org IDs for monitoring", "error", err)
 		return
 	}
 
 	if len(orgIDs) == 0 {
-		slog.Info("no packages to poll", "ecosystem", reg.Name())
+		slog.Debug("no packages to monitor")
 		return
 	}
 
-	// Filter to orgs that are due for polling based on their per-org interval.
+	// Filter to orgs that are due for monitoring.
 	var dueOrgIDs []uint
 	for _, orgID := range orgIDs {
-		interval := p.getOrgPollInterval(orgID, reg, defaultInterval)
-		if p.isOrgDue(orgID, reg.Name(), interval) {
+		interval := p.getOrgMonitoringInterval(orgID)
+		if p.isOrgDue(orgID, "monitor", interval) {
 			dueOrgIDs = append(dueOrgIDs, orgID)
 		}
 	}
 
 	if len(dueOrgIDs) == 0 {
-		slog.Debug("no orgs due for polling", "ecosystem", reg.Name())
 		return
 	}
 
-	// Poll due orgs concurrently, bounded by MaxOrgConcurrency.
+	// Monitor due orgs concurrently, bounded by MaxOrgConcurrency.
 	orgSem := make(chan struct{}, MaxOrgConcurrency)
 	var wg sync.WaitGroup
 	var totalChecked int64
@@ -233,22 +207,25 @@ func (p *Poller) pollRegistry(ctx context.Context, reg registry.Registry, defaul
 			orgSem <- struct{}{}
 			defer func() { <-orgSem }()
 
-			n := p.pollOrgPackages(ctx, reg, orgID)
+			n := p.monitorOrgPackages(ctx, orgID)
 			atomic.AddInt64(&totalChecked, int64(n))
-			p.markOrgPolled(orgID, reg.Name())
+			p.markOrgPolled(orgID, "monitor")
 		}(orgID)
 	}
 
 	wg.Wait()
-	slog.Info("polling complete", "ecosystem", reg.Name(), "orgs_polled", len(dueOrgIDs), "packages_checked", totalChecked)
+	if totalChecked > 0 {
+		slog.Info("monitoring complete", "orgs_polled", len(dueOrgIDs), "packages_checked", totalChecked)
+	}
 }
 
-// pollOrgPackages polls all packages for a single org in a single ecosystem.
-// Returns the number of packages checked.
-func (p *Poller) pollOrgPackages(ctx context.Context, reg registry.Registry, orgID uint) int {
+// monitorOrgPackages loads all active packages for an org (both ecosystems)
+// and checks each for new releases. Returns the number of packages checked.
+func (p *Poller) monitorOrgPackages(ctx context.Context, orgID uint) int {
 	var packages []models.Package
-	if err := p.db.Where("ecosystem = ? AND org_id = ?", reg.Name(), orgID).Find(&packages).Error; err != nil {
-		slog.Error("failed to load packages", "ecosystem", reg.Name(), "org_id", orgID, "error", err)
+	if err := p.db.Where("org_id = ? AND status = ?", orgID, models.PackageStatusActive).
+		Find(&packages).Error; err != nil {
+		slog.Error("failed to load active packages for monitoring", "org_id", orgID, "error", err)
 		return 0
 	}
 
@@ -265,8 +242,14 @@ func (p *Poller) pollOrgPackages(ctx context.Context, reg registry.Registry, org
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			if err := p.checkPackage(ctx, reg, pkg); err != nil {
-				slog.Error("failed to check package", "package", pkg.Name, "ecosystem", reg.Name(), "org_id", orgID, "error", err)
+
+			reg := p.registryForEcosystem(pkg.Ecosystem)
+			if reg == nil {
+				slog.Error("unknown ecosystem for package", "package", pkg.Name, "ecosystem", pkg.Ecosystem)
+				return
+			}
+			if err := p.checkPackageForNewReleases(ctx, reg, pkg); err != nil {
+				slog.Error("failed to check package", "package", pkg.Name, "ecosystem", pkg.Ecosystem, "org_id", orgID, "error", err)
 			}
 		}(pkg)
 	}
@@ -275,33 +258,67 @@ func (p *Poller) pollOrgPackages(ctx context.Context, reg registry.Registry, org
 	return len(packages)
 }
 
-func (p *Poller) checkPackage(ctx context.Context, reg registry.Registry, pkg models.Package) error {
+// registryForEcosystem returns the appropriate registry client for an ecosystem.
+func (p *Poller) registryForEcosystem(ecosystem models.Ecosystem) registry.Registry {
+	switch ecosystem {
+	case models.EcosystemPython:
+		return p.python
+	case models.EcosystemNPM:
+		return p.npm
+	default:
+		return nil
+	}
+}
+
+// checkPackageForNewReleases fetches registry info and creates releases
+// for ALL versions published after the last known release (no version depth cap).
+func (p *Poller) checkPackageForNewReleases(ctx context.Context, reg registry.Registry, pkg models.Package) error {
 	info, err := reg.GetPackage(ctx, pkg.Name)
 	if err != nil {
 		return fmt.Errorf("fetching package info: %w", err)
 	}
 
-	// Update only this specific package record (scoped by primary key)
+	// Update package metadata
 	p.db.Model(&pkg).Updates(map[string]any{
 		"latest_version": info.Version,
 		"description":    info.Description,
 	})
 
-	versions := p.applyVersionDepth(info.Versions, pkg.OrgID)
-
-	// If no releases exist yet for this package and there are older versions
-	// available, include one additional older version as a diff baseline.
-	// This ensures the latest version can be compared even in "latest only" mode.
-	var existingCount int64
-	p.db.Model(&models.Release{}).Where("package_id = ?", pkg.ID).Count(&existingCount)
-	if existingCount == 0 && len(versions) < len(info.Versions) {
-		versions = append(versions, info.Versions[len(versions)])
+	if len(info.Versions) == 0 {
+		return nil
 	}
 
-	// Process oldest-first so older versions get lower IDs,
+	// Find the most recent release we already know about
+	var latestKnownRelease models.Release
+	p.db.Where("package_id = ?", pkg.ID).Order("published_at DESC").Limit(1).Find(&latestKnownRelease)
+
+	var newVersions []registry.VersionInfo
+
+	if latestKnownRelease.ID > 0 {
+		// Find all versions published AFTER our latest known release
+		for _, v := range info.Versions {
+			if v.PublishedAt.After(latestKnownRelease.PublishedAt) && v.Version != latestKnownRelease.Version {
+				newVersions = append(newVersions, v)
+			}
+		}
+	} else {
+		// First time: take latest + one baseline (same as current baseline logic)
+		count := min(2, len(info.Versions))
+		newVersions = info.Versions[:count]
+	}
+
+	if len(newVersions) == 0 {
+		return nil
+	}
+
+	// Sort oldest-first so older versions get lower IDs,
 	// allowing the differ to find them as "previous release".
-	for i := len(versions) - 1; i >= 0; i-- {
-		v := versions[i]
+	sort.Slice(newVersions, func(i, j int) bool {
+		return newVersions[i].PublishedAt.Before(newVersions[j].PublishedAt)
+	})
+
+	for _, v := range newVersions {
+		// Double-check: don't create if already exists (idempotency)
 		var existingRelease models.Release
 		result := p.db.Where("package_id = ? AND version = ?", pkg.ID, v.Version).Limit(1).Find(&existingRelease)
 		if result.Error != nil {
@@ -342,34 +359,217 @@ func (p *Poller) checkPackage(ctx context.Context, reg registry.Registry, pkg mo
 	return nil
 }
 
-// applyVersionDepth limits versions based on the version_depth_mode setting.
-// Versions must be sorted newest-first (both registry clients do this).
-// "latest" (default) = only the newest version, "custom" = up to version_depth_count (1-5).
-// Settings are read from an in-memory cache to avoid repeated DB lookups during each poll cycle.
-// The orgID parameter scopes settings to the requesting organization.
-func (p *Poller) applyVersionDepth(versions []registry.VersionInfo, orgID uint) []registry.VersionInfo {
-	if len(versions) == 0 {
-		return versions
+// ---------------------------------------------------------------------------
+// Discovery Loop
+// ---------------------------------------------------------------------------
+
+// discoveryLoop is a single goroutine that periodically scans registry
+// popularity rankings and adds new packages to monitoring.
+func (p *Poller) discoveryLoop(ctx context.Context) {
+	// Initial run — all orgs are immediately due since lastPollAt is empty.
+	p.runDiscoveryCycle(ctx)
+
+	ticker := time.NewTicker(BaseTickInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			slog.Info("discovery loop shutting down")
+			return
+		case <-ticker.C:
+			p.runDiscoveryCycle(ctx)
+		}
+	}
+}
+
+// runDiscoveryCycle checks all orgs and runs discovery for due ones.
+func (p *Poller) runDiscoveryCycle(ctx context.Context) {
+	// Get all org IDs that have settings (i.e., are set up)
+	var orgIDs []uint
+	if err := p.db.Model(&models.Setting{}).
+		Where("org_id > 0").
+		Distinct("org_id").
+		Pluck("org_id", &orgIDs).Error; err != nil {
+		slog.Error("failed to load org IDs for discovery", "error", err)
+		return
 	}
 
-	mode := p.getSetting(models.SettingVersionDepthMode, "latest", orgID)
-
-	switch mode {
-	case "latest":
-		return versions[:1]
-	case "custom":
-		count := 5 // default custom depth
-		countStr := p.getSetting(models.SettingVersionDepthCount, "5", orgID)
-		if v, err := strconv.Atoi(countStr); err == nil && v >= 1 && v <= 5 {
-			count = v
-		}
-		if count > len(versions) {
-			count = len(versions)
-		}
-		return versions[:count]
-	default:
-		return versions
+	// Also include orgs that have packages but might not have settings yet
+	var pkgOrgIDs []uint
+	if err := p.db.Model(&models.Package{}).
+		Distinct("org_id").
+		Pluck("org_id", &pkgOrgIDs).Error; err != nil {
+		slog.Error("failed to load package org IDs for discovery", "error", err)
+		return
 	}
+
+	// Merge unique org IDs
+	seen := make(map[uint]bool, len(orgIDs)+len(pkgOrgIDs))
+	for _, id := range orgIDs {
+		seen[id] = true
+	}
+	for _, id := range pkgOrgIDs {
+		seen[id] = true
+	}
+
+	var allOrgIDs []uint
+	for id := range seen {
+		allOrgIDs = append(allOrgIDs, id)
+	}
+
+	if len(allOrgIDs) == 0 {
+		return
+	}
+
+	for _, orgID := range allOrgIDs {
+		interval := p.getOrgDiscoveryInterval(orgID)
+		if !p.isOrgDue(orgID, "discover", interval) {
+			continue
+		}
+
+		scanDepth := p.getDiscoveryScanDepth(orgID)
+		if scanDepth <= 0 {
+			p.markOrgPolled(orgID, "discover")
+			continue
+		}
+
+		slog.Info("running discovery for org", "org_id", orgID, "scan_depth", scanDepth)
+
+		// Scan both ecosystems to the full depth
+		if p.python != nil {
+			p.discoverPackages(ctx, p.python, scanDepth, orgID)
+		}
+		if p.npm != nil {
+			p.discoverPackages(ctx, p.npm, scanDepth, orgID)
+		}
+
+		p.markOrgPolled(orgID, "discover")
+	}
+}
+
+// discoverPackages fetches top packages from a registry and upserts them.
+// Discovery is additive only — it never removes packages.
+func (p *Poller) discoverPackages(ctx context.Context, reg registry.Registry, scanDepth int, orgID uint) {
+	names, err := reg.GetTopPackages(ctx, scanDepth)
+	if err != nil {
+		slog.Error("failed to fetch top packages for discovery", "ecosystem", reg.Name(), "org_id", orgID, "error", err)
+		return
+	}
+
+	var added int
+	for i, name := range names {
+		rank := uint(i + 1)
+		var existing models.Package
+		result := p.db.Where("org_id = ? AND name = ? AND ecosystem = ?", orgID, name, reg.Name()).Limit(1).Find(&existing)
+
+		if result.RowsAffected == 0 {
+			// New package — create it
+			pkg := models.Package{
+				OrgID:     orgID,
+				Name:      name,
+				Ecosystem: models.Ecosystem(reg.Name()),
+				Source:    models.PackageSourceDiscovered,
+				Status:   models.PackageStatusActive,
+				Rank:     &rank,
+			}
+			if err := p.db.Create(&pkg).Error; err != nil {
+				slog.Error("failed to create discovered package", "package", name, "error", err)
+				continue
+			}
+			added++
+		} else {
+			// Existing package — handle based on status
+			switch existing.Status {
+			case models.PackageStatusActive:
+				// Update rank only
+				p.db.Model(&existing).Update("rank", &rank)
+			case models.PackageStatusBlocked:
+				// Skip entirely — do not update rank
+				continue
+			case models.PackageStatusRemoved:
+				// Re-add: set status back to active with updated rank
+				p.db.Model(&existing).Updates(map[string]any{
+					"status": models.PackageStatusActive,
+					"rank":   &rank,
+				})
+				added++
+			}
+		}
+	}
+
+	slog.Info("discovery complete", "ecosystem", reg.Name(), "org_id", orgID, "scanned", len(names), "new_packages", added)
+}
+
+// SyncTopPackages is kept for backward compatibility with the API handler.
+// It delegates to discoverPackages.
+func (p *Poller) SyncTopPackages(ctx context.Context, reg registry.Registry, limit int, orgID uint) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	slog.Info("syncing top packages (legacy)", "ecosystem", reg.Name(), "limit", limit, "org_id", orgID)
+	p.discoverPackages(ctx, reg, limit, orgID)
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+// pollRegistryKey returns the lastPollAt map key for an (orgID, purpose) pair.
+func pollRegistryKey(orgID uint, purpose string) string {
+	return fmt.Sprintf("%d:%s", orgID, purpose)
+}
+
+// getOrgMonitoringInterval returns the monitoring interval for a specific org.
+// Falls back to the global config default if no per-org setting exists.
+func (p *Poller) getOrgMonitoringInterval(orgID uint) time.Duration {
+	intervalStr := p.getSetting(models.SettingMonitoringInterval, p.config.MonitoringInterval.String(), orgID)
+	if d, err := time.ParseDuration(intervalStr); err == nil && d > 0 {
+		return d
+	}
+	return p.config.MonitoringInterval
+}
+
+// getOrgDiscoveryInterval returns the discovery interval for a specific org.
+func (p *Poller) getOrgDiscoveryInterval(orgID uint) time.Duration {
+	intervalStr := p.getSetting(models.SettingDiscoveryInterval, p.config.DiscoveryInterval.String(), orgID)
+	if d, err := time.ParseDuration(intervalStr); err == nil && d > 0 {
+		return d
+	}
+	return p.config.DiscoveryInterval
+}
+
+// getDiscoveryScanDepth returns the discovery scan depth for a specific org.
+// A value of 0 means discovery is disabled for that org.
+func (p *Poller) getDiscoveryScanDepth(orgID uint) int {
+	depthStr := p.getSetting(models.SettingDiscoveryScanDepth, "50", orgID)
+	if v, err := strconv.Atoi(depthStr); err == nil && v >= 0 {
+		return v
+	}
+	return 50
+}
+
+// isOrgDue returns true if the given org is due for the given purpose
+// (monitor or discover) based on its interval and last poll time.
+func (p *Poller) isOrgDue(orgID uint, purpose string, interval time.Duration) bool {
+	key := pollRegistryKey(orgID, purpose)
+
+	p.lastPollMu.RLock()
+	last, ok := p.lastPollAt[key]
+	p.lastPollMu.RUnlock()
+
+	if !ok {
+		return true // Never polled — immediately due.
+	}
+	return time.Since(last) >= interval
+}
+
+// markOrgPolled records the current time as the last poll time for the org+purpose.
+func (p *Poller) markOrgPolled(orgID uint, purpose string) {
+	key := pollRegistryKey(orgID, purpose)
+	p.lastPollMu.Lock()
+	p.lastPollAt[key] = time.Now()
+	p.lastPollMu.Unlock()
 }
 
 // getSetting retrieves a setting value, using the cache when available.
@@ -391,44 +591,4 @@ func (p *Poller) getSetting(key, defaultValue string, orgID uint) string {
 	// Not found in DB, cache the default
 	p.settings.set(cacheKey, defaultValue)
 	return defaultValue
-}
-
-// SyncTopPackages fetches and upserts the top-N packages for a registry, scoped to the given org.
-func (p *Poller) SyncTopPackages(ctx context.Context, reg registry.Registry, limit int, orgID uint) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	slog.Info("syncing top packages", "ecosystem", reg.Name(), "limit", limit, "org_id", orgID)
-
-	names, err := reg.GetTopPackages(ctx, limit)
-	if err != nil {
-		return fmt.Errorf("fetching top packages: %w", err)
-	}
-
-	for i, name := range names {
-		rank := uint(i + 1)
-		var existing models.Package
-		result := p.db.Where("org_id = ? AND name = ? AND ecosystem = ?", orgID, name, reg.Name()).Limit(1).Find(&existing)
-		if result.RowsAffected == 0 {
-			pkg := models.Package{
-				OrgID:    orgID,
-				Name:     name,
-				Ecosystem: models.Ecosystem(reg.Name()),
-				IsCustom: false,
-				Rank:     &rank,
-			}
-			if err := p.db.Create(&pkg).Error; err != nil {
-				slog.Error("failed to create top package", "package", name, "error", err)
-				continue
-			}
-		} else {
-			p.db.Model(&existing).Updates(map[string]any{
-				"rank":      &rank,
-				"is_custom": false,
-			})
-		}
-	}
-
-	slog.Info("top packages synced", "ecosystem", reg.Name(), "count", len(names), "org_id", orgID)
-	return nil
 }

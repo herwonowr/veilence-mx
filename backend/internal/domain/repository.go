@@ -50,15 +50,22 @@ type PackageRepository interface {
 	// FindByID returns a package by its ID. Returns an error if not found.
 	FindByID(ctx context.Context, id uint) (*Package, error)
 	// FindByOrgID returns all packages belonging to an organization.
+	// By default excludes removed packages unless includeRemoved is true.
 	FindByOrgID(ctx context.Context, orgID uint, page, limit int, sortClause string) ([]Package, int64, error)
+	// FindActiveByOrgID returns all active packages for an org (for monitoring loop).
+	FindActiveByOrgID(ctx context.Context, orgID uint) ([]Package, error)
 	// FindByOrgAndName returns a package by org, name, and ecosystem. Returns an error if not found.
 	FindByOrgAndName(ctx context.Context, orgID uint, name string, ecosystem Ecosystem) (*Package, error)
 	// Create persists a new package.
 	Create(ctx context.Context, pkg *Package) error
 	// Update saves changes to an existing package.
 	Update(ctx context.Context, pkg *Package) error
-	// SoftDelete marks a package as deleted, scoped to the owning org for tenant isolation.
-	SoftDelete(ctx context.Context, orgID, id uint) error
+	// BlockPackage sets a package's status to 'blocked' with a reason and timestamp.
+	BlockPackage(ctx context.Context, orgID, pkgID uint, reason string) error
+	// UnblockPackage sets a package's status back to 'active', clearing block fields.
+	UnblockPackage(ctx context.Context, orgID, pkgID uint) error
+	// RemovePackage sets a package's status to 'removed' (replaces SoftDelete).
+	RemovePackage(ctx context.Context, orgID, pkgID uint) error
 	// CountByOrg returns the count of packages in an org, optionally filtered by ecosystem.
 	CountByOrg(ctx context.Context, orgID uint, ecosystem *Ecosystem) (int64, error)
 }

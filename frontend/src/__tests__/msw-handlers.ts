@@ -84,6 +84,31 @@ export const handlers = [
     return HttpResponse.json({ data: null, error: null })
   }),
 
+  http.post(`${API_BASE}/api/packages/:id/block`, async ({ params, request }) => {
+    const body = (await request.json()) as { reason?: string }
+    return HttpResponse.json({
+      data: createPackage({
+        id: Number(params.id),
+        status: "blocked",
+        blockedAt: new Date().toISOString(),
+        blockedReason: body.reason ?? null,
+      }),
+      error: null,
+    })
+  }),
+
+  http.post(`${API_BASE}/api/packages/:id/unblock`, ({ params }) => {
+    return HttpResponse.json({
+      data: createPackage({
+        id: Number(params.id),
+        status: "active",
+        blockedAt: null,
+        blockedReason: null,
+      }),
+      error: null,
+    })
+  }),
+
   http.get(`${API_BASE}/api/packages/:id/releases`, () => {
     return HttpResponse.json({
       data: [],
@@ -113,8 +138,9 @@ export const handlers = [
   http.get(`${API_BASE}/api/settings`, () => {
     return HttpResponse.json({
       data: {
-        python_poll_interval: "5m",
-        npm_poll_interval: "5m",
+        monitoring_interval: "1h",
+        discovery_scan_depth: "50",
+        discovery_interval: "24h",
         max_concurrent_analyses: "3",
         analyzer_type: "api",
       },
@@ -335,6 +361,14 @@ export const handlers = [
   }),
 
   // ── Sync ──────────────────────────────────────────────────
+  http.post(`${API_BASE}/api/sync/discover`, () => {
+    return HttpResponse.json({
+      data: { message: "Discovery initiated" },
+      error: null,
+    })
+  }),
+
+  /** @deprecated Alias for /api/sync/discover — kept for backward compatibility */
   http.post(`${API_BASE}/api/sync/top-packages`, () => {
     return HttpResponse.json({
       data: { message: "Sync initiated" },

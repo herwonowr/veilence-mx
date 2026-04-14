@@ -60,11 +60,13 @@ type AuditHandlers struct {
 }
 
 // PackageHandlers handles package and release CRUD endpoints.
-// NOTE: DB will be replaced by a service interface in a future sprint.
+// New operations (block/unblock/remove) use PackageService (clean architecture).
+// Existing handlers (List, Get, Create, Import) still use DB directly (tech debt).
 type PackageHandlers struct {
-	DB    *gorm.DB
-	Queue queue.Enqueuer
-	Audit *audit.Service
+	DB      *gorm.DB
+	Queue   queue.Enqueuer
+	Audit   *audit.Service
+	PkgSvc  domain.PackageService
 }
 
 // AlertHandlers handles alert listing, status update, and note endpoints.
@@ -116,6 +118,7 @@ func NewHandlers(
 	jobQueue *queue.Queue,
 	dashboardRepo domain.DashboardRepository,
 	alertNoteService domain.AlertNoteService,
+	packageService domain.PackageService,
 ) *Handlers {
 	return &Handlers{
 		Auth: &AuthHandlers{
@@ -137,9 +140,10 @@ func NewHandlers(
 			Audit: auditService,
 		},
 		Packages: &PackageHandlers{
-			DB:    db,
-			Queue: jobQueue,
-			Audit: auditService,
+			DB:     db,
+			Queue:  jobQueue,
+			Audit:  auditService,
+			PkgSvc: packageService,
 		},
 		Alerts: &AlertHandlers{
 			DB:    db,

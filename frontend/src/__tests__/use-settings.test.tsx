@@ -51,8 +51,8 @@ describe("useSettings", () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    expect(result.current.data?.data.python_poll_interval).toBe("5m")
-    expect(result.current.data?.data.npm_poll_interval).toBe("5m")
+    expect(result.current.data?.data.monitoring_interval).toBe("1h")
+    expect(result.current.data?.data.discovery_scan_depth).toBe("50")
     expect(result.current.data?.data.analyzer_type).toBe("api")
   })
 
@@ -83,7 +83,7 @@ describe("useUpdateSettings", () => {
     })
 
     await act(async () => {
-      result.current.mutate({ python_poll_interval: "10m" })
+      result.current.mutate({ monitoring_interval: "30m" })
     })
 
     await waitFor(() => {

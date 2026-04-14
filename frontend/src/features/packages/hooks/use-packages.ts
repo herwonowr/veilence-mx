@@ -11,7 +11,10 @@ import {
   getPackage,
   createPackage,
   deletePackage,
+  blockPackage,
+  unblockPackage,
   getPackageReleases,
+  discoverPackages,
   syncTopPackages,
   bulkImportPackages,
   getAnalysisHistory,
@@ -38,6 +41,8 @@ export const usePackages = (
   params?: {
     ecosystem?: string
     search?: string
+    status?: string
+    source?: string
     page?: number
     limit?: number
     sortBy?: string
@@ -98,14 +103,61 @@ export const useDeletePackage = () => {
     mutationFn: (id: number) => deletePackage(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: packageKeys.lists() })
-      toast.success("Package deleted")
+      toast.success("Package removed from monitoring")
     },
     onError: (error: Error) => {
-      toast.error(sanitizeErrorMessage(error, "Failed to delete package"))
+      toast.error(sanitizeErrorMessage(error, "Failed to remove package"))
     },
   })
 }
 
+export const useBlockPackage = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason?: string }) =>
+      blockPackage(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: packageKeys.lists() })
+      toast.success("Package blocked")
+    },
+    onError: (error: Error) => {
+      toast.error(sanitizeErrorMessage(error, "Failed to block package"))
+    },
+  })
+}
+
+export const useUnblockPackage = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: number) => unblockPackage(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: packageKeys.lists() })
+      toast.success("Package unblocked")
+    },
+    onError: (error: Error) => {
+      toast.error(sanitizeErrorMessage(error, "Failed to unblock package"))
+    },
+  })
+}
+
+export const useDiscoverPackages = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (ecosystem?: string) => discoverPackages(ecosystem),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: packageKeys.lists() })
+      toast.success("Discovery started")
+    },
+    onError: (error: Error) => {
+      toast.error(sanitizeErrorMessage(error, "Failed to trigger discovery"))
+    },
+  })
+}
+
+/** @deprecated Use useDiscoverPackages instead. Will be removed in v1.2.0. */
 export const useSyncTopPackages = () => {
   const queryClient = useQueryClient()
 

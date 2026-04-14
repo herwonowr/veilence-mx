@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/ui/components/table"
 import { Skeleton } from "@/ui/components/skeleton"
-import { ArrowLeft, Activity, Package as PackageIcon } from "lucide-react"
+import { ArrowLeft, Activity, Package as PackageIcon, Ban } from "lucide-react"
 import { DetailError } from "@/ui/feedback/detail-error"
 import { formatEcosystem } from "@/domains/common"
 import { usePackage, usePackageReleases, useAnalysisHistory } from "@/features/packages/hooks/use-packages"
@@ -83,11 +83,25 @@ export const PackageDetailView = ({
         <h1 className="text-3xl font-bold">{pkg.name}</h1>
         <div className="flex flex-wrap items-center gap-2 mt-2">
           <Badge variant="outline">{formatEcosystem(pkg.ecosystem)}</Badge>
+          <Badge variant={pkg.source === "manual" ? "default" : pkg.source === "imported" ? "outline" : "secondary"}>
+            {pkg.source === "manual" ? "Manual" : pkg.source === "imported" ? "Imported" : "Discovered"}
+          </Badge>
+          {pkg.status === "blocked" && (
+            <Badge variant="destructive">
+              <Ban className="h-3 w-3 mr-1" />
+              Blocked
+            </Badge>
+          )}
           <span className="font-mono text-sm text-muted-foreground">v{pkg.latestVersion}</span>
           {pkg.description && (
-            <span className="text-sm text-muted-foreground">— {pkg.description}</span>
+            <span className="text-sm text-muted-foreground">{"\u2014"} {pkg.description}</span>
           )}
         </div>
+        {pkg.status === "blocked" && pkg.blockedReason && (
+          <p className="text-sm text-muted-foreground mt-2">
+            Blocked: {pkg.blockedReason}
+          </p>
+        )}
       </div>
 
       <Card>

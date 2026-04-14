@@ -196,7 +196,7 @@ export const AppSidebar = ({
                   render={
                     <SidebarMenuButton
                       tooltip={user.email}
-                      className="w-full"
+                      className="w-full h-auto"
                     />
                   }
                 >

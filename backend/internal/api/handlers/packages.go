@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/veilence/veilence-mx/backend/internal/apperror"
+	"github.com/veilence/veilence-mx/backend/internal/domain"
 	"github.com/veilence/veilence-mx/backend/internal/models"
 	"github.com/veilence/veilence-mx/backend/internal/rbac"
 )
@@ -48,19 +50,28 @@ func (h *PackageHandlers) ListPackages(w http.ResponseWriter, r *http.Request) {
 		"ecosystem":     "ecosystem",
 		"latestVersion": "latest_version",
 		"rank":          "rank",
-		"isCustom":      "is_custom",
+		"source":        "source",
+		"status":        "status",
 		"createdAt":     "created_at",
 	}, "rank ASC NULLS LAST, name ASC")
 	ecosystemFilter := r.URL.Query().Get("ecosystem")
-	isCustomFilter := r.URL.Query().Get("is_custom")
+	sourceFilter := r.URL.Query().Get("source")
+	statusFilter := r.URL.Query().Get("status")
 	search := r.URL.Query().Get("search")
 
 	query := h.DB.Model(&models.Package{}).Where("org_id = ?", orgID)
+
+	// Default to active packages only
+	if statusFilter != "" {
+		query = query.Where("status = ?", statusFilter)
+	} else {
+		query = query.Where("status = ?", models.PackageStatusActive)
+	}
 	if ecosystemFilter != "" {
 		query = query.Where("ecosystem = ?", ecosystemFilter)
 	}
-	if isCustomFilter != "" {
-		query = query.Where("is_custom = ?", isCustomFilter == "true")
+	if sourceFilter != "" {
+		query = query.Where("source = ?", sourceFilter)
 	}
 	if search != "" {
 		search = escapeLike(search)
@@ -142,7 +153,8 @@ func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) 
 		OrgID:    orgID,
 		Name:      req.Name,
 		Ecosystem: models.Ecosystem(req.Ecosystem),
-		IsCustom: true,
+		Source:   models.PackageSourceManual,
+		Status:   models.PackageStatusActive,
 	}
 
 	if err := h.DB.Create(&pkg).Error; err != nil {
@@ -156,6 +168,7 @@ func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) 
 }
 
 // DeletePackage removes a package from monitoring within the current org.
+// Delegates to PackageService.RemovePackage (clean architecture).
 func (h *PackageHandlers) DeletePackage(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
 
@@ -165,19 +178,77 @@ func (h *PackageHandlers) DeletePackage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result := h.DB.Where("id = ? AND org_id = ?", id, orgID).Delete(&models.Package{})
-	if result.Error != nil {
-		respondAppError(w, apperror.Internal("failed to delete package"))
+	if err := h.PkgSvc.RemovePackage(r.Context(), orgID, uint(id)); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			respondAppError(w, apperror.NotFound("package"))
+			return
+		}
+		respondAppError(w, apperror.Internal("failed to remove package"))
 		return
 	}
-	if result.RowsAffected == 0 {
-		respondAppError(w, apperror.NotFound("package"))
-		return
-	}
-
-	h.Audit.LogAction(r.Context(), "delete", "package", uint(id), fmt.Sprintf("removed package %d from monitoring", id))
 
 	respondJSON(w, http.StatusOK, nil, nil)
+}
+
+// blockPackageRequest is the request body for blocking a package.
+type blockPackageRequest struct {
+	Reason string `json:"reason"`
+}
+
+// BlockPackage sets a package's status to 'blocked'.
+// Delegates to PackageService.BlockPackage (clean architecture).
+func (h *PackageHandlers) BlockPackage(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+
+	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		respondAppError(w, apperror.BadRequest("invalid package ID"))
+		return
+	}
+
+	var req blockPackageRequest
+	if r.Body != nil && r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			respondAppError(w, apperror.BadRequest("invalid request body"))
+			return
+		}
+	}
+
+	pkg, err := h.PkgSvc.BlockPackage(r.Context(), orgID, uint(id), req.Reason)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			respondAppError(w, apperror.NotFound("package"))
+			return
+		}
+		respondAppError(w, apperror.Internal("failed to block package"))
+		return
+	}
+
+	respondJSON(w, http.StatusOK, pkg, nil)
+}
+
+// UnblockPackage sets a package's status back to 'active'.
+// Delegates to PackageService.UnblockPackage (clean architecture).
+func (h *PackageHandlers) UnblockPackage(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+
+	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		respondAppError(w, apperror.BadRequest("invalid package ID"))
+		return
+	}
+
+	pkg, err := h.PkgSvc.UnblockPackage(r.Context(), orgID, uint(id))
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			respondAppError(w, apperror.NotFound("package"))
+			return
+		}
+		respondAppError(w, apperror.Internal("failed to unblock package"))
+		return
+	}
+
+	respondJSON(w, http.StatusOK, pkg, nil)
 }
 
 // importPackageEntry represents a single package in a bulk import request.
@@ -388,7 +459,8 @@ func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request)
 			OrgID:    orgID,
 			Name:      entry.Name,
 			Ecosystem: models.Ecosystem(entry.Ecosystem),
-			IsCustom: true,
+			Source:   models.PackageSourceImported,
+			Status:   models.PackageStatusActive,
 		}
 
 		if err := h.DB.Create(&pkg).Error; err != nil {

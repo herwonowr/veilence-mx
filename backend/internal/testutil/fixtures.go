@@ -122,16 +122,18 @@ type PkgFixture struct {
 	Name          string
 	Ecosystem     models.Ecosystem
 	LatestVersion string
-	IsCustom      bool
+	Source        models.PackageSource
+	Status        models.PackageStatus
 }
 
 // DefaultPkgFixture returns a PkgFixture with sensible defaults.
 func DefaultPkgFixture() PkgFixture {
 	return PkgFixture{
-		OrgID:    1,
-		Name:     "requests",
+		OrgID:     1,
+		Name:      "requests",
 		Ecosystem: models.EcosystemPython,
-		IsCustom: false,
+		Source:    models.PackageSourceDiscovered,
+		Status:   models.PackageStatusActive,
 	}
 }
 
@@ -147,7 +149,8 @@ func CreatePackage(t *testing.T, db *gorm.DB, opts ...func(*PkgFixture)) *models
 		Name:          f.Name,
 		Ecosystem:     f.Ecosystem,
 		LatestVersion: f.LatestVersion,
-		IsCustom:      f.IsCustom,
+		Source:        f.Source,
+		Status:        f.Status,
 	}
 	require.NoError(t, db.Create(pkg).Error)
 	return pkg

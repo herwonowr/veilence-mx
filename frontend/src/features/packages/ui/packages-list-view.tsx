@@ -7,6 +7,7 @@ import { useSortParams } from "@/core/hooks/use-sort-params"
 import { Button } from "@/ui/components/button"
 import { Badge } from "@/ui/components/badge"
 import { Input } from "@/ui/components/input"
+import { Textarea } from "@/ui/components/textarea"
 import { Card, CardContent, CardHeader } from "@/ui/components/card"
 import {
   Table,
@@ -40,9 +41,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/components/select"
-import type { Package } from "@/domains/packages"
+import type { Package, PackageStatus, PackageSource } from "@/domains/packages"
 import type { Ecosystem } from "@/domains/common"
-import { Plus, Trash2, RefreshCw, Upload } from "lucide-react"
+import { Plus, Trash2, RefreshCw, Upload, Ban, ShieldCheck, MoreHorizontal } from "lucide-react"
 import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
 import { TableError } from "@/ui/feedback/table-error"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
@@ -66,12 +67,42 @@ import {
   usePackages,
   useCreatePackage,
   useDeletePackage,
-  useSyncTopPackages,
+  useBlockPackage,
+  useUnblockPackage,
+  useDiscoverPackages,
 } from "@/features/packages/hooks/use-packages"
+
+const formatSource = (source: PackageSource): string => {
+  switch (source) {
+    case "manual":
+      return "Manual"
+    case "discovered":
+      return "Discovered"
+    case "imported":
+      return "Imported"
+    default:
+      return source
+  }
+}
+
+const sourceVariant = (source: PackageSource): "default" | "secondary" | "outline" => {
+  switch (source) {
+    case "manual":
+      return "default"
+    case "discovered":
+      return "secondary"
+    case "imported":
+      return "outline"
+    default:
+      return "secondary"
+  }
+}
 
 export const PackagesListView = () => {
   const router = useRouter()
   const [ecosystemFilter, setEcosystemFilter] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string>("active")
+  const [sourceFilter, setSourceFilter] = useState<string>("")
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search, 300)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -82,12 +113,15 @@ export const PackagesListView = () => {
     pageSize: 20,
   })
   const [sorting, setSorting] = useSortParams()
-  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null)
+  const [removeTarget, setRemoveTarget] = useState<{ id: number; name: string } | null>(null)
+  const [blockTarget, setBlockTarget] = useState<{ id: number; name: string } | null>(null)
+  const [blockReason, setBlockReason] = useState("")
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({})
 
   const packageColumnBreakpoints: ColumnBreakpoints = useMemo(() => ({
     rank: "desktop",
-    isCustom: "tablet",
+    source: "tablet",
+    status: "tablet",
   }), [])
   const columnVisibility = useResponsiveColumns(packageColumnBreakpoints)
 
@@ -95,6 +129,8 @@ export const PackagesListView = () => {
   const { data: packagesRes, isLoading, isFetching, isError, refetch } = usePackages({
     ecosystem: ecosystemFilter || undefined,
     search: debouncedSearch || undefined,
+    status: statusFilter || undefined,
+    source: sourceFilter || undefined,
     page: pagination.pageIndex + 1,
     limit: pagination.pageSize,
     sortBy: sort?.id,
@@ -106,24 +142,34 @@ export const PackagesListView = () => {
 
   const createMutation = useCreatePackage()
   const deleteMutation = useDeletePackage()
-  const syncMutation = useSyncTopPackages()
+  const blockMutation = useBlockPackage()
+  const unblockMutation = useUnblockPackage()
+  const discoverMutation = useDiscoverPackages()
 
   // Reset to first page when filters or sort change
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-  }, [ecosystemFilter, debouncedSearch, sorting])
+  }, [ecosystemFilter, statusFilter, sourceFilter, debouncedSearch, sorting])
 
-  const hasActiveFilters = !!(search || ecosystemFilter)
+  const hasActiveFilters = !!(search || ecosystemFilter || sourceFilter || statusFilter !== "active")
 
   const clearAllFilters = () => {
     setSearch("")
     setEcosystemFilter("")
+    setStatusFilter("active")
+    setSourceFilter("")
     setSorting([])
   }
 
   const activeFilters: ActiveFilter[] = [
     ...(ecosystemFilter
       ? [{ label: "Ecosystem", value: ecosystemFilter === "python" ? "Python" : "NPM", onRemove: () => setEcosystemFilter("") }]
+      : []),
+    ...(statusFilter && statusFilter !== "active"
+      ? [{ label: "Status", value: statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1), onRemove: () => setStatusFilter("active") }]
+      : []),
+    ...(sourceFilter
+      ? [{ label: "Source", value: formatSource(sourceFilter as PackageSource), onRemove: () => setSourceFilter("") }]
       : []),
     ...(search
       ? [{ label: "Search", value: search, onRemove: () => setSearch("") }]
@@ -149,22 +195,45 @@ export const PackagesListView = () => {
     }
   }
 
-  const handleDelete = useCallback(
+  const handleRemove = useCallback(
     (id: number, name: string) => {
-      setDeleteTarget({ id, name })
+      setRemoveTarget({ id, name })
     },
     []
   )
 
-  const confirmDelete = useCallback(() => {
-    if (deleteTarget) {
-      deleteMutation.mutate(deleteTarget.id)
-      setDeleteTarget(null)
+  const confirmRemove = useCallback(() => {
+    if (removeTarget) {
+      deleteMutation.mutate(removeTarget.id)
+      setRemoveTarget(null)
     }
-  }, [deleteTarget, deleteMutation])
+  }, [removeTarget, deleteMutation])
 
-  const handleSync = () => {
-    syncMutation.mutate(undefined)
+  const handleBlock = useCallback(
+    (id: number, name: string) => {
+      setBlockTarget({ id, name })
+      setBlockReason("")
+    },
+    []
+  )
+
+  const confirmBlock = useCallback(() => {
+    if (blockTarget) {
+      blockMutation.mutate({ id: blockTarget.id, reason: blockReason || undefined })
+      setBlockTarget(null)
+      setBlockReason("")
+    }
+  }, [blockTarget, blockReason, blockMutation])
+
+  const handleUnblock = useCallback(
+    (id: number) => {
+      unblockMutation.mutate(id)
+    },
+    [unblockMutation]
+  )
+
+  const handleDiscover = () => {
+    discoverMutation.mutate(undefined)
   }
 
   const skeletonColumns: SkeletonColumn[] = [
@@ -172,7 +241,8 @@ export const PackagesListView = () => {
     { width: "w-16", header: "Ecosystem" },
     { width: "w-20", header: "Latest Version" },
     { width: "w-12", header: "Rank" },
-    { width: "w-16", header: "Type" },
+    { width: "w-16", header: "Source" },
+    { width: "w-16", header: "Status" },
     { width: "w-8", header: "" },
   ]
 
@@ -184,7 +254,7 @@ export const PackagesListView = () => {
         cell: ({ row }) => (
           <Link
             href={`/packages/${row.original.id}`}
-            className="font-medium hover:underline"
+            className={`font-medium hover:underline ${row.original.status === "blocked" ? "text-muted-foreground" : ""}`}
           >
             {row.original.name}
           </Link>
@@ -200,41 +270,92 @@ export const PackagesListView = () => {
       {
         accessorKey: "latestVersion",
         header: ({ column }) => <SortableHeader column={column} title="Latest Version" />,
-        cell: ({ row }) => row.original.latestVersion || "—",
+        cell: ({ row }) => row.original.latestVersion || "\u2014",
       },
       {
         accessorKey: "rank",
         header: ({ column }) => <SortableHeader column={column} title="Rank" />,
-        cell: ({ row }) => row.original.rank ?? "—",
+        cell: ({ row }) => row.original.rank ?? "\u2014",
       },
       {
-        accessorKey: "isCustom",
-        header: "Type",
+        accessorKey: "source",
+        header: "Source",
         enableSorting: false,
         cell: ({ row }) => (
-          <Badge variant={row.original.isCustom ? "default" : "secondary"}>
-            {row.original.isCustom ? "Custom" : "Top-N"}
+          <Badge variant={sourceVariant(row.original.source)}>
+            {formatSource(row.original.source)}
           </Badge>
         ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        enableSorting: false,
+        cell: ({ row }) => {
+          if (row.original.status === "blocked") {
+            return (
+              <Badge variant="destructive">
+                <Ban className="h-3 w-3 mr-1" />
+                Blocked
+              </Badge>
+            )
+          }
+          return null
+        },
       },
       {
         id: "actions",
         header: "",
         enableSorting: false,
-        size: 48,
-        cell: ({ row }) => (
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={`Delete package ${row.original.name}`}
-            onClick={() => handleDelete(row.original.id, row.original.name)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        ),
+        size: 96,
+        cell: ({ row }) => {
+          const pkg = row.original
+          if (pkg.status === "blocked") {
+            return (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={`Unblock package ${pkg.name}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleUnblock(pkg.id)
+                }}
+              >
+                <ShieldCheck className="h-4 w-4 mr-1" />
+                Unblock
+              </Button>
+            )
+          }
+          return (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Block package ${pkg.name}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleBlock(pkg.id, pkg.name)
+                }}
+              >
+                <Ban className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Remove package ${pkg.name}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleRemove(pkg.id, pkg.name)
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          )
+        },
       },
     ],
-    [handleDelete]
+    [handleRemove, handleBlock, handleUnblock]
   )
 
   const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize))
@@ -256,9 +377,9 @@ export const PackagesListView = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-3xl font-bold">Packages</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={handleSync} disabled={syncMutation.isPending}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
-            Sync Top Packages
+          <Button variant="outline" onClick={handleDiscover} disabled={discoverMutation.isPending}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${discoverMutation.isPending ? "animate-spin" : ""}`} />
+            Discover Packages
           </Button>
           <Link href="/packages/import">
             <Button variant="outline">
@@ -350,6 +471,47 @@ export const PackagesListView = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1">
+                <label htmlFor="packages-status-filter" className="text-xs font-medium text-muted-foreground">
+                  Status
+                </label>
+                <Select
+                  value={statusFilter || "active"}
+                  onValueChange={(v) => setStatusFilter(v === "all" ? "" : (v ?? "active"))}
+                >
+                  <SelectTrigger id="packages-status-filter" className="w-32">
+                    <SelectValue>
+                      {statusFilter === "blocked" ? "Blocked" : statusFilter === "" ? "All" : "Active"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="blocked">Blocked</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="packages-source-filter" className="text-xs font-medium text-muted-foreground">
+                  Source
+                </label>
+                <Select
+                  value={sourceFilter || "all"}
+                  onValueChange={(v) => setSourceFilter(v === "all" ? "" : (v ?? ""))}
+                >
+                  <SelectTrigger id="packages-source-filter" className="w-36">
+                    <SelectValue>
+                      {sourceFilter ? formatSource(sourceFilter as PackageSource) : "All"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="manual">Manual</SelectItem>
+                    <SelectItem value="discovered">Discovered</SelectItem>
+                    <SelectItem value="imported">Imported</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             {hasActiveFilters && (
               <FilterChips filters={activeFilters} onClearAll={clearAllFilters} />
@@ -390,6 +552,7 @@ export const PackagesListView = () => {
                   <TableRow
                     key={row.id}
                     clickable
+                    className={row.original.status === "blocked" ? "opacity-50" : undefined}
                     onClick={() => router.push(`/packages/${row.original.id}`)}
                   >
                     {row.getVisibleCells().map((cell) => (
@@ -404,13 +567,13 @@ export const PackagesListView = () => {
                   colSpan={columns.length}
                   icon={<Plus className="h-8 w-8" />}
                   title="No packages found."
-                  description="Add your first package or sync the top packages to start monitoring."
+                  description="Add your first package or discover popular packages to start monitoring."
                 >
                   <Button size="sm" onClick={() => setDialogOpen(true)}>
                     Add Package
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleSync} disabled={syncMutation.isPending}>
-                    Sync Top Packages
+                  <Button variant="outline" size="sm" onClick={handleDiscover} disabled={discoverMutation.isPending}>
+                    Discover Packages
                   </Button>
                 </TableEmptyState>
               )}
@@ -423,20 +586,53 @@ export const PackagesListView = () => {
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+      {/* Remove Confirmation Dialog */}
+      <AlertDialog open={!!removeTarget} onOpenChange={(open) => { if (!open) setRemoveTarget(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Package</AlertDialogTitle>
+            <AlertDialogTitle>Remove Package</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This action
-              cannot be undone. All releases and analysis data for this package will be permanently removed.
+              Remove <strong>{removeTarget?.name}</strong> from monitoring? If this is a popular package,
+              automatic discovery may re-add it. Use <strong>Block</strong> to permanently exclude a package
+              from discovery and analysis.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>
-              Delete
+            <AlertDialogAction onClick={confirmRemove}>
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Block Confirmation Dialog */}
+      <AlertDialog open={!!blockTarget} onOpenChange={(open) => { if (!open) { setBlockTarget(null); setBlockReason("") } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Block Package</AlertDialogTitle>
+            <AlertDialogDescription>
+              Block <strong>{blockTarget?.name}</strong>? This permanently excludes the package from
+              automatic discovery and analysis. You can unblock it later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="px-6 pb-2">
+            <label htmlFor="block-reason" className="text-sm font-medium">
+              Reason (optional)
+            </label>
+            <Textarea
+              id="block-reason"
+              value={blockReason}
+              onChange={(e) => setBlockReason(e.target.value)}
+              placeholder="e.g., Known benign package with noisy diffs"
+              className="mt-1"
+              rows={2}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBlock}>
+              Block
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

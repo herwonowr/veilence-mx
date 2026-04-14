@@ -17,6 +17,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/audit"
 	"github.com/veilence/veilence-mx/backend/internal/models"
 	"github.com/veilence/veilence-mx/backend/internal/repository"
+	"github.com/veilence/veilence-mx/backend/internal/service"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -55,12 +56,18 @@ func newDashboardHandlers(db *gorm.DB) *handlers.DashboardHandlers {
 
 // newPackageHandlers creates a PackageHandlers for testing.
 func newPackageHandlers(db *gorm.DB) *handlers.PackageHandlers {
-	return &handlers.PackageHandlers{DB: db, Queue: nil, Audit: audit.NewService(db)}
+	auditSvc := audit.NewService(db)
+	pkgRepo := repository.NewPackageRepo(db)
+	pkgSvc := service.NewPackageService(pkgRepo, auditSvc)
+	return &handlers.PackageHandlers{DB: db, Queue: nil, Audit: auditSvc, PkgSvc: pkgSvc}
 }
 
 // newPackageHandlersWithQueue creates a PackageHandlers with a mock queue for testing.
 func newPackageHandlersWithQueue(db *gorm.DB, q *mockEnqueuer) *handlers.PackageHandlers {
-	return &handlers.PackageHandlers{DB: db, Queue: q, Audit: audit.NewService(db)}
+	auditSvc := audit.NewService(db)
+	pkgRepo := repository.NewPackageRepo(db)
+	pkgSvc := service.NewPackageService(pkgRepo, auditSvc)
+	return &handlers.PackageHandlers{DB: db, Queue: q, Audit: auditSvc, PkgSvc: pkgSvc}
 }
 
 // mockEnqueuer implements queue.Enqueuer for testing.
@@ -148,7 +155,7 @@ func TestListPackages(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 	db.Create(&models.Package{Name: "requests", Ecosystem: "python"})
-	db.Create(&models.Package{Name: "flask", Ecosystem: "python", IsCustom: true})
+	db.Create(&models.Package{Name: "flask", Ecosystem: "python", Source: models.PackageSourceManual})
 	db.Create(&models.Package{Name: "express", Ecosystem: "npm"})
 	tests := []struct {
 		name      string
@@ -205,13 +212,13 @@ func TestListPackages_Pagination(t *testing.T) {
 	assert.Len(t, data, 5)
 }
 
-func TestListPackages_FilterCustom(t *testing.T) {
+func TestListPackages_FilterSource(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
-	db.Create(&models.Package{Name: "requests", Ecosystem: "python", IsCustom: false})
-	db.Create(&models.Package{Name: "my-pkg", Ecosystem: "python", IsCustom: true})
+	db.Create(&models.Package{Name: "requests", Ecosystem: "python", Source: models.PackageSourceDiscovered})
+	db.Create(&models.Package{Name: "my-pkg", Ecosystem: "python", Source: models.PackageSourceManual})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/packages?is_custom=true", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/packages?source=manual", nil)
 	w := httptest.NewRecorder()
 	h.ListPackages(w, req)
 
@@ -258,7 +265,7 @@ func TestCreatePackage_Duplicate(t *testing.T) {
 	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
-func TestCreatePackage_SetsIsCustom(t *testing.T) {
+func TestCreatePackage_SetsSource(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
@@ -269,7 +276,8 @@ func TestCreatePackage_SetsIsCustom(t *testing.T) {
 
 	var pkg models.Package
 	db.Where("name = ?", "custom-pkg").First(&pkg)
-	assert.True(t, pkg.IsCustom)
+	assert.Equal(t, models.PackageSourceManual, pkg.Source)
+	assert.Equal(t, models.PackageStatusActive, pkg.Status)
 }
 
 func TestGetPackage(t *testing.T) {
@@ -316,7 +324,7 @@ func TestDeletePackage(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	pkg := models.Package{Name: "to-delete", Ecosystem: "npm"}
+	pkg := models.Package{Name: "to-delete", Ecosystem: "npm", Status: models.PackageStatusActive, Source: models.PackageSourceManual}
 	db.Create(&pkg)
 
 	r := chi.NewRouter()
@@ -327,10 +335,10 @@ func TestDeletePackage(t *testing.T) {
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	// Verify soft-deleted
-	var count int64
-	db.Model(&models.Package{}).Where("id = ?", pkg.ID).Count(&count)
-	assert.Equal(t, int64(0), count)
+	// Verify status is now 'removed' (not hard-deleted)
+	var updated models.Package
+	db.First(&updated, pkg.ID)
+	assert.Equal(t, models.PackageStatusRemoved, updated.Status)
 }
 
 func TestDeletePackage_InvalidID(t *testing.T) {
@@ -343,6 +351,182 @@ func TestDeletePackage_InvalidID(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// --- Block / Unblock ---
+
+func TestBlockPackage(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	pkg := models.Package{Name: "requests", Ecosystem: "python", Status: models.PackageStatusActive, Source: models.PackageSourceDiscovered}
+	db.Create(&pkg)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/block", h.BlockPackage)
+
+	body := `{"reason":"known benign, too many false positives"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/"+idStr(pkg.ID)+"/block", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Equal(t, "blocked", data["status"])
+	assert.Equal(t, "known benign, too many false positives", data["blockedReason"])
+	assert.NotNil(t, data["blockedAt"])
+
+	// Verify in DB
+	var updated models.Package
+	db.First(&updated, pkg.ID)
+	assert.Equal(t, models.PackageStatusBlocked, updated.Status)
+	assert.NotNil(t, updated.BlockedAt)
+}
+
+func TestBlockPackage_NoBody(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	pkg := models.Package{Name: "flask", Ecosystem: "python", Status: models.PackageStatusActive, Source: models.PackageSourceDiscovered}
+	db.Create(&pkg)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/block", h.BlockPackage)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/"+idStr(pkg.ID)+"/block", nil)
+	req.ContentLength = 0
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var updated models.Package
+	db.First(&updated, pkg.ID)
+	assert.Equal(t, models.PackageStatusBlocked, updated.Status)
+}
+
+func TestBlockPackage_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/block", h.BlockPackage)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/99999/block", nil)
+	req.ContentLength = 0
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestBlockPackage_AlreadyBlocked(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	// Package is already blocked — can't block again (repo returns not found for non-active)
+	pkg := models.Package{Name: "bad-pkg", Ecosystem: "npm", Status: models.PackageStatusBlocked, Source: models.PackageSourceDiscovered}
+	db.Create(&pkg)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/block", h.BlockPackage)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/"+idStr(pkg.ID)+"/block", nil)
+	req.ContentLength = 0
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestUnblockPackage(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	pkg := models.Package{Name: "requests", Ecosystem: "python", Status: models.PackageStatusBlocked, Source: models.PackageSourceDiscovered, BlockedReason: "test"}
+	db.Create(&pkg)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/unblock", h.UnblockPackage)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/"+idStr(pkg.ID)+"/unblock", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Equal(t, "active", data["status"])
+
+	// Verify in DB
+	var updated models.Package
+	db.First(&updated, pkg.ID)
+	assert.Equal(t, models.PackageStatusActive, updated.Status)
+	assert.Empty(t, updated.BlockedReason)
+}
+
+func TestUnblockPackage_NotBlocked(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	// Package is active — can't unblock
+	pkg := models.Package{Name: "requests", Ecosystem: "python", Status: models.PackageStatusActive, Source: models.PackageSourceDiscovered}
+	db.Create(&pkg)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/unblock", h.UnblockPackage)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/"+idStr(pkg.ID)+"/unblock", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestDeletePackage_AuditLogged(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	pkg := models.Package{Name: "audit-test", Ecosystem: "python", Status: models.PackageStatusActive, Source: models.PackageSourceManual}
+	db.Create(&pkg)
+
+	r := chi.NewRouter()
+	r.Delete("/api/packages/{id}", h.DeletePackage)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/packages/"+idStr(pkg.ID), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Verify audit log was created
+	var auditLog models.AuditLog
+	result := db.Where("action = ? AND resource = ?", "remove", "package").First(&auditLog)
+	require.NoError(t, result.Error)
+	assert.Equal(t, pkg.ID, auditLog.ResourceID)
+	assert.Contains(t, auditLog.Details, "audit-test")
+}
+
+func TestBlockPackage_AuditLogged(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	pkg := models.Package{Name: "audit-block", Ecosystem: "python", Status: models.PackageStatusActive, Source: models.PackageSourceDiscovered}
+	db.Create(&pkg)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/block", h.BlockPackage)
+
+	body := `{"reason":"false positive"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/"+idStr(pkg.ID)+"/block", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Verify audit log was created
+	var auditLog models.AuditLog
+	result := db.Where("action = ? AND resource = ?", "block", "package").First(&auditLog)
+	require.NoError(t, result.Error)
+	assert.Equal(t, pkg.ID, auditLog.ResourceID)
+	assert.Contains(t, auditLog.Details, "false positive")
 }
 
 // --- Releases ---
@@ -654,8 +838,8 @@ func TestUpdateAlert_InvalidID(t *testing.T) {
 func TestGetSettings(t *testing.T) {
 	db := setupTestDB(t)
 	h := newSettingsHandlers(db)
-	db.Create(&models.Setting{Key: "python_poll_interval", Value: "5m"})
-	db.Create(&models.Setting{Key: "npm_poll_interval", Value: "10m"})
+	db.Create(&models.Setting{Key: "monitoring_interval", Value: "1h"})
+	db.Create(&models.Setting{Key: "discovery_interval", Value: "24h"})
 	req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
 	w := httptest.NewRecorder()
 	h.GetSettings(w, req)
@@ -663,8 +847,8 @@ func TestGetSettings(t *testing.T) {
 	var resp map[string]any
 	json.NewDecoder(w.Body).Decode(&resp)
 	data := resp["data"].(map[string]any)
-	assert.Equal(t, "5m", data["python_poll_interval"])
-	assert.Equal(t, "10m", data["npm_poll_interval"])
+	assert.Equal(t, "1h", data["monitoring_interval"])
+	assert.Equal(t, "24h", data["discovery_interval"])
 }
 
 func TestGetSettings_Empty(t *testing.T) {
@@ -680,7 +864,7 @@ func TestUpdateSettings_ValidKeys(t *testing.T) {
 	db := setupTestDB(t)
 	h := newSettingsHandlers(db)
 
-	body := `{"python_poll_interval":"10m","npm_poll_interval":"15m"}`
+	body := `{"monitoring_interval":"30m","discovery_scan_depth":"100"}`
 	req := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(body))
 	w := httptest.NewRecorder()
 	h.UpdateSettings(w, req)
@@ -690,8 +874,8 @@ func TestUpdateSettings_ValidKeys(t *testing.T) {
 	var resp map[string]any
 	json.NewDecoder(w.Body).Decode(&resp)
 	data := resp["data"].(map[string]any)
-	assert.Equal(t, "10m", data["python_poll_interval"])
-	assert.Equal(t, "15m", data["npm_poll_interval"])
+	assert.Equal(t, "30m", data["monitoring_interval"])
+	assert.Equal(t, "100", data["discovery_scan_depth"])
 }
 
 func TestUpdateSettings_Upsert(t *testing.T) {
@@ -699,16 +883,16 @@ func TestUpdateSettings_Upsert(t *testing.T) {
 	h := newSettingsHandlers(db)
 
 	// Create initial
-	db.Create(&models.Setting{Key: "python_poll_interval", Value: "5m"})
+	db.Create(&models.Setting{Key: "monitoring_interval", Value: "1h"})
 
 	// Update existing
-	req := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(`{"python_poll_interval":"30m"}`))
+	req := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(`{"monitoring_interval":"30m"}`))
 	w := httptest.NewRecorder()
 	h.UpdateSettings(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	var setting models.Setting
-	db.Where("key = ?", "python_poll_interval").First(&setting)
+	db.Where("key = ?", "monitoring_interval").First(&setting)
 	assert.Equal(t, "30m", setting.Value)
 }
 
@@ -730,20 +914,20 @@ func TestUpdateSettings_BadJSON(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestUpdateSettings_VersionDepth(t *testing.T) {
+func TestUpdateSettings_DiscoverySettings(t *testing.T) {
 	db := setupTestDB(t)
 	h := newSettingsHandlers(db)
 
-	req := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(`{"version_depth_mode":"custom","version_depth_count":"3"}`))
+	req := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(`{"discovery_scan_depth":"200","discovery_interval":"12h"}`))
 	w := httptest.NewRecorder()
 	h.UpdateSettings(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var mode, count models.Setting
-	db.Where("key = ?", "version_depth_mode").First(&mode)
-	db.Where("key = ?", "version_depth_count").First(&count)
-	assert.Equal(t, "custom", mode.Value)
-	assert.Equal(t, "3", count.Value)
+	var depth, interval models.Setting
+	db.Where("key = ?", "discovery_scan_depth").First(&depth)
+	db.Where("key = ?", "discovery_interval").First(&interval)
+	assert.Equal(t, "200", depth.Value)
+	assert.Equal(t, "12h", interval.Value)
 }
 
 func TestUpdateSettings_EmailDigest(t *testing.T) {

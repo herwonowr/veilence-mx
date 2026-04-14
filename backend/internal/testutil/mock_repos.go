@@ -316,22 +316,28 @@ type MockPackageRepository struct {
 	packages map[uint]*domain.Package
 	nextID   uint
 	Errors   struct {
-		FindByID       error
-		FindByOrgID    error
+		FindByID         error
+		FindByOrgID      error
+		FindActiveByOrgID error
 		FindByOrgAndName error
-		Create         error
-		Update         error
-		SoftDelete     error
-		CountByOrg     error
+		Create           error
+		Update           error
+		BlockPackage     error
+		UnblockPackage   error
+		RemovePackage    error
+		CountByOrg       error
 	}
 	Calls struct {
-		FindByID       int
-		FindByOrgID    int
+		FindByID         int
+		FindByOrgID      int
+		FindActiveByOrgID int
 		FindByOrgAndName int
-		Create         int
-		Update         int
-		SoftDelete     int
-		CountByOrg     int
+		Create           int
+		Update           int
+		BlockPackage     int
+		UnblockPackage   int
+		RemovePackage    int
+		CountByOrg       int
 	}
 }
 
@@ -363,7 +369,7 @@ func (m *MockPackageRepository) FindByOrgID(_ context.Context, orgID uint, page,
 	}
 	var result []domain.Package
 	for _, p := range m.packages {
-		if p.OrgID == orgID {
+		if p.OrgID == orgID && p.Status != domain.PackageStatusRemoved {
 			result = append(result, *p)
 		}
 	}
@@ -377,6 +383,22 @@ func (m *MockPackageRepository) FindByOrgID(_ context.Context, orgID uint, page,
 		end = len(result)
 	}
 	return result[start:end], total, nil
+}
+
+func (m *MockPackageRepository) FindActiveByOrgID(_ context.Context, orgID uint) ([]domain.Package, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Calls.FindActiveByOrgID++
+	if m.Errors.FindActiveByOrgID != nil {
+		return nil, m.Errors.FindActiveByOrgID
+	}
+	var result []domain.Package
+	for _, p := range m.packages {
+		if p.OrgID == orgID && p.Status == domain.PackageStatusActive {
+			result = append(result, *p)
+		}
+	}
+	return result, nil
 }
 
 func (m *MockPackageRepository) FindByOrgAndName(_ context.Context, orgID uint, name string, ecosystem domain.Ecosystem) (*domain.Package, error) {
@@ -427,18 +449,53 @@ func (m *MockPackageRepository) Update(_ context.Context, pkg *domain.Package) e
 	return nil
 }
 
-func (m *MockPackageRepository) SoftDelete(_ context.Context, orgID, id uint) error {
+func (m *MockPackageRepository) BlockPackage(_ context.Context, orgID, pkgID uint, reason string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.Calls.SoftDelete++
-	if m.Errors.SoftDelete != nil {
-		return m.Errors.SoftDelete
+	m.Calls.BlockPackage++
+	if m.Errors.BlockPackage != nil {
+		return m.Errors.BlockPackage
 	}
-	p, ok := m.packages[id]
+	p, ok := m.packages[pkgID]
+	if !ok || p.OrgID != orgID || p.Status != domain.PackageStatusActive {
+		return fmt.Errorf("package not found")
+	}
+	now := time.Now()
+	p.Status = domain.PackageStatusBlocked
+	p.BlockedAt = &now
+	p.BlockedReason = reason
+	return nil
+}
+
+func (m *MockPackageRepository) UnblockPackage(_ context.Context, orgID, pkgID uint) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Calls.UnblockPackage++
+	if m.Errors.UnblockPackage != nil {
+		return m.Errors.UnblockPackage
+	}
+	p, ok := m.packages[pkgID]
+	if !ok || p.OrgID != orgID || p.Status != domain.PackageStatusBlocked {
+		return fmt.Errorf("package not found")
+	}
+	p.Status = domain.PackageStatusActive
+	p.BlockedAt = nil
+	p.BlockedReason = ""
+	return nil
+}
+
+func (m *MockPackageRepository) RemovePackage(_ context.Context, orgID, pkgID uint) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Calls.RemovePackage++
+	if m.Errors.RemovePackage != nil {
+		return m.Errors.RemovePackage
+	}
+	p, ok := m.packages[pkgID]
 	if !ok || p.OrgID != orgID {
 		return fmt.Errorf("package not found")
 	}
-	delete(m.packages, id)
+	p.Status = domain.PackageStatusRemoved
 	return nil
 }
 
@@ -451,7 +508,7 @@ func (m *MockPackageRepository) CountByOrg(_ context.Context, orgID uint, ecosys
 	}
 	var count int64
 	for _, p := range m.packages {
-		if p.OrgID == orgID {
+		if p.OrgID == orgID && p.Status == domain.PackageStatusActive {
 			if ecosystem == nil || p.Ecosystem == *ecosystem {
 				count++
 			}

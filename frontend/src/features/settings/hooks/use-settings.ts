@@ -11,6 +11,7 @@ import {
   updateSettings,
   reanalyzeAll,
 } from "@/domains/settings"
+import { discoverPackages } from "@/domains/packages"
 import type { ApiResponse } from "@/domains/common"
 import { toast } from "sonner"
 import { sanitizeErrorMessage } from "@/core"
@@ -47,5 +48,20 @@ export const useUpdateSettings = () => {
 export const useReanalyzeAll = () => {
   return useMutation({
     mutationFn: () => reanalyzeAll(),
+  })
+}
+
+export const useDiscoverNow = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (ecosystem?: string) => discoverPackages(ecosystem),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["packages"] })
+      toast.success("Discovery started")
+    },
+    onError: (error: Error) => {
+      toast.error(sanitizeErrorMessage(error, "Failed to trigger discovery"))
+    },
   })
 }

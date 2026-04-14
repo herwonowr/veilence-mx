@@ -22,15 +22,11 @@ func (Setting) TableName() string {
 
 // Default setting keys.
 const (
-	SettingPythonPollInterval  = "python_poll_interval"
-	SettingNPMPollInterval     = "npm_poll_interval"
-	SettingPythonTopN          = "python_top_n"
-	SettingNPMTopN             = "npm_top_n"
-	SettingAnalyzerMode        = "analyzer_mode"
-	SettingTopNRefreshInterval = "top_n_refresh_interval"
-	SettingDiffSizeLimit       = "diff_size_limit"
-	SettingVersionDepthMode    = "version_depth_mode"
-	SettingVersionDepthCount   = "version_depth_count"
+	SettingDiscoveryScanDepth = "discovery_scan_depth"
+	SettingDiscoveryInterval  = "discovery_interval"
+	SettingMonitoringInterval = "monitoring_interval"
+	SettingAnalyzerMode       = "analyzer_mode"
+	SettingDiffSizeLimit      = "diff_size_limit"
 
 	// Email digest settings (per-org).
 	SettingEmailDigestEnabled    = "email_digest_enabled"

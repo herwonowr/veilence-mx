@@ -54,7 +54,7 @@ export const OrgSelector = () => {
           <DropdownMenuTrigger
             render={
               <SidebarMenuButton
-                className={`w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground ${
+                className={`w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground h-auto ${
                   noOrgsIdle ? "animate-pulse border border-dashed border-green-500/60" : ""
                 }`}
                 tooltip="Organization"

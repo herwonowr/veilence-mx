@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -34,7 +35,8 @@ func (r *PackageRepo) FindByID(ctx context.Context, id uint) (*domain.Package, e
 
 func (r *PackageRepo) FindByOrgID(ctx context.Context, orgID uint, page, limit int, sortClause string) ([]domain.Package, int64, error) {
 	var total int64
-	query := r.db.WithContext(ctx).Model(&models.Package{}).Where("org_id = ?", orgID)
+	// Exclude removed packages by default
+	query := r.db.WithContext(ctx).Model(&models.Package{}).Where("org_id = ? AND status != ?", orgID, models.PackageStatusRemoved)
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("counting packages: %w", err)
@@ -55,6 +57,22 @@ func (r *PackageRepo) FindByOrgID(ctx context.Context, orgID uint, page, limit i
 		result[i] = *packageToDomain(&ms[i])
 	}
 	return result, total, nil
+}
+
+func (r *PackageRepo) FindActiveByOrgID(ctx context.Context, orgID uint) ([]domain.Package, error) {
+	var ms []models.Package
+	err := r.db.WithContext(ctx).
+		Where("org_id = ? AND status = ?", orgID, models.PackageStatusActive).
+		Find(&ms).Error
+	if err != nil {
+		return nil, fmt.Errorf("finding active packages: %w", err)
+	}
+
+	result := make([]domain.Package, len(ms))
+	for i := range ms {
+		result[i] = *packageToDomain(&ms[i])
+	}
+	return result, nil
 }
 
 func (r *PackageRepo) FindByOrgAndName(ctx context.Context, orgID uint, name string, ecosystem domain.Ecosystem) (*domain.Package, error) {
@@ -91,10 +109,51 @@ func (r *PackageRepo) Update(ctx context.Context, pkg *domain.Package) error {
 	return nil
 }
 
-func (r *PackageRepo) SoftDelete(ctx context.Context, orgID, id uint) error {
-	result := r.db.WithContext(ctx).Where("id = ? AND org_id = ?", id, orgID).Delete(&models.Package{})
+func (r *PackageRepo) BlockPackage(ctx context.Context, orgID, pkgID uint, reason string) error {
+	now := time.Now()
+	result := r.db.WithContext(ctx).
+		Model(&models.Package{}).
+		Where("id = ? AND org_id = ? AND status = ?", pkgID, orgID, models.PackageStatusActive).
+		Updates(map[string]any{
+			"status":         models.PackageStatusBlocked,
+			"blocked_at":     now,
+			"blocked_reason": reason,
+		})
 	if result.Error != nil {
-		return fmt.Errorf("deleting package: %w", result.Error)
+		return fmt.Errorf("blocking package: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("package %w", domain.ErrNotFound)
+	}
+	return nil
+}
+
+func (r *PackageRepo) UnblockPackage(ctx context.Context, orgID, pkgID uint) error {
+	result := r.db.WithContext(ctx).
+		Model(&models.Package{}).
+		Where("id = ? AND org_id = ? AND status = ?", pkgID, orgID, models.PackageStatusBlocked).
+		Updates(map[string]any{
+			"status":         models.PackageStatusActive,
+			"blocked_at":     nil,
+			"blocked_reason": "",
+		})
+	if result.Error != nil {
+		return fmt.Errorf("unblocking package: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("package %w", domain.ErrNotFound)
+	}
+	return nil
+}
+
+func (r *PackageRepo) RemovePackage(ctx context.Context, orgID, pkgID uint) error {
+	result := r.db.WithContext(ctx).
+		Model(&models.Package{}).
+		Where("id = ? AND org_id = ? AND status IN ?", pkgID, orgID,
+			[]models.PackageStatus{models.PackageStatusActive, models.PackageStatusBlocked}).
+		Update("status", models.PackageStatusRemoved)
+	if result.Error != nil {
+		return fmt.Errorf("removing package: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("package %w", domain.ErrNotFound)
@@ -103,7 +162,7 @@ func (r *PackageRepo) SoftDelete(ctx context.Context, orgID, id uint) error {
 }
 
 func (r *PackageRepo) CountByOrg(ctx context.Context, orgID uint, ecosystem *domain.Ecosystem) (int64, error) {
-	query := r.db.WithContext(ctx).Model(&models.Package{}).Where("org_id = ?", orgID)
+	query := r.db.WithContext(ctx).Model(&models.Package{}).Where("org_id = ? AND status = ?", orgID, models.PackageStatusActive)
 	if ecosystem != nil {
 		query = query.Where("ecosystem = ?", string(*ecosystem))
 	}
@@ -124,8 +183,11 @@ func packageToDomain(m *models.Package) *domain.Package {
 		Ecosystem:     domain.Ecosystem(m.Ecosystem),
 		LatestVersion: m.LatestVersion,
 		Description:   m.Description,
-		IsCustom:      m.IsCustom,
+		Source:        domain.PackageSource(m.Source),
+		Status:        domain.PackageStatus(m.Status),
 		Rank:          m.Rank,
+		BlockedAt:     m.BlockedAt,
+		BlockedReason: m.BlockedReason,
 		CreatedAt:     m.CreatedAt,
 		UpdatedAt:     m.UpdatedAt,
 	}
@@ -139,8 +201,11 @@ func packageToModel(d *domain.Package) *models.Package {
 		Ecosystem:     models.Ecosystem(d.Ecosystem),
 		LatestVersion: d.LatestVersion,
 		Description:   d.Description,
-		IsCustom:      d.IsCustom,
+		Source:        models.PackageSource(d.Source),
+		Status:        models.PackageStatus(d.Status),
 		Rank:          d.Rank,
+		BlockedAt:     d.BlockedAt,
+		BlockedReason: d.BlockedReason,
 		CreatedAt:     d.CreatedAt,
 		UpdatedAt:     d.UpdatedAt,
 	}

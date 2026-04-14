@@ -114,7 +114,7 @@ func TestUpdateSettings_OrgScoped(t *testing.T) {
 	h := newSettingsHandlers(db)
 
 	// Update settings for org 1
-	body := `{"python_poll_interval":"15m"}`
+	body := `{"monitoring_interval":"15m"}`
 	req := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(body))
 	req = withOrgID(req, 1)
 	w := httptest.NewRecorder()
@@ -123,7 +123,7 @@ func TestUpdateSettings_OrgScoped(t *testing.T) {
 
 	// Verify the setting belongs to org 1
 	var setting models.Setting
-	db.Where("org_id = ? AND key = ?", 1, "python_poll_interval").First(&setting)
+	db.Where("org_id = ? AND key = ?", 1, "monitoring_interval").First(&setting)
 	assert.Equal(t, "15m", setting.Value)
 	assert.Equal(t, uint(1), setting.OrgID)
 

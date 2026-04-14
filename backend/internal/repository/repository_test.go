@@ -253,9 +253,9 @@ func TestPackageRepo_FindByOrgID(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewPackageRepo(db)
 
-	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "pkg1", Ecosystem: "python"}).Error)
-	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "pkg2", Ecosystem: "npm"}).Error)
-	require.NoError(t, db.Create(&models.Package{OrgID: 2, Name: "pkg3", Ecosystem: "python"}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "pkg1", Ecosystem: "python", Status: models.PackageStatusActive, Source: models.PackageSourceDiscovered}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "pkg2", Ecosystem: "npm", Status: models.PackageStatusActive, Source: models.PackageSourceDiscovered}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 2, Name: "pkg3", Ecosystem: "python", Status: models.PackageStatusActive, Source: models.PackageSourceDiscovered}).Error)
 
 	pkgs, total, err := repo.FindByOrgID(ctx, 1, 1, 10, "name asc")
 	require.NoError(t, err)
@@ -267,52 +267,52 @@ func TestPackageRepo_CountByOrg(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewPackageRepo(db)
 
-	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "p1", Ecosystem: "python"}).Error)
-	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "p2", Ecosystem: "npm"}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "p1", Ecosystem: "python", Status: models.PackageStatusActive, Source: models.PackageSourceDiscovered}).Error)
+	require.NoError(t, db.Create(&models.Package{OrgID: 1, Name: "p2", Ecosystem: "npm", Status: models.PackageStatusActive, Source: models.PackageSourceDiscovered}).Error)
 
 	count, err := repo.CountByOrg(ctx, 1, nil)
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), count)
 }
 
-func TestPackageRepo_SoftDelete(t *testing.T) {
+func TestPackageRepo_RemovePackage(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewPackageRepo(db)
 
-	pkg := &models.Package{OrgID: 1, Name: "to-delete", Ecosystem: "python"}
+	pkg := &models.Package{OrgID: 1, Name: "to-remove", Ecosystem: "python", Status: models.PackageStatusActive, Source: models.PackageSourceDiscovered}
 	require.NoError(t, db.Create(pkg).Error)
 
-	err := repo.SoftDelete(ctx, 1, pkg.ID)
+	err := repo.RemovePackage(ctx, 1, pkg.ID)
 	require.NoError(t, err)
 
-	// Should no longer appear in org listing
+	// Should no longer appear in org listing (FindByOrgID excludes removed)
 	pkgs, total, err := repo.FindByOrgID(ctx, 1, 1, 10, "name asc")
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), total)
 	assert.Len(t, pkgs, 0)
 }
 
-func TestPackageRepo_SoftDelete_NotFound(t *testing.T) {
+func TestPackageRepo_RemovePackage_NotFound(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewPackageRepo(db)
 
-	err := repo.SoftDelete(ctx, 1, 99999)
+	err := repo.RemovePackage(ctx, 1, 99999)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "package not found")
+	assert.Contains(t, err.Error(), "not found")
 }
 
-func TestPackageRepo_SoftDelete_CrossTenantBlocked(t *testing.T) {
+func TestPackageRepo_RemovePackage_CrossTenantBlocked(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewPackageRepo(db)
 
 	// Package belongs to org 1
-	pkg := &models.Package{OrgID: 1, Name: "secret-pkg", Ecosystem: "python"}
+	pkg := &models.Package{OrgID: 1, Name: "secret-pkg", Ecosystem: "python", Status: models.PackageStatusActive, Source: models.PackageSourceDiscovered}
 	require.NoError(t, db.Create(pkg).Error)
 
-	// Org 2 attempts to delete org 1's package — must fail
-	err := repo.SoftDelete(ctx, 2, pkg.ID)
+	// Org 2 attempts to remove org 1's package — must fail
+	err := repo.RemovePackage(ctx, 2, pkg.ID)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "package not found")
+	assert.Contains(t, err.Error(), "not found")
 
 	// Package must still exist for org 1
 	found, err := repo.FindByID(ctx, pkg.ID)

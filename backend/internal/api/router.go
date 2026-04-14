@@ -112,6 +112,8 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 					r.Route("/{id}", func(r chi.Router) {
 						r.With(rbac.RequirePermission(rbacService, "packages", "read")).Get("/", h.Packages.GetPackage)
 						r.With(rbac.RequirePermission(rbacService, "packages", "delete")).Delete("/", h.Packages.DeletePackage)
+						r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/block", h.Packages.BlockPackage)
+						r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/unblock", h.Packages.UnblockPackage)
 						r.With(rbac.RequirePermission(rbacService, "releases", "read")).Get("/releases", h.Packages.ListPackageReleases)
 						r.With(rbac.RequirePermission(rbacService, "packages", "read")).Get("/analysis-history", h.Packages.GetAnalysisHistory)
 					})
@@ -143,7 +145,8 @@ func NewRouter(h *handlers.Handlers, frontendURL string, authService *auth.Servi
 				// Sync triggers (stricter rate limit + write permission)
 				r.Group(func(r chi.Router) {
 					r.Use(rateLimitGroup.ForCategory(middleware.CategorySync))
-					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/top-packages", h.Settings.SyncTopPackages)
+					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/discover", h.Settings.DiscoverPackages)
+					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/top-packages", h.Settings.SyncTopPackages) // Deprecated alias
 					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/reanalyze", h.Dashboard.ReanalyzeAll)
 				})
 

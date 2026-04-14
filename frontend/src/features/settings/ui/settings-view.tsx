@@ -6,10 +6,10 @@ import { Button } from "@/ui/components/button"
 import { Separator } from "@/ui/components/separator"
 import { FormField } from "@/ui/form/form-field"
 import { Badge } from "@/ui/components/badge"
-import { Save, RefreshCw, Play, RotateCcw, Mail, AlertCircle } from "lucide-react"
+import { Save, RefreshCw, Play, RotateCcw, Mail, AlertCircle, Radar, Activity, Info } from "lucide-react"
 import { settingsSchema } from "@/domains/settings"
 import { ZodError } from "zod"
-import { useSettings, useUpdateSettings, useReanalyzeAll } from "@/features/settings/hooks/use-settings"
+import { useSettings, useUpdateSettings, useReanalyzeAll, useDiscoverNow } from "@/features/settings/hooks/use-settings"
 import { useQueueStats, useRetryDeadJobs } from "@/features/settings/hooks/use-queue"
 
 export const SettingsView = () => {
@@ -23,6 +23,7 @@ export const SettingsView = () => {
   const updateMutation = useUpdateSettings()
   const reanalyzeMutation = useReanalyzeAll()
   const retryMutation = useRetryDeadJobs()
+  const discoverMutation = useDiscoverNow()
 
   const queueStats = queueRes?.data ?? null
 
@@ -110,128 +111,97 @@ export const SettingsView = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Poll Intervals</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              id="python-interval"
-              label="Python Poll Interval"
-              value={localSettings.python_poll_interval ?? ""}
-              onChange={(e) =>
-                updateSetting("python_poll_interval", e.target.value)
-              }
-              placeholder="5m"
-              error={validationErrors.python_poll_interval}
-              description="Go duration format (e.g., 5m, 1h, 30s)"
-            />
-            <FormField
-              id="npm-interval"
-              label="NPM Poll Interval"
-              value={localSettings.npm_poll_interval ?? ""}
-              onChange={(e) =>
-                updateSetting("npm_poll_interval", e.target.value)
-              }
-              placeholder="5m"
-              error={validationErrors.npm_poll_interval}
-              description="Go duration format (e.g., 5m, 1h, 30s)"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Top-N Configuration</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              id="python-top-n"
-              label="Python Top N"
-              type="number"
-              value={localSettings.python_top_n ?? ""}
-              onChange={(e) => updateSetting("python_top_n", e.target.value)}
-              placeholder="100"
-              error={validationErrors.python_top_n}
-            />
-            <FormField
-              id="npm-top-n"
-              label="NPM Top N"
-              type="number"
-              value={localSettings.npm_top_n ?? ""}
-              onChange={(e) => updateSetting("npm_top_n", e.target.value)}
-              placeholder="100"
-              error={validationErrors.npm_top_n}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle id="version-depth-mode-label">Version Analysis Depth</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Monitoring
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            How many versions below latest to analyze when a package update is detected.
+            How often to check all monitored packages for new releases.
           </p>
-          <div
-            className="flex flex-col gap-3"
-            role="radiogroup"
-            aria-labelledby="version-depth-mode-label"
-            aria-describedby={validationErrors.version_depth_mode ? "version-depth-mode-error" : undefined}
-            aria-invalid={!!validationErrors.version_depth_mode}
-          >
-            <label htmlFor="depth-latest" className="flex items-center gap-2 cursor-pointer">
-              <input
-                id="depth-latest"
-                type="radio"
-                name="version_depth_mode"
-                value="latest"
-                checked={(localSettings.version_depth_mode ?? "latest") === "latest"}
-                onChange={() => updateSetting("version_depth_mode", "latest")}
-                className="accent-primary"
-              />
-              <span className="text-sm font-medium">Latest only</span>
-              <span className="text-xs text-muted-foreground">— analyze only the newest version</span>
-            </label>
-            <label htmlFor="depth-custom" className="flex items-center gap-2 cursor-pointer">
-              <input
-                id="depth-custom"
-                type="radio"
-                name="version_depth_mode"
-                value="custom"
-                checked={localSettings.version_depth_mode === "custom"}
-                onChange={() => updateSetting("version_depth_mode", "custom")}
-                className="accent-primary"
-              />
-              <span className="text-sm font-medium">Custom</span>
-              <span className="text-xs text-muted-foreground">— analyze up to N versions below latest</span>
-            </label>
+          <div className="max-w-xs">
+            <FormField
+              id="monitoring-interval"
+              label="Monitoring Interval"
+              value={localSettings.monitoring_interval ?? ""}
+              onChange={(e) =>
+                updateSetting("monitoring_interval", e.target.value)
+              }
+              placeholder="1h"
+              error={validationErrors.monitoring_interval}
+              description="Go duration format (e.g., 30m, 1h, 6h)"
+            />
           </div>
-          {validationErrors.version_depth_mode && (
-            <p id="version-depth-mode-error" className="text-sm text-destructive" role="alert">
-              {validationErrors.version_depth_mode}
-            </p>
-          )}
-          {localSettings.version_depth_mode === "custom" && (
-            <div className="ml-6 max-w-xs">
-              <FormField
-                id="depth-count"
-                label="Number of versions (1–5)"
-                type="number"
-                min={1}
-                max={5}
-                value={localSettings.version_depth_count ?? ""}
-                onChange={(e) =>
-                  updateSetting("version_depth_count", e.target.value)
-                }
-                placeholder="3"
-                error={validationErrors.version_depth_count}
-              />
-            </div>
-          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Radar className="h-5 w-5" />
+              Discovery
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => discoverMutation.mutate(undefined)}
+              disabled={discoverMutation.isPending}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${discoverMutation.isPending ? "animate-spin" : ""}`} />
+              Discover Now
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Automatically scan registry popularity rankings and add new packages to monitoring.
+            The scan depth controls how deep into each ecosystem&apos;s rankings to look each cycle
+            (e.g., 50 = top 50 PyPI + top 50 NPM).
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              id="discovery-scan-depth"
+              label="Discovery Scan Depth"
+              type="number"
+              value={localSettings.discovery_scan_depth ?? ""}
+              onChange={(e) => updateSetting("discovery_scan_depth", e.target.value)}
+              placeholder="50"
+              error={validationErrors.discovery_scan_depth}
+              description="Top N packages per ecosystem per cycle"
+            />
+            <FormField
+              id="discovery-interval"
+              label="Discovery Interval"
+              value={localSettings.discovery_interval ?? ""}
+              onChange={(e) =>
+                updateSetting("discovery_interval", e.target.value)
+              }
+              placeholder="24h"
+              error={validationErrors.discovery_interval}
+              description="Go duration format (e.g., 12h, 24h, 7d)"
+            />
+          </div>
+          <div className="flex items-start gap-2 rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
+            <Info className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>
+              The total number of monitored packages grows over time as new packages enter the popularity rankings.
+              Discovery only adds packages — it never removes them.
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Release Coverage</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            All releases published since the last monitoring check are automatically analyzed.
+            No configuration needed.
+          </p>
         </CardContent>
       </Card>
 

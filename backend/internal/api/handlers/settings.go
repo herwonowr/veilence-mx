@@ -73,49 +73,56 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 	// Invalidate the poller settings cache so changes take effect immediately
 	if h.Poller != nil {
 		h.Poller.InvalidateSettingsCache()
+
+		// If discovery_scan_depth changed, trigger an immediate discovery cycle
+		if _, changed := req[models.SettingDiscoveryScanDepth]; changed {
+			h.Poller.TriggerDiscovery(orgID)
+		}
 	}
 
 	// Return updated settings
 	h.GetSettings(w, r)
 }
 
-// SyncTopPackages triggers an immediate top-N package sync for the current org.
-func (h *SettingsHandlers) SyncTopPackages(w http.ResponseWriter, r *http.Request) {
+// DiscoverPackages triggers an immediate discovery cycle for the current org.
+func (h *SettingsHandlers) DiscoverPackages(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
-	ecosystemParam := r.URL.Query().Get("ecosystem")
 
-	if ecosystemParam == "" || ecosystemParam == "python" {
-		// Get limit from settings or use default
-		limit := 100
-		var setting models.Setting
-		if err := h.DB.Where("org_id = ? AND key = ?", orgID, models.SettingPythonTopN).First(&setting).Error; err == nil {
-			if v, err := json.Number(setting.Value).Int64(); err == nil {
-				limit = int(v)
-			}
-		}
-
-		if err := h.Poller.SyncTopPackages(r.Context(), h.Python, limit, orgID); err != nil {
-			slog.Error("failed to sync Python top packages", "org_id", orgID, "error", err)
-			respondError(w, http.StatusInternalServerError, "failed to sync Python top packages")
-			return
+	// Read discovery_scan_depth setting (default 50)
+	scanDepth := 50
+	var setting models.Setting
+	if err := h.DB.Where("org_id = ? AND key = ?", orgID, models.SettingDiscoveryScanDepth).First(&setting).Error; err == nil {
+		if v, err := json.Number(setting.Value).Int64(); err == nil && v > 0 {
+			scanDepth = int(v)
 		}
 	}
 
-	if ecosystemParam == "" || ecosystemParam == "npm" {
-		limit := 100
-		var setting models.Setting
-		if err := h.DB.Where("org_id = ? AND key = ?", orgID, models.SettingNPMTopN).First(&setting).Error; err == nil {
-			if v, err := json.Number(setting.Value).Int64(); err == nil {
-				limit = int(v)
-			}
-		}
-
-		if err := h.Poller.SyncTopPackages(r.Context(), h.NPM, limit, orgID); err != nil {
-			slog.Error("failed to sync npm top packages", "org_id", orgID, "error", err)
-			respondError(w, http.StatusInternalServerError, "failed to sync npm top packages")
-			return
-		}
+	// Discover both ecosystems at the same scan depth
+	if err := h.Poller.SyncTopPackages(r.Context(), h.Python, scanDepth, orgID); err != nil {
+		slog.Error("failed to discover Python packages", "org_id", orgID, "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to discover Python packages")
+		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]string{"message": "sync triggered"}, nil)
+	if err := h.Poller.SyncTopPackages(r.Context(), h.NPM, scanDepth, orgID); err != nil {
+		slog.Error("failed to discover npm packages", "org_id", orgID, "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to discover npm packages")
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "discover", "package", 0,
+		fmt.Sprintf("triggered discovery for org (scan_depth=%d)", scanDepth))
+
+	respondJSON(w, http.StatusOK, map[string]string{"message": "discovery triggered"}, nil)
+}
+
+// SyncTopPackages triggers an immediate discovery cycle for the current org.
+// Deprecated: Use DiscoverPackages (POST /api/sync/discover) instead.
+func (h *SettingsHandlers) SyncTopPackages(w http.ResponseWriter, r *http.Request) {
+	// Set deprecation header
+	w.Header().Set("Deprecation", "true")
+	w.Header().Set("Sunset", "2026-07-01")
+	w.Header().Set("Link", `</api/sync/discover>; rel="successor-version"`)
+
+	h.DiscoverPackages(w, r)
 }

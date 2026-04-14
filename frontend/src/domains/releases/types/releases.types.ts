@@ -43,8 +43,11 @@ export interface ReleaseDetail extends Release {
     ecosystem: string
     latestVersion: string
     description: string
-    isCustom: boolean
+    source: string
+    status: string
     rank: number | null
+    blockedAt: string | null
+    blockedReason: string | null
     createdAt: string
     updatedAt: string
   }
