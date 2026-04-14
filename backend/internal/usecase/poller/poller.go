@@ -450,6 +450,8 @@ func (p *Poller) runDiscoveryCycle(ctx context.Context) {
 
 // discoverPackages fetches top packages from a registry and upserts them.
 // Discovery is additive only — it never removes packages.
+// New packages are created with status 'suggested' (pending admin approval).
+// Existing active packages get their download metrics refreshed.
 func (p *Poller) discoverPackages(ctx context.Context, reg registry.Registry, scanDepth int, orgID uint) {
 	rankings, err := reg.GetTopPackages(ctx, scanDepth)
 	if err != nil {
@@ -457,56 +459,112 @@ func (p *Poller) discoverPackages(ctx context.Context, reg registry.Registry, sc
 		return
 	}
 
-	var added int
+	p.upsertDiscoveredPackages(ctx, orgID, rankings, persistent.Ecosystem(reg.Name()))
+
+	slog.Info("discovery complete", "ecosystem", reg.Name(), "org_id", orgID, "scanned", len(rankings))
+}
+
+// upsertDiscoveredPackages processes a set of rankings for a given org and ecosystem.
+// For each ranking:
+//   - New package → create as 'suggested'
+//   - Existing 'active' → update rank + download metrics
+//   - Existing 'suggested' → update rank + download metrics
+//   - Existing 'blocked' → skip entirely
+//   - Existing 'removed' → re-suggest (set status to 'suggested')
+func (p *Poller) upsertDiscoveredPackages(ctx context.Context, orgID uint, rankings []entity.PackageRanking, ecosystem persistent.Ecosystem) {
+	now := time.Now()
+	var suggested int
+	var downloadUpdates []entity.PackageDownloadUpdate
+
 	for _, ranking := range rankings {
 		rank := ranking.Rank
 		var existing persistent.Package
-		result := p.db.Where("org_id = ? AND name = ? AND ecosystem = ?", orgID, ranking.Name, reg.Name()).Limit(1).Find(&existing)
+		result := p.db.Where("org_id = ? AND name = ? AND ecosystem = ?", orgID, ranking.Name, string(ecosystem)).Limit(1).Find(&existing)
 
 		if result.RowsAffected == 0 {
-			// New package — create it
+			// New package — create as suggested (pending admin approval)
 			pkg := persistent.Package{
-				OrgID:           orgID,
-				Name:            ranking.Name,
-				Ecosystem:       persistent.Ecosystem(reg.Name()),
-				Source:          persistent.PackageSourceDiscovered,
-				Status:          persistent.PackageStatusActive,
-				Rank:            &rank,
-				DownloadCount:   ranking.DownloadCount,
-				PopularityScore: ranking.PopularityScore,
+				OrgID:                  orgID,
+				Name:                   ranking.Name,
+				Ecosystem:              ecosystem,
+				Source:                 persistent.PackageSourceDiscovered,
+				Status:                 persistent.PackageStatusSuggested,
+				Rank:                   &rank,
+				DownloadCount:          ranking.DownloadCount,
+				PopularityScore:        ranking.PopularityScore,
+				DownloadCountUpdatedAt: &now,
 			}
 			if err := p.db.Create(&pkg).Error; err != nil {
-				slog.Error("failed to create discovered package", "package", ranking.Name, "error", err)
+				slog.Error("failed to create suggested package", "package", ranking.Name, "error", err)
 				continue
 			}
-			added++
+			suggested++
 		} else {
 			// Existing package — handle based on status
 			switch existing.Status {
 			case persistent.PackageStatusActive:
-				// Update rank and download metrics
+				// Update rank; collect download data for batch update
 				p.db.Model(&existing).Updates(map[string]any{
-					"rank":             &rank,
-					"download_count":   ranking.DownloadCount,
-					"popularity_score": ranking.PopularityScore,
+					"rank": &rank,
+				})
+				downloadUpdates = append(downloadUpdates, entity.PackageDownloadUpdate{
+					PackageID:       existing.ID,
+					DownloadCount:   ranking.DownloadCount,
+					PopularityScore: ranking.PopularityScore,
+				})
+			case persistent.PackageStatusSuggested:
+				// Already pending review — update rank and download data
+				p.db.Model(&existing).Updates(map[string]any{
+					"rank":                       &rank,
+					"download_count":             ranking.DownloadCount,
+					"popularity_score":           ranking.PopularityScore,
+					"download_count_updated_at":  now,
 				})
 			case persistent.PackageStatusBlocked:
-				// Skip entirely — do not update rank
+				// Skip entirely — do not update rank or download data
 				continue
 			case persistent.PackageStatusRemoved:
-				// Re-add: set status back to active with updated rank
+				// Re-suggest for admin review (not auto-activate)
 				p.db.Model(&existing).Updates(map[string]any{
-					"status":           persistent.PackageStatusActive,
-					"rank":             &rank,
-					"download_count":   ranking.DownloadCount,
-					"popularity_score": ranking.PopularityScore,
+					"status":                     persistent.PackageStatusSuggested,
+					"rank":                       &rank,
+					"download_count":             ranking.DownloadCount,
+					"popularity_score":           ranking.PopularityScore,
+					"download_count_updated_at":  now,
 				})
-				added++
+				suggested++
 			}
 		}
 	}
 
-	slog.Info("discovery complete", "ecosystem", reg.Name(), "org_id", orgID, "scanned", len(rankings), "new_packages", added)
+	// Batch update download counts for active packages
+	if len(downloadUpdates) > 0 {
+		if err := p.updateDownloadCounts(orgID, downloadUpdates); err != nil {
+			slog.Error("failed to batch update download counts", "org_id", orgID, "ecosystem", ecosystem, "error", err)
+		}
+	}
+
+	if suggested > 0 {
+		slog.Info("discovery suggested packages", "ecosystem", string(ecosystem), "org_id", orgID, "suggested", suggested)
+	}
+}
+
+// updateDownloadCounts updates download metrics for a batch of packages.
+// Uses direct DB updates (will be replaced with repo interface in Phase 5).
+func (p *Poller) updateDownloadCounts(orgID uint, updates []entity.PackageDownloadUpdate) error {
+	now := time.Now()
+	for _, u := range updates {
+		if err := p.db.Model(&persistent.Package{}).
+			Where("id = ? AND org_id = ?", u.PackageID, orgID).
+			Updates(map[string]any{
+				"download_count":             u.DownloadCount,
+				"popularity_score":           u.PopularityScore,
+				"download_count_updated_at":  now,
+			}).Error; err != nil {
+			return fmt.Errorf("updateDownloadCounts: package %d: %w", u.PackageID, err)
+		}
+	}
+	return nil
 }
 
 // SyncTopPackages is kept for backward compatibility with the API handler.

@@ -374,9 +374,9 @@ func TestDiscoverPackages_NewPackages(t *testing.T) {
 	mock := &mockRegistry{
 		name:        "python",
 		topPackages: []entity.PackageRanking{
-			{Name: "requests", Rank: 1},
-			{Name: "boto3", Rank: 2},
-			{Name: "flask", Rank: 3},
+			{Name: "requests", Rank: 1, DownloadCount: 1000000, PopularityScore: 95.5},
+			{Name: "boto3", Rank: 2, DownloadCount: 500000, PopularityScore: 88.0},
+			{Name: "flask", Rank: 3, DownloadCount: 300000, PopularityScore: 82.1},
 		},
 	}
 
@@ -392,11 +392,16 @@ func TestDiscoverPackages_NewPackages(t *testing.T) {
 	db.Where("name = ?", "requests").First(&pkg)
 	assert.Equal(t, uint(1), *pkg.Rank)
 	assert.Equal(t, persistent.PackageSourceDiscovered, pkg.Source)
-	assert.Equal(t, persistent.PackageStatusActive, pkg.Status)
+	// Phase 2: new packages are created as 'suggested', NOT 'active'
+	assert.Equal(t, persistent.PackageStatusSuggested, pkg.Status)
+	assert.Equal(t, int64(1000000), pkg.DownloadCount)
+	assert.Equal(t, 95.5, pkg.PopularityScore)
+	assert.NotNil(t, pkg.DownloadCountUpdatedAt)
 
 	var pkg2 persistent.Package
 	db.Where("name = ?", "flask").First(&pkg2)
 	assert.Equal(t, uint(3), *pkg2.Rank)
+	assert.Equal(t, persistent.PackageStatusSuggested, pkg2.Status)
 }
 
 func TestDiscoverPackages_UpdateExistingRank(t *testing.T) {
@@ -408,7 +413,7 @@ func TestDiscoverPackages_UpdateExistingRank(t *testing.T) {
 	mock := &mockRegistry{
 		name:        "python",
 		topPackages: []entity.PackageRanking{
-			{Name: "requests", Rank: 1},
+			{Name: "requests", Rank: 1, DownloadCount: 2000000, PopularityScore: 97.5},
 		},
 	}
 
@@ -421,6 +426,12 @@ func TestDiscoverPackages_UpdateExistingRank(t *testing.T) {
 	assert.Equal(t, uint(1), *pkg.Rank)
 	// Source should remain unchanged
 	assert.Equal(t, persistent.PackageSourceDiscovered, pkg.Source)
+	// Status remains active
+	assert.Equal(t, persistent.PackageStatusActive, pkg.Status)
+	// Download metrics updated via batch
+	assert.Equal(t, int64(2000000), pkg.DownloadCount)
+	assert.Equal(t, 97.5, pkg.PopularityScore)
+	assert.NotNil(t, pkg.DownloadCountUpdatedAt)
 }
 
 func TestDiscoverPackages_SkipsBlockedPackages(t *testing.T) {
@@ -474,7 +485,7 @@ func TestDiscoverPackages_ReAddsRemovedPackages(t *testing.T) {
 	mock := &mockRegistry{
 		name:        "python",
 		topPackages: []entity.PackageRanking{
-			{Name: "requests", Rank: 1},
+			{Name: "requests", Rank: 1, DownloadCount: 5000000, PopularityScore: 99.0},
 		},
 	}
 
@@ -484,9 +495,12 @@ func TestDiscoverPackages_ReAddsRemovedPackages(t *testing.T) {
 
 	var pkg persistent.Package
 	db.Where("name = ?", "requests").First(&pkg)
-	// Re-added: status back to active with updated rank
-	assert.Equal(t, persistent.PackageStatusActive, pkg.Status)
+	// Phase 2: removed packages are re-suggested (not auto-activated)
+	assert.Equal(t, persistent.PackageStatusSuggested, pkg.Status)
 	assert.Equal(t, uint(1), *pkg.Rank)
+	assert.Equal(t, int64(5000000), pkg.DownloadCount)
+	assert.Equal(t, 99.0, pkg.PopularityScore)
+	assert.NotNil(t, pkg.DownloadCountUpdatedAt)
 }
 
 func TestDiscoverPackages_RegistryError(t *testing.T) {
@@ -534,6 +548,11 @@ func TestDiscoverPackages_AdditiveOnly(t *testing.T) {
 	db.Where("name = ?", "old-pkg").First(&oldPkg)
 	// old-pkg NOT removed — discovery is additive only
 	assert.Equal(t, persistent.PackageStatusActive, oldPkg.Status)
+
+	// New package is suggested, not active
+	var newPkg persistent.Package
+	db.Where("name = ?", "new-pkg").First(&newPkg)
+	assert.Equal(t, persistent.PackageStatusSuggested, newPkg.Status)
 }
 
 // TestSyncTopPackages_BackwardCompat verifies the legacy SyncTopPackages wrapper works.
@@ -556,6 +575,11 @@ func TestSyncTopPackages_BackwardCompat(t *testing.T) {
 	var count int64
 	db.Model(&persistent.Package{}).Count(&count)
 	assert.Equal(t, int64(2), count)
+
+	// New packages via sync are also suggested
+	var suggestedCount int64
+	db.Model(&persistent.Package{}).Where("status = ?", persistent.PackageStatusSuggested).Count(&suggestedCount)
+	assert.Equal(t, int64(2), suggestedCount)
 }
 
 // ---------------------------------------------------------------------------
@@ -827,6 +851,11 @@ func TestRunDiscoveryCycle_DiscoversForDueOrgs(t *testing.T) {
 	db.Model(&persistent.Package{}).Count(&count)
 	// 2 python + 2 npm = 4 packages discovered
 	assert.Equal(t, int64(4), count)
+
+	// All should be suggested, not active
+	var suggestedCount int64
+	db.Model(&persistent.Package{}).Where("status = ?", persistent.PackageStatusSuggested).Count(&suggestedCount)
+	assert.Equal(t, int64(4), suggestedCount)
 }
 
 func TestRunDiscoveryCycle_ZeroScanDepth_Skips(t *testing.T) {
@@ -897,4 +926,201 @@ func TestInvalidateSettingsCache(t *testing.T) {
 
 	_, ok = p.settings.get("1:monitoring_interval")
 	assert.False(t, ok)
+}
+
+// ---------------------------------------------------------------------------
+// Suggestion-Based Discovery Tests (Phase 2)
+// ---------------------------------------------------------------------------
+
+func TestDiscoverPackages_SuggestedPackagesGetUpdated(t *testing.T) {
+	db := setupTestDB(t)
+
+	// Pre-existing suggested package with outdated metrics
+	rank := uint(10)
+	db.Create(&persistent.Package{
+		OrgID:           1,
+		Name:            "requests",
+		Ecosystem:       "python",
+		Rank:            &rank,
+		Source:          persistent.PackageSourceDiscovered,
+		Status:          persistent.PackageStatusSuggested,
+		DownloadCount:   100000,
+		PopularityScore: 50.0,
+	})
+
+	mock := &mockRegistry{
+		name:        "python",
+		topPackages: []entity.PackageRanking{
+			{Name: "requests", Rank: 1, DownloadCount: 2000000, PopularityScore: 98.5},
+		},
+	}
+
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+
+	p.discoverPackages(context.Background(), mock, 1, 1)
+
+	var pkg persistent.Package
+	db.Where("name = ?", "requests").First(&pkg)
+	// Status remains suggested
+	assert.Equal(t, persistent.PackageStatusSuggested, pkg.Status)
+	// Rank and download data updated
+	assert.Equal(t, uint(1), *pkg.Rank)
+	assert.Equal(t, int64(2000000), pkg.DownloadCount)
+	assert.Equal(t, 98.5, pkg.PopularityScore)
+	assert.NotNil(t, pkg.DownloadCountUpdatedAt)
+}
+
+func TestDiscoverPackages_SuggestedNotMonitored(t *testing.T) {
+	db := setupTestDB(t)
+
+	pyMock := &mockRegistry{
+		name: "python",
+		packages: map[string]*entity.RegistryPackageInfo{
+			"suggested-pkg": {Name: "suggested-pkg", Version: "1.0.0", Versions: []entity.RegistryVersionInfo{
+				{Version: "1.0.0", PublishedAt: time.Now()},
+			}},
+		},
+	}
+
+	p := New(db, pyMock, nil, Config{Concurrency: 5}, nil)
+
+	// Suggested package — should NOT be loaded for monitoring
+	db.Create(&persistent.Package{OrgID: 1, Name: "suggested-pkg", Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
+
+	checked := p.monitorOrgPackages(context.Background(), 1)
+	// Suggested packages are not monitored — only active ones
+	assert.Equal(t, 0, checked)
+
+	// No releases should be created
+	var count int64
+	db.Model(&persistent.Release{}).Count(&count)
+	assert.Equal(t, int64(0), count)
+}
+
+func TestUpsertDiscoveredPackages_MixedStatuses(t *testing.T) {
+	db := setupTestDB(t)
+
+	now := time.Now()
+	rank1, rank5, rank10 := uint(1), uint(5), uint(10)
+
+	// Active package
+	db.Create(&persistent.Package{OrgID: 1, Name: "active-pkg", Ecosystem: "python", Rank: &rank1, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
+	// Suggested package
+	db.Create(&persistent.Package{OrgID: 1, Name: "suggested-pkg", Ecosystem: "python", Rank: &rank5, Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
+	// Blocked package
+	db.Create(&persistent.Package{OrgID: 1, Name: "blocked-pkg", Ecosystem: "python", Rank: &rank10, Status: persistent.PackageStatusBlocked, Source: persistent.PackageSourceDiscovered, BlockedAt: &now, BlockedReason: "malware"})
+	// Removed package
+	db.Create(&persistent.Package{OrgID: 1, Name: "removed-pkg", Ecosystem: "python", Rank: &rank10, Status: persistent.PackageStatusRemoved, Source: persistent.PackageSourceDiscovered})
+
+	rankings := []entity.PackageRanking{
+		{Name: "active-pkg", Rank: 2, DownloadCount: 100, PopularityScore: 90.0},
+		{Name: "suggested-pkg", Rank: 3, DownloadCount: 200, PopularityScore: 85.0},
+		{Name: "blocked-pkg", Rank: 4, DownloadCount: 300, PopularityScore: 80.0},
+		{Name: "removed-pkg", Rank: 5, DownloadCount: 400, PopularityScore: 75.0},
+		{Name: "new-pkg", Rank: 6, DownloadCount: 500, PopularityScore: 70.0},
+	}
+
+	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
+
+	p.upsertDiscoveredPackages(context.Background(), 1, rankings, persistent.EcosystemPython)
+
+	tests := []struct {
+		name           string
+		expectedStatus persistent.PackageStatus
+		expectedRank   uint
+		downloadCount  int64
+	}{
+		{"active-pkg", persistent.PackageStatusActive, 2, 100},
+		{"suggested-pkg", persistent.PackageStatusSuggested, 3, 200},
+		{"blocked-pkg", persistent.PackageStatusBlocked, 10, 0}, // Rank NOT updated, original values
+		{"removed-pkg", persistent.PackageStatusSuggested, 5, 400},
+		{"new-pkg", persistent.PackageStatusSuggested, 6, 500},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var pkg persistent.Package
+			db.Where("name = ?", tt.name).First(&pkg)
+			assert.Equal(t, tt.expectedStatus, pkg.Status, "status mismatch for %s", tt.name)
+			assert.Equal(t, tt.expectedRank, *pkg.Rank, "rank mismatch for %s", tt.name)
+			assert.Equal(t, tt.downloadCount, pkg.DownloadCount, "download count mismatch for %s", tt.name)
+		})
+	}
+}
+
+func TestUpsertDiscoveredPackages_DownloadCountBatchUpdate(t *testing.T) {
+	db := setupTestDB(t)
+
+	rank1, rank2 := uint(1), uint(2)
+	db.Create(&persistent.Package{OrgID: 1, Name: "pkg-a", Ecosystem: "python", Rank: &rank1, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered, DownloadCount: 10})
+	db.Create(&persistent.Package{OrgID: 1, Name: "pkg-b", Ecosystem: "python", Rank: &rank2, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered, DownloadCount: 20})
+
+	rankings := []entity.PackageRanking{
+		{Name: "pkg-a", Rank: 1, DownloadCount: 500000, PopularityScore: 95.0},
+		{Name: "pkg-b", Rank: 2, DownloadCount: 300000, PopularityScore: 88.0},
+	}
+
+	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
+	p.upsertDiscoveredPackages(context.Background(), 1, rankings, persistent.EcosystemPython)
+
+	var pkgA, pkgB persistent.Package
+	db.Where("name = ?", "pkg-a").First(&pkgA)
+	db.Where("name = ?", "pkg-b").First(&pkgB)
+
+	assert.Equal(t, int64(500000), pkgA.DownloadCount)
+	assert.Equal(t, 95.0, pkgA.PopularityScore)
+	assert.NotNil(t, pkgA.DownloadCountUpdatedAt)
+
+	assert.Equal(t, int64(300000), pkgB.DownloadCount)
+	assert.Equal(t, 88.0, pkgB.PopularityScore)
+	assert.NotNil(t, pkgB.DownloadCountUpdatedAt)
+}
+
+func TestDiscoverPackages_DiscoveryImmediateForNewOrg(t *testing.T) {
+	// Verifies that orgs with no lastPollAt entry are immediately due
+	p := New(nil, nil, nil, Config{
+		DiscoveryInterval: 24 * time.Hour,
+		Concurrency:       1,
+	}, nil)
+
+	// Org 99 has never been polled
+	assert.True(t, p.isOrgDue(99, "discover", 24*time.Hour))
+}
+
+func TestDiscoverPackages_MultiEcosystem(t *testing.T) {
+	db := setupTestDB(t)
+
+	pyMock := &mockRegistry{
+		name:        "python",
+		topPackages: []entity.PackageRanking{
+			{Name: "requests", Rank: 1, DownloadCount: 1000000},
+		},
+	}
+	npmMock := &mockRegistry{
+		name:        "npm",
+		topPackages: []entity.PackageRanking{
+			{Name: "requests", Rank: 1, DownloadCount: 500000}, // Same name, different ecosystem
+		},
+	}
+
+	p := New(db, pyMock, npmMock, Config{Concurrency: 1}, nil)
+
+	// Discover both ecosystems
+	p.discoverPackages(context.Background(), pyMock, 1, 1)
+	p.discoverPackages(context.Background(), npmMock, 1, 1)
+
+	var packages []persistent.Package
+	db.Where("org_id = ?", 1).Find(&packages)
+	// Same name but different ecosystems = 2 separate packages
+	assert.Len(t, packages, 2)
+
+	var pyPkg persistent.Package
+	db.Where("name = ? AND ecosystem = ?", "requests", "python").First(&pyPkg)
+	assert.Equal(t, persistent.PackageStatusSuggested, pyPkg.Status)
+	assert.Equal(t, int64(1000000), pyPkg.DownloadCount)
+
+	var npmPkg persistent.Package
+	db.Where("name = ? AND ecosystem = ?", "requests", "npm").First(&npmPkg)
+	assert.Equal(t, persistent.PackageStatusSuggested, npmPkg.Status)
+	assert.Equal(t, int64(500000), npmPkg.DownloadCount)
 }
