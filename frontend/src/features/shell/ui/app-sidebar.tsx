@@ -73,7 +73,7 @@ const navItems: NavItem[] = [
 const settingsItems: NavItem[] = [
   { title: "Settings", href: "/settings", icon: Settings },
   { title: "Channels", href: "/settings/notifications", icon: Bell },
-  { title: "Queue", href: "/settings/queue", icon: ListOrdered },
+  { title: "Queue Monitor", href: "/settings/queue", icon: ListOrdered },
   { title: "API Keys", href: "/settings/api-keys", icon: Key },
   { title: "Sessions", href: "/settings/sessions", icon: Monitor },
 ]

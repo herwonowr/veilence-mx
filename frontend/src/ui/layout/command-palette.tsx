@@ -17,6 +17,7 @@ import {
   Search,
 } from "lucide-react"
 import { cn } from "@/core/utils"
+import { Kbd } from "@/ui/components/kbd"
 import { useAuth } from "@/core/providers/auth-provider"
 import type { LucideIcon } from "lucide-react"
 
@@ -210,9 +211,9 @@ export const CommandPalette = () => {
                   : undefined
               }
             />
-            <kbd className="pointer-events-none hidden select-none rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground sm:inline-block">
+            <Kbd className="hidden sm:inline-block">
               Esc
-            </kbd>
+            </Kbd>
           </div>
 
           {/* Results list */}
@@ -263,16 +264,16 @@ export const CommandPalette = () => {
           {/* Footer hint */}
           <div className="flex items-center gap-3 border-t px-3 py-2">
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">↑</kbd>
-              <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">↓</kbd>
+              <Kbd>↑</Kbd>
+              <Kbd>↓</Kbd>
               <span>navigate</span>
             </span>
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">↵</kbd>
+              <Kbd>↵</Kbd>
               <span>select</span>
             </span>
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">esc</kbd>
+              <Kbd>esc</Kbd>
               <span>close</span>
             </span>
           </div>
