@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
-	"github.com/veilence/veilence-mx/backend/internal/repo/registry"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -36,15 +36,15 @@ func setupTestDB(t *testing.T) *gorm.DB {
 
 type mockRegistry struct {
 	name        string
-	packages    map[string]*registry.PackageInfo
-	topPackages []string
+	packages    map[string]*entity.RegistryPackageInfo
+	topPackages []entity.PackageRanking
 	getErr      error
 	topErr      error
 }
 
 func (m *mockRegistry) Name() string { return m.name }
 
-func (m *mockRegistry) GetPackage(ctx context.Context, name string) (*registry.PackageInfo, error) {
+func (m *mockRegistry) GetPackage(ctx context.Context, name string) (*entity.RegistryPackageInfo, error) {
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
@@ -54,7 +54,7 @@ func (m *mockRegistry) GetPackage(ctx context.Context, name string) (*registry.P
 	return nil, fmt.Errorf("package %s not found", name)
 }
 
-func (m *mockRegistry) GetTopPackages(ctx context.Context, limit int) ([]string, error) {
+func (m *mockRegistry) GetTopPackages(ctx context.Context, limit int) ([]entity.PackageRanking, error) {
 	if m.topErr != nil {
 		return nil, m.topErr
 	}
@@ -107,12 +107,12 @@ func TestCheckPackageForNewReleases_NewRelease(t *testing.T) {
 
 	mock := &mockRegistry{
 		name: "python",
-		packages: map[string]*registry.PackageInfo{
+		packages: map[string]*entity.RegistryPackageInfo{
 			"requests": {
 				Name:        "requests",
 				Version:     "2.31.0",
 				Description: "HTTP library",
-				Versions: []registry.VersionInfo{
+				Versions: []entity.RegistryVersionInfo{
 					{Version: "2.31.0", PublishedAt: time.Now(), TarballURL: "https://example.com/2.31.0.tar.gz"},
 				},
 			},
@@ -139,12 +139,12 @@ func TestCheckPackageForNewReleases_FirstTime_IncludesBaseline(t *testing.T) {
 
 	mock := &mockRegistry{
 		name: "python",
-		packages: map[string]*registry.PackageInfo{
+		packages: map[string]*entity.RegistryPackageInfo{
 			"requests": {
 				Name:        "requests",
 				Version:     "2.31.0",
 				Description: "HTTP library",
-				Versions: []registry.VersionInfo{
+				Versions: []entity.RegistryVersionInfo{
 					{Version: "2.31.0", PublishedAt: time.Now(), TarballURL: "https://example.com/2.31.0.tar.gz"},
 					{Version: "2.30.0", PublishedAt: time.Now().Add(-24 * time.Hour), TarballURL: "https://example.com/2.30.0.tar.gz"},
 					{Version: "2.29.0", PublishedAt: time.Now().Add(-48 * time.Hour), TarballURL: "https://example.com/2.29.0.tar.gz"},
@@ -177,11 +177,11 @@ func TestCheckPackageForNewReleases_ExistingRelease_NoBaseline(t *testing.T) {
 	now := time.Now()
 	mock := &mockRegistry{
 		name: "python",
-		packages: map[string]*registry.PackageInfo{
+		packages: map[string]*entity.RegistryPackageInfo{
 			"requests": {
 				Name:    "requests",
 				Version: "2.32.0",
-				Versions: []registry.VersionInfo{
+				Versions: []entity.RegistryVersionInfo{
 					{Version: "2.32.0", PublishedAt: now, TarballURL: "https://example.com/2.32.0.tar.gz"},
 					{Version: "2.31.0", PublishedAt: now.Add(-24 * time.Hour)},
 				},
@@ -211,11 +211,11 @@ func TestCheckPackageForNewReleases_ExistingRelease_NoNew(t *testing.T) {
 	now := time.Now()
 	mock := &mockRegistry{
 		name: "python",
-		packages: map[string]*registry.PackageInfo{
+		packages: map[string]*entity.RegistryPackageInfo{
 			"requests": {
 				Name:    "requests",
 				Version: "2.31.0",
-				Versions: []registry.VersionInfo{
+				Versions: []entity.RegistryVersionInfo{
 					{Version: "2.31.0", PublishedAt: now},
 				},
 			},
@@ -259,12 +259,12 @@ func TestCheckPackageForNewReleases_UpdatesMetadata(t *testing.T) {
 
 	mock := &mockRegistry{
 		name: "python",
-		packages: map[string]*registry.PackageInfo{
+		packages: map[string]*entity.RegistryPackageInfo{
 			"requests": {
 				Name:        "requests",
 				Version:     "2.31.0",
 				Description: "HTTP library for Python",
-				Versions: []registry.VersionInfo{
+				Versions: []entity.RegistryVersionInfo{
 					{Version: "2.31.0", PublishedAt: time.Now()},
 				},
 			},
@@ -293,11 +293,11 @@ func TestCheckPackageForNewReleases_AllMissedReleases(t *testing.T) {
 	baseTime := time.Now().Add(-72 * time.Hour) // 3 days ago
 	mock := &mockRegistry{
 		name: "python",
-		packages: map[string]*registry.PackageInfo{
+		packages: map[string]*entity.RegistryPackageInfo{
 			"requests": {
 				Name:    "requests",
 				Version: "2.35.0",
-				Versions: []registry.VersionInfo{
+				Versions: []entity.RegistryVersionInfo{
 					{Version: "2.35.0", PublishedAt: baseTime.Add(48 * time.Hour), TarballURL: "https://example.com/2.35.0.tar.gz"},
 					{Version: "2.34.0", PublishedAt: baseTime.Add(36 * time.Hour), TarballURL: "https://example.com/2.34.0.tar.gz"},
 					{Version: "2.33.0", PublishedAt: baseTime.Add(24 * time.Hour), TarballURL: "https://example.com/2.33.0.tar.gz"},
@@ -335,11 +335,11 @@ func TestCheckPackageForNewReleases_Idempotent(t *testing.T) {
 	now := time.Now()
 	mock := &mockRegistry{
 		name: "python",
-		packages: map[string]*registry.PackageInfo{
+		packages: map[string]*entity.RegistryPackageInfo{
 			"requests": {
 				Name:    "requests",
 				Version: "2.32.0",
-				Versions: []registry.VersionInfo{
+				Versions: []entity.RegistryVersionInfo{
 					{Version: "2.32.0", PublishedAt: now, TarballURL: "https://example.com/2.32.0.tar.gz"},
 					{Version: "2.31.0", PublishedAt: now.Add(-24 * time.Hour)},
 				},
@@ -373,7 +373,11 @@ func TestDiscoverPackages_NewPackages(t *testing.T) {
 
 	mock := &mockRegistry{
 		name:        "python",
-		topPackages: []string{"requests", "boto3", "flask"},
+		topPackages: []entity.PackageRanking{
+			{Name: "requests", Rank: 1},
+			{Name: "boto3", Rank: 2},
+			{Name: "flask", Rank: 3},
+		},
 	}
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
@@ -403,7 +407,9 @@ func TestDiscoverPackages_UpdateExistingRank(t *testing.T) {
 
 	mock := &mockRegistry{
 		name:        "python",
-		topPackages: []string{"requests"},
+		topPackages: []entity.PackageRanking{
+			{Name: "requests", Rank: 1},
+		},
 	}
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
@@ -435,7 +441,9 @@ func TestDiscoverPackages_SkipsBlockedPackages(t *testing.T) {
 
 	mock := &mockRegistry{
 		name:        "python",
-		topPackages: []string{"malicious-pkg"},
+		topPackages: []entity.PackageRanking{
+			{Name: "malicious-pkg", Rank: 1},
+		},
 	}
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
@@ -465,7 +473,9 @@ func TestDiscoverPackages_ReAddsRemovedPackages(t *testing.T) {
 
 	mock := &mockRegistry{
 		name:        "python",
-		topPackages: []string{"requests"},
+		topPackages: []entity.PackageRanking{
+			{Name: "requests", Rank: 1},
+		},
 	}
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
@@ -506,7 +516,9 @@ func TestDiscoverPackages_AdditiveOnly(t *testing.T) {
 
 	mock := &mockRegistry{
 		name:        "python",
-		topPackages: []string{"new-pkg"},
+		topPackages: []entity.PackageRanking{
+			{Name: "new-pkg", Rank: 1},
+		},
 	}
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
@@ -530,7 +542,10 @@ func TestSyncTopPackages_BackwardCompat(t *testing.T) {
 
 	mock := &mockRegistry{
 		name:        "python",
-		topPackages: []string{"requests", "flask"},
+		topPackages: []entity.PackageRanking{
+			{Name: "requests", Rank: 1},
+			{Name: "flask", Rank: 2},
+		},
 	}
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
@@ -703,16 +718,16 @@ func TestMonitorOrgPackages_ChecksActivePackages(t *testing.T) {
 	now := time.Now()
 	pyMock := &mockRegistry{
 		name: "python",
-		packages: map[string]*registry.PackageInfo{
-			"requests": {Name: "requests", Version: "1.0.0", Versions: []registry.VersionInfo{
+		packages: map[string]*entity.RegistryPackageInfo{
+			"requests": {Name: "requests", Version: "1.0.0", Versions: []entity.RegistryVersionInfo{
 				{Version: "1.0.0", PublishedAt: now},
 			}},
 		},
 	}
 	npmMock := &mockRegistry{
 		name: "npm",
-		packages: map[string]*registry.PackageInfo{
-			"express": {Name: "express", Version: "4.0.0", Versions: []registry.VersionInfo{
+		packages: map[string]*entity.RegistryPackageInfo{
+			"express": {Name: "express", Version: "4.0.0", Versions: []entity.RegistryVersionInfo{
 				{Version: "4.0.0", PublishedAt: now},
 			}},
 		},
@@ -745,8 +760,8 @@ func TestRunMonitorCycle_SkipsNonDueOrgs(t *testing.T) {
 
 	pyMock := &mockRegistry{
 		name: "python",
-		packages: map[string]*registry.PackageInfo{
-			"requests": {Name: "requests", Version: "1.0.0", Versions: []registry.VersionInfo{
+		packages: map[string]*entity.RegistryPackageInfo{
+			"requests": {Name: "requests", Version: "1.0.0", Versions: []entity.RegistryVersionInfo{
 				{Version: "1.0.0", PublishedAt: time.Now()},
 			}},
 		},
@@ -785,11 +800,17 @@ func TestRunDiscoveryCycle_DiscoversForDueOrgs(t *testing.T) {
 
 	pyMock := &mockRegistry{
 		name:        "python",
-		topPackages: []string{"requests", "flask"},
+		topPackages: []entity.PackageRanking{
+			{Name: "requests", Rank: 1},
+			{Name: "flask", Rank: 2},
+		},
 	}
 	npmMock := &mockRegistry{
 		name:        "npm",
-		topPackages: []string{"express", "lodash"},
+		topPackages: []entity.PackageRanking{
+			{Name: "express", Rank: 1},
+			{Name: "lodash", Rank: 2},
+		},
 	}
 
 	p := New(db, pyMock, npmMock, Config{
@@ -813,7 +834,9 @@ func TestRunDiscoveryCycle_ZeroScanDepth_Skips(t *testing.T) {
 
 	pyMock := &mockRegistry{
 		name:        "python",
-		topPackages: []string{"requests"},
+		topPackages: []entity.PackageRanking{
+			{Name: "requests", Rank: 1},
+		},
 	}
 
 	p := New(db, pyMock, nil, Config{

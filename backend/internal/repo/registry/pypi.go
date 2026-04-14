@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"sort"
 	"time"
+
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 )
 
 type pypiPackageResponse struct {
@@ -33,7 +35,8 @@ type pypiReleaseFile struct {
 
 type pypiTopPackagesResponse struct {
 	Rows []struct {
-		Project string `json:"project"`
+		Project       string `json:"project"`
+		DownloadCount int64  `json:"download_count"`
 	} `json:"rows"`
 }
 
@@ -73,7 +76,7 @@ func NewPyPIClient(opts ...PyPIOption) *PyPIClient {
 func (c *PyPIClient) Name() string { return "python" }
 
 // GetPackage retrieves metadata for a PyPI package.
-func (c *PyPIClient) GetPackage(ctx context.Context, name string) (*PackageInfo, error) {
+func (c *PyPIClient) GetPackage(ctx context.Context, name string) (*entity.RegistryPackageInfo, error) {
 	url := fmt.Sprintf("%s/pypi/%s/json", c.baseURL, name)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -99,7 +102,7 @@ func (c *PyPIClient) GetPackage(ctx context.Context, name string) (*PackageInfo,
 		return nil, fmt.Errorf("decoding response for %s: %w", name, err)
 	}
 
-	versions := make([]VersionInfo, 0, len(pypiResp.Releases))
+	versions := make([]entity.RegistryVersionInfo, 0, len(pypiResp.Releases))
 	for version, files := range pypiResp.Releases {
 		for _, f := range files {
 			if f.PackageType == "sdist" {
@@ -109,7 +112,7 @@ func (c *PyPIClient) GetPackage(ctx context.Context, name string) (*PackageInfo,
 						publishedAt = t
 					}
 				}
-				versions = append(versions, VersionInfo{
+				versions = append(versions, entity.RegistryVersionInfo{
 					Version:     version,
 					PublishedAt: publishedAt,
 					TarballURL:  f.URL,
@@ -124,7 +127,7 @@ func (c *PyPIClient) GetPackage(ctx context.Context, name string) (*PackageInfo,
 		return versions[i].PublishedAt.After(versions[j].PublishedAt)
 	})
 
-	return &PackageInfo{
+	return &entity.RegistryPackageInfo{
 		Name:        pypiResp.Info.Name,
 		Version:     pypiResp.Info.Version,
 		Description: pypiResp.Info.Summary,
@@ -132,8 +135,8 @@ func (c *PyPIClient) GetPackage(ctx context.Context, name string) (*PackageInfo,
 	}, nil
 }
 
-// GetTopPackages returns the names of the top N PyPI packages.
-func (c *PyPIClient) GetTopPackages(ctx context.Context, limit int) ([]string, error) {
+// GetTopPackages returns the top N PyPI packages with download counts.
+func (c *PyPIClient) GetTopPackages(ctx context.Context, limit int) ([]entity.PackageRanking, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.topURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating top packages request: %w", err)
@@ -154,16 +157,20 @@ func (c *PyPIClient) GetTopPackages(ctx context.Context, limit int) ([]string, e
 		return nil, fmt.Errorf("decoding top packages response: %w", err)
 	}
 
-	names := make([]string, 0, limit)
+	rankings := make([]entity.PackageRanking, 0, limit)
 	for i, row := range topResp.Rows {
 		if i >= limit {
 			break
 		}
-		names = append(names, row.Project)
+		rankings = append(rankings, entity.PackageRanking{
+			Name:          row.Project,
+			DownloadCount: row.DownloadCount,
+			Rank:          uint(i + 1),
+		})
 	}
 
-	slog.Info("fetched top PyPI packages", "count", len(names))
-	return names, nil
+	slog.Info("fetched top PyPI packages", "count", len(rankings))
+	return rankings, nil
 }
 
 // DownloadTarball downloads a tarball and returns the path to the temp file.

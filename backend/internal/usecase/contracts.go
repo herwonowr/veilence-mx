@@ -51,6 +51,12 @@ type PackageRepository interface {
 	RemovePackage(ctx context.Context, orgID, pkgID uint) error
 	CountByOrg(ctx context.Context, orgID uint, ecosystem *entity.Ecosystem) (int64, error)
 	ExistsByOrgAndName(ctx context.Context, orgID uint, name string, ecosystem entity.Ecosystem) (bool, error)
+	FindSuggestionsByOrgID(ctx context.Context, orgID uint, page, limit int) ([]entity.Package, int64, error)
+	ApprovePackage(ctx context.Context, orgID, pkgID uint) error
+	RejectPackage(ctx context.Context, orgID, pkgID uint) error
+	BulkApprovePackages(ctx context.Context, orgID uint, pkgIDs []uint) (int, error)
+	UpdateDownloadCounts(ctx context.Context, orgID uint, updates []entity.PackageDownloadUpdate) error
+	FindStaleByOrgID(ctx context.Context, orgID uint, staleBefore time.Time) ([]entity.Package, error)
 }
 
 // ReleaseRepository defines persistence operations for Release entities.
@@ -300,4 +306,12 @@ type QueueEnqueuer interface {
 // The implementation lives in the outer layer (repo or controller).
 type AuditLogger interface {
 	LogAction(ctx context.Context, action, resource string, resourceID uint, details string)
+}
+
+// Registry defines the interface for interacting with a package registry.
+type Registry interface {
+	GetPackage(ctx context.Context, name string) (*entity.RegistryPackageInfo, error)
+	GetTopPackages(ctx context.Context, limit int) ([]entity.PackageRanking, error)
+	DownloadTarball(ctx context.Context, url string) (string, error)
+	Name() string
 }

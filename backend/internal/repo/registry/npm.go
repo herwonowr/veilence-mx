@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 )
 
 type npmPackageResponse struct {
@@ -37,6 +39,11 @@ type npmSearchResponse struct {
 		Package struct {
 			Name string `json:"name"`
 		} `json:"package"`
+		Score struct {
+			Detail struct {
+				Popularity float64 `json:"popularity"`
+			} `json:"detail"`
+		} `json:"score"`
 	} `json:"objects"`
 	Total int `json:"total"`
 }
@@ -77,7 +84,7 @@ func encodeScopedPackage(name string) string {
 }
 
 // GetPackage retrieves metadata for an npm package.
-func (c *NPMClient) GetPackage(ctx context.Context, name string) (*PackageInfo, error) {
+func (c *NPMClient) GetPackage(ctx context.Context, name string) (*entity.RegistryPackageInfo, error) {
 	encodedName := encodeScopedPackage(name)
 	reqURL := fmt.Sprintf("%s/%s", c.baseURL, encodedName)
 
@@ -110,7 +117,7 @@ func (c *NPMClient) GetPackage(ctx context.Context, name string) (*PackageInfo, 
 		latestVersion = latest
 	}
 
-	versions := make([]VersionInfo, 0, len(npmResp.Versions))
+	versions := make([]entity.RegistryVersionInfo, 0, len(npmResp.Versions))
 	for version, details := range npmResp.Versions {
 		publishedAt := time.Time{}
 		if timeStr, ok := npmResp.Time[version]; ok {
@@ -118,7 +125,7 @@ func (c *NPMClient) GetPackage(ctx context.Context, name string) (*PackageInfo, 
 				publishedAt = t
 			}
 		}
-		versions = append(versions, VersionInfo{
+		versions = append(versions, entity.RegistryVersionInfo{
 			Version:     version,
 			PublishedAt: publishedAt,
 			TarballURL:  details.Dist.Tarball,
@@ -130,7 +137,7 @@ func (c *NPMClient) GetPackage(ctx context.Context, name string) (*PackageInfo, 
 		return versions[i].PublishedAt.After(versions[j].PublishedAt)
 	})
 
-	return &PackageInfo{
+	return &entity.RegistryPackageInfo{
 		Name:        npmResp.Name,
 		Version:     latestVersion,
 		Description: npmResp.Description,
@@ -138,9 +145,9 @@ func (c *NPMClient) GetPackage(ctx context.Context, name string) (*PackageInfo, 
 	}, nil
 }
 
-// GetTopPackages returns the names of the top N npm packages by popularity.
-func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]string, error) {
-	var allNames []string
+// GetTopPackages returns the top N npm packages by popularity with scores.
+func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]entity.PackageRanking, error) {
+	var allRankings []entity.PackageRanking
 	fetched := 0
 	batchSize := 250
 	if limit < batchSize {
@@ -175,7 +182,11 @@ func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]string, er
 		resp.Body.Close()
 
 		for _, obj := range searchResp.Objects {
-			allNames = append(allNames, obj.Package.Name)
+			allRankings = append(allRankings, entity.PackageRanking{
+				Name:            obj.Package.Name,
+				PopularityScore: obj.Score.Detail.Popularity,
+				Rank:            uint(fetched + len(allRankings) - len(allRankings) + len(allRankings) + 1),
+			})
 		}
 
 		fetched += len(searchResp.Objects)
@@ -184,8 +195,13 @@ func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]string, er
 		}
 	}
 
-	slog.Info("fetched top npm packages", "count", len(allNames))
-	return allNames, nil
+	// Fix rank values after collection
+	for i := range allRankings {
+		allRankings[i].Rank = uint(i + 1)
+	}
+
+	slog.Info("fetched top npm packages", "count", len(allRankings))
+	return allRankings, nil
 }
 
 // DownloadTarball downloads a tarball and returns the path to the temp file.

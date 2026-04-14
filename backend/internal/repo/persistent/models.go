@@ -32,27 +32,31 @@ const (
 type PackageStatus string
 
 const (
-	PackageStatusActive  PackageStatus = "active"
-	PackageStatusBlocked PackageStatus = "blocked"
-	PackageStatusRemoved PackageStatus = "removed"
+	PackageStatusActive    PackageStatus = "active"
+	PackageStatusBlocked   PackageStatus = "blocked"
+	PackageStatusRemoved   PackageStatus = "removed"
+	PackageStatusSuggested PackageStatus = "suggested"
 )
 
 // Package is the GORM model for monitored packages.
 type Package struct {
-	ID            uint          `gorm:"primarykey" json:"id"`
-	OrgID         uint          `gorm:"not null;index" json:"orgId"`
-	Name          string        `gorm:"not null" json:"name"`
-	Ecosystem     Ecosystem     `gorm:"column:ecosystem;not null;type:varchar(10)" json:"ecosystem"`
-	LatestVersion string        `gorm:"type:varchar(100)" json:"latestVersion"`
-	Description   string        `gorm:"type:text" json:"description"`
-	Source        PackageSource `gorm:"not null;default:'manual';type:varchar(20)" json:"source"`
-	Status        PackageStatus `gorm:"not null;default:'active';type:varchar(20);index" json:"status"`
-	Rank          *uint         `json:"rank,omitempty"`
-	BlockedAt     *time.Time    `json:"blockedAt,omitempty"`
-	BlockedReason string        `gorm:"type:text" json:"blockedReason,omitempty"`
-	CreatedAt     time.Time     `json:"createdAt"`
-	UpdatedAt     time.Time     `json:"updatedAt"`
-	Releases      []Release     `gorm:"foreignKey:PackageID" json:"releases,omitempty"`
+	ID                     uint          `gorm:"primarykey" json:"id"`
+	OrgID                  uint          `gorm:"not null;index" json:"orgId"`
+	Name                   string        `gorm:"not null" json:"name"`
+	Ecosystem              Ecosystem     `gorm:"column:ecosystem;not null;type:varchar(10)" json:"ecosystem"`
+	LatestVersion          string        `gorm:"type:varchar(100)" json:"latestVersion"`
+	Description            string        `gorm:"type:text" json:"description"`
+	Source                 PackageSource `gorm:"not null;default:'manual';type:varchar(20)" json:"source"`
+	Status                 PackageStatus `gorm:"not null;default:'active';type:varchar(20);index" json:"status"`
+	Rank                   *uint         `json:"rank,omitempty"`
+	DownloadCount          int64         `gorm:"not null;default:0" json:"downloadCount"`
+	PopularityScore        float64       `gorm:"not null;default:0" json:"popularityScore"`
+	DownloadCountUpdatedAt *time.Time    `json:"downloadCountUpdatedAt,omitempty"`
+	BlockedAt              *time.Time    `json:"blockedAt,omitempty"`
+	BlockedReason          string        `gorm:"type:text" json:"blockedReason,omitempty"`
+	CreatedAt              time.Time     `json:"createdAt"`
+	UpdatedAt              time.Time     `json:"updatedAt"`
+	Releases               []Release     `gorm:"foreignKey:PackageID" json:"releases,omitempty"`
 }
 
 func (Package) TableName() string { return "packages" }

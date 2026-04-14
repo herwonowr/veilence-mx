@@ -34,24 +34,29 @@ const (
 	PackageStatusBlocked PackageStatus = "blocked"
 	// PackageStatusRemoved means the package was removed by a user.
 	PackageStatusRemoved PackageStatus = "removed"
+	// PackageStatusSuggested means the package was discovered but not yet approved for monitoring.
+	PackageStatusSuggested PackageStatus = "suggested"
 )
 
 // Package represents a monitored package from Python (PyPI) or npm.
 type Package struct {
-	ID             uint `json:"id"`
-	OrgID          uint `json:"orgId"`
-	Name           string `json:"name"`
-	Ecosystem      Ecosystem `json:"ecosystem"`
-	LatestVersion  string `json:"latestVersion"`
-	Description    string `json:"description"`
-	Source         PackageSource `json:"source"`
-	Status         PackageStatus `json:"status"`
-	Rank           *uint `json:"rank,omitempty"`
-	BlockedAt      *time.Time `json:"blockedAt,omitempty"`
-	BlockedReason  string `json:"blockedReason"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
-	Releases       []Release `json:"releases,omitempty"`
+	ID                     uint `json:"id"`
+	OrgID                  uint `json:"orgId"`
+	Name                   string `json:"name"`
+	Ecosystem              Ecosystem `json:"ecosystem"`
+	LatestVersion          string `json:"latestVersion"`
+	Description            string `json:"description"`
+	Source                 PackageSource `json:"source"`
+	Status                 PackageStatus `json:"status"`
+	Rank                   *uint `json:"rank,omitempty"`
+	DownloadCount          int64 `json:"downloadCount"`
+	PopularityScore        float64 `json:"popularityScore"`
+	DownloadCountUpdatedAt *time.Time `json:"downloadCountUpdatedAt,omitempty"`
+	BlockedAt              *time.Time `json:"blockedAt,omitempty"`
+	BlockedReason          string `json:"blockedReason"`
+	CreatedAt              time.Time `json:"createdAt"`
+	UpdatedAt              time.Time `json:"updatedAt"`
+	Releases               []Release `json:"releases,omitempty"`
 }
 
 // PackageFilters holds optional query filters for listing packages.
@@ -79,4 +84,19 @@ type ImportResult struct {
 	Imported       int `json:"imported"`
 	Skipped        int `json:"skipped"`
 	Errors         []ImportErrorEntry `json:"errors,omitempty"`
+}
+
+// PackageDownloadUpdate holds download metrics for a single package.
+type PackageDownloadUpdate struct {
+	PackageID       uint
+	DownloadCount   int64
+	PopularityScore float64
+}
+
+// PackageRanking holds a package's ranking data from a registry.
+type PackageRanking struct {
+	Name            string
+	DownloadCount   int64
+	PopularityScore float64
+	Rank            uint
 }

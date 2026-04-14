@@ -2,29 +2,16 @@ package registry
 
 import (
 	"context"
-	"time"
+
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 )
 
-// VersionInfo holds metadata about a specific version of a package.
-type VersionInfo struct {
-	Version     string
-	PublishedAt time.Time
-	TarballURL  string
-	SHA256      string
-}
-
-// PackageInfo holds metadata about a package from a registry.
-type PackageInfo struct {
-	Name        string
-	Version     string
-	Description string
-	Versions    []VersionInfo
-}
-
 // Registry defines the interface for interacting with a package registry.
+// NOTE: The canonical interface lives in usecase/contracts.go (consumer defines the contract).
+// This type alias is kept here for backward compatibility and to satisfy the interface locally.
 type Registry interface {
-	GetPackage(ctx context.Context, name string) (*PackageInfo, error)
-	GetTopPackages(ctx context.Context, limit int) ([]string, error)
+	GetPackage(ctx context.Context, name string) (*entity.RegistryPackageInfo, error)
+	GetTopPackages(ctx context.Context, limit int) ([]entity.PackageRanking, error)
 	DownloadTarball(ctx context.Context, url string) (string, error)
 	Name() string
 }

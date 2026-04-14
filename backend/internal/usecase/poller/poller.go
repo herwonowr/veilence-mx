@@ -12,6 +12,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
 	"github.com/veilence/veilence-mx/backend/pkg/queue"
 	"github.com/veilence/veilence-mx/backend/internal/repo/registry"
@@ -292,7 +293,7 @@ func (p *Poller) checkPackageForNewReleases(ctx context.Context, reg registry.Re
 	var latestKnownRelease persistent.Release
 	p.db.Where("package_id = ?", pkg.ID).Order("published_at DESC").Limit(1).Find(&latestKnownRelease)
 
-	var newVersions []registry.VersionInfo
+	var newVersions []entity.RegistryVersionInfo
 
 	if latestKnownRelease.ID > 0 {
 		// Find all versions published AFTER our latest known release
@@ -450,30 +451,32 @@ func (p *Poller) runDiscoveryCycle(ctx context.Context) {
 // discoverPackages fetches top packages from a registry and upserts them.
 // Discovery is additive only — it never removes packages.
 func (p *Poller) discoverPackages(ctx context.Context, reg registry.Registry, scanDepth int, orgID uint) {
-	names, err := reg.GetTopPackages(ctx, scanDepth)
+	rankings, err := reg.GetTopPackages(ctx, scanDepth)
 	if err != nil {
 		slog.Error("failed to fetch top packages for discovery", "ecosystem", reg.Name(), "org_id", orgID, "error", err)
 		return
 	}
 
 	var added int
-	for i, name := range names {
-		rank := uint(i + 1)
+	for _, ranking := range rankings {
+		rank := ranking.Rank
 		var existing persistent.Package
-		result := p.db.Where("org_id = ? AND name = ? AND ecosystem = ?", orgID, name, reg.Name()).Limit(1).Find(&existing)
+		result := p.db.Where("org_id = ? AND name = ? AND ecosystem = ?", orgID, ranking.Name, reg.Name()).Limit(1).Find(&existing)
 
 		if result.RowsAffected == 0 {
 			// New package — create it
 			pkg := persistent.Package{
-				OrgID:     orgID,
-				Name:      name,
-				Ecosystem: persistent.Ecosystem(reg.Name()),
-				Source:    persistent.PackageSourceDiscovered,
-				Status:   persistent.PackageStatusActive,
-				Rank:     &rank,
+				OrgID:           orgID,
+				Name:            ranking.Name,
+				Ecosystem:       persistent.Ecosystem(reg.Name()),
+				Source:          persistent.PackageSourceDiscovered,
+				Status:          persistent.PackageStatusActive,
+				Rank:            &rank,
+				DownloadCount:   ranking.DownloadCount,
+				PopularityScore: ranking.PopularityScore,
 			}
 			if err := p.db.Create(&pkg).Error; err != nil {
-				slog.Error("failed to create discovered package", "package", name, "error", err)
+				slog.Error("failed to create discovered package", "package", ranking.Name, "error", err)
 				continue
 			}
 			added++
@@ -481,23 +484,29 @@ func (p *Poller) discoverPackages(ctx context.Context, reg registry.Registry, sc
 			// Existing package — handle based on status
 			switch existing.Status {
 			case persistent.PackageStatusActive:
-				// Update rank only
-				p.db.Model(&existing).Update("rank", &rank)
+				// Update rank and download metrics
+				p.db.Model(&existing).Updates(map[string]any{
+					"rank":             &rank,
+					"download_count":   ranking.DownloadCount,
+					"popularity_score": ranking.PopularityScore,
+				})
 			case persistent.PackageStatusBlocked:
 				// Skip entirely — do not update rank
 				continue
 			case persistent.PackageStatusRemoved:
 				// Re-add: set status back to active with updated rank
 				p.db.Model(&existing).Updates(map[string]any{
-					"status": persistent.PackageStatusActive,
-					"rank":   &rank,
+					"status":           persistent.PackageStatusActive,
+					"rank":             &rank,
+					"download_count":   ranking.DownloadCount,
+					"popularity_score": ranking.PopularityScore,
 				})
 				added++
 			}
 		}
 	}
 
-	slog.Info("discovery complete", "ecosystem", reg.Name(), "org_id", orgID, "scanned", len(names), "new_packages", added)
+	slog.Info("discovery complete", "ecosystem", reg.Name(), "org_id", orgID, "scanned", len(rankings), "new_packages", added)
 }
 
 // SyncTopPackages is kept for backward compatibility with the API handler.

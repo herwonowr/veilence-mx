@@ -57,9 +57,9 @@ func TestNPMClient_GetTopPackages(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"objects": []map[string]any{
-				{"package": map[string]string{"name": "lodash"}},
-				{"package": map[string]string{"name": "react"}},
-				{"package": map[string]string{"name": "express"}},
+				{"package": map[string]string{"name": "lodash"}, "score": map[string]any{"detail": map[string]any{"popularity": 0.95}}},
+				{"package": map[string]string{"name": "react"}, "score": map[string]any{"detail": map[string]any{"popularity": 0.90}}},
+				{"package": map[string]string{"name": "express"}, "score": map[string]any{"detail": map[string]any{"popularity": 0.85}}},
 			},
 			"total": 3,
 		}
@@ -68,10 +68,12 @@ func TestNPMClient_GetTopPackages(t *testing.T) {
 	defer server.Close()
 
 	client := registry.NewNPMClient(registry.WithNPMBaseURL(server.URL))
-	names, err := client.GetTopPackages(context.Background(), 3)
+	rankings, err := client.GetTopPackages(context.Background(), 3)
 	require.NoError(t, err)
-	assert.Len(t, names, 3)
-	assert.Equal(t, "lodash", names[0])
+	assert.Len(t, rankings, 3)
+	assert.Equal(t, "lodash", rankings[0].Name)
+	assert.InDelta(t, 0.95, rankings[0].PopularityScore, 0.01)
+	assert.Equal(t, uint(1), rankings[0].Rank)
 }
 
 func TestNPMClient_Name(t *testing.T) {

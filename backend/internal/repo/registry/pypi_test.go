@@ -83,9 +83,9 @@ func TestPyPIClient_GetTopPackages(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"rows": []map[string]any{
-				{"project": "requests"},
-				{"project": "boto3"},
-				{"project": "flask"},
+				{"project": "requests", "download_count": 1000000},
+				{"project": "boto3", "download_count": 800000},
+				{"project": "flask", "download_count": 600000},
 			},
 		}
 		json.NewEncoder(w).Encode(resp)
@@ -93,10 +93,13 @@ func TestPyPIClient_GetTopPackages(t *testing.T) {
 	defer server.Close()
 
 	client := registry.NewPyPIClient(registry.WithPyPITopURL(server.URL))
-	names, err := client.GetTopPackages(context.Background(), 3)
+	rankings, err := client.GetTopPackages(context.Background(), 3)
 	require.NoError(t, err)
-	assert.Len(t, names, 3)
-	assert.Equal(t, "requests", names[0])
+	assert.Len(t, rankings, 3)
+	assert.Equal(t, "requests", rankings[0].Name)
+	assert.Equal(t, int64(1000000), rankings[0].DownloadCount)
+	assert.Equal(t, uint(1), rankings[0].Rank)
+	assert.Equal(t, uint(3), rankings[2].Rank)
 }
 
 func TestPyPIClient_Name(t *testing.T) {
@@ -160,11 +163,11 @@ func TestPyPIClient_GetTopPackages_Limit(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"rows": []map[string]any{
-				{"project": "a"},
-				{"project": "b"},
-				{"project": "c"},
-				{"project": "d"},
-				{"project": "e"},
+				{"project": "a", "download_count": 500},
+				{"project": "b", "download_count": 400},
+				{"project": "c", "download_count": 300},
+				{"project": "d", "download_count": 200},
+				{"project": "e", "download_count": 100},
 			},
 		}
 		json.NewEncoder(w).Encode(resp)
@@ -172,7 +175,7 @@ func TestPyPIClient_GetTopPackages_Limit(t *testing.T) {
 	defer server.Close()
 
 	client := registry.NewPyPIClient(registry.WithPyPITopURL(server.URL))
-	names, err := client.GetTopPackages(context.Background(), 3)
+	rankings, err := client.GetTopPackages(context.Background(), 3)
 	require.NoError(t, err)
-	assert.Len(t, names, 3)
+	assert.Len(t, rankings, 3)
 }
