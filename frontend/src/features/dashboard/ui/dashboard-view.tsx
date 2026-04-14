@@ -122,7 +122,7 @@ const DashboardData = () => {
   const stats = statsRes?.data ?? null
 
   const { data: releasesRes, isLoading: releasesLoading, isError: releasesError, refetch: refetchReleases } = useRecentReleases(
-    { page: 1, limit: 15, latestPerPackage: true },
+    { page: 1, limit: 10, latestPerPackage: true },
     { refetchInterval }
   )
   const releases = releasesRes?.data ?? []

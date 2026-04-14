@@ -97,7 +97,7 @@ describe("Dashboard data hooks", () => {
 
   it("useRecentReleases returns releases from API", async () => {
     const { result } = renderHook(
-      () => useRecentReleases({ page: 1, limit: 15, latestPerPackage: true }),
+      () => useRecentReleases({ page: 1, limit: 10, latestPerPackage: true }),
       { wrapper: createWrapper() }
     )
 
