@@ -1,0 +1,67 @@
+// Package alertuc implements the business logic for alert management.
+package alertuc
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/veilence/veilence-mx/backend/internal/entity"
+	"github.com/veilence/veilence-mx/backend/internal/usecase"
+)
+
+// UseCase implements usecase.AlertService.
+type UseCase struct {
+	alerts usecase.AlertRepository
+	audit  usecase.AuditLogger
+}
+
+// New creates a new alert UseCase.
+func New(alerts usecase.AlertRepository, audit usecase.AuditLogger) *UseCase {
+	return &UseCase{alerts: alerts, audit: audit}
+}
+
+// ListAlerts returns a paginated list of alerts with package info for the given org.
+func (uc *UseCase) ListAlerts(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
+	results, total, err := uc.alerts.FindByOrgIDWithPackage(ctx, orgID, page, limit, sortClause, filters)
+	if err != nil {
+		return nil, 0, fmt.Errorf("AlertUseCase.ListAlerts: %w", err)
+	}
+	return results, total, nil
+}
+
+// GetAlert returns a single alert by ID with package info, scoped to the given org.
+func (uc *UseCase) GetAlert(ctx context.Context, orgID, alertID uint) (*entity.Alert, *entity.Package, error) {
+	alert, pkg, err := uc.alerts.FindByIDWithPackage(ctx, alertID, orgID)
+	if err != nil {
+		if errors.Is(err, entity.ErrNotFound) {
+			return nil, nil, entity.ErrNotFound
+		}
+		return nil, nil, fmt.Errorf("AlertUseCase.GetAlert: %w", err)
+	}
+	return alert, pkg, nil
+}
+
+// UpdateAlertStatus updates the status of an alert scoped to the given org.
+func (uc *UseCase) UpdateAlertStatus(ctx context.Context, orgID, alertID uint, status entity.AlertStatus) (*entity.Alert, error) {
+	alert, err := uc.alerts.FindByID(ctx, alertID)
+	if err != nil {
+		if errors.Is(err, entity.ErrNotFound) {
+			return nil, entity.ErrNotFound
+		}
+		return nil, fmt.Errorf("AlertUseCase.UpdateAlertStatus: finding alert: %w", err)
+	}
+	if alert.OrgID != orgID {
+		return nil, entity.ErrNotFound
+	}
+
+	if err := uc.alerts.UpdateStatus(ctx, alertID, status); err != nil {
+		return nil, fmt.Errorf("AlertUseCase.UpdateAlertStatus: %w", err)
+	}
+	alert.Status = status
+
+	uc.audit.LogAction(ctx, "update", "alert", alertID,
+		fmt.Sprintf("updated alert status to %q", status))
+
+	return alert, nil
+}

@@ -1,0 +1,432 @@
+package v1
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/go-chi/chi/v5"
+
+	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
+	"github.com/veilence/veilence-mx/backend/internal/entity"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
+)
+
+// packageNamePattern validates package name format.
+// Allows alphanumeric characters, dots, underscores, hyphens, forward slashes (for npm scoped packages like @scope/pkg),
+// and @ (for npm scoped packages).
+var packageNamePattern = regexp.MustCompile(`^[@a-zA-Z0-9._/-]+$`)
+
+// maxPackageNameLength is the maximum allowed length for a package name.
+const maxPackageNameLength = 200
+
+// validatePackageName checks that a package name matches the allowed pattern and length.
+func validatePackageName(name string) error {
+	if name == "" {
+		return fmt.Errorf("name is required")
+	}
+	if len(name) > maxPackageNameLength {
+		return fmt.Errorf("name must be at most %d characters", maxPackageNameLength)
+	}
+	if !packageNamePattern.MatchString(name) {
+		return fmt.Errorf("name contains invalid characters (allowed: letters, digits, dots, underscores, hyphens, @, /)")
+	}
+	return nil
+}
+
+// ListPackages returns a paginated list of packages scoped to the current org.
+func (h *PackageHandlers) ListPackages(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+
+	page, limit := parsePagination(r)
+	sortOrder := parseSort(r, map[string]string{
+		"name":          "name",
+		"ecosystem":     "ecosystem",
+		"latestVersion": "latest_version",
+		"rank":          "rank",
+		"source":        "source",
+		"status":        "status",
+		"createdAt":     "created_at",
+	}, "rank ASC NULLS LAST, name ASC")
+
+	var filters entity.PackageFilters
+	if eco := r.URL.Query().Get("ecosystem"); eco != "" {
+		e := entity.Ecosystem(eco)
+		filters.Ecosystem = &e
+	}
+	if src := r.URL.Query().Get("source"); src != "" {
+		s := entity.PackageSource(src)
+		filters.Source = &s
+	}
+	if st := r.URL.Query().Get("status"); st != "" {
+		s := entity.PackageStatus(st)
+		filters.Status = &s
+	}
+	if search := r.URL.Query().Get("search"); search != "" {
+		filters.Search = &search
+	}
+
+	packages, total, err := h.PkgSvc.ListPackages(r.Context(), orgID, page, limit, sortOrder, filters)
+	if err != nil {
+		respondAppError(w, Internal("failed to list packages"))
+		return
+	}
+
+	respondJSON(w, http.StatusOK, response.PackagesFromEntities(packages), &Meta{Page: page, Limit: limit, Total: total})
+}
+
+// GetPackage returns a single package scoped to the current org.
+func (h *PackageHandlers) GetPackage(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+
+	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		respondAppError(w, BadRequest("invalid package ID"))
+		return
+	}
+
+	pkg, err := h.PkgSvc.GetPackage(r.Context(), orgID, uint(id))
+	if err != nil {
+		if errors.Is(err, entity.ErrNotFound) {
+			respondAppError(w, NotFound("package"))
+			return
+		}
+		respondAppError(w, Internal("failed to get package"))
+		return
+	}
+
+	respondJSON(w, http.StatusOK, response.PackageFromEntity(pkg), nil)
+}
+
+type createPackageRequest struct {
+	Name      string `json:"name"`
+	Ecosystem string `json:"ecosystem"`
+}
+
+// CreatePackage adds a custom package to monitor within the current org.
+func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+
+	var req createPackageRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondAppError(w, BadRequest("invalid request body"))
+		return
+	}
+
+	if req.Name == "" {
+		respondAppError(w, Validation("name is required"))
+		return
+	}
+	if err := validatePackageName(req.Name); err != nil {
+		respondAppError(w, Validation(err.Error()))
+		return
+	}
+	if req.Ecosystem != "python" && req.Ecosystem != "npm" {
+		respondAppError(w, Validation("ecosystem must be 'python' or 'npm'"))
+		return
+	}
+
+	pkg, err := h.PkgSvc.CreatePackage(r.Context(), orgID, req.Name, entity.Ecosystem(req.Ecosystem))
+	if err != nil {
+		if errors.Is(err, entity.ErrConflict) {
+			respondAppError(w, Conflict("package already monitored"))
+			return
+		}
+		respondAppError(w, Internal("failed to create package"))
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "create", "package", pkg.ID, fmt.Sprintf("added %s package %q to monitoring", req.Ecosystem, req.Name))
+
+	respondJSON(w, http.StatusCreated, response.PackageFromEntity(pkg), nil)
+}
+
+// DeletePackage removes a package from monitoring within the current org.
+func (h *PackageHandlers) DeletePackage(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+
+	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		respondAppError(w, BadRequest("invalid package ID"))
+		return
+	}
+
+	if err := h.PkgSvc.RemovePackage(r.Context(), orgID, uint(id)); err != nil {
+		if errors.Is(err, entity.ErrNotFound) {
+			respondAppError(w, NotFound("package"))
+			return
+		}
+		respondAppError(w, Internal("failed to remove package"))
+		return
+	}
+
+	respondJSON(w, http.StatusOK, nil, nil)
+}
+
+// blockPackageRequest is the request body for blocking a package.
+type blockPackageRequest struct {
+	Reason string `json:"reason"`
+}
+
+// BlockPackage sets a package's status to 'blocked'.
+func (h *PackageHandlers) BlockPackage(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+
+	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		respondAppError(w, BadRequest("invalid package ID"))
+		return
+	}
+
+	var req blockPackageRequest
+	if r.Body != nil && r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			respondAppError(w, BadRequest("invalid request body"))
+			return
+		}
+	}
+
+	pkg, err := h.PkgSvc.BlockPackage(r.Context(), orgID, uint(id), req.Reason)
+	if err != nil {
+		if errors.Is(err, entity.ErrNotFound) {
+			respondAppError(w, NotFound("package"))
+			return
+		}
+		respondAppError(w, Internal("failed to block package"))
+		return
+	}
+
+	respondJSON(w, http.StatusOK, response.PackageFromEntity(pkg), nil)
+}
+
+// UnblockPackage sets a package's status back to 'active'.
+func (h *PackageHandlers) UnblockPackage(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+
+	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		respondAppError(w, BadRequest("invalid package ID"))
+		return
+	}
+
+	pkg, err := h.PkgSvc.UnblockPackage(r.Context(), orgID, uint(id))
+	if err != nil {
+		if errors.Is(err, entity.ErrNotFound) {
+			respondAppError(w, NotFound("package"))
+			return
+		}
+		respondAppError(w, Internal("failed to unblock package"))
+		return
+	}
+
+	respondJSON(w, http.StatusOK, response.PackageFromEntity(pkg), nil)
+}
+
+// importPackageEntry represents a single package in a bulk import request.
+type importPackageEntry struct {
+	Name      string `json:"name"`
+	Ecosystem string `json:"ecosystem"`
+}
+
+// importPackagesRequest is the request body for bulk package import.
+// Supports two modes:
+//   - Format-based: {format: "requirements_txt"|"package_json"|"list", content: "..."}
+//   - Legacy array: {packages: [{name, registry}, ...]}
+type importPackagesRequest struct {
+	Format   string               `json:"format"`
+	Content  string               `json:"content"`
+	Packages []importPackageEntry `json:"packages"`
+}
+
+// parseRequirementsTxt parses a requirements.txt file content into package entries.
+// Strips comments (#), empty lines, pip options (-i, --index-url, etc.),
+// and version specifiers (==, >=, ~=, !=, <, >).
+func parseRequirementsTxt(content string) ([]importPackageEntry, error) {
+	var entries []importPackageEntry
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		// Skip empty lines, comments, and pip options
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "-") {
+			continue
+		}
+		// Strip inline comments
+		if idx := strings.Index(line, "#"); idx >= 0 {
+			line = strings.TrimSpace(line[:idx])
+		}
+		if line == "" {
+			continue
+		}
+		// Extract package name by stripping version specifiers
+		// Handles: requests==2.31.0, flask>=2.0, numpy, django~=4.0, pkg[extra]>=1.0
+		name := line
+		for _, sep := range []string{"==", ">=", "<=", "~=", "!=", ">", "<", ";"} {
+			if idx := strings.Index(name, sep); idx >= 0 {
+				name = name[:idx]
+			}
+		}
+		// Strip extras like [security,socks]
+		if idx := strings.Index(name, "["); idx >= 0 {
+			name = name[:idx]
+		}
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		entries = append(entries, importPackageEntry{Name: name, Ecosystem: "python"})
+	}
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("no packages found in requirements.txt content")
+	}
+	return entries, nil
+}
+
+// parsePackageJSON parses a package.json file content into package entries.
+// Extracts package names from "dependencies" and "devDependencies" fields.
+func parsePackageJSON(content string) ([]importPackageEntry, error) {
+	var pkgJSON struct {
+		Dependencies    map[string]string `json:"dependencies"`
+		DevDependencies map[string]string `json:"devDependencies"`
+	}
+	if err := json.Unmarshal([]byte(content), &pkgJSON); err != nil {
+		return nil, fmt.Errorf("invalid package.json: %w", err)
+	}
+
+	seen := make(map[string]bool)
+	var entries []importPackageEntry
+	for name := range pkgJSON.Dependencies {
+		name = strings.TrimSpace(name)
+		if name != "" && !seen[name] {
+			entries = append(entries, importPackageEntry{Name: name, Ecosystem: "npm"})
+			seen[name] = true
+		}
+	}
+	for name := range pkgJSON.DevDependencies {
+		name = strings.TrimSpace(name)
+		if name != "" && !seen[name] {
+			entries = append(entries, importPackageEntry{Name: name, Ecosystem: "npm"})
+			seen[name] = true
+		}
+	}
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("no packages found in package.json dependencies")
+	}
+	return entries, nil
+}
+
+// parseListFormat parses newline-separated "ecosystem:name" pairs.
+// Example: "python:requests\nnpm:express\npython:flask"
+func parseListFormat(content string) ([]importPackageEntry, error) {
+	var entries []importPackageEntry
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		ecosystem := strings.TrimSpace(parts[0])
+		name := strings.TrimSpace(parts[1])
+		if ecosystem == "" || name == "" {
+			continue
+		}
+		entries = append(entries, importPackageEntry{Name: name, Ecosystem: ecosystem})
+	}
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("no packages found in list content")
+	}
+	return entries, nil
+}
+
+// ImportPackages handles POST /api/packages/bulk-import — bulk adds packages to monitoring.
+// Supports format-based parsing (requirements_txt, package_json, list) or a legacy
+// pre-parsed packages array.
+func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+
+	var req importPackagesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondAppError(w, BadRequest("invalid request body"))
+		return
+	}
+
+	var entries []importPackageEntry
+
+	// Format-based parsing takes priority over legacy packages array.
+	if req.Format != "" {
+		if req.Content == "" {
+			respondAppError(w, Validation("content is required when format is specified"))
+			return
+		}
+		var err error
+		switch req.Format {
+		case "requirements_txt":
+			entries, err = parseRequirementsTxt(req.Content)
+		case "package_json":
+			entries, err = parsePackageJSON(req.Content)
+		case "list":
+			entries, err = parseListFormat(req.Content)
+		default:
+			respondAppError(w, Validation("format must be 'requirements_txt', 'package_json', or 'list'"))
+			return
+		}
+		if err != nil {
+			respondAppError(w, Validation(err.Error()))
+			return
+		}
+	} else if len(req.Packages) > 0 {
+		// Legacy mode: pre-parsed packages array.
+		entries = req.Packages
+	} else {
+		respondAppError(w, Validation("either 'format'+'content' or 'packages' array is required"))
+		return
+	}
+
+	const maxImport = 500
+	if len(entries) > maxImport {
+		respondAppError(w, Validation(fmt.Sprintf("too many packages (max %d, got %d)", maxImport, len(entries))))
+		return
+	}
+
+	// Convert to entity.ImportEntry, validating each entry.
+	// Invalid entries are collected as errors and excluded from the import.
+	var importEntries []entity.ImportEntry
+	var importErrors []entity.ImportErrorEntry
+	for _, e := range entries {
+		if e.Ecosystem != "python" && e.Ecosystem != "npm" {
+			importErrors = append(importErrors, entity.ImportErrorEntry{
+				Name:  e.Name,
+				Error: fmt.Sprintf("unsupported ecosystem %q (must be 'python' or 'npm')", e.Ecosystem),
+			})
+			continue
+		}
+		if err := validatePackageName(e.Name); err != nil {
+			importErrors = append(importErrors, entity.ImportErrorEntry{
+				Name:  e.Name,
+				Error: err.Error(),
+			})
+			continue
+		}
+		importEntries = append(importEntries, entity.ImportEntry{Name: e.Name, Ecosystem: entity.Ecosystem(e.Ecosystem)})
+	}
+
+	result, err := h.PkgSvc.ImportPackages(r.Context(), orgID, importEntries)
+	if err != nil {
+		respondAppError(w, Internal("failed to import packages"))
+		return
+	}
+
+	// Merge handler-level validation errors with usecase-level errors
+	result.Errors = append(importErrors, result.Errors...)
+
+	h.Audit.LogAction(r.Context(), "import", "package", 0,
+		fmt.Sprintf("bulk imported %d packages (%d created, %d skipped, %d errors, format=%s)",
+			len(entries), result.Imported, result.Skipped, len(result.Errors), req.Format))
+
+	respondJSON(w, http.StatusOK, response.ImportResultFromEntity(result), nil)
+}

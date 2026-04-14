@@ -15,23 +15,28 @@ import (
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 
-	"github.com/veilence/veilence-mx/backend/internal/alertnote"
-	"github.com/veilence/veilence-mx/backend/internal/analyzer"
-	"github.com/veilence/veilence-mx/backend/internal/api"
-	"github.com/veilence/veilence-mx/backend/internal/api/handlers"
-	"github.com/veilence/veilence-mx/backend/internal/audit"
-	"github.com/veilence/veilence-mx/backend/internal/auth"
-	"github.com/veilence/veilence-mx/backend/internal/database"
-	"github.com/veilence/veilence-mx/backend/internal/differ"
-	"github.com/veilence/veilence-mx/backend/internal/digest"
-	"github.com/veilence/veilence-mx/backend/internal/models"
-	"github.com/veilence/veilence-mx/backend/internal/notifications"
-	"github.com/veilence/veilence-mx/backend/internal/poller"
-	"github.com/veilence/veilence-mx/backend/internal/queue"
-	"github.com/veilence/veilence-mx/backend/internal/rbac"
-	"github.com/veilence/veilence-mx/backend/internal/registry"
-	"github.com/veilence/veilence-mx/backend/internal/repository"
-	"github.com/veilence/veilence-mx/backend/internal/service"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/analyzer"
+	"github.com/veilence/veilence-mx/backend/internal/controller/restapi"
+	v1 "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
+	"github.com/veilence/veilence-mx/backend/pkg/postgres"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/differ"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/digest"
+	"github.com/veilence/veilence-mx/backend/internal/entity"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/notifications"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/poller"
+	"github.com/veilence/veilence-mx/backend/pkg/queue"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
+	"github.com/veilence/veilence-mx/backend/internal/repo/registry"
+	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/alertuc"
+	alertnoteuc "github.com/veilence/veilence-mx/backend/internal/usecase/alertnote"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/dashboarduc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/healthuc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/pkguc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/releaseuc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/settinguc"
 )
 
 func main() {
@@ -67,7 +72,7 @@ func main() {
 	queueMaxRetries := parseInt(getEnv("QUEUE_MAX_RETRIES", "5"), 5)
 	queueLockTimeout := parseDuration(getEnv("QUEUE_LOCK_TIMEOUT", "10m"), 10*time.Minute)
 
-	db, err := database.Connect(dbURL)
+	db, err := postgres.Connect(dbURL)
 	if err != nil {
 		slog.Error("failed to connect to database", "error", err)
 		os.Exit(1)
@@ -76,13 +81,13 @@ func main() {
 
 	// Seed settings from .env defaults (only inserts if key doesn't exist)
 	seedDefaults := map[string]string{
-		models.SettingMonitoringInterval: getEnv("MONITORING_INTERVAL", "1h"),
-		models.SettingDiscoveryScanDepth: getEnv("DISCOVERY_SCAN_DEPTH", "50"),
-		models.SettingDiscoveryInterval:  getEnv("DISCOVERY_INTERVAL", "24h"),
-		models.SettingDiffSizeLimit:      getEnv("DIFF_SIZE_LIMIT", "102400"),
+		entity.SettingMonitoringInterval: getEnv("MONITORING_INTERVAL", "1h"),
+		entity.SettingDiscoveryScanDepth: getEnv("DISCOVERY_SCAN_DEPTH", "50"),
+		entity.SettingDiscoveryInterval:  getEnv("DISCOVERY_INTERVAL", "24h"),
+		entity.SettingDiffSizeLimit:      getEnv("DIFF_SIZE_LIMIT", "102400"),
 	}
 	for key, value := range seedDefaults {
-		db.Where("key = ?", key).FirstOrCreate(&models.Setting{Key: key, Value: value})
+		db.Where("key = ?", key).FirstOrCreate(&persistent.Setting{Key: key, Value: value})
 	}
 
 	// Connect to Redis queue
@@ -148,12 +153,12 @@ func main() {
 	go diffWorker.Start(ctx)
 	go analyzeWorker.Start(ctx)
 
-	userRepo := repository.NewUserRepo(db)
-	refreshTokenRepo := repository.NewRefreshTokenRepo(db)
-	apiKeyRepo := repository.NewAPIKeyRepo(db)
-	passwordResetTokenRepo := repository.NewPasswordResetTokenRepo(db)
-	emailVerificationTokenRepo := repository.NewEmailVerificationTokenRepo(db)
-	sessionRepo := repository.NewSessionRepo(db)
+	userRepo := persistent.NewUserRepo(db)
+	refreshTokenRepo := persistent.NewRefreshTokenRepo(db)
+	apiKeyRepo := persistent.NewAPIKeyRepo(db)
+	passwordResetTokenRepo := persistent.NewPasswordResetTokenRepo(db)
+	emailVerificationTokenRepo := persistent.NewEmailVerificationTokenRepo(db)
+	sessionRepo := persistent.NewSessionRepo(db)
 
 	// Parse previous JWT secrets for rotation support (comma-separated)
 	var previousSecrets []string
@@ -168,9 +173,9 @@ func main() {
 	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, jwtSecret, previousSecrets...)
 	rbacService := rbac.NewService(db)
 	auditService := audit.NewService(db)
-	notificationChannelRepo := repository.NewNotificationChannelRepo(db)
-	notificationRuleRepo := repository.NewNotificationRuleRepo(db)
-	notificationRepo := repository.NewNotificationRepo(db)
+	notificationChannelRepo := persistent.NewNotificationChannelRepo(db)
+	notificationRuleRepo := persistent.NewNotificationRuleRepo(db)
+	notificationRepo := persistent.NewNotificationRepo(db)
 	smtpConfig := notifications.SMTPConfig{
 		Host:     getEnv("SMTP_HOST", ""),
 		Port:     getEnv("SMTP_PORT", "587"),
@@ -185,19 +190,30 @@ func main() {
 		slog.Warn("SMTP not configured — email notifications will be skipped. Set SMTP_HOST, SMTP_PORT, SMTP_FROM env vars.")
 	}
 	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, smtpConfig)
-	dashboardRepo := repository.NewDashboardRepo(db)
-	alertNoteRepo := repository.NewAlertNoteRepo(db)
-	alertRepo := repository.NewAlertRepo(db)
-	alertNoteService := alertnote.NewService(alertNoteRepo, alertRepo, userRepo)
-	packageRepo := repository.NewPackageRepo(db)
-	packageService := service.NewPackageService(packageRepo, auditService)
+	dashboardRepo := persistent.NewDashboardRepo(db)
+	alertNoteRepo := persistent.NewAlertNoteRepo(db)
+	alertRepo := persistent.NewAlertRepo(db)
+	alertNoteService := alertnoteuc.New(alertNoteRepo, alertRepo, userRepo)
+	packageRepo := persistent.NewPackageRepo(db)
+	packageService := pkguc.New(packageRepo, auditService)
+	releaseRepo := persistent.NewReleaseRepo(db)
+	diffRepo := persistent.NewDiffRepo(db)
+	analysisRepo := persistent.NewAnalysisRepo(db)
+	settingRepo := persistent.NewSettingRepo(db)
+
+	alertService := alertuc.New(alertRepo, auditService)
+	releaseService := releaseuc.New(packageRepo, releaseRepo, diffRepo, analysisRepo, jobQueue)
+	settingService := settinguc.New(settingRepo)
+	dashboardService := dashboarduc.New(dashboardRepo, releaseRepo, diffRepo, analysisRepo, jobQueue)
+
+	// Health service needs a DBPinger (wrapping *gorm.DB) and a RedisPinger (wrapping *queue.Queue)
+	healthService := healthuc.New(dbPinger{db: db}, jobQueue)
 
 	// Start email digest scheduler
 	digestScheduler := digest.New(db, smtpConfig, digest.Config{})
 	go digestScheduler.Start(ctx)
 
-	h := handlers.NewHandlers(
-		db,
+	h := v1.NewHandlers(
 		authService,
 		rbacService,
 		auditService,
@@ -206,12 +222,16 @@ func main() {
 		pythonClient,
 		npmClient,
 		jobQueue,
-		dashboardRepo,
 		alertNoteService,
 		packageService,
+		alertService,
+		releaseService,
+		settingService,
+		dashboardService,
+		healthService,
 	)
 
-	router := api.NewRouter(h, frontendURL, authService, rbacService)
+	router := restapi.NewRouter(h, frontendURL, authService, rbacService)
 
 	server := &http.Server{
 		Addr:              ":" + port,
@@ -245,26 +265,26 @@ func main() {
 }
 
 func recoverStuckReleases(ctx context.Context, jobQueue *queue.Queue, db *gorm.DB) {
-	var stuckDiffing []models.Release
-	db.Where("status IN ?", []string{string(models.ReleaseStatusDiffing), string(models.ReleaseStatusAnalyzing)}).Find(&stuckDiffing)
+	var stuckDiffing []persistent.Release
+	db.Where("status IN ?", []string{string(persistent.ReleaseStatusDiffing), string(persistent.ReleaseStatusAnalyzing)}).Find(&stuckDiffing)
 
 	for _, rel := range stuckDiffing {
-		if rel.Status == models.ReleaseStatusDiffing {
+		if rel.Status == persistent.ReleaseStatusDiffing {
 			// Reset to pending and re-enqueue a diff job
-			db.Model(&rel).Update("status", models.ReleaseStatusPending)
+			db.Model(&rel).Update("status", persistent.ReleaseStatusPending)
 			if _, err := jobQueue.Enqueue(ctx, queue.JobTypeDiff, rel.ID); err != nil {
 				slog.Error("failed to re-enqueue stuck diffing release", "release_id", rel.ID, "error", err)
 			} else {
 				slog.Info("re-enqueued stuck diffing release", "release_id", rel.ID)
 			}
-		} else if rel.Status == models.ReleaseStatusAnalyzing {
+		} else if rel.Status == persistent.ReleaseStatusAnalyzing {
 			// Check if a diff exists — if so, re-enqueue analysis
-			var diff models.Diff
+			var diff persistent.Diff
 			result := db.Where("release_id = ?", rel.ID).Limit(1).Find(&diff)
 			if result.RowsAffected > 0 {
 				// Check if analysis already exists
 				var analysisCount int64
-				db.Model(&models.Analysis{}).Where("diff_id = ?", diff.ID).Count(&analysisCount)
+				db.Model(&persistent.Analysis{}).Where("diff_id = ?", diff.ID).Count(&analysisCount)
 				if analysisCount == 0 {
 					if _, err := jobQueue.Enqueue(ctx, queue.JobTypeAnalyze, diff.ID); err != nil {
 						slog.Error("failed to re-enqueue stuck analyzing release", "release_id", rel.ID, "error", err)
@@ -273,12 +293,12 @@ func recoverStuckReleases(ctx context.Context, jobQueue *queue.Queue, db *gorm.D
 					}
 				} else {
 					// Analysis exists, just mark completed
-					db.Model(&rel).Update("status", models.ReleaseStatusCompleted)
+					db.Model(&rel).Update("status", persistent.ReleaseStatusCompleted)
 					slog.Info("fixed stuck analyzing release (analysis exists)", "release_id", rel.ID)
 				}
 			} else {
 				// No diff, reset to pending for re-diffing
-				db.Model(&rel).Update("status", models.ReleaseStatusPending)
+				db.Model(&rel).Update("status", persistent.ReleaseStatusPending)
 				if _, err := jobQueue.Enqueue(ctx, queue.JobTypeDiff, rel.ID); err != nil {
 					slog.Error("failed to re-enqueue stuck release for diffing", "release_id", rel.ID, "error", err)
 				} else {
@@ -314,4 +334,17 @@ func parseInt(s string, fallback int) int {
 		return fallback
 	}
 	return v
+}
+
+// dbPinger adapts *gorm.DB to satisfy healthuc.DBPinger.
+type dbPinger struct {
+	db *gorm.DB
+}
+
+func (p dbPinger) PingDB(ctx context.Context) error {
+	sqlDB, err := p.db.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.PingContext(ctx)
 }

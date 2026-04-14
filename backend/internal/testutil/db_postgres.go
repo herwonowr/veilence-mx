@@ -11,7 +11,35 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
 )
+
+// AllModels is the complete list of GORM models used for auto-migration in
+// test databases. Keep this in sync with the models package.
+var AllModels = []any{
+	&persistent.User{},
+	&persistent.RefreshToken{},
+	&persistent.APIKey{},
+	&persistent.Package{},
+	&persistent.Release{},
+	&persistent.Diff{},
+	&persistent.Analysis{},
+	&persistent.Alert{},
+	&persistent.Setting{},
+	&persistent.Organization{},
+	&persistent.Role{},
+	&persistent.Permission{},
+	&persistent.OrgMember{},
+	&persistent.Invitation{},
+	&persistent.AuditLog{},
+	&persistent.NotificationChannel{},
+	&persistent.NotificationRule{},
+	&persistent.Notification{},
+	&persistent.PasswordResetToken{},
+	&persistent.EmailVerificationToken{},
+	&persistent.Session{},
+}
 
 // defaultTestDSN is the default PostgreSQL DSN for integration tests.
 // Override with TEST_DATABASE_URL environment variable.
@@ -19,7 +47,7 @@ const defaultTestDSN = "postgres://veilence:veilence_dev@localhost:5432/veilence
 
 // SetupPostgresDB creates a PostgreSQL-backed test database using the
 // docker-compose postgres service. It uses a dedicated test database and
-// auto-migrates all models. Each test gets an isolated schema via TruncateAll.
+// auto-migrates all persistent. Each test gets an isolated schema via TruncateAll.
 //
 // Prerequisites:
 //   - PostgreSQL running: `docker-compose up -d postgres`

@@ -17,7 +17,7 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 
-	"github.com/veilence/veilence-mx/backend/internal/database"
+	"github.com/veilence/veilence-mx/backend/pkg/postgres"
 )
 
 func main() {
@@ -50,28 +50,28 @@ func main() {
 
 	switch os.Args[1] {
 	case "up":
-		if err := database.RunMigrations(db); err != nil {
+		if err := postgres.RunMigrations(db); err != nil {
 			slog.Error("migration failed", "error", err)
 			os.Exit(1)
 		}
 		fmt.Println("migrations applied successfully")
 
 	case "down":
-		if err := database.MigrateDown(db); err != nil {
+		if err := postgres.MigrateDown(db); err != nil {
 			slog.Error("rollback failed", "error", err)
 			os.Exit(1)
 		}
 		fmt.Println("all migrations rolled back")
 
 	case "rollback":
-		if err := database.RollbackMigrations(db); err != nil {
+		if err := postgres.RollbackMigrations(db); err != nil {
 			slog.Error("rollback failed", "error", err)
 			os.Exit(1)
 		}
 		fmt.Println("one migration step rolled back")
 
 	case "version":
-		version, dirty, err := database.MigrationVersion(db)
+		version, dirty, err := postgres.MigrationVersion(db)
 		if err != nil {
 			slog.Error("failed to get version", "error", err)
 			os.Exit(1)

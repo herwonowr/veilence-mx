@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,17 +15,41 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/veilence/veilence-mx/backend/internal/api"
-	"github.com/veilence/veilence-mx/backend/internal/api/handlers"
-	"github.com/veilence/veilence-mx/backend/internal/audit"
-	"github.com/veilence/veilence-mx/backend/internal/auth"
-	"github.com/veilence/veilence-mx/backend/internal/models"
-	"github.com/veilence/veilence-mx/backend/internal/notifications"
-	"github.com/veilence/veilence-mx/backend/internal/rbac"
-	"github.com/veilence/veilence-mx/backend/internal/repository"
+	"github.com/veilence/veilence-mx/backend/internal/controller/restapi"
+	v1 "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
+	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/notifications"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/alertuc"
+	alertnoteuc "github.com/veilence/veilence-mx/backend/internal/usecase/alertnote"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/dashboarduc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/healthuc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/pkguc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/releaseuc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/settinguc"
 )
 
 const testJWTSecret = "integration-test-jwt-secret-very-long-key-1234567890"
+
+// testDBPinger implements healthuc.DBPinger for integration tests.
+type testDBPinger struct {
+	db *gorm.DB
+}
+
+func (p testDBPinger) PingDB(ctx context.Context) error {
+	sqlDB, err := p.db.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.PingContext(ctx)
+}
+
+// testRedisPinger implements healthuc.RedisPinger for integration tests (always succeeds).
+type testRedisPinger struct{}
+
+func (testRedisPinger) Ping(_ context.Context) error { return nil }
 
 // testServer holds the full application stack for integration testing.
 type testServer struct {
@@ -42,27 +67,27 @@ func setupIntegrationServer(t *testing.T) *testServer {
 	require.NoError(t, err)
 
 	err = db.AutoMigrate(
-		&models.User{},
-		&models.RefreshToken{},
-		&models.APIKey{},
-		&models.PasswordResetToken{},
-		&models.EmailVerificationToken{},
-		&models.Session{},
-		&models.Organization{},
-		&models.Role{},
-		&models.Permission{},
-		&models.OrgMember{},
-		&models.Invitation{},
-		&models.Package{},
-		&models.Release{},
-		&models.Diff{},
-		&models.Analysis{},
-		&models.Alert{},
-		&models.Setting{},
-		&models.AuditLog{},
-		&models.NotificationChannel{},
-		&models.NotificationRule{},
-		&models.Notification{},
+		&persistent.User{},
+		&persistent.RefreshToken{},
+		&persistent.APIKey{},
+		&persistent.PasswordResetToken{},
+		&persistent.EmailVerificationToken{},
+		&persistent.Session{},
+		&persistent.Organization{},
+		&persistent.Role{},
+		&persistent.Permission{},
+		&persistent.OrgMember{},
+		&persistent.Invitation{},
+		&persistent.Package{},
+		&persistent.Release{},
+		&persistent.Diff{},
+		&persistent.Analysis{},
+		&persistent.Alert{},
+		&persistent.Setting{},
+		&persistent.AuditLog{},
+		&persistent.NotificationChannel{},
+		&persistent.NotificationRule{},
+		&persistent.Notification{},
 	)
 	require.NoError(t, err)
 
@@ -71,65 +96,81 @@ func setupIntegrationServer(t *testing.T) *testServer {
 	require.NoError(t, err)
 
 	// Create services
-	userRepo := repository.NewUserRepo(db)
-	refreshTokenRepo := repository.NewRefreshTokenRepo(db)
-	apiKeyRepo := repository.NewAPIKeyRepo(db)
-	passwordResetTokenRepo := repository.NewPasswordResetTokenRepo(db)
-	emailVerificationTokenRepo := repository.NewEmailVerificationTokenRepo(db)
-	sessionRepo := repository.NewSessionRepo(db)
+	userRepo := persistent.NewUserRepo(db)
+	refreshTokenRepo := persistent.NewRefreshTokenRepo(db)
+	apiKeyRepo := persistent.NewAPIKeyRepo(db)
+	passwordResetTokenRepo := persistent.NewPasswordResetTokenRepo(db)
+	emailVerificationTokenRepo := persistent.NewEmailVerificationTokenRepo(db)
+	sessionRepo := persistent.NewSessionRepo(db)
 
 	authSvc := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, testJWTSecret)
 	rbacSvc := rbac.NewService(db)
 	auditSvc := audit.NewService(db)
 
-	channelRepo := repository.NewNotificationChannelRepo(db)
-	ruleRepo := repository.NewNotificationRuleRepo(db)
-	notifRepo := repository.NewNotificationRepo(db)
+	channelRepo := persistent.NewNotificationChannelRepo(db)
+	ruleRepo := persistent.NewNotificationRuleRepo(db)
+	notifRepo := persistent.NewNotificationRepo(db)
 	notifSvc := notifications.NewService(channelRepo, ruleRepo, notifRepo, notifications.SMTPConfig{})
 
-	dashboardRepo := repository.NewDashboardRepo(db)
+	dashboardRepo := persistent.NewDashboardRepo(db)
+	alertNoteRepo := persistent.NewAlertNoteRepo(db)
+	alertRepo := persistent.NewAlertRepo(db)
+	packageRepo := persistent.NewPackageRepo(db)
+	releaseRepo := persistent.NewReleaseRepo(db)
+	diffRepo := persistent.NewDiffRepo(db)
+	analysisRepo := persistent.NewAnalysisRepo(db)
+	settingRepo := persistent.NewSettingRepo(db)
 
-	h := &handlers.Handlers{
-		Auth: &handlers.AuthHandlers{
+	alertNoteSvc := alertnoteuc.New(alertNoteRepo, alertRepo, userRepo)
+	pkgSvc := pkguc.New(packageRepo, auditSvc)
+	alertSvc := alertuc.New(alertRepo, auditSvc)
+	releaseSvc := releaseuc.New(packageRepo, releaseRepo, diffRepo, analysisRepo, nil)
+	settingSvc := settinguc.New(settingRepo)
+	dashboardSvc := dashboarduc.New(dashboardRepo, releaseRepo, diffRepo, analysisRepo, nil)
+	healthSvc := healthuc.New(testDBPinger{db: db}, testRedisPinger{})
+
+	h := &v1.Handlers{
+		Auth: &v1.AuthHandlers{
 			Auth:  authSvc,
 			Audit: auditSvc,
 		},
-		Sessions: &handlers.SessionHandlers{
+		Sessions: &v1.SessionHandlers{
 			Auth: authSvc,
 		},
-		Notifications: &handlers.NotificationHandlers{
+		Notifications: &v1.NotificationHandlers{
 			Notifications: notifSvc,
 			Audit:         auditSvc,
 		},
-		Org: &handlers.OrgHandlers{
+		Org: &v1.OrgHandlers{
 			RBAC:  rbacSvc,
 			Audit: auditSvc,
 		},
-		AuditLogs: &handlers.AuditHandlers{
+		AuditLogs: &v1.AuditHandlers{
 			Audit: auditSvc,
 		},
-		Packages: &handlers.PackageHandlers{
-			DB:    db,
-			Audit: auditSvc,
+		Packages: &v1.PackageHandlers{
+			PkgSvc:     pkgSvc,
+			ReleaseSvc: releaseSvc,
+			Audit:      auditSvc,
 		},
-		Alerts: &handlers.AlertHandlers{
-			DB:    db,
-			Audit: auditSvc,
+		Alerts: &v1.AlertHandlers{
+			AlertSvc: alertSvc,
+			Notes:    alertNoteSvc,
+			Audit:    auditSvc,
 		},
-		Settings: &handlers.SettingsHandlers{
-			DB:    db,
-			Audit: auditSvc,
+		Settings: &v1.SettingsHandlers{
+			SettingSvc: settingSvc,
+			Audit:      auditSvc,
 		},
-		Dashboard: &handlers.DashboardHandlers{
-			DB:        db,
-			Dashboard: dashboardRepo,
+		Dashboard: &v1.DashboardHandlers{
+			DashboardSvc: dashboardSvc,
 		},
-		Health: &handlers.HealthHandlers{
-			DB: db,
+		Health: &v1.HealthHandlers{
+			HealthSvc: healthSvc,
 		},
 	}
 
-	router := api.NewRouter(h, "http://localhost:3000", authSvc, rbacSvc)
+	router := restapi.NewRouter(h, "http://localhost:3000", authSvc, rbacSvc)
 	server := httptest.NewServer(router)
 
 	t.Cleanup(func() {
@@ -598,7 +639,7 @@ func TestIntegration_RBAC_ViewerCannotWrite(t *testing.T) {
 	require.NoError(t, err)
 	var viewerRoleID uint
 	for _, r := range roles {
-		if r.Name == models.RoleViewer {
+		if r.Name == persistent.RoleViewer {
 			viewerRoleID = r.ID
 			break
 		}
@@ -775,7 +816,7 @@ func TestIntegration_InvitationFlow(t *testing.T) {
 	require.NoError(t, err)
 	var memberRoleID uint
 	for _, r := range roles {
-		if r.Name == models.RoleMember {
+		if r.Name == persistent.RoleMember {
 			memberRoleID = r.ID
 			break
 		}
@@ -1041,7 +1082,7 @@ func TestIntegration_SettingsCRUD(t *testing.T) {
 
 	// Update settings via org-scoped endpoint
 	csrfToken, cookies := ts.getCSRFToken(t)
-	settingsBody := `{"python_poll_interval":"10m"}`
+	settingsBody := `{"monitoring_interval":"10m"}`
 	req, err := http.NewRequest("PUT", ts.server.URL+"/api/settings", bytes.NewReader([]byte(settingsBody)))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
@@ -1057,7 +1098,7 @@ func TestIntegration_SettingsCRUD(t *testing.T) {
 	settingsResult := parseResponse(t, settingsResp)
 	assert.Equal(t, http.StatusOK, settingsResp.StatusCode)
 	settingsData := settingsResult["data"].(map[string]any)
-	assert.Equal(t, "10m", settingsData["python_poll_interval"])
+	assert.Equal(t, "10m", settingsData["monitoring_interval"])
 }
 
 // =====================================================================
