@@ -135,7 +135,7 @@ export const QueueStatsCard = ({
                 <span>{item.label}</span>
                 <Tooltip>
                   <TooltipTrigger
-                    render={<button type="button" className="inline-flex" />}
+                    render={<button type="button" className="inline-flex cursor-help" />}
                   >
                     <Info className="size-3 text-muted-foreground/60" />
                   </TooltipTrigger>
@@ -144,9 +144,12 @@ export const QueueStatsCard = ({
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <span className={`text-lg font-semibold tabular-nums ${item.color}`}>
-                {item.value.toLocaleString()}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`text-lg font-semibold tabular-nums ${item.color}`}>
+                  {item.value.toLocaleString()}
+                </span>
+                <div className="size-4 shrink-0" aria-hidden="true" />
+              </div>
             </div>
           ))}
 
