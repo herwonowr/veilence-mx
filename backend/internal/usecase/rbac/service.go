@@ -260,6 +260,7 @@ func (s *Service) GetOrgMembers(orgID uint) ([]persistent.OrgMember, error) {
 	var members []persistent.OrgMember
 	err := s.db.
 		Preload("Role").
+		Preload("Role.Permissions").
 		Preload("User").
 		Where("org_id = ?", orgID).
 		Find(&members).Error

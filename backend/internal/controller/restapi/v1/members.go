@@ -34,7 +34,7 @@ type flatMember struct {
 	OrgID     uint        `json:"orgId"`
 	UserID    uint        `json:"userId"`
 	RoleID    uint        `json:"roleId"`
-	Role      entity.Role `json:"role,omitempty"`
+	Role      entity.Role `json:"role"`
 	JoinedAt  time.Time   `json:"joinedAt"`
 	Email     string      `json:"email"`
 	FirstName string      `json:"firstName"`

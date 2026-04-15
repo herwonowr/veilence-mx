@@ -293,7 +293,7 @@ type OrgMember struct {
 	OrgID     uint      `gorm:"not null;uniqueIndex:idx_org_user" json:"orgId"`
 	UserID    uint      `gorm:"not null;uniqueIndex:idx_org_user" json:"userId"`
 	RoleID    uint      `gorm:"not null" json:"roleId"`
-	Role      Role      `gorm:"foreignKey:RoleID" json:"role,omitempty"`
+	Role      Role      `gorm:"foreignKey:RoleID" json:"role"`
 	User      User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	JoinedAt  time.Time `gorm:"not null" json:"joinedAt"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -313,7 +313,7 @@ type Role struct {
 	IsSystem    bool         `gorm:"not null;default:false" json:"isSystem"`
 	CreatedAt   time.Time    `json:"createdAt"`
 	UpdatedAt   time.Time    `json:"updatedAt"`
-	Permissions []Permission `gorm:"many2many:role_permissions" json:"permissions,omitempty"`
+	Permissions []Permission `gorm:"many2many:role_permissions" json:"permissions"`
 }
 
 func (Role) TableName() string { return "roles" }

@@ -356,7 +356,7 @@ export const OrganizationDetailView = () => {
                           disabled={member.userId === user?.id || !canUpdateRole}
                         >
                           <SelectTrigger className="w-28">
-                            <SelectValue>{member.role?.name ? capitalize(member.role.name) : "..."}</SelectValue>
+                            <SelectValue>{member.role?.name ? capitalize(member.role.name) : "No role"}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             {roles.map((role) => (
@@ -461,7 +461,7 @@ export const OrganizationDetailView = () => {
           </div>
         </TabsContent>
 
-        {/* Settings Tab — owner only */}
+        {/* Settings Tab - owner only */}
         {canUpdateOrg && (
         <TabsContent value="settings" className="space-y-4">
           <Card>

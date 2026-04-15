@@ -4,21 +4,21 @@ import "time"
 
 // Role represents a named set of permissions within an organization.
 type Role struct {
-	ID             uint
-	OrgID          uint
-	Name           string
-	Description    string
-	IsSystem       bool
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	Permissions    []Permission
+	ID          uint         `json:"id"`
+	OrgID       uint         `json:"orgId"`
+	Name        string       `json:"name"`
+	Description string       `json:"description"`
+	IsSystem    bool         `json:"isSystem"`
+	CreatedAt   time.Time    `json:"createdAt"`
+	UpdatedAt   time.Time    `json:"updatedAt"`
+	Permissions []Permission `json:"permissions"`
 }
 
 // Permission represents a single resource-action permission.
 type Permission struct {
-	ID             uint
-	Resource       string
-	Action         string
+	ID       uint   `json:"id"`
+	Resource string `json:"resource"`
+	Action   string `json:"action"`
 }
 
 // System role names.
