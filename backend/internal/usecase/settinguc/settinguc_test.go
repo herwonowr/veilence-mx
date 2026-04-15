@@ -584,6 +584,41 @@ func TestUpdateSettings_PackageCountWarningThreshold(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// UpdateSettings — require_email_verification validation
+// ---------------------------------------------------------------------------
+
+func TestUpdateSettings_RequireEmailVerification(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{"true", "true", false},
+		{"false", "false", false},
+		{"True (wrong case)", "True", true},
+		{"yes", "yes", true},
+		{"1", "1", true},
+		{"empty", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockRepo()
+			uc := settinguc.New(repo)
+			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+				entity.SettingRequireEmailVerification: tt.value,
+			})
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "require_email_verification")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
 // UpdateSettings — validation errors wrap entity.ErrValidation
 // ---------------------------------------------------------------------------
 
@@ -605,6 +640,7 @@ func TestUpdateSettings_ValidationErrorsWrapErrValidation(t *testing.T) {
 		{"bad stale months", entity.SettingStaleAutoRemoveMonths, "abc"},
 		{"bad warning threshold", entity.SettingPackageCountWarningThreshold, "abc"},
 		{"bad analyzer mode", entity.SettingAnalyzerMode, "abc"},
+		{"bad email verification", entity.SettingRequireEmailVerification, "abc"},
 	}
 
 	for _, tt := range tests {

@@ -45,7 +45,7 @@ func newAuthService(db *gorm.DB) *auth.Service {
 	passwordResetTokenRepo := persistent.NewPasswordResetTokenRepo(db)
 	emailVerificationTokenRepo := persistent.NewEmailVerificationTokenRepo(db)
 	sessionRepo := persistent.NewSessionRepo(db)
-	return auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, testJWTSecret)
+	return auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, nil, nil, testJWTSecret)
 }
 
 // --- Register ---
@@ -322,7 +322,7 @@ func BenchmarkValidateAPIKey(b *testing.B) {
 		passwordResetTokenRepo := persistent.NewPasswordResetTokenRepo(db)
 		emailVerificationTokenRepo := persistent.NewEmailVerificationTokenRepo(db)
 		sessionRepo := persistent.NewSessionRepo(db)
-		return auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, testJWTSecret)
+		return auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, nil, nil, testJWTSecret)
 	}()
 
 	user, err := svc.Register("bench@example.com", "Password123", "Bench", "User")

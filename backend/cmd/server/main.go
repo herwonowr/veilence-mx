@@ -37,6 +37,8 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/pkguc"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/releaseuc"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/settinguc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase"
+	"github.com/veilence/veilence-mx/backend/pkg/mailer"
 )
 
 func main() {
@@ -88,6 +90,7 @@ func main() {
 		entity.SettingDiscoveryAutoApprove:          getEnv("DISCOVERY_AUTO_APPROVE", "false"),
 		entity.SettingStaleAutoRemoveMonths:         getEnv("STALE_AUTO_REMOVE_MONTHS", "0"),
 		entity.SettingPackageCountWarningThreshold:  getEnv("PACKAGE_COUNT_WARNING_THRESHOLD", "0"),
+		entity.SettingRequireEmailVerification:      getEnv("REQUIRE_EMAIL_VERIFICATION", "false"),
 	}
 	for key, value := range seedDefaults {
 		db.Where("key = ?", key).FirstOrCreate(&persistent.Setting{Key: key, Value: value})
@@ -162,23 +165,9 @@ func main() {
 	passwordResetTokenRepo := persistent.NewPasswordResetTokenRepo(db)
 	emailVerificationTokenRepo := persistent.NewEmailVerificationTokenRepo(db)
 	sessionRepo := persistent.NewSessionRepo(db)
+	settingRepo := persistent.NewSettingRepo(db)
 
-	// Parse previous JWT secrets for rotation support (comma-separated)
-	var previousSecrets []string
-	if prev := getEnv("JWT_SECRET_PREVIOUS", ""); prev != "" {
-		for _, s := range strings.Split(prev, ",") {
-			if trimmed := strings.TrimSpace(s); trimmed != "" {
-				previousSecrets = append(previousSecrets, trimmed)
-			}
-		}
-		slog.Info("JWT secret rotation enabled", "previous_secrets_count", len(previousSecrets))
-	}
-	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, jwtSecret, previousSecrets...)
-	rbacService := rbac.NewService(db)
-	auditService := audit.NewService(db)
-	notificationChannelRepo := persistent.NewNotificationChannelRepo(db)
-	notificationRuleRepo := persistent.NewNotificationRuleRepo(db)
-	notificationRepo := persistent.NewNotificationRepo(db)
+	// SMTP configuration for notifications and auth emails
 	smtpConfig := notifications.SMTPConfig{
 		Host:     getEnv("SMTP_HOST", ""),
 		Port:     getEnv("SMTP_PORT", "587"),
@@ -192,6 +181,35 @@ func main() {
 	} else {
 		slog.Warn("SMTP not configured — email notifications will be skipped. Set SMTP_HOST, SMTP_PORT, SMTP_FROM env vars.")
 	}
+
+	// Create auth email sender (nil if SMTP not configured — dev mode)
+	var authEmailSender usecase.AuthEmailSender
+	if smtpConfig.IsConfigured() {
+		authEmailSender = mailer.New(mailer.SMTPConfig{
+			Host:     smtpConfig.Host,
+			Port:     smtpConfig.Port,
+			Username: smtpConfig.Username,
+			Password: smtpConfig.Password,
+			From:     smtpConfig.From,
+		}, frontendURL)
+	}
+
+	// Parse previous JWT secrets for rotation support (comma-separated)
+	var previousSecrets []string
+	if prev := getEnv("JWT_SECRET_PREVIOUS", ""); prev != "" {
+		for _, s := range strings.Split(prev, ",") {
+			if trimmed := strings.TrimSpace(s); trimmed != "" {
+				previousSecrets = append(previousSecrets, trimmed)
+			}
+		}
+		slog.Info("JWT secret rotation enabled", "previous_secrets_count", len(previousSecrets))
+	}
+	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, authEmailSender, settingRepo, jwtSecret, previousSecrets...)
+	rbacService := rbac.NewService(db)
+	auditService := audit.NewService(db)
+	notificationChannelRepo := persistent.NewNotificationChannelRepo(db)
+	notificationRuleRepo := persistent.NewNotificationRuleRepo(db)
+	notificationRepo := persistent.NewNotificationRepo(db)
 	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, smtpConfig)
 	dashboardRepo := persistent.NewDashboardRepo(db)
 	alertNoteRepo := persistent.NewAlertNoteRepo(db)
@@ -202,7 +220,6 @@ func main() {
 	releaseRepo := persistent.NewReleaseRepo(db)
 	diffRepo := persistent.NewDiffRepo(db)
 	analysisRepo := persistent.NewAnalysisRepo(db)
-	settingRepo := persistent.NewSettingRepo(db)
 
 	alertService := alertuc.New(alertRepo, auditService)
 	releaseService := releaseuc.New(packageRepo, releaseRepo, diffRepo, analysisRepo, jobQueue)

@@ -102,6 +102,10 @@ func (uc *UseCase) UpdateSettings(ctx context.Context, orgID uint, settings map[
 			if !entity.ValidAnalyzerModes[value] {
 				return nil, validationError("analyzer_mode must be 'auto', 'manual', or 'disabled'")
 			}
+		case entity.SettingRequireEmailVerification:
+			if value != "true" && value != "false" {
+				return nil, validationError("require_email_verification must be 'true' or 'false'")
+			}
 		}
 
 		if err := uc.settings.UpsertByOrgAndKey(ctx, orgID, key, value); err != nil {

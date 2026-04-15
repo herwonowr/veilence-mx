@@ -19,13 +19,14 @@ import (
 
 // Sentinel errors returned by auth operations.
 var (
-	ErrEmailAlreadyRegistered = errors.New("email already registered")
-	ErrAPIKeyNotFound         = errors.New("API key not found")
-	ErrResetTokenInvalid      = errors.New("invalid or expired reset token")
-	ErrResetTokenUsed         = errors.New("reset token already used")
-	ErrVerificationInvalid    = errors.New("invalid or expired verification token")
-	ErrInsufficientScope      = errors.New("API key scope insufficient for this operation")
-	ErrSessionNotFound        = errors.New("session not found")
+	ErrEmailAlreadyRegistered    = errors.New("email already registered")
+	ErrAPIKeyNotFound            = errors.New("API key not found")
+	ErrResetTokenInvalid         = errors.New("invalid or expired reset token")
+	ErrResetTokenUsed            = errors.New("reset token already used")
+	ErrVerificationInvalid       = errors.New("invalid or expired verification token")
+	ErrInsufficientScope         = errors.New("API key scope insufficient for this operation")
+	ErrSessionNotFound           = errors.New("session not found")
+	ErrEmailVerificationRequired = errors.New("email_verification_required")
 )
 
 const (
@@ -70,13 +71,16 @@ type Service struct {
 	passwordResets     usecase.PasswordResetTokenRepository
 	emailVerifications usecase.EmailVerificationTokenRepository
 	sessions           usecase.SessionRepository
-	jwtSecret          []byte   // primary secret (used for signing)
-	jwtSecretsPrevious [][]byte // previous secrets (accepted for validation during rotation)
+	emailSender        usecase.AuthEmailSender // nil = no email delivery (dev mode)
+	settings           usecase.SettingGetter   // nil = skip setting checks
+	jwtSecret          []byte                  // primary secret (used for signing)
+	jwtSecretsPrevious [][]byte                // previous secrets (accepted for validation during rotation)
 }
 
 // NewService creates a new auth service with the given repositories and JWT secret.
 // The jwtSecret is the primary signing secret. previousSecrets are optional older
 // secrets that are still accepted for token validation during secret rotation.
+// emailSender and settings may be nil (dev mode: emails skipped, setting checks skipped).
 func NewService(
 	users usecase.UserRepository,
 	refreshTokens usecase.RefreshTokenRepository,
@@ -84,6 +88,8 @@ func NewService(
 	passwordResets usecase.PasswordResetTokenRepository,
 	emailVerifications usecase.EmailVerificationTokenRepository,
 	sessions usecase.SessionRepository,
+	emailSender usecase.AuthEmailSender,
+	settings usecase.SettingGetter,
 	jwtSecret string,
 	previousSecrets ...string,
 ) *Service {
@@ -100,6 +106,8 @@ func NewService(
 		passwordResets:     passwordResets,
 		emailVerifications: emailVerifications,
 		sessions:           sessions,
+		emailSender:        emailSender,
+		settings:           settings,
 		jwtSecret:          []byte(jwtSecret),
 		jwtSecretsPrevious: prevKeys,
 	}
@@ -179,6 +187,17 @@ func (s *Service) Login(email, password, ipAddress, userAgent string) (*entity.U
 
 	if !checkPassword(password, user.PasswordHash) {
 		return nil, nil, errors.New("invalid email or password")
+	}
+
+	// Check email verification requirement (global setting, orgID=0)
+	if s.settings != nil && !user.EmailVerified {
+		val, err := s.settings.GetSettingValue(ctx, 0, "require_email_verification")
+		if err != nil {
+			slog.Warn("failed to check email verification setting", "error", err)
+			// Non-fatal — if we can't read the setting, allow login
+		} else if val == "true" {
+			return nil, nil, ErrEmailVerificationRequired
+		}
 	}
 
 	tokens, err := s.generateTokenPair(ctx, user)
@@ -329,6 +348,17 @@ func (s *Service) GetUserByID(id uint) (*entity.User, error) {
 	user, err := s.users.FindByID(ctx, id)
 	if err != nil {
 		return nil, errors.New("user not found")
+	}
+	return user, nil
+}
+
+// GetUserByEmail retrieves a user by their email address.
+func (s *Service) GetUserByEmail(email string) (*entity.User, error) {
+	ctx := context.Background()
+
+	user, err := s.users.FindByEmail(ctx, email)
+	if err != nil {
+		return nil, fmt.Errorf("finding user by email: %w", err)
 	}
 	return user, nil
 }
@@ -542,6 +572,15 @@ func (s *Service) ForgotPassword(email string) (string, error) {
 		return "", fmt.Errorf("creating reset token: %w", err)
 	}
 
+	// Send password reset email (best-effort: errors logged, not propagated)
+	if s.emailSender != nil {
+		if err := s.emailSender.SendPasswordResetEmail(ctx, email, rawToken); err != nil {
+			slog.Error("failed to send password reset email", "email", email, "error", err)
+		}
+	} else {
+		slog.Warn("email sender not configured — password reset email not sent", "email", email)
+	}
+
 	slog.Info("password reset token generated", "user_id", user.ID, "email", email)
 	return rawToken, nil
 }
@@ -615,6 +654,20 @@ func (s *Service) GenerateEmailVerificationToken(userID uint) (string, error) {
 
 	if err := s.emailVerifications.Create(ctx, token); err != nil {
 		return "", fmt.Errorf("creating verification token: %w", err)
+	}
+
+	// Send verification email (best-effort: errors logged, not propagated)
+	if s.emailSender != nil {
+		user, err := s.users.FindByID(ctx, userID)
+		if err != nil {
+			slog.Error("failed to find user for verification email", "user_id", userID, "error", err)
+		} else {
+			if err := s.emailSender.SendVerificationEmail(ctx, user.Email, rawToken); err != nil {
+				slog.Error("failed to send verification email", "user_id", userID, "error", err)
+			}
+		}
+	} else {
+		slog.Warn("email sender not configured — verification email not sent", "user_id", userID)
 	}
 
 	slog.Info("email verification token generated", "user_id", userID)

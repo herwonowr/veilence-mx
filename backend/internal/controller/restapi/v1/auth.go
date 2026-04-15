@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -118,6 +119,10 @@ func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 
 	user, tokens, err := h.Auth.Login(req.Email, req.Password, r.RemoteAddr, r.UserAgent())
 	if err != nil {
+		if errors.Is(err, auth.ErrEmailVerificationRequired) {
+			respondError(w, http.StatusForbidden, "email_verification_required")
+			return
+		}
 		// Log failed login attempt
 		h.Audit.LogAuthEvent(r.Context(), "login_failed", 0, fmt.Sprintf("failed login attempt for email %s", req.Email))
 		respondError(w, http.StatusUnauthorized, "invalid email or password")
@@ -325,8 +330,8 @@ func (h *AuthHandlers) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: token should be emailed by the service layer via SMTP.
 	// The raw token is intentionally not included in the HTTP response.
+	// Email delivery is handled by the auth service layer via SMTP.
 	_, err := h.Auth.ForgotPassword(req.Email)
 	if err != nil {
 		// Log the error but don't reveal it to the client
@@ -418,7 +423,7 @@ func (h *AuthHandlers) SendVerificationEmail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// TODO: token should be emailed by the service layer via SMTP.
+	// Email delivery is handled by the auth service layer via SMTP.
 	// The raw token is intentionally not included in the HTTP response.
 	_, err := h.Auth.GenerateEmailVerificationToken(userID)
 	if err != nil {
@@ -429,6 +434,42 @@ func (h *AuthHandlers) SendVerificationEmail(w http.ResponseWriter, r *http.Requ
 	// The token is sent via email, never exposed in the HTTP response.
 	respondJSON(w, http.StatusOK, map[string]string{
 		"message": "verification email sent",
+	}, nil)
+}
+
+// resendVerificationByEmailRequest is the request body for resending verification by email (unauthenticated).
+type resendVerificationByEmailRequest struct {
+	Email string `json:"email"`
+}
+
+// ResendVerificationByEmail handles POST /api/v1/auth/resend-verification — public endpoint.
+// Always returns 200 to prevent user enumeration.
+func (h *AuthHandlers) ResendVerificationByEmail(w http.ResponseWriter, r *http.Request) {
+	var req resendVerificationByEmailRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	req.Email = strings.TrimSpace(req.Email)
+	if req.Email == "" {
+		respondAppError(w, Validation("email is required"))
+		return
+	}
+
+	// Look up user by email; if not found or already verified, still return 200.
+	user, err := h.Auth.GetUserByEmail(req.Email)
+	if err != nil {
+		// Log but don't reveal to client
+		slog.Info("resend-verification requested for unknown email", "email", req.Email)
+	} else if !user.EmailVerified {
+		if _, err := h.Auth.GenerateEmailVerificationToken(user.ID); err != nil {
+			slog.Error("failed to generate verification token", "email", req.Email, "error", err)
+		}
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{
+		"message": "If that email is registered, a verification email has been sent.",
 	}, nil)
 }
 

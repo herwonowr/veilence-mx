@@ -12,6 +12,7 @@ export const settingsSchema = z.object({
   email_digest_frequency: z.enum(["daily", "weekly"]).optional(),
   email_digest_recipients: z.string().optional(),
   analyzer_mode: z.enum(["auto", "manual", "disabled"]).optional(),
+  require_email_verification: z.enum(["true", "false"]).optional(),
 })
 
 export type SettingsFormData = z.infer<typeof settingsSchema>

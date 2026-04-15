@@ -31,7 +31,7 @@ func signToken(t *testing.T, secret string, userID uint, email string) string {
 }
 
 func TestValidateAccessToken_PrimarySecret(t *testing.T) {
-	svc := auth.NewService(nil, nil, nil, nil, nil, nil, "primary-secret")
+	svc := auth.NewService(nil, nil, nil, nil, nil, nil, nil, nil, "primary-secret")
 
 	tokenStr := signToken(t, "primary-secret", 1, "test@example.com")
 	claims, err := svc.ValidateAccessToken(tokenStr)
@@ -41,7 +41,7 @@ func TestValidateAccessToken_PrimarySecret(t *testing.T) {
 }
 
 func TestValidateAccessToken_PreviousSecret_Accepted(t *testing.T) {
-	svc := auth.NewService(nil, nil, nil, nil, nil, nil,
+	svc := auth.NewService(nil, nil, nil, nil, nil, nil, nil, nil,
 		"new-secret",
 		"old-secret-1",
 	)
@@ -54,7 +54,7 @@ func TestValidateAccessToken_PreviousSecret_Accepted(t *testing.T) {
 }
 
 func TestValidateAccessToken_MultiplePreviousSecrets(t *testing.T) {
-	svc := auth.NewService(nil, nil, nil, nil, nil, nil,
+	svc := auth.NewService(nil, nil, nil, nil, nil, nil, nil, nil,
 		"current-secret",
 		"prev-secret-1",
 		"prev-secret-2",
@@ -68,7 +68,7 @@ func TestValidateAccessToken_MultiplePreviousSecrets(t *testing.T) {
 }
 
 func TestValidateAccessToken_UnknownSecret_Rejected(t *testing.T) {
-	svc := auth.NewService(nil, nil, nil, nil, nil, nil,
+	svc := auth.NewService(nil, nil, nil, nil, nil, nil, nil, nil,
 		"current-secret",
 		"prev-secret-1",
 	)
@@ -80,7 +80,7 @@ func TestValidateAccessToken_UnknownSecret_Rejected(t *testing.T) {
 }
 
 func TestValidateAccessToken_ExpiredToken_Rejected(t *testing.T) {
-	svc := auth.NewService(nil, nil, nil, nil, nil, nil, "test-secret")
+	svc := auth.NewService(nil, nil, nil, nil, nil, nil, nil, nil, "test-secret")
 
 	claims := &auth.Claims{
 		UserID:    1,
@@ -102,7 +102,7 @@ func TestValidateAccessToken_ExpiredToken_Rejected(t *testing.T) {
 
 func TestValidateAccessToken_NoPreviousSecrets(t *testing.T) {
 	// Service created without previous secrets should work normally
-	svc := auth.NewService(nil, nil, nil, nil, nil, nil, "only-secret")
+	svc := auth.NewService(nil, nil, nil, nil, nil, nil, nil, nil, "only-secret")
 
 	tokenStr := signToken(t, "only-secret", 1, "test@example.com")
 	claims, err := svc.ValidateAccessToken(tokenStr)
@@ -117,7 +117,7 @@ func TestValidateAccessToken_NoPreviousSecrets(t *testing.T) {
 
 func TestValidateAccessToken_PrimarySecretPreferred(t *testing.T) {
 	// Ensure primary secret is tried first (performance)
-	svc := auth.NewService(nil, nil, nil, nil, nil, nil,
+	svc := auth.NewService(nil, nil, nil, nil, nil, nil, nil, nil,
 		"primary",
 		"old1", "old2", "old3",
 	)

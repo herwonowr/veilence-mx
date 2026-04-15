@@ -79,6 +79,17 @@ func (r *SettingRepo) UpsertByOrgAndKey(ctx context.Context, orgID uint, key, va
 	return nil
 }
 
+// GetSettingValue implements usecase.SettingGetter. It returns the value of a
+// single setting by orgID and key. Returns entity.ErrNotFound if the key does
+// not exist.
+func (r *SettingRepo) GetSettingValue(ctx context.Context, orgID uint, key string) (string, error) {
+	setting, err := r.FindByKey(ctx, orgID, key)
+	if err != nil {
+		return "", err
+	}
+	return setting.Value, nil
+}
+
 // --- Converters ---
 
 func settingToDomain(m *Setting) *entity.Setting {

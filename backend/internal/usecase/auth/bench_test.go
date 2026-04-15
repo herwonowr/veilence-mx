@@ -48,6 +48,8 @@ func setupBenchService(b *testing.B) (*Service, *gorm.DB) {
 		persistent.NewPasswordResetTokenRepo(db),
 		persistent.NewEmailVerificationTokenRepo(db),
 		persistent.NewSessionRepo(db),
+		nil,
+		nil,
 		benchJWTSecret,
 	)
 	return svc, db

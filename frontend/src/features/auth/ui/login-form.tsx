@@ -4,10 +4,11 @@ import { Suspense, useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/core/providers/auth-provider"
-import { loginSchema } from "@/domains/auth"
+import { loginSchema, apiSendVerificationEmailByEmail } from "@/domains/auth"
 import { sanitizeErrorMessage } from "@/core"
 import { Button } from "@/ui/components/button"
-import { FormField } from "@/ui/form/form-field"
+import { Input } from "@/ui/components/input"
+import { Field, FieldLabel, FieldError } from "@/ui/components/field"
 import {
   Card,
   CardContent,
@@ -15,7 +16,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui/components/card"
-import { Shield, Loader2, Eye, EyeOff } from "lucide-react"
+import { Shield, Loader2, Eye, EyeOff, MailCheck } from "lucide-react"
+import { Alert, AlertDescription } from "@/ui/components/alert"
 import { ZodError } from "zod"
 
 // SEC-S4-10: Login throttling constants
@@ -83,6 +85,11 @@ const LoginFormInner = () => {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
+  // Email verification state
+  const [emailVerificationRequired, setEmailVerificationRequired] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState(false)
+
   // SEC-S4-10: Login attempt throttling
   const [failedAttempts, setFailedAttempts] = useState(() => getStoredAttempts().count)
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(
@@ -129,10 +136,28 @@ const LoginFormInner = () => {
     }
   }, [failedAttempts])
 
+  const handleResendVerification = useCallback(async () => {
+    if (!email || resendLoading) return
+    setResendLoading(true)
+    setResendSuccess(false)
+    try {
+      await apiSendVerificationEmailByEmail(email)
+      setResendSuccess(true)
+    } catch {
+      // Silently handle — the server may reject for security reasons
+      // but we still show success to avoid email enumeration
+      setResendSuccess(true)
+    } finally {
+      setResendLoading(false)
+    }
+  }, [email, resendLoading])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrors({})
     setServerError("")
+    setEmailVerificationRequired(false)
+    setResendSuccess(false)
 
     // Prevent submission during lockout
     if (isLockedOut) return
@@ -159,8 +184,13 @@ const LoginFormInner = () => {
         }
         setErrors(fieldErrors)
       } else {
-        setServerError(sanitizeErrorMessage(err))
-        recordFailure()
+        const rawMessage = err instanceof Error ? err.message : ""
+        if (rawMessage.includes("email_verification_required")) {
+          setEmailVerificationRequired(true)
+        } else {
+          setServerError(sanitizeErrorMessage(err))
+          recordFailure()
+        }
       }
     } finally {
       setLoading(false)
@@ -182,44 +212,78 @@ const LoginFormInner = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {serverError && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">
-                {serverError}
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription>{serverError}</AlertDescription>
+              </Alert>
             )}
             {isLockedOut && (
-              <div
-                className="rounded-md bg-destructive/10 p-3 text-sm text-destructive"
-                data-testid="lockout-message"
-                role="alert"
-              >
-                Too many failed login attempts. Please try again in{" "}
-                <span data-testid="lockout-countdown">{countdown}</span>{" "}
-                second{countdown !== 1 ? "s" : ""}.
-              </div>
+              <Alert variant="destructive" data-testid="lockout-message">
+                <AlertDescription>
+                  Too many failed login attempts. Please try again in{" "}
+                  <span data-testid="lockout-countdown">{countdown}</span>{" "}
+                  second{countdown !== 1 ? "s" : ""}.
+                </AlertDescription>
+              </Alert>
             )}
-            <FormField
-              id="email"
-              label="Email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              error={errors.email}
-              required
-              autoComplete="email"
-            />
-            <div className="relative">
-              <FormField
-                id="password"
-                label="Password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                error={errors.password}
+            {emailVerificationRequired && (
+              <Alert
+                variant="warning"
+                data-testid="email-verification-banner"
+              >
+                <MailCheck className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <p>
+                      Please verify your email address before logging in. Check your inbox for a verification link.
+                    </p>
+                    {resendSuccess ? (
+                      <p className="text-green-700 dark:text-green-400 font-medium">
+                        Verification email sent! Check your inbox.
+                      </p>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleResendVerification}
+                        disabled={resendLoading}
+                        className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-900"
+                      >
+                        {resendLoading && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                        Resend verification email
+                      </Button>
+                    )}
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+            <Field data-invalid={!!errors.email}>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                autoComplete="current-password"
+                autoComplete="email"
               />
+              {errors.email && <FieldError>{errors.email}</FieldError>}
+            </Field>
+            <div className="relative">
+              <Field data-invalid={!!errors.password}>
+                <FieldLabel htmlFor="password">Password</FieldLabel>
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
+                {errors.password && <FieldError>{errors.password}</FieldError>}
+              </Field>
               <Button
                 variant="ghost"
                 size="icon-xs"

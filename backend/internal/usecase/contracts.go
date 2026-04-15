@@ -322,3 +322,17 @@ type Registry interface {
 	DownloadTarball(ctx context.Context, url string) (string, error)
 	Name() string
 }
+
+// AuthEmailSender defines the interface for sending authentication-related emails.
+// Implementations live in the outer layer (pkg/mailer).
+type AuthEmailSender interface {
+	SendPasswordResetEmail(ctx context.Context, email, token string) error
+	SendVerificationEmail(ctx context.Context, email, token string) error
+}
+
+// SettingGetter defines a minimal read-only interface for retrieving a single
+// setting value. Used by the auth service to check settings (e.g. email
+// verification toggle) without depending on the full SettingRepository.
+type SettingGetter interface {
+	GetSettingValue(ctx context.Context, orgID uint, key string) (string, error)
+}

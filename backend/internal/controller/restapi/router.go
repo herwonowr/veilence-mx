@@ -58,6 +58,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 			r.Post("/forgot-password", h.Auth.ForgotPassword)
 			r.Post("/reset-password", h.Auth.ResetPassword)
 			r.Post("/verify-email", h.Auth.VerifyEmail)
+			r.Post("/resend-verification", h.Auth.ResendVerificationByEmail)
 		})
 
 		// Public invitation info (no auth required, so frontend can show

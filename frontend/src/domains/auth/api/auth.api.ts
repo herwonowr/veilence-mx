@@ -67,6 +67,15 @@ export const apiSendVerificationEmail = async (): Promise<
     method: "POST",
   })
 
+export const apiSendVerificationEmailByEmail = async (
+  email: string
+): Promise<ApiResponse<{ message: string }>> =>
+  fetchApi<{ message: string }>("/api/auth/resend-verification", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+    skipAuth: true,
+  })
+
 export const apiForgotPassword = async (
   email: string
 ): Promise<ApiResponse<{ message: string }>> =>
