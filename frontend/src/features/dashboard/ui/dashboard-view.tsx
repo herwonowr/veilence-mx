@@ -197,7 +197,7 @@ const DashboardData = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Link href="/packages" className="group/stat-link">
-          <Card className="cursor-pointer transition-colors hover:border-primary group-hover/stat-link:border-primary h-full">
+          <Card className="cursor-pointer transition-all hover:border-1.5 group-hover/stat-link:border-1.5 h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Packages</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
@@ -209,7 +209,7 @@ const DashboardData = () => {
         </Link>
 
         <Link href="/releases" className="group/stat-link">
-          <Card className="cursor-pointer transition-colors hover:border-primary group-hover/stat-link:border-primary h-full">
+          <Card className="cursor-pointer transition-all hover:border-1.5 group-hover/stat-link:border-1.5 h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Releases</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
@@ -221,7 +221,7 @@ const DashboardData = () => {
         </Link>
 
         <Link href="/releases?status=pending" className="group/stat-link">
-          <Card className="cursor-pointer transition-colors hover:border-primary group-hover/stat-link:border-primary h-full">
+          <Card className="cursor-pointer transition-all hover:border-1.5 group-hover/stat-link:border-1.5 h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Pending</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -233,7 +233,7 @@ const DashboardData = () => {
         </Link>
 
         <Link href="/alerts" className="group/stat-link">
-          <Card className="cursor-pointer transition-colors hover:border-primary group-hover/stat-link:border-primary h-full">
+          <Card className="cursor-pointer transition-all hover:border-1.5 group-hover/stat-link:border-1.5 h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Active Alerts</CardTitle>
               <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -245,7 +245,7 @@ const DashboardData = () => {
         </Link>
 
         <Link href="/releases?classification=malicious" className="group/stat-link">
-          <Card className="cursor-pointer transition-colors hover:border-primary group-hover/stat-link:border-primary h-full">
+          <Card className="cursor-pointer transition-all hover:border-1.5 group-hover/stat-link:border-1.5 h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Malicious</CardTitle>
               <Shield className="h-4 w-4 text-destructive" />

@@ -28,34 +28,34 @@ import { cn } from "@/core/utils"
 import type { ChartData } from "@/domains/dashboard"
 
 const classificationConfig = {
-  benign: { label: "Benign", color: "#22c55e" },
-  suspicious: { label: "Suspicious", color: "#f59e0b" },
-  malicious: { label: "Malicious", color: "#ef4444" },
-  baseline: { label: "Baseline", color: "#6b7280" },
+  benign: { label: "Benign", color: "var(--chart-1)" },
+  suspicious: { label: "Suspicious", color: "var(--chart-2)" },
+  malicious: { label: "Malicious", color: "var(--chart-3)" },
+  baseline: { label: "Baseline", color: "var(--chart-4)" },
 } satisfies ChartConfig
 
 const ecosystemConfig = {
-  python: { label: "Python", color: "#3b82f6" },
-  npm: { label: "NPM", color: "#ef4444" },
+  python: { label: "Python", color: "var(--chart-1)" },
+  npm: { label: "NPM", color: "var(--chart-3)" },
 } satisfies ChartConfig
 
 const severityConfig = {
-  critical: { label: "Critical", color: "#dc2626" },
-  high: { label: "High", color: "#f97316" },
-  medium: { label: "Medium", color: "#eab308" },
-  low: { label: "Low", color: "#6b7280" },
+  critical: { label: "Critical", color: "var(--chart-5)" },
+  high: { label: "High", color: "var(--chart-4)" },
+  medium: { label: "Medium", color: "var(--chart-3)" },
+  low: { label: "Low", color: "var(--chart-1)" },
 } satisfies ChartConfig
 
 const statusConfig = {
-  pending: { label: "Pending", color: "#f59e0b" },
-  diffing: { label: "Diffing", color: "#3b82f6" },
-  analyzing: { label: "Analyzing", color: "#8b5cf6" },
-  completed: { label: "Completed", color: "#22c55e" },
-  error: { label: "Error", color: "#ef4444" },
+  pending: { label: "Pending", color: "var(--chart-1)" },
+  diffing: { label: "Diffing", color: "var(--chart-2)" },
+  analyzing: { label: "Analyzing", color: "var(--chart-3)" },
+  completed: { label: "Completed", color: "var(--chart-4)" },
+  error: { label: "Error", color: "var(--chart-5)" },
 } satisfies ChartConfig
 
 const activityConfig = {
-  releases: { label: "Releases", color: "#3b82f6" },
+  releases: { label: "Releases", color: "var(--chart-2)" },
 } satisfies ChartConfig
 
 interface DashboardChartsProps {
@@ -131,17 +131,17 @@ export const DashboardCharts = ({ data, range, onRangeChange }: DashboardChartsP
   }
   const classificationData = (data.classifications ?? []).map((c) => ({
     ...c,
-    fill: classificationConfig[c.classification as keyof typeof classificationConfig]?.color ?? "#6b7280",
+    fill: classificationConfig[c.classification as keyof typeof classificationConfig]?.color ?? "var(--chart-4)",
   }))
 
   const ecosystemData = (data.ecosystems ?? []).map((r) => ({
     ...r,
-    fill: ecosystemConfig[r.ecosystem as keyof typeof ecosystemConfig]?.color ?? "#6b7280",
+    fill: ecosystemConfig[r.ecosystem as keyof typeof ecosystemConfig]?.color ?? "var(--chart-4)",
   }))
 
   const statusData = (data.releaseStatuses ?? []).map((s) => ({
     ...s,
-    fill: statusConfig[s.status as keyof typeof statusConfig]?.color ?? "#6b7280",
+    fill: statusConfig[s.status as keyof typeof statusConfig]?.color ?? "var(--chart-4)",
   }))
 
   const totalClassifications = classificationData.reduce((sum, c) => sum + c.count, 0)
@@ -456,7 +456,7 @@ export const DashboardCharts = ({ data, range, onRangeChange }: DashboardChartsP
                 {data.alertsBySeverity.map((entry) => (
                   <Cell
                     key={entry.severity}
-                    fill={severityConfig[entry.severity as keyof typeof severityConfig]?.color ?? "#6b7280"}
+                    fill={severityConfig[entry.severity as keyof typeof severityConfig]?.color ?? "var(--chart-4)"}
                   />
                 ))}
               </Bar>
