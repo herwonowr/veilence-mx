@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
+import { useSortParams } from "@/core/hooks/use-sort-params"
 import Link from "next/link"
 import { Card, CardContent, CardHeader } from "@/ui/components/card"
 import { Button } from "@/ui/components/button"
@@ -36,8 +37,9 @@ import {
   SelectValue,
 } from "@/ui/components/select"
 import { formatEcosystem } from "@/domains/common"
-import { formatPopularity, popularityLabel } from "@/domains/packages"
+import { formatPopularity } from "@/domains/packages"
 import type { Package } from "@/domains/packages"
+import { SortableHeader } from "@/ui/data/sortable-header"
 import { ArrowLeft, Check, X, CheckCheck, Radar, HelpCircle } from "lucide-react"
 import {
   Tooltip,
@@ -68,8 +70,7 @@ export const PackageSuggestionsView = () => {
   const [search, setSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [ecosystemFilter, setEcosystemFilter] = useState("")
-  const [sortField, setSortField] = useState<"name" | "ecosystem" | "popularity" | "">("")
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
+  const [sorting, setSorting] = useSortParams()
 
   // Debounce search input to avoid excessive API calls
   useEffect(() => {
@@ -80,7 +81,13 @@ export const PackageSuggestionsView = () => {
     return () => clearTimeout(timer)
   }, [search])
 
+  // Reset to first page when filters or sort change
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+  }, [ecosystemFilter, sorting])
+
   // Server-side search/sort/filter/pagination
+  const sort = sorting[0]
   const {
     data: suggestionsRes,
     isLoading,
@@ -91,8 +98,8 @@ export const PackageSuggestionsView = () => {
     limit: pagination.pageSize,
     search: debouncedSearch || undefined,
     ecosystem: ecosystemFilter || undefined,
-    sortBy: sortField || undefined,
-    sortDir: sortField ? sortDir : undefined,
+    sortBy: sort?.id,
+    sortDir: sort ? (sort.desc ? "desc" : "asc") : undefined,
   })
 
   const suggestions = suggestionsRes?.data ?? []
@@ -101,16 +108,6 @@ export const PackageSuggestionsView = () => {
   const approveMutation = useApprovePackage()
   const rejectMutation = useRejectPackage()
   const bulkApproveMutation = useBulkApprovePackages()
-
-  const toggleSort = useCallback((field: "name" | "ecosystem" | "popularity") => {
-    if (sortField === field) {
-      setSortDir((d) => d === "asc" ? "desc" : "asc")
-    } else {
-      setSortField(field)
-      setSortDir("asc")
-    }
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-  }, [sortField])
 
   const handleApprove = useCallback(
     (id: number) => {
@@ -152,31 +149,18 @@ export const PackageSuggestionsView = () => {
     { width: "w-16", header: "Actions" },
   ]
 
-  const sortIndicator = useCallback((field: string) => {
-    if (sortField !== field) return ""
-    return sortDir === "asc" ? " ↑" : " ↓"
-  }, [sortField, sortDir])
-
   const columns = useMemo<ColumnDef<Package>[]>(
     () => [
       {
         accessorKey: "name",
-        header: () => (
-          <button type="button" className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("name")}>
-            Name{sortIndicator("name")}
-          </button>
-        ),
+        header: ({ column }) => <SortableHeader column={column} title="Name" />,
         cell: ({ row }) => (
           <span className="font-medium">{row.original.name}</span>
         ),
       },
       {
         accessorKey: "ecosystem",
-        header: () => (
-          <button type="button" className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("ecosystem")}>
-            Ecosystem{sortIndicator("ecosystem")}
-          </button>
-        ),
+        header: ({ column }) => <SortableHeader column={column} title="Ecosystem" />,
         cell: ({ row }) => (
           <Badge variant="outline">{formatEcosystem(row.original.ecosystem)}</Badge>
         ),
@@ -184,15 +168,15 @@ export const PackageSuggestionsView = () => {
       {
         accessorKey: "rank",
         header: "Rank",
+        enableSorting: false,
         cell: ({ row }) => row.original.rank ?? "\u2014",
       },
       {
         id: "popularity",
-        header: () => (
+        accessorKey: "downloadCount",
+        header: ({ column }) => (
           <div className="flex items-center gap-1">
-            <button type="button" className="hover:text-foreground" onClick={() => toggleSort("popularity")}>
-              Popularity{sortIndicator("popularity")}
-            </button>
+            <SortableHeader column={column} title="Popularity" />
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger render={<span><HelpCircle className="h-3.5 w-3.5 text-muted-foreground" /></span>} />
@@ -219,6 +203,7 @@ export const PackageSuggestionsView = () => {
       {
         id: "actions",
         header: "Actions",
+        enableSorting: false,
         size: 180,
         cell: ({ row }) => {
           const pkg = row.original
@@ -249,7 +234,7 @@ export const PackageSuggestionsView = () => {
         },
       },
     ],
-    [handleApprove, handleReject, approveMutation.isPending, rejectMutation.isPending, toggleSort, sortIndicator]
+    [handleApprove, handleReject, approveMutation.isPending, rejectMutation.isPending]
   )
 
   const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize))
@@ -258,10 +243,12 @@ export const PackageSuggestionsView = () => {
     data: suggestions,
     columns,
     pageCount,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
+    manualSorting: true,
   })
 
   return (
@@ -358,13 +345,19 @@ export const PackageSuggestionsView = () => {
                 <TableHeader>
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id}>
+                      {headerGroup.headers.map((header) => {
+                        const sorted = header.column.getIsSorted()
+                        return (
+                        <TableHead
+                          key={header.id}
+                          aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
+                        >
                           {header.isPlaceholder
                             ? null
                             : flexRender(header.column.columnDef.header, header.getContext())}
                         </TableHead>
-                      ))}
+                        )
+                      })}
                     </TableRow>
                   ))}
                 </TableHeader>
