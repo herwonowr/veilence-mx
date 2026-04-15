@@ -13,10 +13,12 @@ export const AppShell = ({
   children,
   notificationSlot,
   orgSelectorSlot,
+  sidebarDefaultOpen = true,
 }: {
   children: React.ReactNode
   notificationSlot?: React.ReactNode
   orgSelectorSlot?: React.ReactNode
+  sidebarDefaultOpen?: boolean
 }) => {
   const pathname = usePathname()
   const { isAuthenticated, isLoading } = useAuth()
@@ -34,7 +36,7 @@ export const AppShell = ({
 
   // Authenticated - render full app shell
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={sidebarDefaultOpen}>
       <AppSidebar orgSelectorSlot={orgSelectorSlot} />
       <SidebarInset className="min-w-0 overflow-hidden">
         <SiteHeader actionSlot={notificationSlot} />

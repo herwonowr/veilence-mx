@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/core/providers/theme-provider";
 import { AuthProvider } from "@/core/providers/auth-provider";
@@ -24,11 +25,15 @@ export const metadata: Metadata = {
   description: "Supply Chain Compromise Monitor for Python and NPM",
 };
 
-const RootLayout = ({
+const RootLayout = async ({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) => {
+  const cookieStore = await cookies();
+  const sidebarCookie = cookieStore.get("sidebar_state");
+  const sidebarDefaultOpen = sidebarCookie?.value !== "false";
+
   return (
     <html
       lang="en"
@@ -48,6 +53,7 @@ const RootLayout = ({
               <AppShell
                 notificationSlot={<NotificationBell />}
                 orgSelectorSlot={<OrgSelector />}
+                sidebarDefaultOpen={sidebarDefaultOpen}
               >
                 {children}
               </AppShell>

@@ -82,7 +82,7 @@ const SidebarProvider = ({
         _setOpen(openState)
       }
 
-      // This sets the cookie to keep the sidebar state.
+      // Persist sidebar state to cookie (readable server-side on next page load)
       document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
     },
     [setOpenProp, open]

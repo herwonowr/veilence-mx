@@ -30,7 +30,6 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarRail,
-  SidebarSeparator,
   useSidebar,
 } from "@/ui/components/sidebar"
 import {
@@ -111,6 +110,7 @@ export const AppSidebar = ({
             <SidebarMenuButton
               render={<Link href="/" />}
               tooltip="Veilence-MX"
+              className="h-auto hover:bg-transparent"
             >
               <Shield />
               <div className="flex flex-col">
@@ -124,7 +124,6 @@ export const AppSidebar = ({
         </SidebarMenu>
         {isAuthenticated && orgSelectorSlot && (
           <>
-            <SidebarSeparator />
             {orgSelectorSlot}
           </>
         )}
