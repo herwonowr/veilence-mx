@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
@@ -50,5 +51,14 @@ func (h *AuditHandlers) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON(w, http.StatusOK, logs, &Meta{Page: page, Limit: limit, Total: total})
+	result := make([]response.AuditLogResponse, len(logs))
+	for i, l := range logs {
+		result[i] = response.AuditLogResponse{
+			ID: l.ID, UserID: l.UserID, OrgID: l.OrgID,
+			Action: l.Action, Resource: l.Resource, ResourceID: l.ResourceID,
+			Details: l.Details, IPAddress: l.IPAddress, UserAgent: l.UserAgent,
+			CorrelationID: l.CorrelationID, CreatedAt: l.CreatedAt,
+		}
+	}
+	respondJSON(w, http.StatusOK, result, &Meta{Page: page, Limit: limit, Total: total})
 }

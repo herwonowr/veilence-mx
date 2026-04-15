@@ -2,6 +2,7 @@ package settinguc_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -431,18 +432,42 @@ func TestUpdateSettings_RepoUpsertError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — analyzer_mode (unvalidated key, should pass through)
+// UpdateSettings — analyzer_mode validation
 // ---------------------------------------------------------------------------
 
-func TestUpdateSettings_AnalyzerMode_PassThrough(t *testing.T) {
-	repo := newMockRepo()
-	uc := settinguc.New(repo)
+func TestUpdateSettings_AnalyzerMode(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{"auto", "auto", false},
+		{"manual", "manual", false},
+		{"disabled", "disabled", false},
+		{"Auto (wrong case)", "Auto", true},
+		{"MANUAL (wrong case)", "MANUAL", true},
+		{"copilot (not a mode)", "copilot", true},
+		{"api (not a mode)", "api", true},
+		{"empty", "", true},
+		{"arbitrary string", "foobar", true},
+	}
 
-	result, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
-		entity.SettingAnalyzerMode: "manual",
-	})
-	require.NoError(t, err)
-	assert.Equal(t, "manual", result["analyzer_mode"])
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockRepo()
+			uc := settinguc.New(repo)
+			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+				entity.SettingAnalyzerMode: tt.value,
+			})
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "analyzer_mode")
+				assert.ErrorIs(t, err, entity.ErrValidation)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -556,4 +581,59 @@ func TestUpdateSettings_PackageCountWarningThreshold(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ---------------------------------------------------------------------------
+// UpdateSettings — validation errors wrap entity.ErrValidation
+// ---------------------------------------------------------------------------
+
+func TestUpdateSettings_ValidationErrorsWrapErrValidation(t *testing.T) {
+	tests := []struct {
+		name string
+		key  string
+		val  string
+	}{
+		{"invalid key", "totally_invalid_key", "value"},
+		{"bad scan depth", entity.SettingDiscoveryScanDepth, "abc"},
+		{"bad diff limit", entity.SettingDiffSizeLimit, "abc"},
+		{"bad monitoring interval", entity.SettingMonitoringInterval, "abc"},
+		{"bad discovery interval", entity.SettingDiscoveryInterval, "abc"},
+		{"bad digest enabled", entity.SettingEmailDigestEnabled, "abc"},
+		{"bad digest frequency", entity.SettingEmailDigestFrequency, "abc"},
+		{"bad digest recipients", entity.SettingEmailDigestRecipients, ""},
+		{"bad auto approve", entity.SettingDiscoveryAutoApprove, "abc"},
+		{"bad stale months", entity.SettingStaleAutoRemoveMonths, "abc"},
+		{"bad warning threshold", entity.SettingPackageCountWarningThreshold, "abc"},
+		{"bad analyzer mode", entity.SettingAnalyzerMode, "abc"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockRepo()
+			uc := settinguc.New(repo)
+			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+				tt.key: tt.val,
+			})
+			require.Error(t, err)
+			assert.True(t, errors.Is(err, entity.ErrValidation),
+				"expected error to wrap ErrValidation, got: %v", err)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// UpdateSettings — repo errors do NOT wrap entity.ErrValidation
+// ---------------------------------------------------------------------------
+
+func TestUpdateSettings_RepoErrorsNotValidation(t *testing.T) {
+	repo := newMockRepo()
+	repo.upsertByOrgKeyErr = fmt.Errorf("database write failed")
+
+	uc := settinguc.New(repo)
+	_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+		entity.SettingMonitoringInterval: "5m",
+	})
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, entity.ErrValidation),
+		"repo errors should not be validation errors")
 }

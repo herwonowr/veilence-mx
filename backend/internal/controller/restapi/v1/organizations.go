@@ -10,7 +10,8 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	validation "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/request"
-	
+	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
+
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
@@ -61,7 +62,10 @@ func (h *OrgHandlers) CreateOrganization(w http.ResponseWriter, r *http.Request)
 
 	h.Audit.LogAction(r.Context(), "create", "org", org.ID, fmt.Sprintf("created organization %q (slug: %s)", req.Name, req.Slug))
 
-	respondJSON(w, http.StatusCreated, org, nil)
+	respondJSON(w, http.StatusCreated, response.OrganizationResponse{
+		ID: org.ID, Name: org.Name, Slug: org.Slug, Description: org.Description,
+		OwnerID: org.OwnerID, IsActive: org.IsActive, CreatedAt: org.CreatedAt, UpdatedAt: org.UpdatedAt,
+	}, nil)
 }
 
 // ListOrganizations handles GET /api/orgs — lists organizations the user belongs to.
@@ -78,7 +82,14 @@ func (h *OrgHandlers) ListOrganizations(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	respondJSON(w, http.StatusOK, orgs, nil)
+	result := make([]response.OrganizationResponse, len(orgs))
+	for i, o := range orgs {
+		result[i] = response.OrganizationResponse{
+			ID: o.ID, Name: o.Name, Slug: o.Slug, Description: o.Description,
+			OwnerID: o.OwnerID, IsActive: o.IsActive, CreatedAt: o.CreatedAt, UpdatedAt: o.UpdatedAt,
+		}
+	}
+	respondJSON(w, http.StatusOK, result, nil)
 }
 
 // GetOrganization handles GET /api/orgs/{orgId} — returns organization details.
@@ -99,7 +110,10 @@ func (h *OrgHandlers) GetOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON(w, http.StatusOK, org, nil)
+	respondJSON(w, http.StatusOK, response.OrganizationResponse{
+		ID: org.ID, Name: org.Name, Slug: org.Slug, Description: org.Description,
+		OwnerID: org.OwnerID, IsActive: org.IsActive, CreatedAt: org.CreatedAt, UpdatedAt: org.UpdatedAt,
+	}, nil)
 }
 
 // UpdateOrganization handles PUT /api/orgs/{orgId} — updates organization details.
@@ -156,7 +170,10 @@ func (h *OrgHandlers) UpdateOrganization(w http.ResponseWriter, r *http.Request)
 
 	h.Audit.LogAction(r.Context(), "update", "org", orgID, fmt.Sprintf("updated organization %q (slug: %s)", name, slug))
 
-	respondJSON(w, http.StatusOK, org, nil)
+	respondJSON(w, http.StatusOK, response.OrganizationResponse{
+		ID: org.ID, Name: org.Name, Slug: org.Slug, Description: org.Description,
+		OwnerID: org.OwnerID, IsActive: org.IsActive, CreatedAt: org.CreatedAt, UpdatedAt: org.UpdatedAt,
+	}, nil)
 }
 
 // DeleteOrganization handles DELETE /api/orgs/{orgId} — soft-deletes an organization.

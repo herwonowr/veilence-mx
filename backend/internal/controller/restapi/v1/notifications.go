@@ -9,7 +9,8 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	validation "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/request"
-	
+	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
+
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/notifications"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
@@ -49,7 +50,7 @@ func (h *NotificationHandlers) ListNotificationChannels(w http.ResponseWriter, r
 		return
 	}
 
-	respondJSON(w, http.StatusOK, channels, nil)
+	respondJSON(w, http.StatusOK, response.NotificationChannelsFromEntities(channels), nil)
 }
 
 // CreateNotificationChannel handles POST /api/orgs/{orgId}/notification-channels.
@@ -99,7 +100,7 @@ func (h *NotificationHandlers) CreateNotificationChannel(w http.ResponseWriter, 
 
 	h.Audit.LogAction(r.Context(), "create", "notification_channel", channel.ID, fmt.Sprintf("created %s notification channel %q", req.Type, req.Name))
 
-	respondJSON(w, http.StatusCreated, channel, nil)
+	respondJSON(w, http.StatusCreated, response.NotificationChannelFromEntity(channel), nil)
 }
 
 // UpdateNotificationChannel handles PUT /api/orgs/{orgId}/notification-channels/{id}.
@@ -152,7 +153,7 @@ func (h *NotificationHandlers) UpdateNotificationChannel(w http.ResponseWriter, 
 
 	h.Audit.LogAction(r.Context(), "update", "notification_channel", uint(id), fmt.Sprintf("updated notification channel %q (active: %t)", req.Name, req.IsActive))
 
-	respondJSON(w, http.StatusOK, channel, nil)
+	respondJSON(w, http.StatusOK, response.NotificationChannelFromEntity(channel), nil)
 }
 
 // DeleteNotificationChannel handles DELETE /api/orgs/{orgId}/notification-channels/{id}.
@@ -194,7 +195,7 @@ func (h *NotificationHandlers) ListNotificationRules(w http.ResponseWriter, r *h
 		return
 	}
 
-	respondJSON(w, http.StatusOK, rules, nil)
+	respondJSON(w, http.StatusOK, response.NotificationRulesFromEntities(rules), nil)
 }
 
 // CreateNotificationRule handles POST /api/orgs/{orgId}/notification-rules.
@@ -232,7 +233,7 @@ func (h *NotificationHandlers) CreateNotificationRule(w http.ResponseWriter, r *
 
 	h.Audit.LogAction(r.Context(), "create", "notification_rule", rule.ID, fmt.Sprintf("created notification rule for channel %d (severity: %s)", req.ChannelID, req.Severity))
 
-	respondJSON(w, http.StatusCreated, rule, nil)
+	respondJSON(w, http.StatusCreated, response.NotificationRuleFromEntity(rule), nil)
 }
 
 // DeleteNotificationRule handles DELETE /api/orgs/{orgId}/notification-rules/{id}.
@@ -277,7 +278,7 @@ func (h *NotificationHandlers) ListUserNotifications(w http.ResponseWriter, r *h
 		return
 	}
 
-	respondJSON(w, http.StatusOK, notifications, nil)
+	respondJSON(w, http.StatusOK, response.NotificationsFromEntities(notifications), nil)
 }
 
 // GetUnreadCount handles GET /api/notifications/unread-count — returns the

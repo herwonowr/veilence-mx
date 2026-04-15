@@ -12,7 +12,8 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	validation "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/request"
-	
+	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
+
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 )
@@ -94,7 +95,7 @@ func (h *AuthHandlers) Register(w http.ResponseWriter, r *http.Request) {
 	h.Audit.LogAction(r.Context(), "create", "user", user.ID, fmt.Sprintf("registered user %s", req.Email))
 
 	respondJSON(w, http.StatusCreated, map[string]any{
-		"user":         user,
+		"user":         response.UserFromEntity(user),
 		"accessToken":  tokens.AccessToken,
 		"refreshToken": tokens.RefreshToken,
 	}, nil)
@@ -127,7 +128,7 @@ func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 	h.Audit.LogAuthEvent(r.Context(), "login", user.ID, fmt.Sprintf("user %s logged in", user.Email))
 
 	respondJSON(w, http.StatusOK, map[string]any{
-		"user":         user,
+		"user":         response.UserFromEntity(user),
 		"accessToken":  tokens.AccessToken,
 		"refreshToken": tokens.RefreshToken,
 	}, nil)
@@ -194,7 +195,7 @@ func (h *AuthHandlers) GetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON(w, http.StatusOK, user, nil)
+	respondJSON(w, http.StatusOK, response.UserFromEntity(user), nil)
 }
 
 // CreateAPIKey creates a new API key for the authenticated user.
@@ -253,9 +254,9 @@ func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 
 	h.Audit.LogAction(r.Context(), "create", "api_key", apiKey.ID, fmt.Sprintf("created API key %q with scope %q", req.Name, scope))
 
-	respondJSON(w, http.StatusCreated, map[string]any{
-		"apiKey": apiKey,
-		"key":    rawKey,
+	respondJSON(w, http.StatusCreated, response.APIKeyCreatedResponse{
+		APIKey: response.APIKeyFromEntity(apiKey),
+		Key:    rawKey,
 	}, nil)
 }
 
@@ -273,7 +274,7 @@ func (h *AuthHandlers) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON(w, http.StatusOK, keys, nil)
+	respondJSON(w, http.StatusOK, response.APIKeysFromEntities(keys), nil)
 }
 
 // RevokeAPIKey deletes an API key belonging to the authenticated user.
@@ -479,7 +480,7 @@ func (h *AuthHandlers) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	h.Audit.LogAction(r.Context(), "update", "user", userID, "updated user profile")
 
-	respondJSON(w, http.StatusOK, user, nil)
+	respondJSON(w, http.StatusOK, response.UserFromEntity(user), nil)
 }
 
 // changePasswordRequest is the request body for changing password.

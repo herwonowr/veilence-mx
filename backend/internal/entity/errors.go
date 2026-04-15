@@ -11,4 +11,6 @@ var (
 	ErrForbidden = errors.New("forbidden")
 	// ErrConflict indicates a uniqueness or state conflict (e.g. duplicate entry).
 	ErrConflict = errors.New("conflict")
+	// ErrValidation indicates a business-rule validation failure (e.g. invalid setting value).
+	ErrValidation = errors.New("validation")
 )

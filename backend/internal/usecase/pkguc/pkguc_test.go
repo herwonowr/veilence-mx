@@ -213,7 +213,7 @@ func (m *mockPackageRepo) CountByOrg(_ context.Context, orgID uint, eco *entity.
 	return count, nil
 }
 
-func (m *mockPackageRepo) FindSuggestionsByOrgID(_ context.Context, orgID uint, page, limit int) ([]entity.Package, int64, error) {
+func (m *mockPackageRepo) FindSuggestionsByOrgID(_ context.Context, orgID uint, page, limit int, _ string, _ entity.PackageFilters) ([]entity.Package, int64, error) {
 	if m.findSuggestionsErr != nil {
 		return nil, 0, m.findSuggestionsErr
 	}
@@ -784,7 +784,7 @@ func TestListSuggestions_Success(t *testing.T) {
 	repo.seedPackage(1, "suggested-b", entity.EcosystemNPM, entity.PackageStatusSuggested)
 	repo.seedPackage(1, "active-pkg", entity.EcosystemPython, entity.PackageStatusActive) // not suggested
 
-	pkgs, total, err := uc.ListSuggestions(context.Background(), 1, 1, 20)
+	pkgs, total, err := uc.ListSuggestions(context.Background(), 1, 1, 20, "", entity.PackageFilters{})
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), total)
 	assert.Len(t, pkgs, 2)
@@ -793,7 +793,7 @@ func TestListSuggestions_Success(t *testing.T) {
 func TestListSuggestions_EmptyOrg(t *testing.T) {
 	_, _, uc := setup()
 
-	pkgs, total, err := uc.ListSuggestions(context.Background(), 99, 1, 20)
+	pkgs, total, err := uc.ListSuggestions(context.Background(), 99, 1, 20, "", entity.PackageFilters{})
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), total)
 	assert.Empty(t, pkgs)
@@ -803,7 +803,7 @@ func TestListSuggestions_RepoError(t *testing.T) {
 	repo, _, uc := setup()
 	repo.findSuggestionsErr = fmt.Errorf("db error")
 
-	_, _, err := uc.ListSuggestions(context.Background(), 1, 1, 20)
+	_, _, err := uc.ListSuggestions(context.Background(), 1, 1, 20, "", entity.PackageFilters{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "db error")
 }

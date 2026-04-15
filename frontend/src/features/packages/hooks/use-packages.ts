@@ -15,7 +15,6 @@ import {
   unblockPackage,
   getPackageReleases,
   discoverPackages,
-  syncTopPackages,
   bulkImportPackages,
   getAnalysisHistory,
   getPackageSuggestions,
@@ -164,22 +163,6 @@ export const useDiscoverPackages = () => {
     },
     onError: (error: Error) => {
       toast.error(sanitizeErrorMessage(error, "Failed to trigger discovery"))
-    },
-  })
-}
-
-/** @deprecated Use useDiscoverPackages instead. Will be removed in v1.2.0. */
-export const useSyncTopPackages = () => {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (ecosystem?: string) => syncTopPackages(ecosystem),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: packageKeys.lists() })
-      toast.success("Top packages synced")
-    },
-    onError: (error: Error) => {
-      toast.error(sanitizeErrorMessage(error, "Failed to sync packages"))
     },
   })
 }

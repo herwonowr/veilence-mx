@@ -1,0 +1,112 @@
+package response
+
+import (
+	"time"
+
+	"github.com/veilence/veilence-mx/backend/internal/entity"
+)
+
+// NotificationChannelResponse is the JSON representation of a notification channel.
+type NotificationChannelResponse struct {
+	ID        uint                          `json:"id"`
+	OrgID     uint                          `json:"orgId"`
+	Name      string                        `json:"name"`
+	Type      entity.NotificationChannelType `json:"type"`
+	Config    string                        `json:"config"`
+	IsActive  bool                          `json:"isActive"`
+	CreatedAt time.Time                     `json:"createdAt"`
+	UpdatedAt time.Time                     `json:"updatedAt"`
+}
+
+// NotificationChannelFromEntity maps a domain NotificationChannel to a response DTO.
+func NotificationChannelFromEntity(c *entity.NotificationChannel) NotificationChannelResponse {
+	return NotificationChannelResponse{
+		ID:        c.ID,
+		OrgID:     c.OrgID,
+		Name:      c.Name,
+		Type:      c.Type,
+		Config:    c.Config,
+		IsActive:  c.IsActive,
+		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
+	}
+}
+
+// NotificationChannelsFromEntities maps a slice of domain NotificationChannels to response DTOs.
+func NotificationChannelsFromEntities(channels []entity.NotificationChannel) []NotificationChannelResponse {
+	result := make([]NotificationChannelResponse, len(channels))
+	for i := range channels {
+		result[i] = NotificationChannelFromEntity(&channels[i])
+	}
+	return result
+}
+
+// NotificationRuleResponse is the JSON representation of a notification rule.
+type NotificationRuleResponse struct {
+	ID        uint      `json:"id"`
+	OrgID     uint      `json:"orgId"`
+	ChannelID uint      `json:"channelId"`
+	Severity  string    `json:"severity"`
+	IsActive  bool      `json:"isActive"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// NotificationRuleFromEntity maps a domain NotificationRule to a response DTO.
+func NotificationRuleFromEntity(r *entity.NotificationRule) NotificationRuleResponse {
+	return NotificationRuleResponse{
+		ID:        r.ID,
+		OrgID:     r.OrgID,
+		ChannelID: r.ChannelID,
+		Severity:  r.Severity,
+		IsActive:  r.IsActive,
+		CreatedAt: r.CreatedAt,
+		UpdatedAt: r.UpdatedAt,
+	}
+}
+
+// NotificationRulesFromEntities maps a slice of domain NotificationRules to response DTOs.
+func NotificationRulesFromEntities(rules []entity.NotificationRule) []NotificationRuleResponse {
+	result := make([]NotificationRuleResponse, len(rules))
+	for i := range rules {
+		result[i] = NotificationRuleFromEntity(&rules[i])
+	}
+	return result
+}
+
+// NotificationResponse is the JSON representation of an in-app notification.
+type NotificationResponse struct {
+	ID        uint      `json:"id"`
+	OrgID     uint      `json:"orgId"`
+	UserID    uint      `json:"userId"`
+	ChannelID uint      `json:"channelId"`
+	Title     string    `json:"title"`
+	Message   string    `json:"message"`
+	IsRead    bool      `json:"isRead"`
+	SentAt    time.Time `json:"sentAt"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// NotificationFromEntity maps a domain Notification to a response DTO.
+func NotificationFromEntity(n *entity.Notification) NotificationResponse {
+	return NotificationResponse{
+		ID:        n.ID,
+		OrgID:     n.OrgID,
+		UserID:    n.UserID,
+		ChannelID: n.ChannelID,
+		Title:     n.Title,
+		Message:   n.Message,
+		IsRead:    n.IsRead,
+		SentAt:    n.SentAt,
+		CreatedAt: n.CreatedAt,
+	}
+}
+
+// NotificationsFromEntities maps a slice of domain Notifications to response DTOs.
+func NotificationsFromEntities(ns []entity.Notification) []NotificationResponse {
+	result := make([]NotificationResponse, len(ns))
+	for i := range ns {
+		result[i] = NotificationFromEntity(&ns[i])
+	}
+	return result
+}

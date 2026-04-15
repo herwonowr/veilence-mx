@@ -368,14 +368,6 @@ export const handlers = [
     })
   }),
 
-  /** @deprecated Alias for /api/sync/discover — kept for backward compatibility */
-  http.post(`${API_BASE}/api/sync/top-packages`, () => {
-    return HttpResponse.json({
-      data: { message: "Sync initiated" },
-      error: null,
-    })
-  }),
-
   http.post(`${API_BASE}/api/sync/reanalyze`, () => {
     return HttpResponse.json({
       data: { message: "Reanalysis queued", queued: 10, dead_retried: 0 },

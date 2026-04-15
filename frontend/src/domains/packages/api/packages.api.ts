@@ -73,11 +73,6 @@ export const discoverPackages = async (
   })
 }
 
-/** @deprecated Use discoverPackages instead. Will be removed in v1.2.0. */
-export const syncTopPackages = async (
-  ecosystem?: string
-): Promise<ApiResponse<{ message: string }>> => discoverPackages(ecosystem)
-
 export const bulkImportPackages = async (
   format: "requirements_txt" | "package_json" | "list",
   content: string

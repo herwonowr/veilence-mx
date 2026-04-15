@@ -3,26 +3,22 @@ package entity
 import "time"
 
 // Role represents a named set of permissions within an organization.
-// NOTE: JSON tags retained because members/roles handlers serialize this directly.
-// TODO: Create response DTOs and remove these tags.
 type Role struct {
-	ID             uint         `json:"id"`
-	OrgID          uint         `json:"orgId"`
-	Name           string       `json:"name"`
-	Description    string       `json:"description"`
-	IsSystem       bool         `json:"isSystem"`
-	CreatedAt      time.Time    `json:"createdAt"`
-	UpdatedAt      time.Time    `json:"updatedAt"`
-	Permissions    []Permission `json:"permissions,omitempty"`
+	ID             uint
+	OrgID          uint
+	Name           string
+	Description    string
+	IsSystem       bool
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	Permissions    []Permission
 }
 
 // Permission represents a single resource-action permission.
-// NOTE: JSON tags retained because roles handler serializes this directly.
-// TODO: Create a response DTO and remove these tags.
 type Permission struct {
-	ID             uint   `json:"id"`
-	Resource       string `json:"resource"`
-	Action         string `json:"action"`
+	ID             uint
+	Resource       string
+	Action         string
 }
 
 // System role names.

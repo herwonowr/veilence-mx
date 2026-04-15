@@ -9,7 +9,6 @@ export {
   useBlockPackage,
   useUnblockPackage,
   useDiscoverPackages,
-  useSyncTopPackages,
   useBulkImportPackages,
   useAnalysisHistory,
   usePackageSuggestions,

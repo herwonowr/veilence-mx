@@ -2,6 +2,7 @@ package v1
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -44,6 +45,13 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 
 	updated, err := h.SettingSvc.UpdateSettings(r.Context(), orgID, req)
 	if err != nil {
+		if errors.Is(err, entity.ErrValidation) {
+			// Strip the trailing ": validation" sentinel from the message.
+			msg := err.Error()
+			msg = strings.TrimSuffix(msg, ": "+entity.ErrValidation.Error())
+			respondAppError(w, Validation(msg))
+			return
+		}
 		respondAppError(w, Internal("failed to update settings"))
 		return
 	}
@@ -99,15 +107,4 @@ func (h *SettingsHandlers) DiscoverPackages(w http.ResponseWriter, r *http.Reque
 		fmt.Sprintf("triggered discovery for org (scan_depth=%d)", scanDepth))
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "discovery triggered"}, nil)
-}
-
-// SyncTopPackages triggers an immediate discovery cycle for the current org.
-// Deprecated: Use DiscoverPackages (POST /api/sync/discover) instead.
-func (h *SettingsHandlers) SyncTopPackages(w http.ResponseWriter, r *http.Request) {
-	// Set deprecation header
-	w.Header().Set("Deprecation", "true")
-	w.Header().Set("Sunset", "2026-07-01")
-	w.Header().Set("Link", `</api/sync/discover>; rel="successor-version"`)
-
-	h.DiscoverPackages(w, r)
 }

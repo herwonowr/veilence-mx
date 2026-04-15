@@ -155,8 +155,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 				r.Group(func(r chi.Router) {
 					r.Use(rateLimitGroup.ForCategory(middleware.CategorySync))
 					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/discover", h.Settings.DiscoverPackages)
-					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/top-packages", h.Settings.SyncTopPackages) // Deprecated alias
-					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/reanalyze", h.Dashboard.ReanalyzeAll)
+						r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/reanalyze", h.Dashboard.ReanalyzeAll)
 				})
 
 				// Queue monitoring (global data, but requires org membership)

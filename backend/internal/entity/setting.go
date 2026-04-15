@@ -39,6 +39,14 @@ const (
 	SettingPackageCountWarningThreshold = "package_count_warning_threshold"
 )
 
+// ValidAnalyzerModes is the set of allowed values for the analyzer_mode setting.
+// "auto" = automatically analyze new releases, "manual" = user-triggered, "disabled" = skip analysis.
+var ValidAnalyzerModes = map[string]bool{
+	"auto":     true,
+	"manual":   true,
+	"disabled": true,
+}
+
 // ValidSettingKeys is the canonical set of all accepted setting keys.
 // Used by the handler layer for input validation.
 var ValidSettingKeys = map[string]bool{
