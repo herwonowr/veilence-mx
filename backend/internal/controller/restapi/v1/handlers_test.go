@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -1718,4 +1719,404 @@ func TestGetAnalysisHistory_Empty(t *testing.T) {
 	json.NewDecoder(w.Body).Decode(&resp)
 	data := resp["data"].([]any)
 	assert.Len(t, data, 0)
+}
+
+// =====================================
+// v1.1.0 SUGGESTION / APPROVAL / STALE TESTS
+// =====================================
+
+// --- Suggestions ---
+
+func TestListSuggestions(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	db.Create(&persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{Name: "flask", Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{Name: "express", Ecosystem: "npm", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceManual})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/packages/suggestions", nil)
+	w := httptest.NewRecorder()
+	h.ListSuggestions(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].([]any)
+	assert.Len(t, data, 2) // Only suggested packages
+
+	meta := resp["meta"].(map[string]any)
+	assert.Equal(t, float64(2), meta["total"])
+}
+
+func TestListSuggestions_Empty(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/packages/suggestions", nil)
+	w := httptest.NewRecorder()
+	h.ListSuggestions(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].([]any)
+	assert.Len(t, data, 0)
+}
+
+func TestListSuggestions_Pagination(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	for i := range 25 {
+		db.Create(&persistent.Package{Name: fmt.Sprintf("pkg-%02d", i), Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/packages/suggestions?page=1&limit=10", nil)
+	w := httptest.NewRecorder()
+	h.ListSuggestions(w, req)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].([]any)
+	assert.Len(t, data, 10)
+
+	meta := resp["meta"].(map[string]any)
+	assert.Equal(t, float64(25), meta["total"])
+}
+
+// --- Approve ---
+
+func TestApprovePackage(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered}
+	db.Create(&pkg)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/approve", h.ApprovePackage)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/"+idStr(pkg.ID)+"/approve", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Equal(t, "active", data["status"])
+
+	// Verify in DB
+	var updated persistent.Package
+	db.First(&updated, pkg.ID)
+	assert.Equal(t, persistent.PackageStatusActive, updated.Status)
+}
+
+func TestApprovePackage_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/approve", h.ApprovePackage)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/99999/approve", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestApprovePackage_NotSuggested(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	// Active package can't be approved (only suggested can)
+	pkg := persistent.Package{Name: "flask", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceManual}
+	db.Create(&pkg)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/approve", h.ApprovePackage)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/"+idStr(pkg.ID)+"/approve", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestApprovePackage_InvalidID(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/approve", h.ApprovePackage)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/abc/approve", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestApprovePackage_AuditLogged(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	pkg := persistent.Package{Name: "audit-approve", Ecosystem: "npm", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered}
+	db.Create(&pkg)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/approve", h.ApprovePackage)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/"+idStr(pkg.ID)+"/approve", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Verify audit log was created
+	var auditLog persistent.AuditLog
+	result := db.Where("action = ? AND resource = ?", "approve", "package").First(&auditLog)
+	require.NoError(t, result.Error)
+	assert.Equal(t, pkg.ID, auditLog.ResourceID)
+	assert.Contains(t, auditLog.Details, "audit-approve")
+}
+
+// --- Reject ---
+
+func TestRejectPackage(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	pkg := persistent.Package{Name: "malicious-pkg", Ecosystem: "npm", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered}
+	db.Create(&pkg)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/reject", h.RejectPackage)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/"+idStr(pkg.ID)+"/reject", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	// Verify in DB — status should be removed
+	var updated persistent.Package
+	db.First(&updated, pkg.ID)
+	assert.Equal(t, persistent.PackageStatusRemoved, updated.Status)
+}
+
+func TestRejectPackage_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/reject", h.RejectPackage)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/99999/reject", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestRejectPackage_NotSuggested(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	pkg := persistent.Package{Name: "active-pkg", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceManual}
+	db.Create(&pkg)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/reject", h.RejectPackage)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/"+idStr(pkg.ID)+"/reject", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestRejectPackage_InvalidID(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	r := chi.NewRouter()
+	r.Post("/api/packages/{id}/reject", h.RejectPackage)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/abc/reject", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// --- Bulk Approve ---
+
+func TestBulkApprovePackages_ByIDs(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	pkg1 := persistent.Package{Name: "pkg-1", Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered}
+	db.Create(&pkg1)
+	pkg2 := persistent.Package{Name: "pkg-2", Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered}
+	db.Create(&pkg2)
+	pkg3 := persistent.Package{Name: "pkg-3", Ecosystem: "npm", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceManual}
+	db.Create(&pkg3)
+
+	body := fmt.Sprintf(`{"packageIds":[%d,%d]}`, pkg1.ID, pkg2.ID)
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-approve", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.BulkApprovePackages(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Equal(t, float64(2), data["approved"])
+
+	// Verify in DB
+	var updated1, updated2 persistent.Package
+	db.First(&updated1, pkg1.ID)
+	db.First(&updated2, pkg2.ID)
+	assert.Equal(t, persistent.PackageStatusActive, updated1.Status)
+	assert.Equal(t, persistent.PackageStatusActive, updated2.Status)
+}
+
+func TestBulkApprovePackages_ByEcosystem(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	db.Create(&persistent.Package{Name: "py-1", Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{Name: "py-2", Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{Name: "npm-1", Ecosystem: "npm", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
+
+	body := `{"ecosystem":"python"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-approve", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.BulkApprovePackages(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].(map[string]any)
+	assert.Equal(t, float64(2), data["approved"])
+
+	// npm package should still be suggested
+	var npmPkg persistent.Package
+	db.Where("name = ?", "npm-1").First(&npmPkg)
+	assert.Equal(t, persistent.PackageStatusSuggested, npmPkg.Status)
+}
+
+func TestBulkApprovePackages_NoParams(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-approve", strings.NewReader(`{}`))
+	w := httptest.NewRecorder()
+	h.BulkApprovePackages(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestBulkApprovePackages_InvalidEcosystem(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-approve", strings.NewReader(`{"ecosystem":"rubygems"}`))
+	w := httptest.NewRecorder()
+	h.BulkApprovePackages(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestBulkApprovePackages_BadJSON(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-approve", strings.NewReader(`{bad}`))
+	w := httptest.NewRecorder()
+	h.BulkApprovePackages(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// --- Stale Packages ---
+
+func TestListStalePackages(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	// Package with no download count update (stale)
+	db.Create(&persistent.Package{Name: "old-pkg", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
+	// Package with recent download count update (not stale)
+	now := time.Now()
+	db.Create(&persistent.Package{Name: "fresh-pkg", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered, DownloadCountUpdatedAt: &now})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/packages/stale?months=6", nil)
+	w := httptest.NewRecorder()
+	h.ListStalePackages(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+	data := resp["data"].([]any)
+	// old-pkg has NULL download_count_updated_at, fresh-pkg is recent — old-pkg should be stale
+	assert.GreaterOrEqual(t, len(data), 1)
+}
+
+func TestListStalePackages_DefaultMonths(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/packages/stale", nil)
+	w := httptest.NewRecorder()
+	h.ListStalePackages(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestListStalePackages_InvalidMonths(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	tests := []struct {
+		name   string
+		months string
+	}{
+		{"zero", "0"},
+		{"negative", "-1"},
+		{"too high", "25"},
+		{"non-numeric", "abc"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/packages/stale?months="+tt.months, nil)
+			w := httptest.NewRecorder()
+			h.ListStalePackages(w, req)
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+		})
+	}
+}
+
+// --- Route Registration (smoke test) ---
+
+func TestSuggestionsRouteRegistered(t *testing.T) {
+	db := setupTestDB(t)
+	h := newPackageHandlers(db)
+
+	// Create a router that mirrors the production route registration
+	r := chi.NewRouter()
+	r.Route("/api/packages", func(r chi.Router) {
+		r.Get("/suggestions", h.ListSuggestions)
+		r.Get("/stale", h.ListStalePackages)
+		r.Post("/bulk-approve", h.BulkApprovePackages)
+		r.Route("/{id}", func(r chi.Router) {
+			r.Get("/", h.GetPackage)
+			r.Post("/approve", h.ApprovePackage)
+			r.Post("/reject", h.RejectPackage)
+		})
+	})
+
+	// Verify /suggestions doesn't match /{id}
+	req := httptest.NewRequest(http.MethodGet, "/api/packages/suggestions", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Verify /stale doesn't match /{id}
+	req = httptest.NewRequest(http.MethodGet, "/api/packages/stale", nil)
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
 }

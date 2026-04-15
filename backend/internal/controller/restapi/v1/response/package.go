@@ -10,37 +10,43 @@ import (
 
 // PackageResponse is the JSON representation of a monitored package.
 type PackageResponse struct {
-	ID            uint       `json:"id"`
-	OrgID         uint       `json:"orgId"`
-	Name          string     `json:"name"`
-	Ecosystem     string     `json:"ecosystem"`
-	LatestVersion string     `json:"latestVersion"`
-	Description   string     `json:"description"`
-	Source        string     `json:"source"`
-	Status        string     `json:"status"`
-	Rank          *uint      `json:"rank,omitempty"`
-	BlockedAt     *time.Time `json:"blockedAt,omitempty"`
-	BlockedReason string     `json:"blockedReason,omitempty"`
-	CreatedAt     time.Time  `json:"createdAt"`
-	UpdatedAt     time.Time  `json:"updatedAt"`
+	ID                     uint       `json:"id"`
+	OrgID                  uint       `json:"orgId"`
+	Name                   string     `json:"name"`
+	Ecosystem              string     `json:"ecosystem"`
+	LatestVersion          string     `json:"latestVersion"`
+	Description            string     `json:"description"`
+	Source                 string     `json:"source"`
+	Status                 string     `json:"status"`
+	Rank                   *uint      `json:"rank,omitempty"`
+	DownloadCount          int64      `json:"downloadCount"`
+	PopularityScore        float64    `json:"popularityScore"`
+	DownloadCountUpdatedAt *time.Time `json:"downloadCountUpdatedAt,omitempty"`
+	BlockedAt              *time.Time `json:"blockedAt,omitempty"`
+	BlockedReason          string     `json:"blockedReason,omitempty"`
+	CreatedAt              time.Time  `json:"createdAt"`
+	UpdatedAt              time.Time  `json:"updatedAt"`
 }
 
 // PackageFromEntity maps a domain Package to a response DTO.
 func PackageFromEntity(p *entity.Package) PackageResponse {
 	return PackageResponse{
-		ID:            p.ID,
-		OrgID:         p.OrgID,
-		Name:          p.Name,
-		Ecosystem:     string(p.Ecosystem),
-		LatestVersion: p.LatestVersion,
-		Description:   p.Description,
-		Source:        string(p.Source),
-		Status:        string(p.Status),
-		Rank:          p.Rank,
-		BlockedAt:     p.BlockedAt,
-		BlockedReason: p.BlockedReason,
-		CreatedAt:     p.CreatedAt,
-		UpdatedAt:     p.UpdatedAt,
+		ID:                     p.ID,
+		OrgID:                  p.OrgID,
+		Name:                   p.Name,
+		Ecosystem:              string(p.Ecosystem),
+		LatestVersion:          p.LatestVersion,
+		Description:            p.Description,
+		Source:                 string(p.Source),
+		Status:                 string(p.Status),
+		Rank:                   p.Rank,
+		DownloadCount:          p.DownloadCount,
+		PopularityScore:        p.PopularityScore,
+		DownloadCountUpdatedAt: p.DownloadCountUpdatedAt,
+		BlockedAt:              p.BlockedAt,
+		BlockedReason:          p.BlockedReason,
+		CreatedAt:              p.CreatedAt,
+		UpdatedAt:              p.UpdatedAt,
 	}
 }
 

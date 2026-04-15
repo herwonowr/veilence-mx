@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -429,4 +430,148 @@ func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request)
 			len(entries), result.Imported, result.Skipped, len(result.Errors), req.Format))
 
 	respondJSON(w, http.StatusOK, response.ImportResultFromEntity(result), nil)
+}
+
+// ListSuggestions returns a paginated list of suggested packages for the current org.
+// GET /api/packages/suggestions
+func (h *PackageHandlers) ListSuggestions(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+	page, limit := parsePagination(r)
+
+	packages, total, err := h.PkgSvc.ListSuggestions(r.Context(), orgID, page, limit)
+	if err != nil {
+		respondAppError(w, Internal("failed to list suggestions"))
+		return
+	}
+
+	respondJSON(w, http.StatusOK, response.PackagesFromEntities(packages), &Meta{Page: page, Limit: limit, Total: total})
+}
+
+// ApprovePackage promotes a suggested package to active monitoring.
+// POST /api/packages/{id}/approve
+func (h *PackageHandlers) ApprovePackage(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+
+	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		respondAppError(w, BadRequest("invalid package ID"))
+		return
+	}
+
+	pkg, err := h.PkgSvc.ApprovePackage(r.Context(), orgID, uint(id))
+	if err != nil {
+		if errors.Is(err, entity.ErrNotFound) {
+			respondAppError(w, NotFound("package"))
+			return
+		}
+		respondAppError(w, Internal("failed to approve package"))
+		return
+	}
+
+	respondJSON(w, http.StatusOK, response.PackageFromEntity(pkg), nil)
+}
+
+// RejectPackage rejects a suggested package.
+// POST /api/packages/{id}/reject
+func (h *PackageHandlers) RejectPackage(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+
+	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		respondAppError(w, BadRequest("invalid package ID"))
+		return
+	}
+
+	if err := h.PkgSvc.RejectPackage(r.Context(), orgID, uint(id)); err != nil {
+		if errors.Is(err, entity.ErrNotFound) {
+			respondAppError(w, NotFound("package"))
+			return
+		}
+		respondAppError(w, Internal("failed to reject package"))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// bulkApproveRequest is the request body for bulk-approving suggested packages.
+type bulkApproveRequest struct {
+	PackageIDs []uint `json:"packageIds"`
+	Ecosystem  string `json:"ecosystem"`
+}
+
+// BulkApprovePackages approves multiple suggested packages at once.
+// POST /api/packages/bulk-approve
+func (h *PackageHandlers) BulkApprovePackages(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+
+	var req bulkApproveRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondAppError(w, BadRequest("invalid request body"))
+		return
+	}
+
+	var pkgIDs []uint
+
+	if len(req.PackageIDs) > 0 {
+		pkgIDs = req.PackageIDs
+	} else if req.Ecosystem != "" {
+		// Approve all suggestions for the given ecosystem: fetch all suggested packages
+		// and filter by ecosystem.
+		if req.Ecosystem != "python" && req.Ecosystem != "npm" {
+			respondAppError(w, Validation("ecosystem must be 'python' or 'npm'"))
+			return
+		}
+		packages, _, err := h.PkgSvc.ListSuggestions(r.Context(), orgID, 1, 10000)
+		if err != nil {
+			respondAppError(w, Internal("failed to list suggestions"))
+			return
+		}
+		for _, pkg := range packages {
+			if string(pkg.Ecosystem) == req.Ecosystem {
+				pkgIDs = append(pkgIDs, pkg.ID)
+			}
+		}
+		if len(pkgIDs) == 0 {
+			respondJSON(w, http.StatusOK, map[string]int{"approved": 0}, nil)
+			return
+		}
+	} else {
+		respondAppError(w, Validation("either 'packageIds' or 'ecosystem' is required"))
+		return
+	}
+
+	count, err := h.PkgSvc.BulkApprovePackages(r.Context(), orgID, pkgIDs)
+	if err != nil {
+		respondAppError(w, Internal("failed to bulk approve packages"))
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]int{"approved": count}, nil)
+}
+
+// ListStalePackages returns packages that haven't had a release in a configurable number of months.
+// GET /api/packages/stale
+func (h *PackageHandlers) ListStalePackages(w http.ResponseWriter, r *http.Request) {
+	orgID := rbac.OrgIDFromContext(r.Context())
+
+	months := 6
+	if m := r.URL.Query().Get("months"); m != "" {
+		parsed, err := strconv.Atoi(m)
+		if err != nil || parsed < 1 || parsed > 24 {
+			respondAppError(w, Validation("months must be between 1 and 24"))
+			return
+		}
+		months = parsed
+	}
+
+	staleBefore := time.Now().AddDate(0, -months, 0)
+
+	packages, err := h.PkgSvc.ListStalePackages(r.Context(), orgID, staleBefore)
+	if err != nil {
+		respondAppError(w, Internal("failed to list stale packages"))
+		return
+	}
+
+	respondJSON(w, http.StatusOK, response.PackagesFromEntities(packages), nil)
 }

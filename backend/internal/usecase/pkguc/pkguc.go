@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
@@ -179,4 +180,79 @@ func (uc *UseCase) RemovePackage(ctx context.Context, orgID, pkgID uint) error {
 		fmt.Sprintf("removed package %q (%s) from monitoring", pkg.Name, pkg.Ecosystem))
 
 	return nil
+}
+
+// ApprovePackage promotes a suggested package to active monitoring.
+func (uc *UseCase) ApprovePackage(ctx context.Context, orgID, pkgID uint) (*entity.Package, error) {
+	if err := uc.repo.ApprovePackage(ctx, orgID, pkgID); err != nil {
+		if errors.Is(err, entity.ErrNotFound) {
+			return nil, fmt.Errorf("package %w", entity.ErrNotFound)
+		}
+		return nil, fmt.Errorf("PackageUseCase.ApprovePackage: %w", err)
+	}
+
+	pkg, err := uc.repo.FindByID(ctx, pkgID)
+	if err != nil {
+		return nil, fmt.Errorf("PackageUseCase.ApprovePackage: fetching approved package: %w", err)
+	}
+
+	uc.audit.LogAction(ctx, "approve", "package", pkgID,
+		fmt.Sprintf("approved suggested package %q (%s) for monitoring", pkg.Name, pkg.Ecosystem))
+
+	return pkg, nil
+}
+
+// RejectPackage rejects a suggested package, setting its status to removed.
+func (uc *UseCase) RejectPackage(ctx context.Context, orgID, pkgID uint) error {
+	// Fetch the package first so we can log its name
+	pkg, err := uc.repo.FindByID(ctx, pkgID)
+	if err != nil {
+		if errors.Is(err, entity.ErrNotFound) {
+			return fmt.Errorf("package %w", entity.ErrNotFound)
+		}
+		return fmt.Errorf("PackageUseCase.RejectPackage: fetching package: %w", err)
+	}
+
+	if err := uc.repo.RejectPackage(ctx, orgID, pkgID); err != nil {
+		if errors.Is(err, entity.ErrNotFound) {
+			return fmt.Errorf("package %w", entity.ErrNotFound)
+		}
+		return fmt.Errorf("PackageUseCase.RejectPackage: %w", err)
+	}
+
+	uc.audit.LogAction(ctx, "reject", "package", pkgID,
+		fmt.Sprintf("rejected suggested package %q (%s)", pkg.Name, pkg.Ecosystem))
+
+	return nil
+}
+
+// BulkApprovePackages approves multiple suggested packages at once.
+func (uc *UseCase) BulkApprovePackages(ctx context.Context, orgID uint, pkgIDs []uint) (int, error) {
+	count, err := uc.repo.BulkApprovePackages(ctx, orgID, pkgIDs)
+	if err != nil {
+		return 0, fmt.Errorf("PackageUseCase.BulkApprovePackages: %w", err)
+	}
+
+	uc.audit.LogAction(ctx, "bulk_approve", "package", 0,
+		fmt.Sprintf("bulk approved %d suggested packages", count))
+
+	return count, nil
+}
+
+// ListSuggestions returns a paginated list of suggested packages for an org.
+func (uc *UseCase) ListSuggestions(ctx context.Context, orgID uint, page, limit int) ([]entity.Package, int64, error) {
+	packages, total, err := uc.repo.FindSuggestionsByOrgID(ctx, orgID, page, limit)
+	if err != nil {
+		return nil, 0, fmt.Errorf("PackageUseCase.ListSuggestions: %w", err)
+	}
+	return packages, total, nil
+}
+
+// ListStalePackages returns active packages with no releases since staleBefore.
+func (uc *UseCase) ListStalePackages(ctx context.Context, orgID uint, staleBefore time.Time) ([]entity.Package, error) {
+	packages, err := uc.repo.FindStaleByOrgID(ctx, orgID, staleBefore)
+	if err != nil {
+		return nil, fmt.Errorf("PackageUseCase.ListStalePackages: %w", err)
+	}
+	return packages, nil
 }

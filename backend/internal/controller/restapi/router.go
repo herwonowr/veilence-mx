@@ -109,11 +109,20 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 					r.With(rbac.RequirePermission(rbacService, "packages", "read")).Get("/", h.Packages.ListPackages)
 					r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/", h.Packages.CreatePackage)
 					r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/bulk-import", h.Packages.ImportPackages)
+
+					// Static routes MUST be registered before /{id} to avoid Chi matching
+					// "suggestions", "stale", "bulk-approve" as an {id} parameter.
+					r.With(rbac.RequirePermission(rbacService, "packages", "read")).Get("/suggestions", h.Packages.ListSuggestions)
+					r.With(rbac.RequirePermission(rbacService, "packages", "read")).Get("/stale", h.Packages.ListStalePackages)
+					r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/bulk-approve", h.Packages.BulkApprovePackages)
+
 					r.Route("/{id}", func(r chi.Router) {
 						r.With(rbac.RequirePermission(rbacService, "packages", "read")).Get("/", h.Packages.GetPackage)
 						r.With(rbac.RequirePermission(rbacService, "packages", "delete")).Delete("/", h.Packages.DeletePackage)
 						r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/block", h.Packages.BlockPackage)
 						r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/unblock", h.Packages.UnblockPackage)
+						r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/approve", h.Packages.ApprovePackage)
+						r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/reject", h.Packages.RejectPackage)
 						r.With(rbac.RequirePermission(rbacService, "releases", "read")).Get("/releases", h.Packages.ListPackageReleases)
 						r.With(rbac.RequirePermission(rbacService, "packages", "read")).Get("/analysis-history", h.Packages.GetAnalysisHistory)
 					})

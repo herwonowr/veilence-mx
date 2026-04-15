@@ -251,6 +251,11 @@ type PackageService interface {
 	BlockPackage(ctx context.Context, orgID, pkgID uint, reason string) (*entity.Package, error)
 	UnblockPackage(ctx context.Context, orgID, pkgID uint) (*entity.Package, error)
 	RemovePackage(ctx context.Context, orgID, pkgID uint) error
+	ApprovePackage(ctx context.Context, orgID, pkgID uint) (*entity.Package, error)
+	RejectPackage(ctx context.Context, orgID, pkgID uint) error
+	BulkApprovePackages(ctx context.Context, orgID uint, pkgIDs []uint) (int, error)
+	ListSuggestions(ctx context.Context, orgID uint, page, limit int) ([]entity.Package, int64, error)
+	ListStalePackages(ctx context.Context, orgID uint, staleBefore time.Time) ([]entity.Package, error)
 }
 
 // AlertService defines the business logic operations for alerts.
