@@ -4,14 +4,14 @@ import { AuthProvider, useAuth } from "@/core/providers/auth-provider"
 import * as apiClient from "@/core/http"
 
 // Wrapper that provides both QueryClient and AuthProvider
-function createWrapper() {
+const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
     },
   })
-  return function Wrapper({ children }: { children: React.ReactNode }) {
+  return ({ children }: { children: React.ReactNode }) => {
     return (
       <QueryClientProvider client={queryClient}>
         <AuthProvider>{children}</AuthProvider>

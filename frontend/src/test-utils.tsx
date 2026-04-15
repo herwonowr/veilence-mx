@@ -7,7 +7,7 @@ import { AuthProvider } from "@/core/providers/auth-provider"
 /**
  * All-in-one test wrapper providing QueryClientProvider + AuthProvider.
  */
-function AllProviders({ children }: { children: React.ReactNode }) {
+const AllProviders = ({ children }: { children: React.ReactNode }) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -25,10 +25,10 @@ function AllProviders({ children }: { children: React.ReactNode }) {
  * Custom render that wraps the component under test with all application
  * providers. Use instead of @testing-library/react's render.
  */
-function customRender(
+const customRender = (
   ui: ReactElement,
   options?: Omit<RenderOptions, "wrapper">
-) {
+) => {
   return {
     user: userEvent.setup(),
     ...render(ui, { wrapper: AllProviders, ...options }),

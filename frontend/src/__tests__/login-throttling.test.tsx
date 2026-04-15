@@ -24,7 +24,7 @@ vi.mock("sonner", () => ({
 
 const mockLogin = vi.fn()
 
-function setupMockAuth() {
+const setupMockAuth = () => {
   vi.mocked(useAuth).mockReturnValue({
     user: null,
     isAuthenticated: false,

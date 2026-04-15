@@ -31,7 +31,7 @@ vi.mock("@/lib/api-client", async (importOriginal) => {
  * Once React Query lands, this would be:
  *   useQuery({ queryKey: ['dashboard-stats'], queryFn: getDashboardStats })
  */
-function useDashboardStats() {
+const useDashboardStats = () => {
   const [data, setData] = useState<DashboardStats | null>(null)
   const [error, setError] = useState<Error | null>(null)
   const [isLoading, setIsLoading] = useState(true)

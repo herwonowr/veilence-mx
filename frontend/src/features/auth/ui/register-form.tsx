@@ -6,7 +6,8 @@ import Link from "next/link"
 import { useAuth } from "@/core/providers/auth-provider"
 import { registerSchema } from "@/domains/auth"
 import { Button } from "@/ui/components/button"
-import { FormField } from "@/ui/form/form-field"
+import { Input } from "@/ui/components/input"
+import { Field, FieldLabel, FieldError } from "@/ui/components/field"
 import {
   Card,
   CardContent,
@@ -15,6 +16,7 @@ import {
   CardTitle,
 } from "@/ui/components/card"
 import { Shield, Loader2, Eye, EyeOff } from "lucide-react"
+import { Alert, AlertDescription } from "@/ui/components/alert"
 import { ZodError } from "zod"
 
 export const RegisterForm = () => {
@@ -102,55 +104,63 @@ export const RegisterForm = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {serverError && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">
-                {serverError}
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription>{serverError}</AlertDescription>
+              </Alert>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField
-                id="firstName"
-                label="First Name"
-                placeholder="John"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                error={errors.firstName}
-                required
-                autoComplete="given-name"
-              />
-              <FormField
-                id="lastName"
-                label="Last Name"
-                placeholder="Doe"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                error={errors.lastName}
-                required
-                autoComplete="family-name"
-              />
+              <Field data-invalid={!!errors.firstName}>
+                <FieldLabel htmlFor="firstName">First Name</FieldLabel>
+                <Input
+                  id="firstName"
+                  placeholder="John"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                  autoComplete="given-name"
+                />
+                {errors.firstName && <FieldError>{errors.firstName}</FieldError>}
+              </Field>
+              <Field data-invalid={!!errors.lastName}>
+                <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
+                <Input
+                  id="lastName"
+                  placeholder="Doe"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                  autoComplete="family-name"
+                />
+                {errors.lastName && <FieldError>{errors.lastName}</FieldError>}
+              </Field>
             </div>
-            <FormField
-              id="email"
-              label="Email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              error={errors.email}
-              required
-              autoComplete="email"
-            />
-            <div className="relative">
-              <FormField
-                id="password"
-                label="Password"
-                type={showPassword ? "text" : "password"}
-                placeholder="At least 8 characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                error={errors.password}
+            <Field data-invalid={!!errors.email}>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                autoComplete="new-password"
+                autoComplete="email"
               />
+              {errors.email && <FieldError>{errors.email}</FieldError>}
+            </Field>
+            <div className="relative">
+              <Field data-invalid={!!errors.password}>
+                <FieldLabel htmlFor="password">Password</FieldLabel>
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="At least 8 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                />
+                {errors.password && <FieldError>{errors.password}</FieldError>}
+              </Field>
               <Button
                 variant="ghost"
                 size="icon-xs"
@@ -180,17 +190,19 @@ export const RegisterForm = () => {
               )}
             </div>
             <div className="relative">
-              <FormField
-                id="confirmPassword"
-                label="Confirm Password"
-                type={showConfirmPassword ? "text" : "password"}
-                placeholder="Confirm your password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                error={errors.confirmPassword}
-                required
-                autoComplete="new-password"
-              />
+              <Field data-invalid={!!errors.confirmPassword}>
+                <FieldLabel htmlFor="confirmPassword">Confirm Password</FieldLabel>
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                />
+                {errors.confirmPassword && <FieldError>{errors.confirmPassword}</FieldError>}
+              </Field>
               <Button
                 variant="ghost"
                 size="icon-xs"

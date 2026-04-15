@@ -6,7 +6,8 @@ import { apiForgotPassword } from "@/domains/auth"
 import { passwordResetSchema } from "@/domains/auth"
 import { sanitizeErrorMessage } from "@/core"
 import { Button } from "@/ui/components/button"
-import { FormField } from "@/ui/form/form-field"
+import { Input } from "@/ui/components/input"
+import { Field, FieldLabel, FieldError } from "@/ui/components/field"
 import {
   Card,
   CardContent,
@@ -15,6 +16,7 @@ import {
   CardTitle,
 } from "@/ui/components/card"
 import { Shield, Loader2, ArrowLeft, CheckCircle2 } from "lucide-react"
+import { Alert, AlertDescription } from "@/ui/components/alert"
 import { ZodError } from "zod"
 
 export const ForgotPasswordForm = () => {
@@ -110,21 +112,23 @@ export const ForgotPasswordForm = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {serverError && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">
-                {serverError}
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription>{serverError}</AlertDescription>
+              </Alert>
             )}
-            <FormField
-              id="email"
-              label="Email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              error={errors.email}
-              required
-              autoComplete="email"
-            />
+            <Field data-invalid={!!errors.email}>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+              />
+              {errors.email && <FieldError>{errors.email}</FieldError>}
+            </Field>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
               Send Reset Link

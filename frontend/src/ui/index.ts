@@ -15,5 +15,16 @@ export { DataTablePagination } from "@/ui/data/data-table-pagination"
 export { FilterChips, type ActiveFilter } from "@/ui/data/filter-chips"
 
 // Form
-export { FormField } from "@/ui/form/form-field"
+export {
+  Field,
+  FieldLabel,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLegend,
+  FieldSeparator,
+  FieldSet,
+  FieldContent,
+  FieldTitle,
+} from "@/ui/components/field"
 export { SearchInput } from "@/ui/form/search-input"

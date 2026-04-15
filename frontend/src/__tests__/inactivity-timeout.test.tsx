@@ -61,14 +61,14 @@ const mockOrg = {
   updatedAt: "2026-01-01T00:00:00Z",
 }
 
-function createWrapper() {
+const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
     },
   })
-  return function Wrapper({ children }: { children: React.ReactNode }) {
+  return ({ children }: { children: React.ReactNode }) => {
     return (
       <QueryClientProvider client={queryClient}>
         <AuthProvider>{children}</AuthProvider>

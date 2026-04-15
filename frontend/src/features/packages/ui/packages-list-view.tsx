@@ -50,6 +50,8 @@ import { TableError } from "@/ui/feedback/table-error"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
 import { FilterChips, type ActiveFilter } from "@/ui/data/filter-chips"
 import { SearchInput } from "@/ui/form/search-input"
+import { Field, FieldLabel, FieldError } from "@/ui/components/field"
+import { Label } from "@/ui/components/label"
 import { formatEcosystem } from "@/domains/common"
 import Link from "next/link"
 import {
@@ -484,10 +486,10 @@ export const PackagesListView = () => {
                 <DialogTitle>Add Custom Package</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-4">
-                <div>
-                  <label htmlFor="package-name" className="text-sm font-medium">
+                <Field data-invalid={!!createErrors.name}>
+                  <FieldLabel htmlFor="package-name">
                     Package Name
-                  </label>
+                  </FieldLabel>
                   <Input
                     id="package-name"
                     value={newName}
@@ -495,13 +497,13 @@ export const PackagesListView = () => {
                     placeholder="e.g., requests"
                   />
                   {createErrors.name && (
-                    <p className="text-xs text-destructive mt-1" role="alert">{createErrors.name}</p>
+                    <FieldError>{createErrors.name}</FieldError>
                   )}
-                </div>
-                <div>
-                  <label htmlFor="package-ecosystem" className="text-sm font-medium">
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="package-ecosystem">
                     Ecosystem
-                  </label>
+                  </FieldLabel>
                   <Select
                     value={newEcosystem}
                     onValueChange={(v) => { if (v) setNewEcosystem(v as Ecosystem) }}
@@ -514,7 +516,7 @@ export const PackagesListView = () => {
                       <SelectItem value="npm">NPM</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+                </Field>
                 <Button onClick={handleCreate} className="w-full" disabled={createMutation.isPending}>
                   Add Package
                 </Button>
@@ -549,9 +551,9 @@ export const PackagesListView = () => {
                 aria-label="Search packages"
               />
               <div className="space-y-1">
-                <label htmlFor="packages-ecosystem-filter" className="text-xs font-medium text-muted-foreground">
+                <Label htmlFor="packages-ecosystem-filter" className="text-xs text-muted-foreground">
                   Ecosystem
-                </label>
+                </Label>
                 <Select
                   value={ecosystemFilter || "all"}
                   onValueChange={(v) => setEcosystemFilter(v === "all" ? "" : (v ?? ""))}
@@ -567,9 +569,9 @@ export const PackagesListView = () => {
                 </Select>
               </div>
               <div className="space-y-1">
-                <label htmlFor="packages-status-filter" className="text-xs font-medium text-muted-foreground">
+                <Label htmlFor="packages-status-filter" className="text-xs text-muted-foreground">
                   Status
-                </label>
+                </Label>
                 <Select
                   value={statusFilter || "active"}
                   onValueChange={(v) => setStatusFilter(v === "all" ? "" : (v ?? "active"))}
@@ -588,9 +590,9 @@ export const PackagesListView = () => {
                 </Select>
               </div>
               <div className="space-y-1">
-                <label htmlFor="packages-source-filter" className="text-xs font-medium text-muted-foreground">
+                <Label htmlFor="packages-source-filter" className="text-xs text-muted-foreground">
                   Source
-                </label>
+                </Label>
                 <Select
                   value={sourceFilter || "all"}
                   onValueChange={(v) => setSourceFilter(v === "all" ? "" : (v ?? ""))}
@@ -714,17 +716,18 @@ export const PackagesListView = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="px-6 pb-2">
-            <label htmlFor="block-reason" className="text-sm font-medium">
-              Reason (optional)
-            </label>
-            <Textarea
-              id="block-reason"
-              value={blockReason}
-              onChange={(e) => setBlockReason(e.target.value)}
-              placeholder="e.g., Known benign package with noisy diffs"
-              className="mt-1"
-              rows={2}
-            />
+            <Field>
+              <FieldLabel htmlFor="block-reason">
+                Reason (optional)
+              </FieldLabel>
+              <Textarea
+                id="block-reason"
+                value={blockReason}
+                onChange={(e) => setBlockReason(e.target.value)}
+                placeholder="e.g., Known benign package with noisy diffs"
+                rows={2}
+              />
+            </Field>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>

@@ -31,14 +31,14 @@ vi.mock("@/core/providers/auth-provider", () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))
 
-function createWrapper() {
+const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
     },
   })
-  return function Wrapper({ children }: { children: React.ReactNode }) {
+  return ({ children }: { children: React.ReactNode }) => {
     return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   }
 }

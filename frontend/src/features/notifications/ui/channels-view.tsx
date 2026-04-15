@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/ui/components/card"
 import { Button } from "@/ui/components/button"
 import { Input } from "@/ui/components/input"
-import { Label } from "@/ui/components/label"
+import { Field, FieldLabel } from "@/ui/components/field"
 import { Badge } from "@/ui/components/badge"
 import { Switch } from "@/ui/components/switch"
 import { Separator } from "@/ui/components/separator"
@@ -196,17 +196,17 @@ const ChannelsSection = ({
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-2">
-              <div className="space-y-2">
-                <Label htmlFor="channel-create-name">Name</Label>
+              <Field>
+                <FieldLabel htmlFor="channel-create-name">Name</FieldLabel>
                 <Input
                   id="channel-create-name"
                   placeholder="e.g., Team Slack"
                   value={channelName}
                   onChange={(e) => setChannelName(e.target.value)}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Type</Label>
+              </Field>
+              <Field>
+                <FieldLabel>Type</FieldLabel>
                 <Select
                   value={channelType}
                   onValueChange={(v) => {
@@ -222,7 +222,7 @@ const ChannelsSection = ({
                     <SelectItem value="webhook">Webhook</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </Field>
               {channelType && (
                 <ChannelConfigFields
                   type={channelType}
@@ -354,67 +354,79 @@ const ChannelConfigFields = ({
   switch (type) {
     case "email":
       return (
-        <div className="space-y-2">
-          <Label htmlFor="channel-email-host">SMTP Host</Label>
-          <Input
-            id="channel-email-host"
-            placeholder="smtp.example.com"
-            value={parsed.host ?? ""}
-            onChange={(e) => updateField("host", e.target.value)}
-          />
-          <Label htmlFor="channel-email-port">SMTP Port</Label>
-          <Input
-            id="channel-email-port"
-            placeholder="587"
-            value={parsed.port ?? ""}
-            onChange={(e) => updateField("port", e.target.value)}
-          />
-          <Label htmlFor="channel-email-from">From Address</Label>
-          <Input
-            id="channel-email-from"
-            placeholder="alerts@example.com"
-            value={parsed.from ?? ""}
-            onChange={(e) => updateField("from", e.target.value)}
-          />
-          <Label htmlFor="channel-email-to">To Address</Label>
-          <Input
-            id="channel-email-to"
-            placeholder="team@example.com"
-            value={parsed.to ?? ""}
-            onChange={(e) => updateField("to", e.target.value)}
-          />
+        <div className="space-y-4">
+          <Field>
+            <FieldLabel htmlFor="channel-email-host">SMTP Host</FieldLabel>
+            <Input
+              id="channel-email-host"
+              placeholder="smtp.example.com"
+              value={parsed.host ?? ""}
+              onChange={(e) => updateField("host", e.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="channel-email-port">SMTP Port</FieldLabel>
+            <Input
+              id="channel-email-port"
+              placeholder="587"
+              value={parsed.port ?? ""}
+              onChange={(e) => updateField("port", e.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="channel-email-from">From Address</FieldLabel>
+            <Input
+              id="channel-email-from"
+              placeholder="alerts@example.com"
+              value={parsed.from ?? ""}
+              onChange={(e) => updateField("from", e.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="channel-email-to">To Address</FieldLabel>
+            <Input
+              id="channel-email-to"
+              placeholder="team@example.com"
+              value={parsed.to ?? ""}
+              onChange={(e) => updateField("to", e.target.value)}
+            />
+          </Field>
         </div>
       )
     case "slack":
       return (
-        <div className="space-y-2">
-          <Label htmlFor="channel-slack-url">Slack Webhook URL</Label>
+        <Field>
+          <FieldLabel htmlFor="channel-slack-url">Slack Webhook URL</FieldLabel>
           <Input
             id="channel-slack-url"
             placeholder="https://hooks.slack.com/services/..."
             value={parsed.webhookUrl ?? ""}
             onChange={(e) => updateField("webhookUrl", e.target.value)}
           />
-        </div>
+        </Field>
       )
     case "webhook":
       return (
-        <div className="space-y-2">
-          <Label htmlFor="channel-webhook-url">Webhook URL</Label>
-          <Input
-            id="channel-webhook-url"
-            placeholder="https://api.example.com/webhook"
-            value={parsed.url ?? ""}
-            onChange={(e) => updateField("url", e.target.value)}
-          />
-          <Label htmlFor="channel-webhook-secret">Secret (optional)</Label>
-          <Input
-            id="channel-webhook-secret"
-            type="password"
-            placeholder="Signing secret for HMAC verification"
-            value={parsed.secret ?? ""}
-            onChange={(e) => updateField("secret", e.target.value)}
-          />
+        <div className="space-y-4">
+          <Field>
+            <FieldLabel htmlFor="channel-webhook-url">Webhook URL</FieldLabel>
+            <Input
+              id="channel-webhook-url"
+              placeholder="https://api.example.com/webhook"
+              value={parsed.url ?? ""}
+              onChange={(e) => updateField("url", e.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="channel-webhook-secret">Secret (optional)</FieldLabel>
+            <Input
+              id="channel-webhook-secret"
+              type="password"
+              placeholder="Signing secret for HMAC verification"
+              value={parsed.secret ?? ""}
+              onChange={(e) => updateField("secret", e.target.value)}
+            />
+          </Field>
         </div>
       )
     default:
@@ -495,8 +507,8 @@ const RulesSection = ({
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-2">
-              <div className="space-y-2">
-                <Label>Severity</Label>
+              <Field>
+                <FieldLabel>Severity</FieldLabel>
                 <Select
                   value={ruleSeverity}
                   onValueChange={(v) => {
@@ -514,9 +526,9 @@ const RulesSection = ({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Channel</Label>
+              </Field>
+              <Field>
+                <FieldLabel>Channel</FieldLabel>
                 {channels.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     Create a channel first before adding rules.
@@ -543,7 +555,7 @@ const RulesSection = ({
                     </SelectContent>
                   </Select>
                 )}
-              </div>
+              </Field>
             </div>
             <DialogFooter>
               <Button

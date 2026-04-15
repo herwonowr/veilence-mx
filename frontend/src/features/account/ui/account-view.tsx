@@ -10,7 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/
 import { Button } from "@/ui/components/button"
 import { Badge } from "@/ui/components/badge"
 import { Separator } from "@/ui/components/separator"
-import { FormField } from "@/ui/form/form-field"
+import { Input } from "@/ui/components/input"
+import { Field, FieldLabel, FieldError } from "@/ui/components/field"
 import {
   Save,
   Loader2,
@@ -118,22 +119,26 @@ const ProfileSection = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField
-            id="firstName"
-            label="First Name"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            error={errors.firstName}
-            required
-          />
-          <FormField
-            id="lastName"
-            label="Last Name"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            error={errors.lastName}
-            required
-          />
+          <Field data-invalid={!!errors.firstName}>
+            <FieldLabel htmlFor="firstName">First Name</FieldLabel>
+            <Input
+              id="firstName"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+            />
+            {errors.firstName && <FieldError>{errors.firstName}</FieldError>}
+          </Field>
+          <Field data-invalid={!!errors.lastName}>
+            <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
+            <Input
+              id="lastName"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+            />
+            {errors.lastName && <FieldError>{errors.lastName}</FieldError>}
+          </Field>
         </div>
         <div className="space-y-2">
           <Label className="text-sm font-medium">Email</Label>
@@ -268,37 +273,43 @@ const PasswordSection = () => {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="max-w-md space-y-4">
-          <FormField
-            id="currentPassword"
-            label="Current Password"
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            error={errors.currentPassword}
-            required
-            autoComplete="current-password"
-          />
-          <FormField
-            id="newPassword"
-            label="New Password"
-            type="password"
-            placeholder="At least 8 characters"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            error={errors.newPassword}
-            required
-            autoComplete="new-password"
-          />
-          <FormField
-            id="confirmPassword"
-            label="Confirm New Password"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            error={errors.confirmPassword}
-            required
-            autoComplete="new-password"
-          />
+          <Field data-invalid={!!errors.currentPassword}>
+            <FieldLabel htmlFor="currentPassword">Current Password</FieldLabel>
+            <Input
+              id="currentPassword"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+            {errors.currentPassword && <FieldError>{errors.currentPassword}</FieldError>}
+          </Field>
+          <Field data-invalid={!!errors.newPassword}>
+            <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
+            <Input
+              id="newPassword"
+              type="password"
+              placeholder="At least 8 characters"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              autoComplete="new-password"
+            />
+            {errors.newPassword && <FieldError>{errors.newPassword}</FieldError>}
+          </Field>
+          <Field data-invalid={!!errors.confirmPassword}>
+            <FieldLabel htmlFor="confirmPassword">Confirm New Password</FieldLabel>
+            <Input
+              id="confirmPassword"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              autoComplete="new-password"
+            />
+            {errors.confirmPassword && <FieldError>{errors.confirmPassword}</FieldError>}
+          </Field>
           <Button type="submit" disabled={changePassword.isPending}>
             {changePassword.isPending && (
               <Loader2 className="mr-2 size-4 animate-spin" />

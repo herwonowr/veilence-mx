@@ -7,7 +7,7 @@ import { apiCreateOrg } from "@/domains/admin"
 import type { Organization } from "@/domains/admin"
 import { Button } from "@/ui/components/button"
 import { Input } from "@/ui/components/input"
-import { Label } from "@/ui/components/label"
+import { Field, FieldLabel, FieldDescription } from "@/ui/components/field"
 import {
   Card,
   CardContent,
@@ -27,6 +27,7 @@ import {
 import { Badge } from "@/ui/components/badge"
 import { EmptyState } from "@/ui/feedback/empty-state"
 import { Building2, Plus, Loader2, Users, Package } from "lucide-react"
+import { Alert, AlertDescription } from "@/ui/components/alert"
 import Link from "next/link"
 import { useOrgMembers } from "@/features/admin/hooks/use-organizations"
 import { useAdminPackages } from "@/features/admin/hooks/use-admin-packages"
@@ -108,12 +109,12 @@ export const OrganizationsListView = () => {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 {error && (
-                  <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">
-                    {error}
-                  </div>
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 )}
-                <div className="space-y-2">
-                  <Label htmlFor="org-name">Name</Label>
+                <Field>
+                  <FieldLabel htmlFor="org-name">Name</FieldLabel>
                   <Input
                     id="org-name"
                     placeholder="My Organization"
@@ -121,9 +122,9 @@ export const OrganizationsListView = () => {
                     onChange={(e) => handleNameChange(e.target.value)}
                     required
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="org-slug">Slug</Label>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="org-slug">Slug</FieldLabel>
                   <Input
                     id="org-slug"
                     placeholder="my-organization"
@@ -131,19 +132,19 @@ export const OrganizationsListView = () => {
                     onChange={(e) => setSlug(e.target.value)}
                     required
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <FieldDescription>
                     URL-friendly identifier for your organization
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="org-description">Description</Label>
+                  </FieldDescription>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="org-description">Description</FieldLabel>
                   <Input
                     id="org-description"
                     placeholder="Optional description"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                   />
-                </div>
+                </Field>
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={creating}>

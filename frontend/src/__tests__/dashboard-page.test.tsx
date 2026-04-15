@@ -31,13 +31,13 @@ import { useDashboardStats, useChartData, useRecentReleases } from "@/features/d
 import { renderHook } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
-function createWrapper() {
+const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
     },
   })
-  return function Wrapper({ children }: { children: React.ReactNode }) {
+  return ({ children }: { children: React.ReactNode }) => {
     return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   }
 }

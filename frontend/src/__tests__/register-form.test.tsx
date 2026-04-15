@@ -29,7 +29,7 @@ vi.mock("@/core/providers/auth-provider", () => ({
 
 const mockRegister = vi.fn()
 
-function setupMockAuth() {
+const setupMockAuth = () => {
   vi.mocked(useAuth).mockReturnValue({
     user: null,
     isAuthenticated: false,

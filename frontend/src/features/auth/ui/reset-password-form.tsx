@@ -6,7 +6,8 @@ import Link from "next/link"
 import { apiResetPassword } from "@/domains/auth"
 import { newPasswordSchema } from "@/domains/auth"
 import { Button } from "@/ui/components/button"
-import { FormField } from "@/ui/form/form-field"
+import { Input } from "@/ui/components/input"
+import { Field, FieldLabel, FieldError } from "@/ui/components/field"
 import {
   Card,
   CardContent,
@@ -15,6 +16,7 @@ import {
   CardTitle,
 } from "@/ui/components/card"
 import { Shield, Loader2, ArrowLeft, AlertTriangle } from "lucide-react"
+import { Alert, AlertDescription } from "@/ui/components/alert"
 import { ZodError } from "zod"
 import { toast } from "sonner"
 
@@ -112,32 +114,36 @@ const ResetPasswordFormInner = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {serverError && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">
-                {serverError}
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription>{serverError}</AlertDescription>
+              </Alert>
             )}
-            <FormField
-              id="password"
-              label="New Password"
-              type="password"
-              placeholder="At least 8 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              error={errors.password}
-              required
-              autoComplete="new-password"
-            />
-            <FormField
-              id="confirmPassword"
-              label="Confirm New Password"
-              type="password"
-              placeholder="Confirm your new password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              error={errors.confirmPassword}
-              required
-              autoComplete="new-password"
-            />
+            <Field data-invalid={!!errors.password}>
+              <FieldLabel htmlFor="password">New Password</FieldLabel>
+              <Input
+                id="password"
+                type="password"
+                placeholder="At least 8 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+              />
+              {errors.password && <FieldError>{errors.password}</FieldError>}
+            </Field>
+            <Field data-invalid={!!errors.confirmPassword}>
+              <FieldLabel htmlFor="confirmPassword">Confirm New Password</FieldLabel>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Confirm your new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+              />
+              {errors.confirmPassword && <FieldError>{errors.confirmPassword}</FieldError>}
+            </Field>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
               Reset Password

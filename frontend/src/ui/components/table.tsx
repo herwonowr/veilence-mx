@@ -4,7 +4,7 @@ import * as React from "react"
 
 import { cn } from "@/core/utils"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+const Table = ({ className, ...props }: React.ComponentProps<"table">) => {
   return (
     <div
       data-slot="table-container"
@@ -19,7 +19,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   )
 }
 
-function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
+const TableHeader = ({ className, ...props }: React.ComponentProps<"thead">) => {
   return (
     <thead
       data-slot="table-header"
@@ -29,7 +29,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   )
 }
 
-function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
+const TableBody = ({ className, ...props }: React.ComponentProps<"tbody">) => {
   return (
     <tbody
       data-slot="table-body"
@@ -39,7 +39,7 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   )
 }
 
-function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
+const TableFooter = ({ className, ...props }: React.ComponentProps<"tfoot">) => {
   return (
     <tfoot
       data-slot="table-footer"
@@ -57,7 +57,7 @@ interface TableRowProps extends React.ComponentProps<"tr"> {
   clickable?: boolean
 }
 
-function TableRow({ className, clickable, onClick, onKeyDown, ...props }: TableRowProps) {
+const TableRow = ({ className, clickable, onClick, onKeyDown, ...props }: TableRowProps) => {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>) => {
     if (clickable && onClick && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault()
@@ -84,7 +84,7 @@ function TableRow({ className, clickable, onClick, onKeyDown, ...props }: TableR
   )
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+const TableHead = ({ className, ...props }: React.ComponentProps<"th">) => {
   return (
     <th
       data-slot="table-head"
@@ -97,7 +97,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   )
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+const TableCell = ({ className, ...props }: React.ComponentProps<"td">) => {
   return (
     <td
       data-slot="table-cell"
@@ -110,10 +110,10 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   )
 }
 
-function TableCaption({
+const TableCaption = ({
   className,
   ...props
-}: React.ComponentProps<"caption">) {
+}: React.ComponentProps<"caption">) => {
   return (
     <caption
       data-slot="table-caption"

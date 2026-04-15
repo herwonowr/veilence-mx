@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/core/providers/auth-provider"
 import { Button } from "@/ui/components/button"
 import { Input } from "@/ui/components/input"
-import { Label } from "@/ui/components/label"
+import { Field, FieldLabel } from "@/ui/components/field"
 import {
   Card,
   CardContent,
@@ -52,6 +52,7 @@ import {
   KeyRound,
   ScrollText,
 } from "lucide-react"
+import { Alert, AlertDescription } from "@/ui/components/alert"
 import Link from "next/link"
 import {
   useOrganization,
@@ -272,12 +273,12 @@ export const OrganizationDetailView = () => {
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     {inviteError && (
-                      <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">
-                        {inviteError}
-                      </div>
+                      <Alert variant="destructive">
+                        <AlertDescription>{inviteError}</AlertDescription>
+                      </Alert>
                     )}
-                    <div className="space-y-2">
-                      <Label htmlFor="invite-email">Email</Label>
+                    <Field>
+                      <FieldLabel htmlFor="invite-email">Email</FieldLabel>
                       <Input
                         id="invite-email"
                         type="email"
@@ -286,9 +287,9 @@ export const OrganizationDetailView = () => {
                         onChange={(e) => setInviteEmail(e.target.value)}
                         required
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Role</Label>
+                    </Field>
+                    <Field>
+                      <FieldLabel>Role</FieldLabel>
                       <Select
                         value={inviteRoleId != null ? String(inviteRoleId) : undefined}
                         onValueChange={(v) => setInviteRoleId(v ? parseInt(String(v), 10) : null)}
@@ -304,7 +305,7 @@ export const OrganizationDetailView = () => {
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
+                    </Field>
                   </div>
                   <DialogFooter>
                     <Button type="submit" disabled={inviteMutation.isPending || !inviteRoleId}>
@@ -471,22 +472,22 @@ export const OrganizationDetailView = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Name</Label>
+              <Field>
+                <FieldLabel htmlFor="edit-name">Name</FieldLabel>
                 <Input
                   id="edit-name"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-description">Description</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="edit-description">Description</FieldLabel>
                 <Input
                   id="edit-description"
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                 />
-              </div>
+              </Field>
               <div className="flex items-center gap-4">
                 <Button onClick={handleSave} disabled={updateMutation.isPending}>
                   {updateMutation.isPending ? (

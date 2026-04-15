@@ -4,7 +4,7 @@ import { useState } from "react"
 import type { APIKeyScope } from "@/domains/account"
 import { Button, buttonVariants } from "@/ui/components/button"
 import { Input } from "@/ui/components/input"
-import { Label } from "@/ui/components/label"
+import { Field, FieldLabel, FieldDescription } from "@/ui/components/field"
 import {
   Card,
   CardContent,
@@ -44,6 +44,8 @@ import { TableError } from "@/ui/feedback/table-error"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
 import { ConfirmDialog, type ConfirmDialogDetail } from "@/ui/feedback/confirm-dialog"
 import { Key, Plus, Trash2, Copy, Check, Loader2, CalendarIcon } from "lucide-react"
+import { RadioGroup, RadioGroupItem } from "@/ui/components/radio-group"
+import { Alert, AlertDescription } from "@/ui/components/alert"
 import { useApiKeys, useCreateApiKey, useDeleteApiKey } from "@/features/account/hooks/use-api-keys"
 import { cn } from "@/core/utils"
 
@@ -161,12 +163,12 @@ export const ApiKeysView = () => {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 {createError && (
-                  <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">
-                    {createError}
-                  </div>
+                  <Alert variant="destructive">
+                    <AlertDescription>{createError}</AlertDescription>
+                  </Alert>
                 )}
-                <div className="space-y-2">
-                  <Label htmlFor="key-name">Name</Label>
+                <Field>
+                  <FieldLabel htmlFor="key-name">Name</FieldLabel>
                   <Input
                     id="key-name"
                     placeholder="e.g. CI/CD Pipeline"
@@ -174,10 +176,10 @@ export const ApiKeysView = () => {
                     onChange={(e) => setKeyName(e.target.value)}
                     required
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label>Scope</Label>
-                  <div className="space-y-2">
+                </Field>
+                <Field>
+                  <FieldLabel>Scope</FieldLabel>
+                  <RadioGroup value={keyScope} onValueChange={(v) => setKeyScope(v as APIKeyScope)} className="space-y-2">
                     {SCOPE_OPTIONS.map((option) => (
                       <label
                         key={option.value}
@@ -187,14 +189,7 @@ export const ApiKeysView = () => {
                             : "border-border hover:bg-muted/50"
                         }`}
                       >
-                        <input
-                          type="radio"
-                          name="key-scope"
-                          value={option.value}
-                          checked={keyScope === option.value}
-                          onChange={() => setKeyScope(option.value)}
-                          className="sr-only"
-                        />
+                        <RadioGroupItem value={option.value} className="sr-only" />
                         <div className="flex-1">
                           <p className="text-sm font-medium">{option.label}</p>
                           <p className="text-xs text-muted-foreground">
@@ -206,10 +201,10 @@ export const ApiKeysView = () => {
                         </Badge>
                       </label>
                     ))}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Expiration (optional)</Label>
+                  </RadioGroup>
+                </Field>
+                <Field>
+                  <FieldLabel>Expiration (optional)</FieldLabel>
                   <Popover open={dateOpen} onOpenChange={setDateOpen}>
                     <PopoverTrigger
                       render={
@@ -315,10 +310,10 @@ export const ApiKeysView = () => {
                       </div>
                     </PopoverContent>
                   </Popover>
-                  <p className="text-xs text-muted-foreground">
+                  <FieldDescription>
                     Leave empty for no expiration
-                  </p>
-                </div>
+                  </FieldDescription>
+                </Field>
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={createMutation.isPending}>

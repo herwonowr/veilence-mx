@@ -20,7 +20,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn())
 })
 
-async function loadApiClient() {
+const loadApiClient = async () => {
   vi.resetModules()
   return import("@/lib/api-client")
 }

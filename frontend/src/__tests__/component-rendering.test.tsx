@@ -54,7 +54,7 @@ interface StatCardProps {
   trend?: "up" | "down" | "neutral"
 }
 
-function StatCard({ title, value, description, trend }: StatCardProps) {
+const StatCard = ({ title, value, description, trend }: StatCardProps) => {
   return (
     <div data-testid={`stat-card-${title.toLowerCase().replace(/\s+/g, "-")}`}>
       <h3>{title}</h3>
@@ -73,7 +73,7 @@ interface AlertRowProps {
   status: string
 }
 
-function AlertRow({ id, severity, message, packageName, status }: AlertRowProps) {
+const AlertRow = ({ id, severity, message, packageName, status }: AlertRowProps) => {
   return (
     <tr data-testid={`alert-row-${id}`}>
       <td data-testid="alert-severity">{severity}</td>
@@ -84,7 +84,7 @@ function AlertRow({ id, severity, message, packageName, status }: AlertRowProps)
   )
 }
 
-function AlertsTable({ alerts }: { alerts: AlertRowProps[] }) {
+const AlertsTable = ({ alerts }: { alerts: AlertRowProps[] }) => {
   if (alerts.length === 0) {
     return <p data-testid="empty-state">No alerts found</p>
   }
