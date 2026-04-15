@@ -19,6 +19,7 @@ import { Skeleton } from "@/ui/components/skeleton"
 import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
 import { TableError } from "@/ui/feedback/table-error"
 import { Package, Activity, AlertTriangle, Shield, Clock, CheckCircle, RefreshCw, Building2, Plus, BookOpen, CircleCheck, Circle } from "lucide-react"
+import { Alert, AlertDescription } from "@/ui/components/alert"
 import { Input } from "@/ui/components/input"
 import { Label } from "@/ui/components/label"
 import { Switch } from "@/ui/components/switch"
@@ -186,12 +187,12 @@ const DashboardData = () => {
       </div>
 
       {warningThreshold > 0 && stats && stats.totalPackages > warningThreshold && (
-        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
-          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-          <span>
+        <Alert variant="warning">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
             You are monitoring <strong>{stats.totalPackages}</strong> packages, which exceeds your warning threshold of <strong>{warningThreshold}</strong>.
-          </span>
-        </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">

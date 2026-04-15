@@ -38,6 +38,7 @@ import {
   RefreshCw,
 } from "lucide-react"
 import { toast } from "sonner"
+import { Label } from "@/ui/components/label"
 import type { QueueJob, QueueJobStatus, QueueJobType, QueueStats } from "@/domains/queue"
 import { useQueueJobs, useRetryDeadJobs, useRetryDeadJob } from "@/features/settings/hooks/use-queue"
 import { QueueJobDetailDialog } from "@/features/settings/ui/queue-job-detail-dialog"
@@ -180,9 +181,9 @@ export const QueueJobsBrowser = forwardRef<QueueJobsBrowserHandle, QueueJobsBrow
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <label htmlFor="queue-type-select" className="text-sm font-medium">
+              <Label htmlFor="queue-type-select">
                 Queue:
-              </label>
+              </Label>
               <Select value={queueType} onValueChange={handleTypeChange}>
                 <SelectTrigger id="queue-type-select" className="w-32">
                   <SelectValue>

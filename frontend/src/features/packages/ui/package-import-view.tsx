@@ -7,6 +7,10 @@ import { Button } from "@/ui/components/button"
 import { Badge } from "@/ui/components/badge"
 import { Textarea } from "@/ui/components/textarea"
 import { ArrowLeft, Upload, FileText, Loader2, AlertCircle, CheckCircle2, CloudUpload } from "lucide-react"
+import { Checkbox } from "@/ui/components/checkbox"
+import { Progress } from "@/ui/components/progress"
+import { Alert, AlertDescription } from "@/ui/components/alert"
+import { ScrollArea } from "@/ui/components/scroll-area"
 import { useBulkImportPackages, usePackages } from "@/features/packages/hooks/use-packages"
 
 type ImportFormat = "requirements_txt" | "package_json" | "list"
@@ -399,10 +403,10 @@ export const PackageImportView = () => {
 
       {/* Parse error */}
       {parseError && (
-        <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">
-          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-          {parseError}
-        </div>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{parseError}</AlertDescription>
+        </Alert>
       )}
 
       {/* Progress bar during import */}
@@ -412,19 +416,10 @@ export const PackageImportView = () => {
             <span>Importing packages...</span>
             <span>{Math.round(importProgress)}%</span>
           </div>
-          <div
-            className="h-2 w-full rounded-full bg-muted overflow-hidden"
-            role="progressbar"
-            aria-valuenow={Math.round(importProgress)}
-            aria-valuemin={0}
-            aria-valuemax={100}
+          <Progress
+            value={Math.round(importProgress)}
             aria-label="Import progress"
-          >
-            <div
-              className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
-              style={{ width: `${importProgress}%` }}
-            />
-          </div>
+          />
         </div>
       )}
 
@@ -462,14 +457,10 @@ export const PackageImportView = () => {
           <CardContent>
             {/* Select all header */}
             <div className="flex items-center gap-3 pb-3 mb-3 border-b">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={allSelected}
-                ref={(el) => {
-                  if (el) el.indeterminate = someSelected
-                }}
-                onChange={toggleSelectAll}
-                className="h-4 w-4 rounded border-input accent-primary cursor-pointer"
+                indeterminate={someSelected}
+                onCheckedChange={toggleSelectAll}
                 aria-label="Select all packages"
               />
               <span className="text-sm font-medium">
@@ -481,7 +472,8 @@ export const PackageImportView = () => {
             </div>
 
             {/* Package list */}
-            <div className="max-h-80 overflow-y-auto space-y-0.5" role="list" aria-label="Parsed packages">
+            <ScrollArea className="max-h-80" role="list" aria-label="Parsed packages">
+              <div className="space-y-0.5">
               {entries.map((entry, i) => (
                 <label
                   key={`${entry.name}-${entry.ecosystem}-${i}`}
@@ -490,11 +482,9 @@ export const PackageImportView = () => {
                   }`}
                   role="listitem"
                 >
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={entry.selected}
-                    onChange={() => toggleEntry(i)}
-                    className="h-4 w-4 rounded border-input accent-primary cursor-pointer shrink-0"
+                    onCheckedChange={() => toggleEntry(i)}
                     aria-label={`Select ${entry.name}`}
                   />
                   <span className="text-sm font-mono truncate">{entry.name}</span>
@@ -504,7 +494,8 @@ export const PackageImportView = () => {
                   <StatusBadge status={entry.status} />
                 </label>
               ))}
-            </div>
+              </div>
+            </ScrollArea>
 
             {/* Summary line */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-3 mt-3 border-t text-sm text-muted-foreground">

@@ -14,6 +14,7 @@ import {
 } from "@/ui/components/popover"
 import { Badge } from "@/ui/components/badge"
 import { cn } from "@/core/utils"
+import { ScrollArea } from "@/ui/components/scroll-area"
 import { useAuth } from "@/core/providers/auth-provider"
 import type { Notification } from "@/domains/notifications"
 import {
@@ -159,7 +160,7 @@ export const NotificationBell = () => {
           )}
         </PopoverHeader>
 
-        <div className="max-h-80 overflow-y-auto">
+        <ScrollArea className="max-h-80">
           {isLoading && notifications.length === 0 ? (
             <div className="divide-y">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -218,7 +219,7 @@ export const NotificationBell = () => {
               })}
             </ul>
           )}
-        </div>
+        </ScrollArea>
       </PopoverContent>
     </Popover>
   )

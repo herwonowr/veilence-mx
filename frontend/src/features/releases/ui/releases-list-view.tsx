@@ -29,6 +29,7 @@ import { TableError } from "@/ui/feedback/table-error"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
 import { CheckCircle, Activity } from "lucide-react"
 import { Button } from "@/ui/components/button"
+import { Label } from "@/ui/components/label"
 import { FilterChips, type ActiveFilter } from "@/ui/data/filter-chips"
 import { SearchInput } from "@/ui/form/search-input"
 import { formatEcosystem } from "@/domains/common"
@@ -226,9 +227,9 @@ export const ReleasesListView = () => {
                 aria-label="Search releases"
               />
               <div className="space-y-1">
-                <label htmlFor="releases-ecosystem-filter" className="text-xs font-medium text-muted-foreground">
+                <Label htmlFor="releases-ecosystem-filter" className="text-xs text-muted-foreground">
                   Ecosystem
-                </label>
+                </Label>
                 <Select
                   value={ecosystemFilter || "all"}
                   onValueChange={(v) => setEcosystemFilter(v === "all" ? "" : (v ?? ""))}
@@ -244,9 +245,9 @@ export const ReleasesListView = () => {
                 </Select>
               </div>
               <div className="space-y-1">
-                <label htmlFor="releases-status-filter" className="text-xs font-medium text-muted-foreground">
+                <Label htmlFor="releases-status-filter" className="text-xs text-muted-foreground">
                   Status
-                </label>
+                </Label>
                 <Select
                   value={statusFilter || "all"}
                   onValueChange={(v) => setStatusFilter(v === "all" ? "" : (v ?? ""))}
@@ -265,9 +266,9 @@ export const ReleasesListView = () => {
                 </Select>
               </div>
               <div className="space-y-1">
-                <label htmlFor="releases-classification-filter" className="text-xs font-medium text-muted-foreground">
+                <Label htmlFor="releases-classification-filter" className="text-xs text-muted-foreground">
                   Classification
-                </label>
+                </Label>
                 <Select
                   value={classificationFilter || "all"}
                   onValueChange={(v) => setClassificationFilter(v === "all" ? "" : (v ?? ""))}

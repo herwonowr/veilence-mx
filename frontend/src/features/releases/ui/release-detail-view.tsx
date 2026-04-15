@@ -11,6 +11,7 @@ import { Skeleton } from "@/ui/components/skeleton"
 import { ArrowLeft, FileCode, Plus, Minus, WrapText, RotateCcw, Loader2 } from "lucide-react"
 import { Button } from "@/ui/components/button"
 import { DetailError } from "@/ui/feedback/detail-error"
+import { Progress } from "@/ui/components/progress"
 import { formatEcosystem } from "@/domains/common"
 import { useRelease, useReanalyzeRelease } from "@/features/releases/hooks/use-releases"
 
@@ -21,9 +22,9 @@ const classificationColor = (c: Classification) => {
 }
 
 const confidenceColor = (confidence: number): string => {
-  if (confidence >= 0.8) return "bg-green-500"
-  if (confidence >= 0.5) return "bg-amber-500"
-  return "bg-red-500"
+  if (confidence >= 0.8) return "[&_[data-slot=progress-indicator]]:bg-green-500"
+  if (confidence >= 0.5) return "[&_[data-slot=progress-indicator]]:bg-amber-500"
+  return "[&_[data-slot=progress-indicator]]:bg-red-500"
 }
 
 const DiffViewer = ({ content, wordWrap }: { content: string; wordWrap: boolean }) => {
@@ -155,19 +156,11 @@ export const ReleaseDetailView = ({
                   {(release.analysis.confidence * 100).toFixed(0)}%
                 </span>
               </div>
-              <div
-                className="h-2 w-full rounded-full bg-muted"
-                role="progressbar"
-                aria-valuenow={Math.round(release.analysis.confidence * 100)}
-                aria-valuemin={0}
-                aria-valuemax={100}
+              <Progress
+                value={Math.round(release.analysis.confidence * 100)}
                 aria-label="Analysis confidence"
-              >
-                <div
-                  className={`h-2 rounded-full transition-all ${confidenceColor(release.analysis.confidence)}`}
-                  style={{ width: `${release.analysis.confidence * 100}%` }}
-                />
-              </div>
+                className={confidenceColor(release.analysis.confidence)}
+              />
             </div>
             <Separator />
             <div>

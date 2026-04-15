@@ -41,6 +41,7 @@ import { formatPopularity } from "@/domains/packages"
 import type { Package } from "@/domains/packages"
 import { SortableHeader } from "@/ui/data/sortable-header"
 import { ArrowLeft, Check, X, CheckCheck, Radar, HelpCircle } from "lucide-react"
+import { Label } from "@/ui/components/label"
 import {
   Tooltip,
   TooltipContent,
@@ -313,9 +314,9 @@ export const PackageSuggestionsView = () => {
               aria-label="Search suggestions"
             />
             <div className="space-y-1">
-              <label htmlFor="suggestions-ecosystem-filter" className="text-xs font-medium text-muted-foreground">
+              <Label htmlFor="suggestions-ecosystem-filter" className="text-xs text-muted-foreground">
                 Ecosystem
-              </label>
+              </Label>
               <Select
                 value={ecosystemFilter || "all"}
                 onValueChange={(v) => {

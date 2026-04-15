@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from "@/ui/components/card"
 import { Badge } from "@/ui/components/badge"
 import { Button } from "@/ui/components/button"
 import { SearchInput } from "@/ui/form/search-input"
+import { Label } from "@/ui/components/label"
 import {
   Select,
   SelectContent,
@@ -254,9 +255,9 @@ const AlertsContent = () => {
                 aria-label="Search alerts"
               />
               <div className="space-y-1">
-                <label htmlFor="alerts-severity-filter" className="text-xs font-medium text-muted-foreground">
+                <Label htmlFor="alerts-severity-filter" className="text-xs text-muted-foreground">
                   Severity
-                </label>
+                </Label>
                 <Select
                   value={severityFilter || "all"}
                   onValueChange={(v) => setSeverityFilter(v === "all" ? "" : (v ?? ""))}
@@ -274,9 +275,9 @@ const AlertsContent = () => {
                 </Select>
               </div>
               <div className="space-y-1">
-                <label htmlFor="alerts-status-filter" className="text-xs font-medium text-muted-foreground">
+                <Label htmlFor="alerts-status-filter" className="text-xs text-muted-foreground">
                   Status
-                </label>
+                </Label>
                 <Select
                   value={statusFilter || "all"}
                   onValueChange={(v) => setStatusFilter(v === "all" ? "" : (v ?? ""))}

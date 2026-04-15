@@ -26,6 +26,7 @@ import { formatEcosystem } from "@/domains/common"
 import { formatPopularity, popularityLabel } from "@/domains/packages"
 import type { StalePackage } from "@/domains/packages"
 import { ArrowLeft, Clock } from "lucide-react"
+import { Label } from "@/ui/components/label"
 import {
   Tooltip,
   TooltipContent,
@@ -145,9 +146,9 @@ export const StalePackagesView = () => {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-3xl font-bold">Stale Packages</h1>
           <div className="flex items-center gap-2">
-            <label htmlFor="stale-threshold" className="text-sm text-muted-foreground whitespace-nowrap">
+            <Label htmlFor="stale-threshold" className="text-sm text-muted-foreground whitespace-nowrap">
               No releases in
-            </label>
+            </Label>
             <Select
               value={String(months)}
               onValueChange={(v) => { if (v) setMonths(parseInt(v, 10)) }}
