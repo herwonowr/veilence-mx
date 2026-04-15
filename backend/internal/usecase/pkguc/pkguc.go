@@ -240,8 +240,8 @@ func (uc *UseCase) BulkApprovePackages(ctx context.Context, orgID uint, pkgIDs [
 }
 
 // ListSuggestions returns a paginated list of suggested packages for an org.
-func (uc *UseCase) ListSuggestions(ctx context.Context, orgID uint, page, limit int) ([]entity.Package, int64, error) {
-	packages, total, err := uc.repo.FindSuggestionsByOrgID(ctx, orgID, page, limit)
+func (uc *UseCase) ListSuggestions(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
+	packages, total, err := uc.repo.FindSuggestionsByOrgID(ctx, orgID, page, limit, sortClause, filters)
 	if err != nil {
 		return nil, 0, fmt.Errorf("PackageUseCase.ListSuggestions: %w", err)
 	}

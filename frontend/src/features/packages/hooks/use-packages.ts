@@ -40,8 +40,8 @@ export const packageKeys = {
     [...packageKeys.all, "releases", packageId, page, limit] as const,
   analysisHistory: (packageId: number) =>
     [...packageKeys.all, "analysis-history", packageId] as const,
-  suggestions: (page?: number, limit?: number) =>
-    [...packageKeys.all, "suggestions", page, limit] as const,
+  suggestions: (params?: Record<string, unknown>) =>
+    [...packageKeys.all, "suggestions", params] as const,
   stale: (months?: number) =>
     [...packageKeys.all, "stale", months] as const,
   suggestionCount: () =>
@@ -218,13 +218,19 @@ export const useAnalysisHistory = (
   })
 
 export const usePackageSuggestions = (
-  page = 1,
-  limit = 20,
+  params?: {
+    page?: number
+    limit?: number
+    search?: string
+    ecosystem?: string
+    sortBy?: string
+    sortDir?: string
+  },
   options?: Partial<UseQueryOptions<ApiResponse<Package[]>>>
 ) =>
   useQuery({
-    queryKey: packageKeys.suggestions(page, limit),
-    queryFn: () => getPackageSuggestions({ page, limit }),
+    queryKey: packageKeys.suggestions(params as Record<string, unknown>),
+    queryFn: () => getPackageSuggestions(params),
     ...options,
   })
 

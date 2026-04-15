@@ -97,10 +97,18 @@ export const getAnalysisHistory = async (
 export const getPackageSuggestions = async (params?: {
   page?: number
   limit?: number
+  search?: string
+  ecosystem?: string
+  sortBy?: string
+  sortDir?: string
 }): Promise<ApiResponse<Package[]>> => {
   const searchParams = new URLSearchParams()
   if (params?.page) searchParams.set("page", String(params.page))
   if (params?.limit) searchParams.set("limit", String(params.limit))
+  if (params?.search) searchParams.set("search", params.search)
+  if (params?.ecosystem) searchParams.set("ecosystem", params.ecosystem)
+  if (params?.sortBy) searchParams.set("sort_by", params.sortBy)
+  if (params?.sortDir) searchParams.set("sort_dir", params.sortDir)
   return fetchApi<Package[]>(`/api/packages/suggestions?${searchParams.toString()}`)
 }
 

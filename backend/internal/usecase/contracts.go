@@ -51,7 +51,7 @@ type PackageRepository interface {
 	RemovePackage(ctx context.Context, orgID, pkgID uint) error
 	CountByOrg(ctx context.Context, orgID uint, ecosystem *entity.Ecosystem) (int64, error)
 	ExistsByOrgAndName(ctx context.Context, orgID uint, name string, ecosystem entity.Ecosystem) (bool, error)
-	FindSuggestionsByOrgID(ctx context.Context, orgID uint, page, limit int) ([]entity.Package, int64, error)
+	FindSuggestionsByOrgID(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
 	ApprovePackage(ctx context.Context, orgID, pkgID uint) error
 	RejectPackage(ctx context.Context, orgID, pkgID uint) error
 	BulkApprovePackages(ctx context.Context, orgID uint, pkgIDs []uint) (int, error)
@@ -255,7 +255,7 @@ type PackageService interface {
 	ApprovePackage(ctx context.Context, orgID, pkgID uint) (*entity.Package, error)
 	RejectPackage(ctx context.Context, orgID, pkgID uint) error
 	BulkApprovePackages(ctx context.Context, orgID uint, pkgIDs []uint) (int, error)
-	ListSuggestions(ctx context.Context, orgID uint, page, limit int) ([]entity.Package, int64, error)
+	ListSuggestions(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
 	ListStalePackages(ctx context.Context, orgID uint, staleBefore time.Time) ([]entity.Package, error)
 	RemoveStalePackages(ctx context.Context, orgID uint, months int) (int, error)
 }

@@ -434,9 +434,25 @@ func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request)
 // GET /api/packages/suggestions
 func (h *PackageHandlers) ListSuggestions(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
-	page, limit := parsePagination(r)
 
-	packages, total, err := h.PkgSvc.ListSuggestions(r.Context(), orgID, page, limit)
+	page, limit := parsePagination(r)
+	sortOrder := parseSort(r, map[string]string{
+		"name":       "name",
+		"ecosystem":  "ecosystem",
+		"rank":       "rank",
+		"popularity": "CASE WHEN ecosystem = 'npm' THEN popularity_score ELSE download_count END",
+	}, "rank ASC NULLS LAST, name ASC")
+
+	var filters entity.PackageFilters
+	if eco := r.URL.Query().Get("ecosystem"); eco != "" {
+		e := entity.Ecosystem(eco)
+		filters.Ecosystem = &e
+	}
+	if search := r.URL.Query().Get("search"); search != "" {
+		filters.Search = &search
+	}
+
+	packages, total, err := h.PkgSvc.ListSuggestions(r.Context(), orgID, page, limit, sortOrder, filters)
 	if err != nil {
 		respondAppError(w, Internal("failed to list suggestions"))
 		return
@@ -525,7 +541,7 @@ func (h *PackageHandlers) BulkApprovePackages(w http.ResponseWriter, r *http.Req
 			respondAppError(w, Validation("ecosystem must be 'python' or 'npm'"))
 			return
 		}
-		packages, _, err := h.PkgSvc.ListSuggestions(r.Context(), orgID, 1, 10000)
+		packages, _, err := h.PkgSvc.ListSuggestions(r.Context(), orgID, 1, 10000, "", entity.PackageFilters{})
 		if err != nil {
 			respondAppError(w, Internal("failed to list suggestions"))
 			return

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader } from "@/ui/components/card"
 import { Button } from "@/ui/components/button"
@@ -66,59 +66,37 @@ export const PackageSuggestionsView = () => {
   })
   const [bulkAction, setBulkAction] = useState<"all" | "python" | "npm" | null>(null)
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [ecosystemFilter, setEcosystemFilter] = useState("")
   const [sortField, setSortField] = useState<"name" | "ecosystem" | "popularity" | "">("")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
 
-  // Fetch all suggestions (client-side filter/sort since backend only supports page/limit)
+  // Debounce search input to avoid excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search)
+      setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  // Server-side search/sort/filter/pagination
   const {
     data: suggestionsRes,
     isLoading,
     isError,
     refetch,
-  } = usePackageSuggestions(1, 1000)
+  } = usePackageSuggestions({
+    page: pagination.pageIndex + 1,
+    limit: pagination.pageSize,
+    search: debouncedSearch || undefined,
+    ecosystem: ecosystemFilter || undefined,
+    sortBy: sortField || undefined,
+    sortDir: sortField ? sortDir : undefined,
+  })
 
-  const allSuggestions = useMemo(() => suggestionsRes?.data ?? [], [suggestionsRes?.data])
-
-  // Client-side filter
-  const filtered = useMemo(() => {
-    let result = allSuggestions
-    if (search) {
-      const q = search.toLowerCase()
-      result = result.filter((p) => p.name.toLowerCase().includes(q))
-    }
-    if (ecosystemFilter) {
-      result = result.filter((p) => p.ecosystem === ecosystemFilter)
-    }
-    return result
-  }, [allSuggestions, search, ecosystemFilter])
-
-  // Client-side sort
-  const sorted = useMemo(() => {
-    if (!sortField) return filtered
-    const arr = [...filtered]
-    arr.sort((a, b) => {
-      let cmp = 0
-      if (sortField === "name") {
-        cmp = a.name.localeCompare(b.name)
-      } else if (sortField === "ecosystem") {
-        cmp = a.ecosystem.localeCompare(b.ecosystem)
-      } else if (sortField === "popularity") {
-        const aVal = a.ecosystem === "npm" ? (a.popularityScore ?? 0) : (a.downloadCount ?? 0)
-        const bVal = b.ecosystem === "npm" ? (b.popularityScore ?? 0) : (b.downloadCount ?? 0)
-        cmp = aVal - bVal
-      }
-      return sortDir === "desc" ? -cmp : cmp
-    })
-    return arr
-  }, [filtered, sortField, sortDir])
-
-  // Client-side pagination
-  const total = sorted.length
-  const suggestions = useMemo(() => {
-    const start = pagination.pageIndex * pagination.pageSize
-    return sorted.slice(start, start + pagination.pageSize)
-  }, [sorted, pagination.pageIndex, pagination.pageSize])
+  const suggestions = suggestionsRes?.data ?? []
+  const total = suggestionsRes?.meta?.total ?? 0
 
   const approveMutation = useApprovePackage()
   const rejectMutation = useRejectPackage()
@@ -299,11 +277,11 @@ export const PackageSuggestionsView = () => {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold">Suggestions</h1>
-            {allSuggestions.length > 0 && (
-              <Badge variant="secondary">{allSuggestions.length} pending</Badge>
+            {total > 0 && (
+              <Badge variant="secondary">{total} pending</Badge>
             )}
           </div>
-          {allSuggestions.length > 0 && (
+          {total > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"

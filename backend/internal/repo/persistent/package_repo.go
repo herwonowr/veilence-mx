@@ -200,18 +200,31 @@ func (r *PackageRepo) ExistsByOrgAndName(ctx context.Context, orgID uint, name s
 	return count > 0, nil
 }
 
-func (r *PackageRepo) FindSuggestionsByOrgID(ctx context.Context, orgID uint, page, limit int) ([]entity.Package, int64, error) {
+func (r *PackageRepo) FindSuggestionsByOrgID(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Package{}).
 		Where("org_id = ? AND status = ?", orgID, PackageStatusSuggested)
+
+	// Apply filters (follow FindByOrgID pattern)
+	if filters.Ecosystem != nil {
+		query = query.Where("ecosystem = ?", string(*filters.Ecosystem))
+	}
+	if filters.Search != nil && *filters.Search != "" {
+		escaped := strings.ReplaceAll(strings.ReplaceAll(*filters.Search, "%", "\\%"), "_", "\\_")
+		query = query.Where("LOWER(name) LIKE LOWER(?)", "%"+escaped+"%")
+	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("counting suggestions: %w", err)
 	}
 
+	if sortClause == "" {
+		sortClause = "rank ASC, name ASC"
+	}
+
 	var ms []Package
 	err := query.
-		Order("rank ASC, name ASC").
+		Order(sortClause).
 		Offset((page - 1) * limit).
 		Limit(limit).
 		Find(&ms).Error
