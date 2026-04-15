@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { useFilterParams } from "@/core/hooks/use-filter-params"
 import { Button, buttonVariants } from "@/ui/components/button"
 import { cn } from "@/core/utils"
 import { Input } from "@/ui/components/input"
@@ -39,23 +40,47 @@ import { useDebouncedValue } from "@/core/hooks/use-debounced-value"
 
 const formatDate = (d: Date): string => d.toISOString().split("T")[0]
 
+const parseValidDate = (value: string | null): Date | undefined => {
+  if (!value) return undefined
+  const parsed = new Date(value)
+  if (isNaN(parsed.getTime())) return undefined
+  return parsed
+}
+
 export const AuditLogView = () => {
   const params = useParams<{ id: string }>()
   const orgId = parseInt(params.id, 10)
   const validOrgId = isNaN(orgId) ? 0 : orgId
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Read URL search params as initial filter values
+  const initialAction = searchParams.get("action") ?? ""
+  const initialResource = searchParams.get("resource") ?? ""
+  const initialFrom = parseValidDate(searchParams.get("from"))
+  const initialTo = parseValidDate(searchParams.get("to"))
 
   // Filters
-  const [action, setAction] = useState("")
-  const [resource, setResource] = useState("")
+  const [action, setAction] = useState(initialAction)
+  const [resource, setResource] = useState(initialResource)
   const debouncedAction = useDebouncedValue(action, 300)
   const debouncedResource = useDebouncedValue(resource, 300)
-  const [fromDate, setFromDate] = useState<Date | undefined>()
-  const [toDate, setToDate] = useState<Date | undefined>()
+  const [fromDate, setFromDate] = useState<Date | undefined>(initialFrom)
+  const [toDate, setToDate] = useState<Date | undefined>(initialTo)
   const [fromOpen, setFromOpen] = useState(false)
   const [toOpen, setToOpen] = useState(false)
   const [page, setPage] = useState(1)
   const limit = 20
+
+  // Sync filter state → URL search params
+  useFilterParams(
+    useMemo(() => ({
+      action: debouncedAction,
+      resource: debouncedResource,
+      from: fromDate ? formatDate(fromDate) : "",
+      to: toDate ? formatDate(toDate) : "",
+    }), [debouncedAction, debouncedResource, fromDate, toDate]),
+  )
 
   const handleFromSelect = (date: Date | undefined) => {
     setFromDate(date)

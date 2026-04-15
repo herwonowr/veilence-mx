@@ -227,6 +227,30 @@ func (s *Service) DispatchEvent(ctx context.Context, orgID uint, evt entity.Noti
 
 // dispatchInternal is the shared implementation for Dispatch and DispatchEvent.
 func (s *Service) dispatchInternal(ctx context.Context, orgID uint, severity, eventType string, referenceID uint, referenceType, title, message string) {
+	// Always create one in-app notification record (ChannelID=0 means in-app,
+	// not tied to any external channel). This ensures the frontend bell icon
+	// always has something to show regardless of whether notification
+	// rules/channels are configured.
+	inAppNotification := &entity.Notification{
+		OrgID:         orgID,
+		UserID:        0, // org-wide
+		ChannelID:     0, // in-app notification, no external channel
+		Severity:      severity,
+		EventType:     eventType,
+		ReferenceID:   referenceID,
+		ReferenceType: referenceType,
+		Title:         title,
+		Message:       message,
+		SentAt:        time.Now(),
+	}
+	if err := s.notifications.Create(ctx, inAppNotification); err != nil {
+		slog.Error("failed to create in-app notification record",
+			"org_id", orgID,
+			"error", err,
+		)
+		// Continue to attempt external dispatch even if in-app record fails
+	}
+
 	// Find all active rules for this org whose severity threshold is met
 	rules, err := s.rules.FindActiveByOrgID(ctx, orgID)
 	if err != nil {
@@ -256,29 +280,7 @@ func (s *Service) dispatchInternal(ctx context.Context, orgID uint, severity, ev
 			continue
 		}
 
-		// Create in-app notification record
-		notification := &entity.Notification{
-			OrgID:         orgID,
-			UserID:        0, // org-wide
-			ChannelID:     channel.ID,
-			Severity:      severity,
-			EventType:     eventType,
-			ReferenceID:   referenceID,
-			ReferenceType: referenceType,
-			Title:         title,
-			Message:       message,
-			SentAt:        time.Now(),
-		}
-		if err := s.notifications.Create(ctx, notification); err != nil {
-			slog.Error("failed to create notification record",
-				"org_id", orgID,
-				"channel_id", channel.ID,
-				"error", err,
-			)
-			continue
-		}
-
-		// Dispatch to external channel
+		// Dispatch to external channel (email, Slack, webhook)
 		s.dispatchToChannel(*channel, title, message)
 	}
 }

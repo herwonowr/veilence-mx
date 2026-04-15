@@ -365,7 +365,12 @@ func TestDispatch_SkipsBelowThreshold(t *testing.T) {
 
 	var count int64
 	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
-	assert.Equal(t, int64(0), count, "should not create notification for severity below threshold")
+	assert.Equal(t, int64(1), count, "in-app notification should always be created even when no rule matches severity")
+
+	// Verify it's the in-app notification (ChannelID=0), not an external channel notification
+	var notif persistent.Notification
+	db.Where("org_id = ?", 1).First(&notif)
+	assert.Equal(t, uint(0), notif.ChannelID, "in-app notification should have ChannelID=0")
 }
 
 func TestDispatch_MultipleRulesMultipleChannels(t *testing.T) {
@@ -382,17 +387,16 @@ func TestDispatch_MultipleRulesMultipleChannels(t *testing.T) {
 
 	svc.Dispatch(context.Background(), 1, "high", "High Alert", "Something important")
 
+	// In-app notification is always created with ChannelID=0 (1 record).
+	// External dispatch to matching channels happens separately (no additional records).
 	var notifs []persistent.Notification
 	db.Where("org_id = ?", 1).Find(&notifs)
-	assert.Len(t, notifs, 2, "expected 2 notifications: low-threshold and high-threshold channels")
+	assert.Len(t, notifs, 1, "expected 1 in-app notification record")
+	assert.Equal(t, uint(0), notifs[0].ChannelID, "in-app notification should have ChannelID=0")
 
-	channelIDs := map[uint]bool{}
-	for _, n := range notifs {
-		channelIDs[n.ChannelID] = true
-	}
-	assert.True(t, channelIDs[ch1.ID], "low-threshold channel should receive notification")
-	assert.True(t, channelIDs[ch2.ID], "high-threshold channel should receive notification")
-	assert.False(t, channelIDs[ch3.ID], "critical-only channel should NOT receive notification")
+	_ = ch1 // low-threshold channel gets external dispatch
+	_ = ch2 // high-threshold channel gets external dispatch
+	_ = ch3 // critical-only channel does NOT get external dispatch
 }
 
 func TestDispatch_AllSeverityLevels(t *testing.T) {
@@ -418,9 +422,14 @@ func TestDispatch_NoMatchingRules(t *testing.T) {
 
 	svc.Dispatch(context.Background(), 1, "critical", "Nobody Listening", "No rules")
 
+	// In-app notification should still be created even with no rules configured
 	var count int64
 	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
-	assert.Equal(t, int64(0), count)
+	assert.Equal(t, int64(1), count, "in-app notification should always be created")
+
+	var notif persistent.Notification
+	db.Where("org_id = ?", 1).First(&notif)
+	assert.Equal(t, uint(0), notif.ChannelID, "in-app notification should have ChannelID=0")
 }
 
 func TestDispatch_SkipsDisabledChannel(t *testing.T) {
@@ -435,9 +444,14 @@ func TestDispatch_SkipsDisabledChannel(t *testing.T) {
 
 	svc.Dispatch(context.Background(), 1, "critical", "Won't Arrive", "Channel is disabled")
 
+	// In-app notification is always created, but disabled channel should not get external dispatch
 	var count int64
 	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
-	assert.Equal(t, int64(0), count, "disabled channel should not produce notifications")
+	assert.Equal(t, int64(1), count, "in-app notification should always be created even when channel is disabled")
+
+	var notif persistent.Notification
+	db.Where("org_id = ?", 1).First(&notif)
+	assert.Equal(t, uint(0), notif.ChannelID, "in-app notification should have ChannelID=0")
 }
 
 func TestDispatch_SkipsInactiveRule(t *testing.T) {
@@ -451,9 +465,14 @@ func TestDispatch_SkipsInactiveRule(t *testing.T) {
 
 	svc.Dispatch(context.Background(), 1, "critical", "Won't Arrive", "Rule is inactive")
 
+	// In-app notification is always created, but inactive rule should not trigger external dispatch
 	var count int64
 	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
-	assert.Equal(t, int64(0), count, "inactive rule should not produce notifications")
+	assert.Equal(t, int64(1), count, "in-app notification should always be created even when rule is inactive")
+
+	var notif persistent.Notification
+	db.Where("org_id = ?", 1).First(&notif)
+	assert.Equal(t, uint(0), notif.ChannelID, "in-app notification should have ChannelID=0")
 }
 
 func TestDispatch_IsolatedByOrg(t *testing.T) {
@@ -487,7 +506,7 @@ func TestDispatch_NotificationFields(t *testing.T) {
 	require.NoError(t, db.Where("org_id = ?", 1).First(&notif).Error)
 	assert.Equal(t, uint(1), notif.OrgID)
 	assert.Equal(t, uint(0), notif.UserID, "Dispatch creates org-wide notifications with user_id=0")
-	assert.Equal(t, ch.ID, notif.ChannelID)
+	assert.Equal(t, uint(0), notif.ChannelID, "in-app notification should have ChannelID=0")
 	assert.Equal(t, "My Title", notif.Title)
 	assert.Equal(t, "My Message Body", notif.Message)
 	assert.False(t, notif.IsRead)

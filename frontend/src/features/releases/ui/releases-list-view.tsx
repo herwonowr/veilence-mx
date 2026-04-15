@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useDebouncedValue } from "@/core/hooks/use-debounced-value"
 import { useSortParams } from "@/core/hooks/use-sort-params"
+import { useFilterParams } from "@/core/hooks/use-filter-params"
 import Link from "next/link"
 import { Card, CardContent, CardHeader } from "@/ui/components/card"
 import { Badge } from "@/ui/components/badge"
@@ -23,7 +24,7 @@ import {
   SelectValue,
 } from "@/ui/components/select"
 import type { RecentRelease } from "@/domains/releases"
-import type { Classification } from "@/domains/common"
+import type { Classification, Ecosystem, ReleaseStatus } from "@/domains/common"
 import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
 import { TableError } from "@/ui/feedback/table-error"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
@@ -52,18 +53,43 @@ const classificationVariant = (c: Classification) => {
   return "secondary" as const
 }
 
+const VALID_ECOSYSTEMS: Ecosystem[] = ["python", "npm"]
+const VALID_STATUSES: ReleaseStatus[] = ["pending", "diffing", "analyzing", "completed", "error"]
+const VALID_CLASSIFICATIONS: Classification[] = ["benign", "suspicious", "malicious", "baseline"]
+
 export const ReleasesListView = () => {
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const initialEcosystem = searchParams.get("ecosystem") ?? ""
+  const initialStatus = searchParams.get("status") ?? ""
+  const initialClassification = searchParams.get("classification") ?? ""
+
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search, 300)
-  const [ecosystemFilter, setEcosystemFilter] = useState("")
-  const [statusFilter, setStatusFilter] = useState("")
-  const [classificationFilter, setClassificationFilter] = useState("")
+  const [ecosystemFilter, setEcosystemFilter] = useState(
+    VALID_ECOSYSTEMS.includes(initialEcosystem as Ecosystem) ? initialEcosystem : ""
+  )
+  const [statusFilter, setStatusFilter] = useState(
+    VALID_STATUSES.includes(initialStatus as ReleaseStatus) ? initialStatus : ""
+  )
+  const [classificationFilter, setClassificationFilter] = useState(
+    VALID_CLASSIFICATIONS.includes(initialClassification as Classification) ? initialClassification : ""
+  )
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 20,
   })
   const [sorting, setSorting] = useSortParams()
+
+  // Sync filter state → URL search params
+  useFilterParams(
+    useMemo(() => ({
+      ecosystem: ecosystemFilter,
+      status: statusFilter,
+      classification: classificationFilter,
+    }), [ecosystemFilter, statusFilter, classificationFilter]),
+  )
 
   const releaseColumnBreakpoints: ColumnBreakpoints = useMemo(() => ({
     publishedAt: "desktop",

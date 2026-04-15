@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useCallback, useEffect, forwardRef, useImperativeHandle, useRef } from "react"
+import { useState, useCallback, useEffect, forwardRef, useImperativeHandle, useRef, useMemo } from "react"
+import { useSearchParams } from "next/navigation"
+import { useFilterParams } from "@/core/hooks/use-filter-params"
 import {
   useReactTable,
   getCoreRowModel,
@@ -52,6 +54,9 @@ interface QueueJobsBrowserProps {
   analyzeStats?: QueueStats | null
 }
 
+const VALID_QUEUE_TYPES: QueueJobType[] = ["diff", "analyze"]
+const VALID_STATUSES: QueueJobStatus[] = ["pending", "processing", "dead"]
+
 const STUCK_THRESHOLD_SECONDS = 600 // 10 minutes
 
 /** Returns the current time in seconds, updated every 10s. Avoids impure Date.now() in render. */
@@ -90,14 +95,34 @@ const formatTimestamp = (unix: number): string => {
 export const QueueJobsBrowser = forwardRef<QueueJobsBrowserHandle, QueueJobsBrowserProps>(
   ({ diffStats, analyzeStats }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null)
-    const [queueType, setQueueType] = useState<QueueJobType>("diff")
-    const [activeStatus, setActiveStatus] = useState<QueueJobStatus>("pending")
+    const searchParams = useSearchParams()
+
+    const initialType = searchParams.get("type") ?? ""
+    const initialStatus = searchParams.get("status") ?? ""
+
+    const [queueType, setQueueType] = useState<QueueJobType>(
+      VALID_QUEUE_TYPES.includes(initialType as QueueJobType) ? (initialType as QueueJobType) : "diff"
+    )
+    const [activeStatus, setActiveStatus] = useState<QueueJobStatus>(
+      VALID_STATUSES.includes(initialStatus as QueueJobStatus) ? (initialStatus as QueueJobStatus) : "pending"
+    )
     const [pagination, setPagination] = useState<PaginationState>({
       pageIndex: 0,
       pageSize: 20,
     })
     const [selectedJob, setSelectedJob] = useState<QueueJob | null>(null)
     const nowSeconds = useNowSeconds()
+
+    // Sync filter state → URL search params
+    // Defaults: type=diff, status=pending — omit from URL when they match
+    const QUEUE_FILTER_DEFAULTS = useMemo(() => ({ type: "diff", status: "pending" }), [])
+    useFilterParams(
+      useMemo(() => ({
+        type: queueType,
+        status: activeStatus,
+      }), [queueType, activeStatus]),
+      QUEUE_FILTER_DEFAULTS,
+    )
 
     const currentStats = queueType === "diff" ? diffStats : analyzeStats
 

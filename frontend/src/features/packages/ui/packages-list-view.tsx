@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState, useMemo, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useDebouncedValue } from "@/core/hooks/use-debounced-value"
 import { useSortParams } from "@/core/hooks/use-sort-params"
+import { useFilterParams } from "@/core/hooks/use-filter-params"
 import { Button } from "@/ui/components/button"
 import { Badge } from "@/ui/components/badge"
 import { Input } from "@/ui/components/input"
@@ -41,7 +42,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/components/select"
-import type { Package, PackageSource } from "@/domains/packages"
+import type { Package, PackageSource, PackageStatus } from "@/domains/packages"
 import type { Ecosystem } from "@/domains/common"
 import { formatPopularity, formatFreshness, popularityLabel } from "@/domains/packages"
 import { Plus, Trash2, RefreshCw, Upload, Ban, ShieldCheck, Radar } from "lucide-react"
@@ -109,11 +110,27 @@ const sourceVariant = (source: PackageSource): "default" | "secondary" | "outlin
   }
 }
 
+const VALID_ECOSYSTEMS: Ecosystem[] = ["python", "npm"]
+const VALID_STATUSES: PackageStatus[] = ["active", "suggested", "blocked", "removed"]
+const VALID_SOURCES: PackageSource[] = ["manual", "discovered", "imported"]
+
 export const PackagesListView = () => {
   const router = useRouter()
-  const [ecosystemFilter, setEcosystemFilter] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("active")
-  const [sourceFilter, setSourceFilter] = useState<string>("")
+  const searchParams = useSearchParams()
+
+  const initialEcosystem = searchParams.get("ecosystem") ?? ""
+  const initialStatus = searchParams.get("status") ?? "active"
+  const initialSource = searchParams.get("source") ?? ""
+
+  const [ecosystemFilter, setEcosystemFilter] = useState(
+    VALID_ECOSYSTEMS.includes(initialEcosystem as Ecosystem) ? initialEcosystem : ""
+  )
+  const [statusFilter, setStatusFilter] = useState<string>(
+    VALID_STATUSES.includes(initialStatus as PackageStatus) ? initialStatus : "active"
+  )
+  const [sourceFilter, setSourceFilter] = useState<string>(
+    VALID_SOURCES.includes(initialSource as PackageSource) ? initialSource : ""
+  )
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search, 300)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -125,6 +142,18 @@ export const PackagesListView = () => {
   })
   const [sorting, setSorting] = useSortParams()
   const [removeTarget, setRemoveTarget] = useState<{ id: number; name: string } | null>(null)
+
+  // Sync filter state → URL search params
+  // For packages, "active" is the default status — omit from URL when it matches
+  const PACKAGES_FILTER_DEFAULTS = useMemo(() => ({ status: "active" }), [])
+  useFilterParams(
+    useMemo(() => ({
+      ecosystem: ecosystemFilter,
+      status: statusFilter,
+      source: sourceFilter,
+    }), [ecosystemFilter, statusFilter, sourceFilter]),
+    PACKAGES_FILTER_DEFAULTS,
+  )
   const [blockTarget, setBlockTarget] = useState<{ id: number; name: string } | null>(null)
   const [blockReason, setBlockReason] = useState("")
   const [unblockTarget, setUnblockTarget] = useState<{ id: number; name: string } | null>(null)
@@ -370,7 +399,12 @@ export const PackagesListView = () => {
               <Badge variant="outline">Suggested</Badge>
             )
           }
-          return null
+          return (
+            <Badge variant="secondary">
+              <ShieldCheck className="h-3 w-3 mr-1" />
+              Active
+            </Badge>
+          )
         },
       },
       {

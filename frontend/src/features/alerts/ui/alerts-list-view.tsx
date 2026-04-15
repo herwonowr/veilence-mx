@@ -1,9 +1,10 @@
 "use client"
 
 import { Suspense, useEffect, useState, useMemo, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useDebouncedValue } from "@/core/hooks/use-debounced-value"
 import { useSortParams } from "@/core/hooks/use-sort-params"
+import { useFilterParams } from "@/core/hooks/use-filter-params"
 import { Card, CardContent, CardHeader } from "@/ui/components/card"
 import { Badge } from "@/ui/components/badge"
 import { Button } from "@/ui/components/button"
@@ -25,7 +26,7 @@ import {
   TableRow,
 } from "@/ui/components/table"
 import type { Alert } from "@/domains/alerts"
-import type { AlertSeverity } from "@/domains/common"
+import type { AlertSeverity, AlertStatus } from "@/domains/common"
 import Link from "next/link"
 import { Bell, ShieldCheck } from "lucide-react"
 import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
@@ -52,6 +53,9 @@ const severityVariant = (s: AlertSeverity) => {
   return "secondary" as const
 }
 
+const VALID_SEVERITIES: AlertSeverity[] = ["low", "medium", "high", "critical"]
+const VALID_STATUSES: AlertStatus[] = ["new", "acknowledged", "resolved"]
+
 export const AlertsListView = () => (
   <Suspense>
     <AlertsContent />
@@ -60,15 +64,32 @@ export const AlertsListView = () => (
 
 const AlertsContent = () => {
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const initialSeverity = searchParams.get("severity") ?? ""
+  const initialStatus = searchParams.get("status") ?? ""
+
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search, 300)
-  const [severityFilter, setSeverityFilter] = useState("")
-  const [statusFilter, setStatusFilter] = useState("")
+  const [severityFilter, setSeverityFilter] = useState(
+    VALID_SEVERITIES.includes(initialSeverity as AlertSeverity) ? initialSeverity : ""
+  )
+  const [statusFilter, setStatusFilter] = useState(
+    VALID_STATUSES.includes(initialStatus as AlertStatus) ? initialStatus : ""
+  )
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 20,
   })
   const [sorting, setSorting] = useSortParams()
+
+  // Sync filter state → URL search params
+  useFilterParams(
+    useMemo(() => ({
+      severity: severityFilter,
+      status: statusFilter,
+    }), [severityFilter, statusFilter]),
+  )
 
   const alertColumnBreakpoints: ColumnBreakpoints = useMemo(() => ({
     createdAt: "desktop",

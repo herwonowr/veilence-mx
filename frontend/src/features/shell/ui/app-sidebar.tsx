@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Package,
   Bell,
+  BellDot,
   Settings,
   Shield,
   Activity,
@@ -66,6 +67,7 @@ const navItems: NavItem[] = [
   { title: "Packages", href: "/packages", icon: Package },
   { title: "Releases", href: "/releases", icon: Activity },
   { title: "Alerts", href: "/alerts", icon: Bell },
+  { title: "Notifications", href: "/notifications", icon: BellDot },
   { title: "Organizations", href: "/organizations", icon: Building2 },
 ]
 
