@@ -13,10 +13,12 @@ export const apiGetUnreadCount = async (): Promise<
 export const apiListNotifications = async (params?: {
   page?: number
   limit?: number
+  unread?: boolean
 }): Promise<ApiResponse<Notification[]>> => {
   const searchParams = new URLSearchParams()
   if (params?.page) searchParams.set("page", String(params.page))
   if (params?.limit) searchParams.set("limit", String(params.limit))
+  if (params?.unread) searchParams.set("unread", "true")
   const query = searchParams.toString()
   return fetchApi<Notification[]>(
     `/api/notifications${query ? `?${query}` : ""}`

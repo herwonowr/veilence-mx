@@ -65,11 +65,13 @@ export const NotificationBell = () => {
   const unreadCount = unreadRes?.data?.count ?? 0
 
   const { data: notificationsRes, isLoading } = useNotifications(
-    { limit: 20 },
+    { limit: 20, unread: true },
     { enabled: isAuthenticated && open },
   )
+  // Belt-and-suspenders: filter client-side in case optimistic updates
+  // mark items as read before the refetch replaces the cached list.
   const notifications = useMemo(
-    () => notificationsRes?.data ?? [],
+    () => (notificationsRes?.data ?? []).filter((n) => !n.isRead),
     [notificationsRes?.data],
   )
 

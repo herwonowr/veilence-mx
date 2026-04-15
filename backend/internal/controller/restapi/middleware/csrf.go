@@ -53,10 +53,13 @@ func generateCSRFToken() (string, error) {
 // issued on GET responses via ensureCSRFCookie). Blocking these routes causes
 // login/register to fail with 403 on every fresh session.
 var csrfExemptPaths = map[string]bool{
-	"/api/auth/login":           true,
-	"/api/auth/register":        true,
-	"/api/auth/forgot-password": true,
-	"/api/auth/reset-password":  true,
+	"/api/auth/login":               true,
+	"/api/auth/register":            true,
+	"/api/auth/forgot-password":     true,
+	"/api/auth/reset-password":      true,
+	"/api/auth/refresh":             true,
+	"/api/auth/verify-email":        true,
+	"/api/auth/resend-verification": true,
 }
 
 // CSRF returns a middleware implementing the double-submit cookie pattern.

@@ -14,6 +14,8 @@ import {
 } from "@/domains/notifications"
 import type { ApiResponse } from "@/domains/common"
 import type { Notification } from "@/domains/notifications"
+import { toast } from "sonner"
+import { sanitizeErrorMessage } from "@/core"
 
 export const notificationKeys = {
   all: ["notifications"] as const,
@@ -37,7 +39,7 @@ export const useUnreadCount = (
 }
 
 export const useNotifications = (
-  params?: { page?: number; limit?: number },
+  params?: { page?: number; limit?: number; unread?: boolean },
   options?: Partial<UseQueryOptions<ApiResponse<Notification[]>>>
 ) => {
   return useQuery({
@@ -64,10 +66,12 @@ export const useMarkNotificationRead = () => {
       )
 
       // Optimistic update: mark as read in cached list
+      // Use notificationKeys.list() (not .all) to only match list queries —
+      // .all also matches the unread-count query whose data is not an array.
       queryClient.setQueriesData<ApiResponse<Notification[]>>(
-        { queryKey: notificationKeys.all },
+        { queryKey: notificationKeys.list() },
         (old) => {
-          if (!old?.data) return old
+          if (!old?.data || !Array.isArray(old.data)) return old
           return {
             ...old,
             data: old.data.map((n) =>
@@ -98,6 +102,7 @@ export const useMarkNotificationRead = () => {
       if (context?.previousUnreadCount) {
         queryClient.setQueryData(notificationKeys.unreadCount(), context.previousUnreadCount)
       }
+      toast.error(sanitizeErrorMessage(_error, "Failed to mark notification as read"))
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.all })
@@ -124,10 +129,12 @@ export const useMarkAllNotificationsRead = () => {
       )
 
       // Optimistic: mark everything read
+      // Use notificationKeys.list() (not .all) to only match list queries —
+      // .all also matches the unread-count query whose data is not an array.
       queryClient.setQueriesData<ApiResponse<Notification[]>>(
-        { queryKey: notificationKeys.all },
+        { queryKey: notificationKeys.list() },
         (old) => {
-          if (!old?.data) return old
+          if (!old?.data || !Array.isArray(old.data)) return old
           return {
             ...old,
             data: old.data.map((n) => ({ ...n, isRead: true })),
@@ -155,6 +162,7 @@ export const useMarkAllNotificationsRead = () => {
       if (context?.previousUnreadCount) {
         queryClient.setQueryData(notificationKeys.unreadCount(), context.previousUnreadCount)
       }
+      toast.error(sanitizeErrorMessage(_error, "Failed to mark all notifications as read"))
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.all })
