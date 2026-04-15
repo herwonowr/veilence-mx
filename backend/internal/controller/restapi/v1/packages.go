@@ -514,6 +514,11 @@ func (h *PackageHandlers) BulkApprovePackages(w http.ResponseWriter, r *http.Req
 	var pkgIDs []uint
 
 	if len(req.PackageIDs) > 0 {
+		const maxBulkApprove = 1000
+		if len(req.PackageIDs) > maxBulkApprove {
+			respondAppError(w, Validation(fmt.Sprintf("cannot approve more than %d packages at once", maxBulkApprove)))
+			return
+		}
 		pkgIDs = req.PackageIDs
 	} else if req.Ecosystem != "" {
 		// Approve all suggestions for the given ecosystem: fetch all suggested packages

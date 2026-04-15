@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -49,7 +50,8 @@ func (r *PackageRepo) FindByOrgID(ctx context.Context, orgID uint, page, limit i
 		query = query.Where("source = ?", string(*filters.Source))
 	}
 	if filters.Search != nil && *filters.Search != "" {
-		query = query.Where("LOWER(name) LIKE LOWER(?)", "%"+*filters.Search+"%")
+		escaped := strings.ReplaceAll(strings.ReplaceAll(*filters.Search, "%", "\\%"), "_", "\\_")
+		query = query.Where("LOWER(name) LIKE LOWER(?)", "%"+escaped+"%")
 	}
 
 	if err := query.Count(&total).Error; err != nil {

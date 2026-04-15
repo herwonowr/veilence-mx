@@ -48,6 +48,9 @@ export interface ReleaseDetail extends Release {
     rank: number | null
     blockedAt: string | null
     blockedReason: string | null
+    downloadCount: number
+    popularityScore: number
+    downloadCountUpdatedAt: string | null
     createdAt: string
     updatedAt: string
   }

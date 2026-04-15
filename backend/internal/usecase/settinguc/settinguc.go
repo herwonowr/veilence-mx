@@ -4,6 +4,7 @@ package settinguc
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
@@ -40,6 +41,21 @@ func (uc *UseCase) UpdateSettings(ctx context.Context, orgID uint, settings map[
 		if !entity.ValidSettingKeys[key] {
 			return nil, fmt.Errorf("invalid setting key: %s", key)
 		}
+
+		// Validate numeric settings have sane ranges.
+		switch key {
+		case entity.SettingDiscoveryScanDepth:
+			n, err := strconv.Atoi(value)
+			if err != nil || n < 1 || n > 1000 {
+				return nil, fmt.Errorf("discovery_scan_depth must be an integer between 1 and 1000")
+			}
+		case entity.SettingDiffSizeLimit:
+			n, err := strconv.Atoi(value)
+			if err != nil || n < 1024 || n > 10485760 {
+				return nil, fmt.Errorf("diff_size_limit must be an integer between 1024 and 10485760")
+			}
+		}
+
 		if err := uc.settings.UpsertByOrgAndKey(ctx, orgID, key, value); err != nil {
 			return nil, fmt.Errorf("SettingUseCase.UpdateSettings: upserting %s: %w", key, err)
 		}
