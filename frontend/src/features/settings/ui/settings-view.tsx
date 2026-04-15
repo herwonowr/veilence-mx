@@ -211,18 +211,6 @@ export const SettingsView = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Release Coverage</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            All releases published since the last monitoring check are automatically analyzed.
-            No configuration needed.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
           <CardTitle>Analyzer</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

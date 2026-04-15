@@ -141,8 +141,6 @@ func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "create", "package", pkg.ID, fmt.Sprintf("added %s package %q to monitoring", req.Ecosystem, req.Name))
-
 	respondJSON(w, http.StatusCreated, response.PackageFromEntity(pkg), nil)
 }
 
