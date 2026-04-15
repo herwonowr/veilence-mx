@@ -43,7 +43,7 @@ import {
 } from "@/ui/components/select"
 import type { Package, PackageSource } from "@/domains/packages"
 import type { Ecosystem } from "@/domains/common"
-import { formatPopularity, formatFreshness } from "@/domains/packages"
+import { formatPopularity, formatFreshness, popularityLabel } from "@/domains/packages"
 import { Plus, Trash2, RefreshCw, Upload, Ban, ShieldCheck } from "lucide-react"
 import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
 import { TableError } from "@/ui/feedback/table-error"
@@ -123,6 +123,7 @@ export const PackagesListView = () => {
   const [removeTarget, setRemoveTarget] = useState<{ id: number; name: string } | null>(null)
   const [blockTarget, setBlockTarget] = useState<{ id: number; name: string } | null>(null)
   const [blockReason, setBlockReason] = useState("")
+  const [unblockTarget, setUnblockTarget] = useState<{ id: number; name: string } | null>(null)
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({})
 
   const packageColumnBreakpoints: ColumnBreakpoints = useMemo(() => ({
@@ -234,11 +235,18 @@ export const PackagesListView = () => {
   }, [blockTarget, blockReason, blockMutation])
 
   const handleUnblock = useCallback(
-    (id: number) => {
-      unblockMutation.mutate(id)
+    (id: number, name: string) => {
+      setUnblockTarget({ id, name })
     },
-    [unblockMutation]
+    []
   )
+
+  const confirmUnblock = useCallback(() => {
+    if (unblockTarget) {
+      unblockMutation.mutate(unblockTarget.id)
+      setUnblockTarget(null)
+    }
+  }, [unblockTarget, unblockMutation])
 
   const handleDiscover = () => {
     discoverMutation.mutate(undefined)
@@ -284,7 +292,20 @@ export const PackagesListView = () => {
       {
         id: "popularity",
         accessorKey: "downloadCount",
-        header: ({ column }) => <SortableHeader column={column} title="Popularity" />,
+        header: ({ column }) => (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger render={<span />}>
+                <SortableHeader column={column} title="Popularity" />
+              </TooltipTrigger>
+              <TooltipContent>
+                {ecosystemFilter
+                  ? popularityLabel(ecosystemFilter)
+                  : "Downloads/mo (Python) · Score (NPM)"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ),
         cell: ({ row }) => {
           const pkg = row.original
           const text = formatPopularity(pkg.ecosystem, pkg.downloadCount, pkg.popularityScore)
@@ -361,7 +382,7 @@ export const PackagesListView = () => {
                 aria-label={`Unblock package ${pkg.name}`}
                 onClick={(e) => {
                   e.stopPropagation()
-                  handleUnblock(pkg.id)
+                  handleUnblock(pkg.id, pkg.name)
                 }}
               >
                 <ShieldCheck className="h-4 w-4 mr-1" />
@@ -677,6 +698,25 @@ export const PackagesListView = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmBlock}>
               Block
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Unblock Confirmation Dialog */}
+      <AlertDialog open={!!unblockTarget} onOpenChange={(open) => { if (!open) setUnblockTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unblock Package</AlertDialogTitle>
+            <AlertDialogDescription>
+              Unblock <strong>{unblockTarget?.name}</strong>? This will re-enable automatic discovery
+              and analysis for this package.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmUnblock}>
+              Unblock
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

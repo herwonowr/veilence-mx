@@ -22,7 +22,7 @@ export const formatDownloadCount = (count: number | undefined | null): string =>
 /**
  * Format the popularity metric for display based on ecosystem.
  * PyPI: formatted download count (e.g., "12.5M/mo")
- * NPM: popularity score (e.g., "0.95")
+ * NPM: popularity score with suffix (e.g., "0.95 pop.")
  */
 export const formatPopularity = (
   ecosystem: Ecosystem | string,
@@ -31,7 +31,7 @@ export const formatPopularity = (
 ): string => {
   if (ecosystem === "npm") {
     if (popularityScore == null) return "—"
-    return popularityScore.toFixed(2)
+    return `${popularityScore.toFixed(2)} pop.`
   }
   return formatDownloadCount(downloadCount)
 }

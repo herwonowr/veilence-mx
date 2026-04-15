@@ -23,9 +23,15 @@ import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton
 import { TableError } from "@/ui/feedback/table-error"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
 import { formatEcosystem } from "@/domains/common"
-import { formatPopularity } from "@/domains/packages"
+import { formatPopularity, popularityLabel } from "@/domains/packages"
 import type { StalePackage } from "@/domains/packages"
 import { ArrowLeft, Clock } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/ui/components/tooltip"
 import {
   useReactTable,
   getCoreRowModel,
@@ -99,7 +105,14 @@ export const StalePackagesView = () => {
       },
       {
         id: "popularity",
-        header: "Popularity",
+        header: () => (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger render={<span>Popularity</span>} />
+              <TooltipContent>Downloads/mo (Python) · Score (NPM)</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ),
         cell: ({ row }) => {
           const pkg = row.original
           return (

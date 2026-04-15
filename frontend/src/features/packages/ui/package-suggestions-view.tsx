@@ -28,9 +28,15 @@ import { TableError } from "@/ui/feedback/table-error"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
 import { DataTablePagination } from "@/ui/data/data-table-pagination"
 import { formatEcosystem } from "@/domains/common"
-import { formatPopularity } from "@/domains/packages"
+import { formatPopularity, popularityLabel } from "@/domains/packages"
 import type { Package } from "@/domains/packages"
 import { ArrowLeft, Check, X, CheckCheck, Radar } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/ui/components/tooltip"
 import {
   useReactTable,
   getCoreRowModel,
@@ -129,7 +135,14 @@ export const PackageSuggestionsView = () => {
       },
       {
         id: "popularity",
-        header: "Popularity",
+        header: () => (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger render={<span>Popularity</span>} />
+              <TooltipContent>Downloads/mo (Python) · Score (NPM)</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ),
         cell: ({ row }) => {
           const pkg = row.original
           return (
