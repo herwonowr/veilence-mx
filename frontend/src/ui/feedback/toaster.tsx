@@ -9,8 +9,7 @@ export const Toaster = () => {
   return (
     <SonnerToaster
       theme={resolvedTheme === "dark" ? "dark" : "light"}
-      position="bottom-right"
-      richColors
+      position="top-center"
       closeButton
     />
   )

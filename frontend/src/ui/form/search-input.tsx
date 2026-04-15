@@ -49,7 +49,7 @@ export const SearchInput = ({
   )
 
   return (
-    <div className={cn("relative max-w-xs w-full", className)}>
+    <div className={cn("relative py-1 max-w-xs w-full", className)}>
       {/* Left icon: spinner when loading, magnifying glass otherwise */}
       <div className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden="true">
         {isLoading ? (

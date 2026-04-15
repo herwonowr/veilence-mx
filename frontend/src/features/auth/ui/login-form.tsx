@@ -288,7 +288,7 @@ const LoginFormInner = () => {
                 variant="ghost"
                 size="icon-xs"
                 type="button"
-                className="absolute right-2 top-[30px] text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-2 top-7.5 text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setShowPassword((prev) => !prev)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
                 tabIndex={-1}
