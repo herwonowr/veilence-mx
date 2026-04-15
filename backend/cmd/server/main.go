@@ -126,15 +126,36 @@ func main() {
 	pythonClient := registry.NewPyPIClient()
 	npmClient := registry.NewNPMClient()
 
+	// SMTP configuration for notifications and auth emails
+	smtpConfig := notifications.SMTPConfig{
+		Host:     getEnv("SMTP_HOST", ""),
+		Port:     getEnv("SMTP_PORT", "587"),
+		Username: getEnv("SMTP_USERNAME", ""),
+		Password: getEnv("SMTP_PASSWORD", ""),
+		From:     getEnv("SMTP_FROM", ""),
+		UseTLS:   getEnv("SMTP_USE_TLS", "true") == "true",
+	}
+	if smtpConfig.IsConfigured() {
+		slog.Info("SMTP configured for email notifications", "host", smtpConfig.Host, "port", smtpConfig.Port, "from", smtpConfig.From)
+	} else {
+		slog.Warn("SMTP not configured — email notifications will be skipped. Set SMTP_HOST, SMTP_PORT, SMTP_FROM env vars.")
+	}
+
+	// Notification service must be constructed BEFORE pipeline services that use it as dispatcher
+	notificationChannelRepo := persistent.NewNotificationChannelRepo(db)
+	notificationRuleRepo := persistent.NewNotificationRuleRepo(db)
+	notificationRepo := persistent.NewNotificationRepo(db)
+	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, smtpConfig)
+
 	pollerService := poller.New(db, pythonClient, npmClient, poller.Config{
 		MonitoringInterval: monitoringInterval,
 		DiscoveryInterval:  discoveryInterval,
 		Concurrency:        concurrency,
-	}, jobQueue)
+	}, jobQueue, notificationService)
 
 	differService := differ.New(db, pythonClient, npmClient, differ.Config{
 		DiffSizeLimit: diffSizeLimit,
-	}, jobQueue)
+	}, jobQueue, notificationService)
 
 	var analyzers []analyzer.Analyzer
 	analyzers = append(analyzers, analyzer.NewCLIClient(analyzer.CLIClientConfig{
@@ -143,7 +164,7 @@ func main() {
 	}))
 	slog.Info("Copilot analyzer enabled", "url", copilotAPIURL, "model", copilotModel)
 
-	pipeline := analyzer.NewPipeline(db, analyzers...)
+	pipeline := analyzer.NewPipeline(db, notificationService, analyzers...)
 
 	// Start queue workers
 	diffWorker := queue.NewWorker(jobQueue, queue.JobTypeDiff, differService.ProcessJob, queue.WorkerConfig{
@@ -166,21 +187,6 @@ func main() {
 	emailVerificationTokenRepo := persistent.NewEmailVerificationTokenRepo(db)
 	sessionRepo := persistent.NewSessionRepo(db)
 	settingRepo := persistent.NewSettingRepo(db)
-
-	// SMTP configuration for notifications and auth emails
-	smtpConfig := notifications.SMTPConfig{
-		Host:     getEnv("SMTP_HOST", ""),
-		Port:     getEnv("SMTP_PORT", "587"),
-		Username: getEnv("SMTP_USERNAME", ""),
-		Password: getEnv("SMTP_PASSWORD", ""),
-		From:     getEnv("SMTP_FROM", ""),
-		UseTLS:   getEnv("SMTP_USE_TLS", "true") == "true",
-	}
-	if smtpConfig.IsConfigured() {
-		slog.Info("SMTP configured for email notifications", "host", smtpConfig.Host, "port", smtpConfig.Port, "from", smtpConfig.From)
-	} else {
-		slog.Warn("SMTP not configured — email notifications will be skipped. Set SMTP_HOST, SMTP_PORT, SMTP_FROM env vars.")
-	}
 
 	// Create auth email sender (nil if SMTP not configured — dev mode)
 	var authEmailSender usecase.AuthEmailSender
@@ -207,10 +213,6 @@ func main() {
 	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, authEmailSender, settingRepo, jwtSecret, previousSecrets...)
 	rbacService := rbac.NewService(db)
 	auditService := audit.NewService(db)
-	notificationChannelRepo := persistent.NewNotificationChannelRepo(db)
-	notificationRuleRepo := persistent.NewNotificationRuleRepo(db)
-	notificationRepo := persistent.NewNotificationRepo(db)
-	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, smtpConfig)
 	dashboardRepo := persistent.NewDashboardRepo(db)
 	alertNoteRepo := persistent.NewAlertNoteRepo(db)
 	alertRepo := persistent.NewAlertRepo(db)

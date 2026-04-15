@@ -13,7 +13,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
+	"github.com/veilence/veilence-mx/backend/internal/usecase"
 	"github.com/veilence/veilence-mx/backend/pkg/queue"
 	"github.com/veilence/veilence-mx/backend/internal/repo/registry"
 	"gorm.io/gorm"
@@ -26,24 +28,26 @@ type Config struct {
 
 // Differ generates diffs between consecutive package releases.
 type Differ struct {
-	db     *gorm.DB
-	python registry.Registry
-	npm    registry.Registry
-	config Config
-	queue  *queue.Queue
+	db       *gorm.DB
+	python   registry.Registry
+	npm      registry.Registry
+	config   Config
+	queue    *queue.Queue
+	notifier usecase.NotificationDispatcher
 }
 
 // New creates a new Differ instance.
-func New(db *gorm.DB, python registry.Registry, npm registry.Registry, config Config, q *queue.Queue) *Differ {
+func New(db *gorm.DB, python registry.Registry, npm registry.Registry, config Config, q *queue.Queue, notifier usecase.NotificationDispatcher) *Differ {
 	if config.DiffSizeLimit <= 0 {
 		config.DiffSizeLimit = 100 * 1024 // 100KB default
 	}
 	return &Differ{
-		db:     db,
-		python: python,
-		npm:    npm,
-		config: config,
-		queue:  q,
+		db:       db,
+		python:   python,
+		npm:      npm,
+		config:   config,
+		queue:    q,
+		notifier: notifier,
 	}
 }
 
@@ -175,6 +179,16 @@ func (d *Differ) markError(release *persistent.Release, msg string) {
 		"status":        persistent.ReleaseStatusError,
 		"error_message": msg,
 	})
+	if d.notifier != nil && release.Package.ID > 0 {
+		d.notifier.DispatchEvent(context.Background(), release.Package.OrgID, entity.NotificationEvent{
+			Severity:      "medium",
+			EventType:     entity.NotifEventDiffError,
+			Title:         fmt.Sprintf("Diff failed: %s v%s", release.Package.Name, release.Version),
+			Message:       fmt.Sprintf("Failed to generate diff for %s v%s (%s): %s", release.Package.Name, release.Version, release.Package.Ecosystem, msg),
+			ReferenceID:   release.ID,
+			ReferenceType: "release",
+		})
+	}
 }
 
 type diffStats struct {

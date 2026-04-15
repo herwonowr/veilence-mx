@@ -39,13 +39,37 @@ type NotificationRule struct {
 
 // Notification represents an in-app notification sent to a user or org.
 type Notification struct {
-	ID             uint
-	OrgID          uint
-	UserID         uint
-	ChannelID      uint
-	Title          string
-	Message        string
-	IsRead         bool
-	SentAt         time.Time
-	CreatedAt      time.Time
+	ID            uint
+	OrgID         uint
+	UserID        uint
+	ChannelID     uint
+	Severity      string // "critical", "high", "medium", "low"
+	EventType     string // e.g. "alert.created.malicious", "diff.error"
+	ReferenceID   uint   // ID of related entity (alert_id, release_id, etc.)
+	ReferenceType string // "alert", "release", "package" (for click-through)
+	Title         string
+	Message       string
+	IsRead        bool
+	SentAt        time.Time
+	CreatedAt     time.Time
 }
+
+// NotificationEvent carries structured event data for dispatching notifications.
+type NotificationEvent struct {
+	Severity      string
+	EventType     string
+	Title         string
+	Message       string
+	ReferenceID   uint
+	ReferenceType string // "alert", "release", "package"
+}
+
+// Notification event type constants.
+const (
+	NotifEventAlertMalicious  = "alert.created.malicious"
+	NotifEventAlertSuspicious = "alert.created.suspicious"
+	NotifEventAnalysisError   = "analysis.error"
+	NotifEventDiscoveryAdded  = "discovery.packages_added"
+	NotifEventDiffError       = "diff.error"
+	NotifEventStaleRemoved    = "packages.stale_removed"
+)

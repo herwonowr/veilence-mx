@@ -1,6 +1,7 @@
 package notifications_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -150,7 +151,7 @@ func TestDispatch_EmailChannel_SMTPNotConfigured(t *testing.T) {
 	createTestRule(t, svc, 1, ch.ID, "low")
 
 	// Dispatch — should create notification record but skip email (SMTP not configured)
-	svc.Dispatch(1, "critical", "Email Test", "Test body")
+	svc.Dispatch(context.Background(), 1, "critical", "Email Test", "Test body")
 
 	// Notification record should still be created
 	var notifs []persistent.Notification
@@ -167,7 +168,7 @@ func TestDispatch_EmailChannel_InvalidConfig(t *testing.T) {
 	createTestRule(t, svc, 1, ch.ID, "low")
 
 	// Should not panic, just log error
-	svc.Dispatch(1, "critical", "Bad Config", "Invalid config")
+	svc.Dispatch(context.Background(), 1, "critical", "Bad Config", "Invalid config")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -183,7 +184,7 @@ func TestDispatch_EmailChannel_EmptyRecipients(t *testing.T) {
 	createTestRule(t, svc, 1, ch.ID, "low")
 
 	// Should not panic
-	svc.Dispatch(1, "critical", "Empty Recipients", "No recipients")
+	svc.Dispatch(context.Background(), 1, "critical", "Empty Recipients", "No recipients")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -213,7 +214,7 @@ func TestDispatch_EmailChannel_SMTPConfiguredButUnreachable(t *testing.T) {
 	createTestRule(t, svc, 1, ch.ID, "low")
 
 	// Should not panic, just log error about unreachable SMTP server
-	svc.Dispatch(1, "critical", "SMTP Unreachable", "Testing unreachable SMTP")
+	svc.Dispatch(context.Background(), 1, "critical", "SMTP Unreachable", "Testing unreachable SMTP")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -238,7 +239,7 @@ func TestDispatch_EmailChannel_MultipleRecipients(t *testing.T) {
 	createTestRule(t, svc, 1, ch.ID, "low")
 
 	// Should not panic — will fail on SMTP connect but exercises the email path
-	svc.Dispatch(1, "critical", "Multi Recipients", "Testing multiple recipients")
+	svc.Dispatch(context.Background(), 1, "critical", "Multi Recipients", "Testing multiple recipients")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -264,7 +265,7 @@ func TestDispatch_SlackChannel_Success(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "Slack Ch", entity.NotificationChannelSlack, config)
 	createTestRule(t, svc, 1, ch.ID, "low")
 
-	svc.Dispatch(1, "high", "Slack Alert", "Something happened")
+	svc.Dispatch(context.Background(), 1, "high", "Slack Alert", "Something happened")
 
 	// Should have received the Slack payload
 	assert.NotEmpty(t, receivedBody)
@@ -282,7 +283,7 @@ func TestDispatch_SlackChannel_InvalidConfig(t *testing.T) {
 	createTestRule(t, svc, 1, ch.ID, "low")
 
 	// Should not panic
-	svc.Dispatch(1, "critical", "Bad Slack Config", "Invalid")
+	svc.Dispatch(context.Background(), 1, "critical", "Bad Slack Config", "Invalid")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -297,7 +298,7 @@ func TestDispatch_SlackChannel_EmptyURL(t *testing.T) {
 	createTestRule(t, svc, 1, ch.ID, "low")
 
 	// Should not panic
-	svc.Dispatch(1, "critical", "Empty Slack URL", "No URL")
+	svc.Dispatch(context.Background(), 1, "critical", "Empty Slack URL", "No URL")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -318,7 +319,7 @@ func TestDispatch_SlackChannel_ServerError(t *testing.T) {
 	createTestRule(t, svc, 1, ch.ID, "low")
 
 	// Should not panic — logs the error
-	svc.Dispatch(1, "critical", "Slack Error", "Server returns 500")
+	svc.Dispatch(context.Background(), 1, "critical", "Slack Error", "Server returns 500")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -334,7 +335,7 @@ func TestDispatch_SlackChannel_UnreachableURL(t *testing.T) {
 	createTestRule(t, svc, 1, ch.ID, "low")
 
 	// Should not panic
-	svc.Dispatch(1, "critical", "Slack Unreachable", "URL is dead")
+	svc.Dispatch(context.Background(), 1, "critical", "Slack Unreachable", "URL is dead")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -369,7 +370,7 @@ func TestDispatch_UnknownChannelType(t *testing.T) {
 	require.NoError(t, db.Create(rule).Error)
 
 	// Should not panic — logs a warning
-	svc.Dispatch(1, "critical", "Unknown Type", "Carrier pigeon channel")
+	svc.Dispatch(context.Background(), 1, "critical", "Unknown Type", "Carrier pigeon channel")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)

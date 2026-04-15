@@ -336,3 +336,11 @@ type AuthEmailSender interface {
 type SettingGetter interface {
 	GetSettingValue(ctx context.Context, orgID uint, key string) (string, error)
 }
+
+// NotificationDispatcher defines the interface for dispatching system notifications.
+// Implementations route notifications to in-app storage and external channels
+// based on the organization's configured notification rules.
+type NotificationDispatcher interface {
+	Dispatch(ctx context.Context, orgID uint, severity, title, message string)
+	DispatchEvent(ctx context.Context, orgID uint, evt entity.NotificationEvent)
+}

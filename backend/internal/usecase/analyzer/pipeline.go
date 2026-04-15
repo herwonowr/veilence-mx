@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"gorm.io/gorm"
 
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
+	"github.com/veilence/veilence-mx/backend/internal/usecase"
 	"github.com/veilence/veilence-mx/backend/pkg/queue"
 )
 
@@ -15,13 +18,15 @@ import (
 type Pipeline struct {
 	db        *gorm.DB
 	analyzers []Analyzer
+	notifier  usecase.NotificationDispatcher
 }
 
 // NewPipeline creates a new analysis pipeline.
-func NewPipeline(db *gorm.DB, analyzers ...Analyzer) *Pipeline {
+func NewPipeline(db *gorm.DB, notifier usecase.NotificationDispatcher, analyzers ...Analyzer) *Pipeline {
 	return &Pipeline{
 		db:        db,
 		analyzers: analyzers,
+		notifier:  notifier,
 	}
 }
 
@@ -114,12 +119,39 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
 					"severity", severity,
 					"classification", result.Classification,
 				)
+				// Dispatch notification for malicious/suspicious alert
+				if p.notifier != nil {
+					notifSeverity := "high"
+					notifEventType := entity.NotifEventAlertSuspicious
+					if result.Classification == "malicious" {
+						notifSeverity = "critical"
+						notifEventType = entity.NotifEventAlertMalicious
+					}
+					p.notifier.DispatchEvent(ctx, pkg.OrgID, entity.NotificationEvent{
+						Severity:      notifSeverity,
+						EventType:     notifEventType,
+						Title:         fmt.Sprintf("%s package detected: %s v%s", strings.ToUpper(result.Classification[:1])+result.Classification[1:], pkg.Name, diff.Release.Version),
+						Message:       fmt.Sprintf("Package %s v%s (%s) classified as %s with %.0f%% confidence. %s", pkg.Name, diff.Release.Version, pkg.Ecosystem, result.Classification, result.Confidence*100, result.Reasoning),
+						ReferenceID:   alert.ID,
+						ReferenceType: "alert",
+					})
+				}
 			}
 		}
 	}
 
 	// If no analysis was created, return error so the job is retried
 	if !analysisCreated {
+		if p.notifier != nil {
+			p.notifier.DispatchEvent(ctx, pkg.OrgID, entity.NotificationEvent{
+				Severity:      "high",
+				EventType:     entity.NotifEventAnalysisError,
+				Title:         fmt.Sprintf("Analysis failed: %s v%s", pkg.Name, diff.Release.Version),
+				Message:       fmt.Sprintf("All analyzers failed for %s v%s (%s). The release will be retried. Error: %v", pkg.Name, diff.Release.Version, pkg.Ecosystem, lastErr),
+				ReferenceID:   diff.Release.ID,
+				ReferenceType: "release",
+			})
+		}
 		return fmt.Errorf("all analyzers failed for diff %d: %w", diffID, lastErr)
 	}
 

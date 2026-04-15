@@ -215,9 +215,18 @@ var severityOrder = map[string]int{
 // Dispatch sends a notification through all matching rules/channels for an
 // organization. It creates in-app notification records and dispatches to
 // external channels (email, Slack, webhook).
-func (s *Service) Dispatch(orgID uint, severity, title, message string) {
-	ctx := context.Background()
+func (s *Service) Dispatch(ctx context.Context, orgID uint, severity, title, message string) {
+	s.dispatchInternal(ctx, orgID, severity, "", 0, "", title, message)
+}
 
+// DispatchEvent sends a notification with full structured event data through
+// all matching rules/channels for an organization.
+func (s *Service) DispatchEvent(ctx context.Context, orgID uint, evt entity.NotificationEvent) {
+	s.dispatchInternal(ctx, orgID, evt.Severity, evt.EventType, evt.ReferenceID, evt.ReferenceType, evt.Title, evt.Message)
+}
+
+// dispatchInternal is the shared implementation for Dispatch and DispatchEvent.
+func (s *Service) dispatchInternal(ctx context.Context, orgID uint, severity, eventType string, referenceID uint, referenceType, title, message string) {
 	// Find all active rules for this org whose severity threshold is met
 	rules, err := s.rules.FindActiveByOrgID(ctx, orgID)
 	if err != nil {
@@ -249,12 +258,16 @@ func (s *Service) Dispatch(orgID uint, severity, title, message string) {
 
 		// Create in-app notification record
 		notification := &entity.Notification{
-			OrgID:     orgID,
-			UserID:    0, // org-wide
-			ChannelID: channel.ID,
-			Title:     title,
-			Message:   message,
-			SentAt:    time.Now(),
+			OrgID:         orgID,
+			UserID:        0, // org-wide
+			ChannelID:     channel.ID,
+			Severity:      severity,
+			EventType:     eventType,
+			ReferenceID:   referenceID,
+			ReferenceType: referenceType,
+			Title:         title,
+			Message:       message,
+			SentAt:        time.Now(),
 		}
 		if err := s.notifications.Create(ctx, notification); err != nil {
 			slog.Error("failed to create notification record",

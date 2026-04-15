@@ -76,29 +76,37 @@ func NotificationRulesFromEntities(rules []entity.NotificationRule) []Notificati
 
 // NotificationResponse is the JSON representation of an in-app notification.
 type NotificationResponse struct {
-	ID        uint      `json:"id"`
-	OrgID     uint      `json:"orgId"`
-	UserID    uint      `json:"userId"`
-	ChannelID uint      `json:"channelId"`
-	Title     string    `json:"title"`
-	Message   string    `json:"message"`
-	IsRead    bool      `json:"isRead"`
-	SentAt    time.Time `json:"sentAt"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID            uint      `json:"id"`
+	OrgID         uint      `json:"orgId"`
+	UserID        uint      `json:"userId"`
+	ChannelID     uint      `json:"channelId"`
+	Severity      string    `json:"severity"`
+	EventType     string    `json:"eventType"`
+	ReferenceID   uint      `json:"referenceId"`
+	ReferenceType string    `json:"referenceType"`
+	Title         string    `json:"title"`
+	Message       string    `json:"message"`
+	IsRead        bool      `json:"isRead"`
+	SentAt        time.Time `json:"sentAt"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 // NotificationFromEntity maps a domain Notification to a response DTO.
 func NotificationFromEntity(n *entity.Notification) NotificationResponse {
 	return NotificationResponse{
-		ID:        n.ID,
-		OrgID:     n.OrgID,
-		UserID:    n.UserID,
-		ChannelID: n.ChannelID,
-		Title:     n.Title,
-		Message:   n.Message,
-		IsRead:    n.IsRead,
-		SentAt:    n.SentAt,
-		CreatedAt: n.CreatedAt,
+		ID:            n.ID,
+		OrgID:         n.OrgID,
+		UserID:        n.UserID,
+		ChannelID:     n.ChannelID,
+		Severity:      n.Severity,
+		EventType:     n.EventType,
+		ReferenceID:   n.ReferenceID,
+		ReferenceType: n.ReferenceType,
+		Title:         n.Title,
+		Message:       n.Message,
+		IsRead:        n.IsRead,
+		SentAt:        n.SentAt,
+		CreatedAt:     n.CreatedAt,
 	}
 }
 

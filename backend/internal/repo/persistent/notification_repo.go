@@ -104,28 +104,36 @@ func (r *NotificationRepo) MarkAllRead(ctx context.Context, orgID, userID uint) 
 
 func notifToDomain(m *Notification) *entity.Notification {
 	return &entity.Notification{
-		ID:        m.ID,
-		OrgID:     m.OrgID,
-		UserID:    m.UserID,
-		ChannelID: m.ChannelID,
-		Title:     m.Title,
-		Message:   m.Message,
-		IsRead:    m.IsRead,
-		SentAt:    m.SentAt,
-		CreatedAt: m.CreatedAt,
+		ID:            m.ID,
+		OrgID:         m.OrgID,
+		UserID:        m.UserID,
+		ChannelID:     m.ChannelID,
+		Severity:      m.Severity,
+		EventType:     m.EventType,
+		ReferenceID:   m.ReferenceID,
+		ReferenceType: m.ReferenceType,
+		Title:         m.Title,
+		Message:       m.Message,
+		IsRead:        m.IsRead,
+		SentAt:        m.SentAt,
+		CreatedAt:     m.CreatedAt,
 	}
 }
 
 func notifToModel(d *entity.Notification) *Notification {
 	return &Notification{
-		ID:        d.ID,
-		OrgID:     d.OrgID,
-		UserID:    d.UserID,
-		ChannelID: d.ChannelID,
-		Title:     d.Title,
-		Message:   d.Message,
-		IsRead:    d.IsRead,
-		SentAt:    d.SentAt,
-		CreatedAt: d.CreatedAt,
+		ID:            d.ID,
+		OrgID:         d.OrgID,
+		UserID:        d.UserID,
+		ChannelID:     d.ChannelID,
+		Severity:      d.Severity,
+		EventType:     d.EventType,
+		ReferenceID:   d.ReferenceID,
+		ReferenceType: d.ReferenceType,
+		Title:         d.Title,
+		Message:       d.Message,
+		IsRead:        d.IsRead,
+		SentAt:        d.SentAt,
+		CreatedAt:     d.CreatedAt,
 	}
 }

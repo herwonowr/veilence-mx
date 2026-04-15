@@ -26,22 +26,30 @@ import {
 
 type SeverityLevel = "critical" | "high" | "medium" | "info"
 
-/** Keyword-to-severity mapping - ordered from highest to lowest priority */
-const SEVERITY_KEYWORDS: ReadonlyArray<{ keywords: string[]; severity: SeverityLevel }> = [
-  { keywords: ["critical", "malicious"], severity: "critical" },
-  { keywords: ["high", "suspicious"], severity: "high" },
-  { keywords: ["medium"], severity: "medium" },
-]
+const VALID_SEVERITIES: ReadonlyArray<SeverityLevel> = ["critical", "high", "medium", "info"]
 
 const classifySeverity = (notification: Notification): SeverityLevel => {
-  // Prefer a structured severity field if the backend provides one in the future
-  const haystack = `${notification.title} ${notification.message}`.toLowerCase()
-  for (const { keywords, severity } of SEVERITY_KEYWORDS) {
-    if (keywords.some((kw) => haystack.includes(kw))) {
-      return severity
-    }
+  const mapped = notification.severity === "low" ? "info" : notification.severity
+  return VALID_SEVERITIES.includes(mapped as SeverityLevel)
+    ? (mapped as SeverityLevel)
+    : "info"
+}
+
+const getNotificationLink = (notification: Notification): string => {
+  switch (notification.referenceType) {
+    case "alert":
+      return notification.referenceId > 0
+        ? `/alerts/${notification.referenceId}`
+        : "/alerts"
+    case "release":
+      return notification.referenceId > 0
+        ? `/releases/${notification.referenceId}`
+        : "/releases"
+    case "package":
+      return "/packages"
+    default:
+      return "/dashboard"
   }
-  return "info"
 }
 
 const severityVariant = (severity: SeverityLevel): "destructive" | "default" | "secondary" | "outline" => {
@@ -100,13 +108,7 @@ export const NotificationBell = () => {
         markReadMutation.mutate(notification.id)
       }
       setOpen(false)
-
-      // Deep link to specific alert if alertId is available
-      if (notification.alertId) {
-        router.push(`/alerts/${notification.alertId}`)
-      } else {
-        router.push("/alerts")
-      }
+      router.push(getNotificationLink(notification))
     },
     [router, markReadMutation]
   )

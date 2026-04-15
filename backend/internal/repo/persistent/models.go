@@ -467,15 +467,19 @@ func (NotificationRule) TableName() string { return "notification_rules" }
 
 // Notification is the GORM model for in-app notifications.
 type Notification struct {
-	ID        uint      `gorm:"primarykey" json:"id"`
-	OrgID     uint      `gorm:"not null;index" json:"orgId"`
-	UserID    uint      `gorm:"index" json:"userId"`
-	ChannelID uint      `gorm:"index" json:"channelId"`
-	Title     string    `gorm:"not null;type:varchar(255)" json:"title"`
-	Message   string    `gorm:"type:text" json:"message"`
-	IsRead    bool      `gorm:"not null;default:false" json:"isRead"`
-	SentAt    time.Time `json:"sentAt"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID            uint      `gorm:"primarykey" json:"id"`
+	OrgID         uint      `gorm:"not null;index" json:"orgId"`
+	UserID        uint      `gorm:"index" json:"userId"`
+	ChannelID     uint      `gorm:"index" json:"channelId"`
+	Severity      string    `gorm:"not null;type:varchar(20);default:''" json:"severity"`
+	EventType     string    `gorm:"not null;type:varchar(100);default:'';index" json:"eventType"`
+	ReferenceID   uint      `gorm:"not null;default:0" json:"referenceId"`
+	ReferenceType string    `gorm:"not null;type:varchar(50);default:''" json:"referenceType"`
+	Title         string    `gorm:"not null;type:varchar(255)" json:"title"`
+	Message       string    `gorm:"type:text" json:"message"`
+	IsRead        bool      `gorm:"not null;default:false" json:"isRead"`
+	SentAt        time.Time `json:"sentAt"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 func (Notification) TableName() string { return "notifications" }

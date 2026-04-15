@@ -5,7 +5,10 @@ export interface Notification {
   orgId: number
   userId: number
   channelId: number
-  alertId?: number
+  severity: string
+  eventType: string
+  referenceId: number
+  referenceType: string
   title: string
   message: string
   isRead: boolean

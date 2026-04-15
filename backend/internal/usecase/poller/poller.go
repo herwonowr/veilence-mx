@@ -14,6 +14,7 @@ import (
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
+	"github.com/veilence/veilence-mx/backend/internal/usecase"
 	"github.com/veilence/veilence-mx/backend/pkg/queue"
 	"github.com/veilence/veilence-mx/backend/internal/repo/registry"
 )
@@ -90,6 +91,7 @@ type Poller struct {
 	npm      registry.Registry
 	config   Config
 	queue    *queue.Queue
+	notifier usecase.NotificationDispatcher
 	mu       sync.Mutex
 	settings *settingsCache
 
@@ -101,7 +103,7 @@ type Poller struct {
 }
 
 // New creates a new Poller instance.
-func New(db *gorm.DB, python registry.Registry, npm registry.Registry, config Config, q *queue.Queue) *Poller {
+func New(db *gorm.DB, python registry.Registry, npm registry.Registry, config Config, q *queue.Queue, notifier usecase.NotificationDispatcher) *Poller {
 	if config.Concurrency <= 0 {
 		config.Concurrency = 5
 	}
@@ -111,6 +113,7 @@ func New(db *gorm.DB, python registry.Registry, npm registry.Registry, config Co
 		npm:        npm,
 		config:     config,
 		queue:      q,
+		notifier:   notifier,
 		settings:   newSettingsCache(SettingsCacheTTL),
 		lastPollAt: make(map[string]time.Time),
 	}
@@ -564,6 +567,16 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, orgID uint, ranki
 			label = "auto-approved"
 		}
 		slog.Info("discovery added packages", "ecosystem", string(ecosystem), "org_id", orgID, label, suggested)
+		if p.notifier != nil {
+			p.notifier.DispatchEvent(ctx, orgID, entity.NotificationEvent{
+				Severity:      "medium",
+				EventType:     entity.NotifEventDiscoveryAdded,
+				Title:         fmt.Sprintf("Discovery: %d new %s packages found", suggested, string(ecosystem)),
+				Message:       fmt.Sprintf("Discovery scan found %d new %s packages (%s). Review them in the Packages page.", suggested, string(ecosystem), label),
+				ReferenceID:   0,
+				ReferenceType: "package",
+			})
+		}
 	}
 }
 
@@ -619,6 +632,16 @@ func (p *Poller) removeStalePackages(ctx context.Context, orgID uint, months int
 
 	if result.RowsAffected > 0 {
 		slog.Info("auto-removed stale packages", "org_id", orgID, "months", months, "removed", result.RowsAffected)
+		if p.notifier != nil {
+			p.notifier.DispatchEvent(ctx, orgID, entity.NotificationEvent{
+				Severity:      "medium",
+				EventType:     entity.NotifEventStaleRemoved,
+				Title:         fmt.Sprintf("%d stale packages auto-removed", result.RowsAffected),
+				Message:       fmt.Sprintf("%d packages with no updates in %d months were automatically removed from monitoring.", result.RowsAffected, months),
+				ReferenceID:   0,
+				ReferenceType: "",
+			})
+		}
 	}
 }
 

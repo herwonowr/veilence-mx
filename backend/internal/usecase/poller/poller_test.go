@@ -73,17 +73,17 @@ func (m *mockRegistry) DownloadTarball(ctx context.Context, url string) (string,
 // ---------------------------------------------------------------------------
 
 func TestNew_DefaultConcurrency(t *testing.T) {
-	p := New(nil, nil, nil, Config{}, nil)
+	p := New(nil, nil, nil, Config{}, nil, nil)
 	assert.Equal(t, 5, p.config.Concurrency)
 }
 
 func TestNew_CustomConcurrency(t *testing.T) {
-	p := New(nil, nil, nil, Config{Concurrency: 10}, nil)
+	p := New(nil, nil, nil, Config{Concurrency: 10}, nil, nil)
 	assert.Equal(t, 10, p.config.Concurrency)
 }
 
 func TestNew_ZeroConcurrency(t *testing.T) {
-	p := New(nil, nil, nil, Config{Concurrency: 0}, nil)
+	p := New(nil, nil, nil, Config{Concurrency: 0}, nil, nil)
 	assert.Equal(t, 5, p.config.Concurrency)
 }
 
@@ -92,7 +92,7 @@ func TestNew_ConfigFields(t *testing.T) {
 		MonitoringInterval: 10 * time.Minute,
 		DiscoveryInterval:  6 * time.Hour,
 		Concurrency:        3,
-	}, nil)
+	}, nil, nil)
 	assert.Equal(t, 10*time.Minute, p.config.MonitoringInterval)
 	assert.Equal(t, 6*time.Hour, p.config.DiscoveryInterval)
 	assert.Equal(t, 3, p.config.Concurrency)
@@ -119,7 +119,7 @@ func TestCheckPackageForNewReleases_NewRelease(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
 	db.Create(&pkg)
@@ -153,7 +153,7 @@ func TestCheckPackageForNewReleases_FirstTime_IncludesBaseline(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
 	db.Create(&pkg)
@@ -189,7 +189,7 @@ func TestCheckPackageForNewReleases_ExistingRelease_NoBaseline(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
 	db.Create(&pkg)
@@ -222,7 +222,7 @@ func TestCheckPackageForNewReleases_ExistingRelease_NoNew(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
 	db.Create(&pkg)
@@ -244,7 +244,7 @@ func TestCheckPackageForNewReleases_EcosystemError(t *testing.T) {
 		getErr: fmt.Errorf("network timeout"),
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
 	db.Create(&pkg)
@@ -271,7 +271,7 @@ func TestCheckPackageForNewReleases_UpdatesMetadata(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
 	db.Create(&pkg)
@@ -308,7 +308,7 @@ func TestCheckPackageForNewReleases_AllMissedReleases(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
 	db.Create(&pkg)
@@ -347,7 +347,7 @@ func TestCheckPackageForNewReleases_Idempotent(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
 	db.Create(&pkg)
@@ -380,7 +380,7 @@ func TestDiscoverPackages_NewPackages(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	p.discoverPackages(context.Background(), mock, 3, 1, false)
 
@@ -417,7 +417,7 @@ func TestDiscoverPackages_UpdateExistingRank(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	p.discoverPackages(context.Background(), mock, 1, 1, false)
 
@@ -457,7 +457,7 @@ func TestDiscoverPackages_SkipsBlockedPackages(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	p.discoverPackages(context.Background(), mock, 1, 1, false)
 
@@ -489,7 +489,7 @@ func TestDiscoverPackages_ReAddsRemovedPackages(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	p.discoverPackages(context.Background(), mock, 1, 1, false)
 
@@ -511,7 +511,7 @@ func TestDiscoverPackages_RegistryError(t *testing.T) {
 		topErr: fmt.Errorf("API unavailable"),
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	// Should not panic — just logs the error
 	p.discoverPackages(context.Background(), mock, 10, 1, false)
@@ -535,7 +535,7 @@ func TestDiscoverPackages_AdditiveOnly(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	p.discoverPackages(context.Background(), mock, 1, 1, false)
 
@@ -567,7 +567,7 @@ func TestSyncTopPackages_BackwardCompat(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	err := p.SyncTopPackages(context.Background(), mock, 2, 1)
 	require.NoError(t, err)
@@ -592,7 +592,7 @@ func TestGetOrgMonitoringInterval_DefaultFallback(t *testing.T) {
 	p := New(db, nil, nil, Config{
 		MonitoringInterval: 15 * time.Minute,
 		Concurrency:        1,
-	}, nil)
+	}, nil, nil)
 
 	interval := p.getOrgMonitoringInterval(1)
 	assert.Equal(t, 15*time.Minute, interval)
@@ -605,7 +605,7 @@ func TestGetOrgMonitoringInterval_OrgOverride(t *testing.T) {
 	p := New(db, nil, nil, Config{
 		MonitoringInterval: 15 * time.Minute,
 		Concurrency:        1,
-	}, nil)
+	}, nil, nil)
 
 	interval := p.getOrgMonitoringInterval(1)
 	assert.Equal(t, 30*time.Minute, interval)
@@ -617,7 +617,7 @@ func TestGetOrgDiscoveryInterval_DefaultFallback(t *testing.T) {
 	p := New(db, nil, nil, Config{
 		DiscoveryInterval: 24 * time.Hour,
 		Concurrency:       1,
-	}, nil)
+	}, nil, nil)
 
 	interval := p.getOrgDiscoveryInterval(1)
 	assert.Equal(t, 24*time.Hour, interval)
@@ -630,7 +630,7 @@ func TestGetOrgDiscoveryInterval_OrgOverride(t *testing.T) {
 	p := New(db, nil, nil, Config{
 		DiscoveryInterval: 24 * time.Hour,
 		Concurrency:       1,
-	}, nil)
+	}, nil, nil)
 
 	interval := p.getOrgDiscoveryInterval(1)
 	assert.Equal(t, 12*time.Hour, interval)
@@ -639,7 +639,7 @@ func TestGetOrgDiscoveryInterval_OrgOverride(t *testing.T) {
 func TestGetDiscoveryScanDepth_Default(t *testing.T) {
 	db := setupTestDB(t)
 
-	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
+	p := New(db, nil, nil, Config{Concurrency: 1}, nil, nil)
 
 	depth := p.getDiscoveryScanDepth(1)
 	assert.Equal(t, 50, depth)
@@ -649,7 +649,7 @@ func TestGetDiscoveryScanDepth_OrgOverride(t *testing.T) {
 	db := setupTestDB(t)
 	db.Create(&persistent.Setting{OrgID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "200"})
 
-	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
+	p := New(db, nil, nil, Config{Concurrency: 1}, nil, nil)
 
 	depth := p.getDiscoveryScanDepth(1)
 	assert.Equal(t, 200, depth)
@@ -659,7 +659,7 @@ func TestGetDiscoveryScanDepth_InvalidValue(t *testing.T) {
 	db := setupTestDB(t)
 	db.Create(&persistent.Setting{OrgID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "invalid"})
 
-	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
+	p := New(db, nil, nil, Config{Concurrency: 1}, nil, nil)
 
 	depth := p.getDiscoveryScanDepth(1)
 	assert.Equal(t, 50, depth) // Falls back to default
@@ -670,20 +670,20 @@ func TestGetDiscoveryScanDepth_InvalidValue(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestIsOrgDue_NeverPolled(t *testing.T) {
-	p := New(nil, nil, nil, Config{Concurrency: 1}, nil)
+	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
 	// Never polled — should be immediately due
 	assert.True(t, p.isOrgDue(1, "monitor", 5*time.Minute))
 }
 
 func TestIsOrgDue_RecentlyPolled(t *testing.T) {
-	p := New(nil, nil, nil, Config{Concurrency: 1}, nil)
+	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
 	p.markOrgPolled(1, "monitor")
 	// Just polled — should NOT be due yet
 	assert.False(t, p.isOrgDue(1, "monitor", 5*time.Minute))
 }
 
 func TestIsOrgDue_SeparatePurposes(t *testing.T) {
-	p := New(nil, nil, nil, Config{Concurrency: 1}, nil)
+	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
 	p.markOrgPolled(1, "monitor")
 	// Monitor is marked, but discover is never polled — should be due
 	assert.True(t, p.isOrgDue(1, "discover", 5*time.Minute))
@@ -695,7 +695,7 @@ func TestIsOrgDue_SeparatePurposes(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestTriggerDiscovery_MakesOrgDue(t *testing.T) {
-	p := New(nil, nil, nil, Config{Concurrency: 1}, nil)
+	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
 	// Mark org as recently discovered
 	p.markOrgPolled(1, "discover")
 	assert.False(t, p.isOrgDue(1, "discover", 24*time.Hour))
@@ -706,7 +706,7 @@ func TestTriggerDiscovery_MakesOrgDue(t *testing.T) {
 }
 
 func TestTriggerDiscovery_DoesNotAffectMonitor(t *testing.T) {
-	p := New(nil, nil, nil, Config{Concurrency: 1}, nil)
+	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
 	p.markOrgPolled(1, "monitor")
 	p.markOrgPolled(1, "discover")
 
@@ -725,7 +725,7 @@ func TestTriggerDiscovery_DoesNotAffectMonitor(t *testing.T) {
 func TestRegistryForEcosystem(t *testing.T) {
 	pyMock := &mockRegistry{name: "python"}
 	npmMock := &mockRegistry{name: "npm"}
-	p := New(nil, pyMock, npmMock, Config{Concurrency: 1}, nil)
+	p := New(nil, pyMock, npmMock, Config{Concurrency: 1}, nil, nil)
 
 	assert.Equal(t, pyMock, p.registryForEcosystem(persistent.EcosystemPython))
 	assert.Equal(t, npmMock, p.registryForEcosystem(persistent.EcosystemNPM))
@@ -757,7 +757,7 @@ func TestMonitorOrgPackages_ChecksActivePackages(t *testing.T) {
 		},
 	}
 
-	p := New(db, pyMock, npmMock, Config{Concurrency: 5}, nil)
+	p := New(db, pyMock, npmMock, Config{Concurrency: 5}, nil, nil)
 
 	// Active packages — both ecosystems in same org
 	db.Create(&persistent.Package{OrgID: 1, Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
@@ -794,7 +794,7 @@ func TestRunMonitorCycle_SkipsNonDueOrgs(t *testing.T) {
 	p := New(db, pyMock, nil, Config{
 		MonitoringInterval: 1 * time.Hour,
 		Concurrency:        1,
-	}, nil)
+	}, nil, nil)
 
 	// Create an active package so the org shows up
 	db.Create(&persistent.Package{OrgID: 1, Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
@@ -840,7 +840,7 @@ func TestRunDiscoveryCycle_DiscoversForDueOrgs(t *testing.T) {
 	p := New(db, pyMock, npmMock, Config{
 		DiscoveryInterval: 1 * time.Hour,
 		Concurrency:       1,
-	}, nil)
+	}, nil, nil)
 
 	// Create a setting so org 1 shows up
 	db.Create(&persistent.Setting{OrgID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "2"})
@@ -871,7 +871,7 @@ func TestRunDiscoveryCycle_ZeroScanDepth_Skips(t *testing.T) {
 	p := New(db, pyMock, nil, Config{
 		DiscoveryInterval: 1 * time.Hour,
 		Concurrency:       1,
-	}, nil)
+	}, nil, nil)
 
 	// Set scan depth to 0 — should skip discovery
 	db.Create(&persistent.Setting{OrgID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "0"})
@@ -913,7 +913,7 @@ func TestSettingsCache_Invalidate(t *testing.T) {
 
 func TestInvalidateSettingsCache(t *testing.T) {
 	db := setupTestDB(t)
-	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
+	p := New(db, nil, nil, Config{Concurrency: 1}, nil, nil)
 
 	// Populate the cache
 	p.settings.set("1:monitoring_interval", "5m")
@@ -955,7 +955,7 @@ func TestDiscoverPackages_SuggestedPackagesGetUpdated(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
+	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	p.discoverPackages(context.Background(), mock, 1, 1, false)
 
@@ -982,7 +982,7 @@ func TestDiscoverPackages_SuggestedNotMonitored(t *testing.T) {
 		},
 	}
 
-	p := New(db, pyMock, nil, Config{Concurrency: 5}, nil)
+	p := New(db, pyMock, nil, Config{Concurrency: 5}, nil, nil)
 
 	// Suggested package — should NOT be loaded for monitoring
 	db.Create(&persistent.Package{OrgID: 1, Name: "suggested-pkg", Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
@@ -1020,7 +1020,7 @@ func TestUpsertDiscoveredPackages_MixedStatuses(t *testing.T) {
 		{Name: "new-pkg", Rank: 6, DownloadCount: 500, PopularityScore: 70.0},
 	}
 
-	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
+	p := New(db, nil, nil, Config{Concurrency: 1}, nil, nil)
 
 	p.upsertDiscoveredPackages(context.Background(), 1, rankings, persistent.EcosystemPython, false)
 
@@ -1060,7 +1060,7 @@ func TestUpsertDiscoveredPackages_DownloadCountBatchUpdate(t *testing.T) {
 		{Name: "pkg-b", Rank: 2, DownloadCount: 300000, PopularityScore: 88.0},
 	}
 
-	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
+	p := New(db, nil, nil, Config{Concurrency: 1}, nil, nil)
 	p.upsertDiscoveredPackages(context.Background(), 1, rankings, persistent.EcosystemPython, false)
 
 	var pkgA, pkgB persistent.Package
@@ -1081,7 +1081,7 @@ func TestDiscoverPackages_DiscoveryImmediateForNewOrg(t *testing.T) {
 	p := New(nil, nil, nil, Config{
 		DiscoveryInterval: 24 * time.Hour,
 		Concurrency:       1,
-	}, nil)
+	}, nil, nil)
 
 	// Org 99 has never been polled
 	assert.True(t, p.isOrgDue(99, "discover", 24*time.Hour))
@@ -1103,7 +1103,7 @@ func TestDiscoverPackages_MultiEcosystem(t *testing.T) {
 		},
 	}
 
-	p := New(db, pyMock, npmMock, Config{Concurrency: 1}, nil)
+	p := New(db, pyMock, npmMock, Config{Concurrency: 1}, nil, nil)
 
 	// Discover both ecosystems
 	p.discoverPackages(context.Background(), pyMock, 1, 1, false)

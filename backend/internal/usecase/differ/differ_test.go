@@ -334,17 +334,17 @@ func TestGenerateDiff_MultilineContent(t *testing.T) {
 }
 
 func TestNew_DefaultConfig(t *testing.T) {
-	d := New(nil, nil, nil, Config{}, nil)
+	d := New(nil, nil, nil, Config{}, nil, nil)
 	assert.Equal(t, 100*1024, d.config.DiffSizeLimit)
 }
 
 func TestNew_CustomConfig(t *testing.T) {
-	d := New(nil, nil, nil, Config{DiffSizeLimit: 50000}, nil)
+	d := New(nil, nil, nil, Config{DiffSizeLimit: 50000}, nil, nil)
 	assert.Equal(t, 50000, d.config.DiffSizeLimit)
 }
 
 func TestGetEcosystem(t *testing.T) {
-	d := New(nil, nil, nil, Config{}, nil)
+	d := New(nil, nil, nil, Config{}, nil, nil)
 	assert.Nil(t, d.getRegistry("unknown"))
 	assert.Nil(t, d.getRegistry("python"))
 	assert.Nil(t, d.getRegistry("npm"))

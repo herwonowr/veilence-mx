@@ -1,6 +1,7 @@
 package notifications_test
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -332,7 +333,7 @@ func TestDispatch_MatchesSeverityAtThreshold(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "Email", entity.NotificationChannelEmail, `{}`)
 	createTestRule(t, svc, 1, ch.ID, "high")
 
-	svc.Dispatch(1, "high", "Alert", "This is a high alert")
+	svc.Dispatch(context.Background(), 1, "high", "Alert", "This is a high alert")
 
 	var count int64
 	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
@@ -346,7 +347,7 @@ func TestDispatch_MatchesSeverityAboveThreshold(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "Email", entity.NotificationChannelEmail, `{}`)
 	createTestRule(t, svc, 1, ch.ID, "medium")
 
-	svc.Dispatch(1, "critical", "Critical Issue", "Something terrible happened")
+	svc.Dispatch(context.Background(), 1, "critical", "Critical Issue", "Something terrible happened")
 
 	var count int64
 	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
@@ -360,7 +361,7 @@ func TestDispatch_SkipsBelowThreshold(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "Email", entity.NotificationChannelEmail, `{}`)
 	createTestRule(t, svc, 1, ch.ID, "critical")
 
-	svc.Dispatch(1, "low", "Info", "Low priority event")
+	svc.Dispatch(context.Background(), 1, "low", "Info", "Low priority event")
 
 	var count int64
 	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
@@ -379,7 +380,7 @@ func TestDispatch_MultipleRulesMultipleChannels(t *testing.T) {
 	createTestRule(t, svc, 1, ch2.ID, "high")
 	createTestRule(t, svc, 1, ch3.ID, "critical")
 
-	svc.Dispatch(1, "high", "High Alert", "Something important")
+	svc.Dispatch(context.Background(), 1, "high", "High Alert", "Something important")
 
 	var notifs []persistent.Notification
 	db.Where("org_id = ?", 1).Find(&notifs)
@@ -403,7 +404,7 @@ func TestDispatch_AllSeverityLevels(t *testing.T) {
 
 	levels := []string{"low", "medium", "high", "critical"}
 	for _, level := range levels {
-		svc.Dispatch(1, level, fmt.Sprintf("Title %s", level), "msg")
+		svc.Dispatch(context.Background(), 1, level, fmt.Sprintf("Title %s", level), "msg")
 	}
 
 	var count int64
@@ -415,7 +416,7 @@ func TestDispatch_NoMatchingRules(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newService(db)
 
-	svc.Dispatch(1, "critical", "Nobody Listening", "No rules")
+	svc.Dispatch(context.Background(), 1, "critical", "Nobody Listening", "No rules")
 
 	var count int64
 	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
@@ -432,7 +433,7 @@ func TestDispatch_SkipsDisabledChannel(t *testing.T) {
 	_, err := svc.UpdateChannel(ch.ID, 1, ch.Name, ch.Config, false)
 	require.NoError(t, err)
 
-	svc.Dispatch(1, "critical", "Won't Arrive", "Channel is disabled")
+	svc.Dispatch(context.Background(), 1, "critical", "Won't Arrive", "Channel is disabled")
 
 	var count int64
 	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
@@ -448,7 +449,7 @@ func TestDispatch_SkipsInactiveRule(t *testing.T) {
 
 	db.Model(&persistent.NotificationRule{}).Where("id = ?", rule.ID).Update("is_active", false)
 
-	svc.Dispatch(1, "critical", "Won't Arrive", "Rule is inactive")
+	svc.Dispatch(context.Background(), 1, "critical", "Won't Arrive", "Rule is inactive")
 
 	var count int64
 	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
@@ -464,7 +465,7 @@ func TestDispatch_IsolatedByOrg(t *testing.T) {
 	createTestRule(t, svc, 1, ch1.ID, "low")
 	createTestRule(t, svc, 2, ch2.ID, "low")
 
-	svc.Dispatch(1, "high", "Org1 Alert", "only org 1")
+	svc.Dispatch(context.Background(), 1, "high", "Org1 Alert", "only org 1")
 
 	var count1, count2 int64
 	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count1)
@@ -480,7 +481,7 @@ func TestDispatch_NotificationFields(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "Email", entity.NotificationChannelEmail, `{}`)
 	createTestRule(t, svc, 1, ch.ID, "low")
 
-	svc.Dispatch(1, "critical", "My Title", "My Message Body")
+	svc.Dispatch(context.Background(), 1, "critical", "My Title", "My Message Body")
 
 	var notif persistent.Notification
 	require.NoError(t, db.Where("org_id = ?", 1).First(&notif).Error)
@@ -526,7 +527,7 @@ func TestDispatch_WebhookDelivery(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "Hook", entity.NotificationChannelWebhook, config)
 	createTestRule(t, svc, 1, ch.ID, "low")
 
-	svc.Dispatch(1, "high", "Webhook Title", "Webhook Body")
+	svc.Dispatch(context.Background(), 1, "high", "Webhook Title", "Webhook Body")
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -550,7 +551,7 @@ func TestDispatch_WebhookToUnreachableURL(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "Dead Hook", entity.NotificationChannelWebhook, `{"url":"http://127.0.0.1:1"}`)
 	createTestRule(t, svc, 1, ch.ID, "low")
 
-	svc.Dispatch(1, "critical", "Unreachable", "The webhook URL is dead")
+	svc.Dispatch(context.Background(), 1, "critical", "Unreachable", "The webhook URL is dead")
 
 	var count int64
 	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
@@ -564,7 +565,7 @@ func TestDispatch_WebhookInvalidConfig(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "Bad Config", entity.NotificationChannelWebhook, `not-json`)
 	createTestRule(t, svc, 1, ch.ID, "low")
 
-	svc.Dispatch(1, "critical", "Bad Config", "Config is not valid JSON")
+	svc.Dispatch(context.Background(), 1, "critical", "Bad Config", "Config is not valid JSON")
 
 	var count int64
 	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
@@ -578,7 +579,7 @@ func TestDispatch_WebhookEmptyURL(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "Empty URL", entity.NotificationChannelWebhook, `{"url":""}`)
 	createTestRule(t, svc, 1, ch.ID, "low")
 
-	svc.Dispatch(1, "critical", "Empty URL", "URL field is empty")
+	svc.Dispatch(context.Background(), 1, "critical", "Empty URL", "URL field is empty")
 
 	var count int64
 	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
@@ -598,7 +599,7 @@ func TestDispatch_WebhookServerError(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "Error Hook", entity.NotificationChannelWebhook, config)
 	createTestRule(t, svc, 1, ch.ID, "low")
 
-	svc.Dispatch(1, "high", "Server Error", "The hook returned 500")
+	svc.Dispatch(context.Background(), 1, "high", "Server Error", "The hook returned 500")
 
 	var count int64
 	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
@@ -843,7 +844,7 @@ func TestFullNotificationLifecycle(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "Lifecycle Email", entity.NotificationChannelEmail, `{}`)
 	createTestRule(t, svc, 1, ch.ID, "low")
 
-	svc.Dispatch(1, "critical", "Lifecycle Test", "Testing the full flow")
+	svc.Dispatch(context.Background(), 1, "critical", "Lifecycle Test", "Testing the full flow")
 
 	count, err := svc.GetUnreadCount(1, 10)
 	require.NoError(t, err)
@@ -903,7 +904,7 @@ func TestDispatch_WebhookHMAC_SignaturePresent(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "HMAC Hook", entity.NotificationChannelWebhook, config)
 	createTestRule(t, svc, 1, ch.ID, "low")
 
-	svc.Dispatch(1, "high", "Signed Title", "Signed Body")
+	svc.Dispatch(context.Background(), 1, "high", "Signed Title", "Signed Body")
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -939,7 +940,7 @@ func TestDispatch_WebhookHMAC_NoSecretNoHeader(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "No Secret Hook", entity.NotificationChannelWebhook, config)
 	createTestRule(t, svc, 1, ch.ID, "low")
 
-	svc.Dispatch(1, "high", "Unsigned Title", "Unsigned Body")
+	svc.Dispatch(context.Background(), 1, "high", "Unsigned Title", "Unsigned Body")
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -967,7 +968,7 @@ func TestDispatch_WebhookHMAC_EmptySecretNoHeader(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "Empty Secret", entity.NotificationChannelWebhook, config)
 	createTestRule(t, svc, 1, ch.ID, "low")
 
-	svc.Dispatch(1, "high", "Test", "Test Body")
+	svc.Dispatch(context.Background(), 1, "high", "Test", "Test Body")
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -998,8 +999,8 @@ func TestDispatch_WebhookHMAC_DifferentSecretsProduceDifferentSignatures(t *test
 	ch2 := createTestChannel(t, svc, 2, "Hook B", entity.NotificationChannelWebhook, config2)
 	createTestRule(t, svc, 2, ch2.ID, "low")
 
-	svc.Dispatch(1, "high", "Same Title", "Same Body")
-	svc.Dispatch(2, "high", "Same Title", "Same Body")
+	svc.Dispatch(context.Background(), 1, "high", "Same Title", "Same Body")
+	svc.Dispatch(context.Background(), 2, "high", "Same Title", "Same Body")
 
 	mu.Lock()
 	defer mu.Unlock()
