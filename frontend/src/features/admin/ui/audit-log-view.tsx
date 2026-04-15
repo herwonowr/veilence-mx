@@ -260,10 +260,10 @@ export const AuditLogView = () => {
                       </span>
                     </TableCell>
                     <TableCell className="max-w-xs truncate text-sm">
-                      {log.details || "—"}
+                      {log.details || "-"}
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
-                      {log.ipAddress || "—"}
+                      {log.ipAddress || "-"}
                     </TableCell>
                   </TableRow>
                 ))}

@@ -9,7 +9,7 @@ import { useDebouncedValue } from "@/core/hooks/use-debounced-value"
 interface SearchInputProps {
   value: string
   onChange: (value: string) => void
-  /** Called when user clicks the clear button — use to trigger immediate fetch */
+  /** Called when user clicks the clear button - use to trigger immediate fetch */
   onClear?: () => void
   isLoading?: boolean
   placeholder?: string

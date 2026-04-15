@@ -13,7 +13,7 @@ import {
 export interface SkeletonColumn {
   /** Width class for the skeleton bar (e.g., "w-24", "w-32") */
   width: string
-  /** Optional header label — if provided, renders a real header */
+  /** Optional header label - if provided, renders a real header */
   header?: string
 }
 

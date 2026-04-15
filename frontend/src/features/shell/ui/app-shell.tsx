@@ -32,7 +32,7 @@ export const AppShell = ({
     return <main id="main-content">{children}</main>
   }
 
-  // Authenticated — render full app shell
+  // Authenticated - render full app shell
   return (
     <SidebarProvider>
       <AppSidebar orgSelectorSlot={orgSelectorSlot} />

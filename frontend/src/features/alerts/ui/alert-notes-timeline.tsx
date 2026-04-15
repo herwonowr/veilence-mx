@@ -98,7 +98,7 @@ const NoteItem = ({
             </span>
           )}
 
-          {/* Owner-only action menu — pushed to end */}
+          {/* Owner-only action menu - pushed to end */}
           {isOwner && !isEditing && (
             <div className="ml-auto">
               <DropdownMenu>
@@ -126,7 +126,7 @@ const NoteItem = ({
           )}
         </div>
 
-        {/* Content — switches between read and edit */}
+        {/* Content - switches between read and edit */}
         {isEditing ? (
           <div className="mt-1">
             <Textarea
@@ -168,14 +168,14 @@ export const AlertNotesTimeline = ({ alertId }: { alertId: number }) => {
 
   const [noteContent, setNoteContent] = useState("")
 
-  // Edit state — only one note can be edited at a time
+  // Edit state - only one note can be edited at a time
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null)
   const [editContent, setEditContent] = useState("")
 
-  // Delete state — controlled ConfirmDialog
+  // Delete state - controlled ConfirmDialog
   const [deletingNote, setDeletingNote] = useState<AlertNoteViewModel | null>(null)
 
-  // Backend returns newest-first (DESC) — render in array order
+  // Backend returns newest-first (DESC) - render in array order
   const notes = toAlertNoteViewModels(notesRes?.data ?? [])
 
   // ─── Create ───────────────────────────────────────────────
@@ -296,7 +296,7 @@ export const AlertNotesTimeline = ({ alertId }: { alertId: number }) => {
           </p>
         )}
 
-        {/* Delete confirmation dialog — controlled mode */}
+        {/* Delete confirmation dialog - controlled mode */}
         <ConfirmDialog
           open={deletingNote !== null}
           onOpenChange={(open) => {

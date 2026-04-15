@@ -54,7 +54,7 @@ const storeAttempts = (count: number, lockoutUntil: number | null) => {
       sessionStorage.removeItem(SESSION_STORAGE_LOCKOUT_KEY)
     }
   } catch {
-    // sessionStorage unavailable — degrade gracefully
+    // sessionStorage unavailable - degrade gracefully
   }
 }
 
@@ -111,7 +111,7 @@ const LoginFormInner = () => {
       setCountdown(remaining)
 
       if (remaining <= 0) {
-        // Lockout expired — clear state
+        // Lockout expired - clear state
         setLockoutUntil(null)
         setFailedAttempts(0)
         storeAttempts(0, null)
@@ -144,7 +144,7 @@ const LoginFormInner = () => {
       await apiSendVerificationEmailByEmail(email)
       setResendSuccess(true)
     } catch {
-      // Silently handle — the server may reject for security reasons
+      // Silently handle - the server may reject for security reasons
       // but we still show success to avoid email enumeration
       setResendSuccess(true)
     } finally {
@@ -167,7 +167,7 @@ const LoginFormInner = () => {
       setLoading(true)
       await login(data.email, data.password)
 
-      // Successful login — reset throttle state
+      // Successful login - reset throttle state
       setFailedAttempts(0)
       setLockoutUntil(null)
       clearAttempts()

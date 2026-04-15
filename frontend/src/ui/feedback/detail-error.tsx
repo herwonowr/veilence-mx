@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/ui/components/card"
 interface DetailErrorProps {
   /** Error message to display */
   message?: string
-  /** Retry callback — renders a "Try again" button when provided */
+  /** Retry callback - renders a "Try again" button when provided */
   onRetry?: () => void
   /** Back link URL (e.g. "/packages") */
   backHref?: string

@@ -143,7 +143,7 @@ const ProfileSection = () => {
         <div className="space-y-2">
           <Label className="text-sm font-medium">Email</Label>
           <p className="text-sm text-muted-foreground">
-            {user?.email ?? "—"}
+            {user?.email ?? "-"}
           </p>
         </div>
         <Button onClick={handleSave} disabled={updateProfile.isPending}>
@@ -198,7 +198,7 @@ const EmailVerificationSection = () => {
                     Email not verified
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {user.email} — please verify your email address
+                    {user.email} - please verify your email address
                   </p>
                 </div>
               </>

@@ -32,7 +32,7 @@ const ERROR_PATTERNS: ReadonlyArray<{ pattern: RegExp; friendly: string }> = [
   { pattern: /API error: 5\d{2}/i, friendly: "An unexpected server error occurred. Please try again later." },
   { pattern: /API error: 4\d{2}/i, friendly: "The request could not be completed. Please try again." },
 
-  // Validation — place AFTER unsafe checks would occur in isSafeMessage fallback
+  // Validation - place AFTER unsafe checks would occur in isSafeMessage fallback
   { pattern: /bad request/i, friendly: "The request was invalid. Please check your input." },
   { pattern: /conflict/i, friendly: "A conflict occurred. The resource may have been modified by someone else." },
   { pattern: /payload too large/i, friendly: "The uploaded data is too large." },

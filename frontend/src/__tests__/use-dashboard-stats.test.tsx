@@ -154,7 +154,7 @@ describe("useDashboardStats hook (data-fetching pattern)", () => {
     // Data is available
     expect(result.current.data?.totalPackages).toBe(150)
 
-    // Trigger refetch — data should persist until new data arrives
+    // Trigger refetch - data should persist until new data arrives
     let resolveRefetch: (value: ApiResponse<DashboardStats>) => void
     vi.mocked(apiClient.getDashboardStats).mockReturnValue(
       new Promise((resolve) => {

@@ -13,7 +13,7 @@ vi.mock("@/core/providers/auth-provider", () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))
 
-// Mock sonner — LoginForm doesn't use toast directly, but error-sanitizer is imported
+// Mock sonner - LoginForm doesn't use toast directly, but error-sanitizer is imported
 vi.mock("sonner", () => ({
   toast: {
     warning: vi.fn(),

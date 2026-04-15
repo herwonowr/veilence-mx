@@ -180,7 +180,7 @@ export const ReleaseDetailView = ({
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             <Badge variant="outline" className="mb-2">baseline</Badge>
-            <p>This is the first tracked version — no previous release to compare against.</p>
+            <p>This is the first tracked version - no previous release to compare against.</p>
           </CardContent>
         </Card>
       )}
@@ -188,7 +188,7 @@ export const ReleaseDetailView = ({
       {!release.analysis && release.diff && release.status === "completed" && (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            Analysis not available — the LLM analysis may have failed or is still queued for retry.
+            Analysis not available - the LLM analysis may have failed or is still queued for retry.
           </CardContent>
         </Card>
       )}

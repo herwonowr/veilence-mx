@@ -6,7 +6,7 @@ import type { Ecosystem } from "@/domains/common"
  * NPM: shows popularity score instead (handled separately).
  */
 export const formatDownloadCount = (count: number | undefined | null): string => {
-  if (count == null) return "—"
+  if (count == null) return "-"
   if (count >= 1_000_000_000) {
     return `${(count / 1_000_000_000).toFixed(1)}B/mo`
   }
@@ -30,7 +30,7 @@ export const formatPopularity = (
   popularityScore: number | undefined | null
 ): string => {
   if (ecosystem === "npm") {
-    if (popularityScore == null) return "—"
+    if (popularityScore == null) return "-"
     return `${popularityScore.toFixed(2)} pop.`
   }
   return formatDownloadCount(downloadCount)

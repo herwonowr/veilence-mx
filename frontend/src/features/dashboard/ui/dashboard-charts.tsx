@@ -159,7 +159,7 @@ export const DashboardCharts = ({ data, range, onRangeChange }: DashboardChartsP
   }
 
   const activityTitle = isCustom && (range.from || range.to)
-    ? `Release Activity (${range.from ?? "..."} — ${range.to ?? "..."})`
+    ? `Release Activity (${range.from ?? "..."} - ${range.to ?? "..."})`
     : `Release Activity (${presetLabels[preset] ?? "Last 30 Days"})`
 
   return (
@@ -180,7 +180,7 @@ export const DashboardCharts = ({ data, range, onRangeChange }: DashboardChartsP
             <SelectItem value="custom">Custom Range</SelectItem>
           </SelectContent>
         </Select>
-        {/* Isolate date pickers from Select's event scope — without this,
+        {/* Isolate date pickers from Select's event scope - without this,
             calendar click events bubble through React's synthetic tree and
             get intercepted by the Base UI Select, resetting the preset.
             The wrapper stops propagation for the triggers; each PopoverContent

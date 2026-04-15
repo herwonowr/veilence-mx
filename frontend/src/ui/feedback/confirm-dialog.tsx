@@ -30,14 +30,14 @@ interface ConfirmDialogBaseProps {
 }
 
 interface ConfirmDialogTriggerProps extends ConfirmDialogBaseProps {
-  /** Trigger element — when provided, the dialog manages its own open state */
+  /** Trigger element - when provided, the dialog manages its own open state */
   children: React.ReactElement
   open?: never
   onOpenChange?: never
 }
 
 interface ConfirmDialogControlledProps extends ConfirmDialogBaseProps {
-  /** Controlled mode — caller manages open state */
+  /** Controlled mode - caller manages open state */
   open: boolean
   onOpenChange: (open: boolean) => void
   children?: never
@@ -46,7 +46,7 @@ interface ConfirmDialogControlledProps extends ConfirmDialogBaseProps {
 type ConfirmDialogProps = ConfirmDialogTriggerProps | ConfirmDialogControlledProps
 
 /**
- * ConfirmDialog — wraps AlertDialog to provide a confirm/cancel pattern
+ * ConfirmDialog - wraps AlertDialog to provide a confirm/cancel pattern
  * with context details, auto-focus on Cancel, and a spinner while processing.
  */
 export const ConfirmDialog = (props: ConfirmDialogProps) => {

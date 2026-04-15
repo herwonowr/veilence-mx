@@ -81,7 +81,7 @@ export const QueueView = () => {
         </Card>
       )}
 
-      {/* Jobs Browser — replaces old Dead Jobs section */}
+      {/* Jobs Browser - replaces old Dead Jobs section */}
       <QueueJobsBrowser
         ref={jobsBrowserRef}
         diffStats={stats?.diff}

@@ -160,7 +160,7 @@ const JobDetailContent = ({
           <dd className="text-xs">{formatTimestamp(job.updatedAt)}</dd>
         </div>
 
-        {/* Next Run — only for retrying pending jobs */}
+        {/* Next Run - only for retrying pending jobs */}
         {isRetryingJob && job.nextRunAt > 0 && (
           <div className="flex items-center justify-between">
             <dt className="text-muted-foreground">Next Run</dt>
@@ -168,7 +168,7 @@ const JobDetailContent = ({
           </div>
         )}
 
-        {/* Duration — only for processing jobs */}
+        {/* Duration - only for processing jobs */}
         {isProcessing && (
           <div className="flex items-center justify-between">
             <dt className="text-muted-foreground">Duration</dt>

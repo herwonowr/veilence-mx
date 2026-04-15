@@ -226,7 +226,7 @@ describe("Inactivity timeout", () => {
       vi.advanceTimersByTime(20 * 60 * 1000)
     })
 
-    // Simulate user activity — reset the timer
+    // Simulate user activity - reset the timer
     await act(async () => {
       window.dispatchEvent(new Event("mousemove"))
     })

@@ -14,7 +14,7 @@ interface TableErrorProps {
   colSpan: number
   /** Error message to display */
   message?: string
-  /** Retry callback — renders a "Try again" button when provided */
+  /** Retry callback - renders a "Try again" button when provided */
   onRetry?: () => void
 }
 

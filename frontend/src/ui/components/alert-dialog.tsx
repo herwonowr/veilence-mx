@@ -7,7 +7,7 @@ import { cn } from "@/core/utils"
 import { Button } from "@/ui/components/button"
 
 /**
- * AlertDialog — a confirmation dialog built on top of base-ui Dialog.
+ * AlertDialog - a confirmation dialog built on top of base-ui Dialog.
  * Unlike Dialog, AlertDialog does not render a close (X) button and
  * forces the user to choose an explicit action.
  */

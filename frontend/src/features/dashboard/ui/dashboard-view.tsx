@@ -320,7 +320,7 @@ const DashboardData = () => {
                         {release.classification}
                       </Badge>
                     ) : (
-                      <span className="text-muted-foreground text-sm">—</span>
+                      <span className="text-muted-foreground text-sm">-</span>
                     )}
                   </TableCell>
                 </TableRow>

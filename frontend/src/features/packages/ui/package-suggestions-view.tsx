@@ -185,8 +185,8 @@ export const PackageSuggestionsView = () => {
                 <TooltipContent>
                   <p className="font-medium mb-1">Different metrics per ecosystem:</p>
                   <ul className="text-xs space-y-0.5">
-                    <li><strong>Python (PyPI)</strong> — Downloads per month</li>
-                    <li><strong>NPM</strong> — Popularity score (0–1)</li>
+                    <li><strong>Python (PyPI)</strong> - Downloads per month</li>
+                    <li><strong>NPM</strong> - Popularity score (0–1)</li>
                   </ul>
                 </TooltipContent>
               </Tooltip>

@@ -206,7 +206,7 @@ export const SettingsView = () => {
             <Info className="h-4 w-4 mt-0.5 shrink-0" />
             <span>
               The total number of monitored packages grows over time as new packages enter the popularity rankings.
-              Discovery only adds packages — it never removes them.
+              Discovery only adds packages - it never removes them.
             </span>
           </div>
           {packageSummary && (

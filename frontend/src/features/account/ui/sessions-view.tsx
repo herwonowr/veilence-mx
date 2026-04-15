@@ -45,7 +45,7 @@ export const SessionsView = () => {
   } | null>(null)
 
   // The current session's delete button is disabled in the UI, so a successful
-  // revoke is always for a non-current session. No token refresh needed — the
+  // revoke is always for a non-current session. No token refresh needed - the
   // previous approach called apiRefreshToken to "test" if the current session
   // was still alive, but that consumed the refresh token via rotation without
   // storing the new one, causing a race condition that logged the user out.

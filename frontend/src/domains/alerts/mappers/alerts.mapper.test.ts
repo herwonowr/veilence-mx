@@ -136,7 +136,7 @@ describe("toAlertNoteViewModel", () => {
     it("returns formatted date for timestamps older than a week", () => {
       const note = makeNote({ createdAt: "2026-04-01T12:00:00Z" })
       const vm = toAlertNoteViewModel(note)
-      // Falls back to toLocaleDateString — just verify it doesn't return relative format
+      // Falls back to toLocaleDateString - just verify it doesn't return relative format
       expect(vm.relativeTime).not.toContain("ago")
       expect(vm.relativeTime).not.toBe("just now")
     })

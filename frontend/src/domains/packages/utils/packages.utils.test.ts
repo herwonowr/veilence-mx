@@ -8,11 +8,11 @@ import {
 
 describe("formatDownloadCount", () => {
   it("returns em-dash for null", () => {
-    expect(formatDownloadCount(null)).toBe("—")
+    expect(formatDownloadCount(null)).toBe("-")
   })
 
   it("returns em-dash for undefined", () => {
-    expect(formatDownloadCount(undefined)).toBe("—")
+    expect(formatDownloadCount(undefined)).toBe("-")
   })
 
   it("formats billions", () => {
@@ -55,11 +55,11 @@ describe("formatPopularity", () => {
     })
 
     it("returns em-dash when popularityScore is null", () => {
-      expect(formatPopularity("npm", 1000, null)).toBe("—")
+      expect(formatPopularity("npm", 1000, null)).toBe("-")
     })
 
     it("returns em-dash when popularityScore is undefined", () => {
-      expect(formatPopularity("npm", 1000, undefined)).toBe("—")
+      expect(formatPopularity("npm", 1000, undefined)).toBe("-")
     })
 
     it("formats zero score", () => {
@@ -81,11 +81,11 @@ describe("formatPopularity", () => {
     })
 
     it("returns em-dash when downloadCount is null", () => {
-      expect(formatPopularity("python", null, 0.5)).toBe("—")
+      expect(formatPopularity("python", null, 0.5)).toBe("-")
     })
 
     it("returns em-dash when downloadCount is undefined", () => {
-      expect(formatPopularity("python", undefined, 0.5)).toBe("—")
+      expect(formatPopularity("python", undefined, 0.5)).toBe("-")
     })
 
     it("formats zero downloads", () => {
@@ -99,11 +99,11 @@ describe("formatPopularity", () => {
 
   describe("edge cases", () => {
     it("handles both values as null for npm", () => {
-      expect(formatPopularity("npm", null, null)).toBe("—")
+      expect(formatPopularity("npm", null, null)).toBe("-")
     })
 
     it("handles both values as undefined for python", () => {
-      expect(formatPopularity("python", undefined, undefined)).toBe("—")
+      expect(formatPopularity("python", undefined, undefined)).toBe("-")
     })
 
     it("handles unknown ecosystem as python-like", () => {

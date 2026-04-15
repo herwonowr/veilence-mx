@@ -184,7 +184,7 @@ export const ReleasesListView = () => {
               {row.original.classification}
             </Badge>
           ) : (
-            <span className="text-muted-foreground text-sm">—</span>
+            <span className="text-muted-foreground text-sm">-</span>
           ),
       },
     ],

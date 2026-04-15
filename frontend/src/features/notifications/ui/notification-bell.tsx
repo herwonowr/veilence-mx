@@ -26,7 +26,7 @@ import {
 
 type SeverityLevel = "critical" | "high" | "medium" | "info"
 
-/** Keyword-to-severity mapping — ordered from highest to lowest priority */
+/** Keyword-to-severity mapping - ordered from highest to lowest priority */
 const SEVERITY_KEYWORDS: ReadonlyArray<{ keywords: string[]; severity: SeverityLevel }> = [
   { keywords: ["critical", "malicious"], severity: "critical" },
   { keywords: ["high", "suspicious"], severity: "high" },

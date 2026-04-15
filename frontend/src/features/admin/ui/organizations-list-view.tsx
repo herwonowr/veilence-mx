@@ -213,11 +213,11 @@ const OrgCard = ({ org }: { org: Organization }) => {
           <div className="flex items-center gap-4 mt-3">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Users className="size-3.5" />
-              {memberCount !== null ? memberCount : "—"} {memberCount === 1 ? "member" : "members"}
+              {memberCount !== null ? memberCount : "-"} {memberCount === 1 ? "member" : "members"}
             </span>
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Package className="size-3.5" />
-              {packageCount !== null ? packageCount : "—"} {packageCount === 1 ? "package" : "packages"}
+              {packageCount !== null ? packageCount : "-"} {packageCount === 1 ? "package" : "packages"}
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-2">

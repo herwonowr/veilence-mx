@@ -12,7 +12,7 @@ interface EmptyStateProps {
 }
 
 /**
- * EmptyState — a reusable component for list pages with no data.
+ * EmptyState - a reusable component for list pages with no data.
  * Renders an icon, title, optional description, and optional action buttons.
  */
 export const EmptyState = ({
@@ -42,7 +42,7 @@ export const EmptyState = ({
 )
 
 /**
- * TableEmptyState — wraps EmptyState inside a TableRow/TableCell for use in <TableBody>.
+ * TableEmptyState - wraps EmptyState inside a TableRow/TableCell for use in <TableBody>.
  */
 export const TableEmptyState = ({
   colSpan,

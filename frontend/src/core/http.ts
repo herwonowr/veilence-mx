@@ -1,7 +1,7 @@
 import { sanitizeErrorMessage } from "@/core/error-sanitizer"
 import { config } from "@/core/config"
 
-// Core-local types — avoids circular dependency with domains/
+// Core-local types - avoids circular dependency with domains/
 // domains/common re-exports these same shapes, but core/ cannot import domains/
 export interface ApiResponse<T> {
   data: T
@@ -154,7 +154,7 @@ export const fetchApi = async <T>(
         headers,
       })
     } else {
-      // Token refresh failed — session is expired
+      // Token refresh failed - session is expired
       clearTokens()
       clearOrgId()
       if (typeof window !== "undefined") {
@@ -172,7 +172,7 @@ export const fetchApi = async <T>(
     )
   }
 
-  // Handle 204 No Content — no body to parse
+  // Handle 204 No Content - no body to parse
   if (response.status === 204) {
     return { data: null as T, error: null }
   }

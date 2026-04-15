@@ -11,7 +11,7 @@ import {
 } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-// Core-local interfaces — auth-provider needs User/Org shapes but core/ cannot import domains/
+// Core-local interfaces - auth-provider needs User/Org shapes but core/ cannot import domains/
 // These types are structurally identical to domains/auth and domains/admin equivalents.
 interface User {
   id: number
@@ -179,7 +179,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             storeTokens(data.accessToken, data.refreshToken)
           }
         } catch {
-          // Proactive refresh failed — session likely expired
+          // Proactive refresh failed - session likely expired
           if (typeof window !== "undefined") {
             window.dispatchEvent(new CustomEvent("auth:session-expired"))
           }
