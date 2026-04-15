@@ -16,36 +16,36 @@ const (
 
 // NotificationChannel represents a configured channel for sending notifications.
 type NotificationChannel struct {
-	ID             uint `json:"id"`
-	OrgID          uint `json:"orgId"`
-	Name           string `json:"name"`
-	Type           NotificationChannelType `json:"type"`
-	Config         string `json:"config"`
-	IsActive       bool `json:"isActive"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	ID             uint
+	OrgID          uint
+	Name           string
+	Type           NotificationChannelType
+	Config         string
+	IsActive       bool
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // NotificationRule defines a routing rule that maps severity levels to channels.
 type NotificationRule struct {
-	ID             uint `json:"id"`
-	OrgID          uint `json:"orgId"`
-	ChannelID      uint `json:"channelId"`
-	Severity       string `json:"severity"`
-	IsActive       bool `json:"isActive"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	ID             uint
+	OrgID          uint
+	ChannelID      uint
+	Severity       string
+	IsActive       bool
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // Notification represents an in-app notification sent to a user or org.
 type Notification struct {
-	ID             uint `json:"id"`
-	OrgID          uint `json:"orgId"`
-	UserID         uint `json:"userId"`
-	ChannelID      uint `json:"channelId"`
-	Title          string `json:"title"`
-	Message        string `json:"message"`
-	IsRead         bool `json:"isRead"`
-	SentAt         time.Time `json:"sentAt"`
-	CreatedAt      time.Time `json:"createdAt"`
+	ID             uint
+	OrgID          uint
+	UserID         uint
+	ChannelID      uint
+	Title          string
+	Message        string
+	IsRead         bool
+	SentAt         time.Time
+	CreatedAt      time.Time
 }

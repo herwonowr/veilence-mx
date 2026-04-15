@@ -40,50 +40,50 @@ const (
 
 // Package represents a monitored package from Python (PyPI) or npm.
 type Package struct {
-	ID                     uint `json:"id"`
-	OrgID                  uint `json:"orgId"`
-	Name                   string `json:"name"`
-	Ecosystem              Ecosystem `json:"ecosystem"`
-	LatestVersion          string `json:"latestVersion"`
-	Description            string `json:"description"`
-	Source                 PackageSource `json:"source"`
-	Status                 PackageStatus `json:"status"`
-	Rank                   *uint `json:"rank,omitempty"`
-	DownloadCount          int64 `json:"downloadCount"`
-	PopularityScore        float64 `json:"popularityScore"`
-	DownloadCountUpdatedAt *time.Time `json:"downloadCountUpdatedAt,omitempty"`
-	BlockedAt              *time.Time `json:"blockedAt,omitempty"`
-	BlockedReason          string `json:"blockedReason"`
-	CreatedAt              time.Time `json:"createdAt"`
-	UpdatedAt              time.Time `json:"updatedAt"`
-	Releases               []Release `json:"releases,omitempty"`
+	ID                     uint
+	OrgID                  uint
+	Name                   string
+	Ecosystem              Ecosystem
+	LatestVersion          string
+	Description            string
+	Source                 PackageSource
+	Status                 PackageStatus
+	Rank                   *uint
+	DownloadCount          int64
+	PopularityScore        float64
+	DownloadCountUpdatedAt *time.Time
+	BlockedAt              *time.Time
+	BlockedReason          string
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	Releases               []Release
 }
 
 // PackageFilters holds optional query filters for listing packages.
 type PackageFilters struct {
-	Ecosystem      *Ecosystem `json:"ecosystem,omitempty"`
-	Source         *PackageSource `json:"source,omitempty"`
-	Status         *PackageStatus `json:"status,omitempty"`
-	Search         *string `json:"search,omitempty"`
+	Ecosystem      *Ecosystem
+	Source         *PackageSource
+	Status         *PackageStatus
+	Search         *string
 }
 
 // ImportEntry represents a single package in a bulk import request.
 type ImportEntry struct {
-	Name           string `json:"name"`
-	Ecosystem      Ecosystem `json:"ecosystem"`
+	Name           string
+	Ecosystem      Ecosystem
 }
 
 // ImportErrorEntry represents a single error in the import result.
 type ImportErrorEntry struct {
-	Name           string `json:"name"`
-	Error          string `json:"error"`
+	Name           string
+	Error          string
 }
 
 // ImportResult summarizes the outcome of a bulk import.
 type ImportResult struct {
-	Imported       int `json:"imported"`
-	Skipped        int `json:"skipped"`
-	Errors         []ImportErrorEntry `json:"errors,omitempty"`
+	Imported       int
+	Skipped        int
+	Errors         []ImportErrorEntry
 }
 
 // PackageDownloadUpdate holds download metrics for a single package.

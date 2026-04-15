@@ -30,13 +30,13 @@ const (
 
 // Analysis represents the LLM analysis of a diff.
 type Analysis struct {
-	ID             uint `json:"id"`
-	DiffID         uint `json:"diffId"`
-	Classification Classification `json:"classification"`
-	Confidence     float64 `json:"confidence"`
-	Reasoning      string `json:"reasoning"`
-	ModelUsed      string `json:"modelUsed"`
-	AnalyzerType   AnalyzerType `json:"analyzerType"`
-	RawResponse    string `json:"-"`
-	CreatedAt      time.Time `json:"createdAt"`
+	ID             uint
+	DiffID         uint
+	Classification Classification
+	Confidence     float64
+	Reasoning      string
+	ModelUsed      string
+	AnalyzerType   AnalyzerType
+	RawResponse    string
+	CreatedAt      time.Time
 }

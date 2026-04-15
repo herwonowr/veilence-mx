@@ -45,15 +45,17 @@ func (s APIKeyScope) ScopeAllows(method string) bool {
 }
 
 // APIKey represents a long-lived API key for programmatic access.
+// NOTE: JSON tags retained because auth handlers serialize this directly.
+// TODO: Create a response DTO and remove these tags.
 type APIKey struct {
-	ID             uint `json:"id"`
-	UserID         uint `json:"userId"`
-	Name           string `json:"name"`
-	KeyHash        string `json:"-"`
-	KeyPrefix      string `json:"keyPrefix"`
+	ID             uint        `json:"id"`
+	UserID         uint        `json:"userId"`
+	Name           string      `json:"name"`
+	KeyHash        string      `json:"-"`
+	KeyPrefix      string      `json:"keyPrefix"`
 	Scope          APIKeyScope `json:"scope"`
-	LastUsedAt     *time.Time `json:"lastUsedAt,omitempty"`
-	ExpiresAt      *time.Time `json:"expiresAt,omitempty"`
-	IsActive       bool `json:"isActive"`
-	CreatedAt      time.Time `json:"createdAt"`
+	LastUsedAt     *time.Time  `json:"lastUsedAt,omitempty"`
+	ExpiresAt      *time.Time  `json:"expiresAt,omitempty"`
+	IsActive       bool        `json:"isActive"`
+	CreatedAt      time.Time   `json:"createdAt"`
 }

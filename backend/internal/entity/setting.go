@@ -5,12 +5,12 @@ import "time"
 // Setting represents a configurable system setting stored as key-value.
 // OrgID=0 represents a global default setting; org-specific settings override globals.
 type Setting struct {
-	ID             uint `json:"id"`
-	OrgID          uint `json:"orgId"`
-	Key            string `json:"key"`
-	Value          string `json:"value"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	ID             uint
+	OrgID          uint
+	Key            string
+	Value          string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // Default setting keys.

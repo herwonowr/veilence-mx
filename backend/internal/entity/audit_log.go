@@ -4,24 +4,24 @@ import "time"
 
 // AuditLog records a user action for compliance and debugging purposes.
 type AuditLog struct {
-	ID             uint `json:"id"`
-	UserID         uint `json:"userId"`
-	OrgID          uint `json:"orgId"`
-	Action         string `json:"action"`
-	Resource       string `json:"resource"`
-	ResourceID     uint `json:"resourceId"`
-	Details        string `json:"details"`
-	IPAddress      string `json:"iPAddress"`
-	UserAgent      string `json:"userAgent"`
-	CorrelationID  string `json:"correlationId"`
-	CreatedAt      time.Time `json:"createdAt"`
+	ID             uint
+	UserID         uint
+	OrgID          uint
+	Action         string
+	Resource       string
+	ResourceID     uint
+	Details        string
+	IPAddress      string
+	UserAgent      string
+	CorrelationID  string
+	CreatedAt      time.Time
 }
 
 // AuditLogFilters holds the query parameters for filtering audit logs.
 type AuditLogFilters struct {
-	Action         string `json:"action"`
-	Resource       string `json:"resource"`
-	UserID         uint `json:"userId"`
-	FromDate       *time.Time `json:"fromDate,omitempty"`
-	ToDate         *time.Time `json:"toDate,omitempty"`
+	Action         string
+	Resource       string
+	UserID         uint
+	FromDate       *time.Time
+	ToDate         *time.Time
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/poller"
 	"github.com/veilence/veilence-mx/backend/pkg/queue"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
-	"github.com/veilence/veilence-mx/backend/internal/repo/registry"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
 )
 
@@ -76,8 +75,8 @@ type AlertHandlers struct {
 type SettingsHandlers struct {
 	SettingSvc usecase.SettingService
 	Poller     *poller.Poller
-	Python     registry.Registry
-	NPM        registry.Registry
+	Python     usecase.Registry
+	NPM        usecase.Registry
 	Audit      *audit.Service
 }
 
@@ -103,8 +102,8 @@ func NewHandlers(
 	auditService *audit.Service,
 	notificationService *notifications.Service,
 	pollerService *poller.Poller,
-	pythonClient registry.Registry,
-	npmClient registry.Registry,
+	pythonClient usecase.Registry,
+	npmClient usecase.Registry,
 	jobQueue *queue.Queue,
 	alertNoteService usecase.AlertNoteService,
 	packageService usecase.PackageService,

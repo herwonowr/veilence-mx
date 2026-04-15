@@ -12,8 +12,8 @@ import (
 
 	validation "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/request"
 	
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
-	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
@@ -34,7 +34,7 @@ type flatMember struct {
 	OrgID     uint        `json:"orgId"`
 	UserID    uint        `json:"userId"`
 	RoleID    uint        `json:"roleId"`
-	Role      persistent.Role `json:"role,omitempty"`
+	Role      entity.Role `json:"role,omitempty"`
 	JoinedAt  time.Time   `json:"joinedAt"`
 	Email     string      `json:"email"`
 	FirstName string      `json:"firstName"`
@@ -60,12 +60,27 @@ func (h *OrgHandlers) ListMembers(w http.ResponseWriter, r *http.Request) {
 	// a nested user object.
 	flat := make([]flatMember, len(members))
 	for i, m := range members {
+		// Convert persistent.Role → entity.Role for the response DTO.
+		var perms []entity.Permission
+		for _, p := range m.Role.Permissions {
+			perms = append(perms, entity.Permission{ID: p.ID, Resource: p.Resource, Action: p.Action})
+		}
+		role := entity.Role{
+			ID:          m.Role.ID,
+			OrgID:       m.Role.OrgID,
+			Name:        m.Role.Name,
+			Description: m.Role.Description,
+			IsSystem:    m.Role.IsSystem,
+			CreatedAt:   m.Role.CreatedAt,
+			UpdatedAt:   m.Role.UpdatedAt,
+			Permissions: perms,
+		}
 		flat[i] = flatMember{
 			ID:        m.ID,
 			OrgID:     m.OrgID,
 			UserID:    m.UserID,
 			RoleID:    m.RoleID,
-			Role:      m.Role,
+			Role:      role,
 			JoinedAt:  m.JoinedAt,
 			Email:     m.User.Email,
 			FirstName: m.User.FirstName,

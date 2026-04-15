@@ -20,53 +20,53 @@ const (
 
 // Release represents a specific version release of a package.
 type Release struct {
-	ID             uint `json:"id"`
-	PackageID      uint `json:"packageId"`
-	Version        string `json:"version"`
-	PublishedAt    time.Time `json:"publishedAt"`
-	TarballURL     string `json:"tarballUrl"`
-	SHA256         string `json:"sha256"`
-	Status         ReleaseStatus `json:"status"`
-	ErrorMessage   string `json:"errorMessage"`
-	CreatedAt      time.Time `json:"createdAt"`
-	Diffs          []Diff `json:"diffs,omitempty"`
+	ID             uint
+	PackageID      uint
+	Version        string
+	PublishedAt    time.Time
+	TarballURL     string
+	SHA256         string
+	Status         ReleaseStatus
+	ErrorMessage   string
+	CreatedAt      time.Time
+	Diffs          []Diff
 }
 
 // ReleaseFilters holds optional query filters for listing releases.
 type ReleaseFilters struct {
-	Ecosystem      *Ecosystem `json:"ecosystem,omitempty"`
-	Status         *ReleaseStatus `json:"status,omitempty"`
-	Search         *string `json:"search,omitempty"`
-	Classification *string `json:"classification,omitempty"`
-	LatestPerPackage bool `json:"latestPerPackage"`
+	Ecosystem      *Ecosystem
+	Status         *ReleaseStatus
+	Search         *string
+	Classification *string
+	LatestPerPackage bool
 }
 
 // ReleaseDetail contains a release with its associated diff, analysis, and package info.
 type ReleaseDetail struct {
-	Release        Release `json:"release"`
-	Package        *Package `json:"package,omitempty"`
-	Diff           *Diff `json:"diff,omitempty"`
-	Analysis       *Analysis `json:"analysis,omitempty"`
-	IsBaseline     bool `json:"isBaseline"`
+	Release        Release
+	Package        *Package
+	Diff           *Diff
+	Analysis       *Analysis
+	IsBaseline     bool
 }
 
 // ReleaseWithDetails contains a release with package info and classification for list views.
 type ReleaseWithDetails struct {
 	Release
-	PackageName    string `json:"packageName"`
-	PackageEcosystem string `json:"packageEcosystem"`
-	Classification string `json:"classification"`
+	PackageName    string
+	PackageEcosystem string
+	Classification string
 }
 
 // AnalysisHistoryEntry holds a single entry in the analysis history for a package.
 type AnalysisHistoryEntry struct {
-	ReleaseID      uint `json:"releaseId"`
-	Version        string `json:"version"`
-	Classification string `json:"classification"`
-	Confidence     float64 `json:"confidence"`
-	Reasoning      string `json:"reasoning"`
-	ModelUsed      string `json:"modelUsed"`
-	AnalyzerType   string `json:"analyzerType"`
-	AnalyzedAt     string `json:"analyzedAt"`
-	PublishedAt    string `json:"publishedAt"`
+	ReleaseID      uint
+	Version        string
+	Classification string
+	Confidence     float64
+	Reasoning      string
+	ModelUsed      string
+	AnalyzerType   string
+	AnalyzedAt     string
+	PublishedAt    string
 }
