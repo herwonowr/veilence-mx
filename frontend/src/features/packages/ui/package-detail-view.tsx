@@ -182,12 +182,12 @@ export const PackageDetailView = ({
           <CardContent>
             <div className="relative space-y-0">
               {/* Timeline line */}
-              <div className="absolute left-[19px] top-3 bottom-3 w-px bg-border" aria-hidden="true" />
+              <div className="absolute left-4.75 top-3 bottom-3 w-px bg-border" aria-hidden="true" />
 
               {analysisHistory.map((entry, i) => (
                 <div key={`${entry.releaseId}-${i}`} className="relative flex gap-4 pb-6 last:pb-0">
                   {/* Timeline dot */}
-                  <div className={`relative z-10 ml-[14px] mt-1.5 flex h-[10px] w-[10px] shrink-0 items-center justify-center rounded-full ring-2 ring-background ${
+                  <div className={`relative z-10 ml-3.5 mt-1.5 flex h-2.5 w-2.5 shrink-0 items-center justify-center rounded-full ring-2 ring-background ${
                     entry.classification === "malicious" ? "bg-destructive" :
                     entry.classification === "suspicious" ? "bg-primary" :
                     "bg-muted-foreground"
@@ -205,17 +205,27 @@ export const PackageDetailView = ({
                       <Badge variant={classificationColor(entry.classification)}>
                         {entry.classification}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {(entry.confidence * 100).toFixed(0)}% confidence
-                      </span>
+                      {entry.classification !== "baseline" && (
+                        <span className="text-xs text-muted-foreground">
+                          {(entry.confidence * 100).toFixed(0)}% confidence
+                        </span>
+                      )}
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                      {entry.reasoning}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                      <span>{entry.analyzerType} / {entry.modelUsed}</span>
-                      <span>{new Date(entry.analyzedAt).toLocaleDateString()}</span>
-                    </div>
+                    {entry.classification === "baseline" ? (
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                        <span>{new Date(entry.publishedAt).toLocaleDateString()}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                          {entry.reasoning}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          <span>{entry.analyzerType} / {entry.modelUsed}</span>
+                          <span>{new Date(entry.analyzedAt).toLocaleDateString()}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
