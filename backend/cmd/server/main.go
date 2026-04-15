@@ -81,10 +81,13 @@ func main() {
 
 	// Seed settings from .env defaults (only inserts if key doesn't exist)
 	seedDefaults := map[string]string{
-		entity.SettingMonitoringInterval: getEnv("MONITORING_INTERVAL", "1h"),
-		entity.SettingDiscoveryScanDepth: getEnv("DISCOVERY_SCAN_DEPTH", "50"),
-		entity.SettingDiscoveryInterval:  getEnv("DISCOVERY_INTERVAL", "24h"),
-		entity.SettingDiffSizeLimit:      getEnv("DIFF_SIZE_LIMIT", "102400"),
+		entity.SettingMonitoringInterval:            getEnv("MONITORING_INTERVAL", "1h"),
+		entity.SettingDiscoveryScanDepth:            getEnv("DISCOVERY_SCAN_DEPTH", "50"),
+		entity.SettingDiscoveryInterval:             getEnv("DISCOVERY_INTERVAL", "24h"),
+		entity.SettingDiffSizeLimit:                 getEnv("DIFF_SIZE_LIMIT", "102400"),
+		entity.SettingDiscoveryAutoApprove:          getEnv("DISCOVERY_AUTO_APPROVE", "false"),
+		entity.SettingStaleAutoRemoveMonths:         getEnv("STALE_AUTO_REMOVE_MONTHS", "0"),
+		entity.SettingPackageCountWarningThreshold:  getEnv("PACKAGE_COUNT_WARNING_THRESHOLD", "0"),
 	}
 	for key, value := range seedDefaults {
 		db.Where("key = ?", key).FirstOrCreate(&persistent.Setting{Key: key, Value: value})

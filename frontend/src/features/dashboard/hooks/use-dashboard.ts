@@ -11,6 +11,7 @@ import {
   getRecentReleases,
 } from "@/domains/dashboard"
 import { getStalePackages } from "@/domains/packages"
+import { getSettings } from "@/domains/settings"
 import type { ApiResponse } from "@/domains/common"
 import type { DashboardStats, ChartData, RecentRelease } from "@/domains/dashboard"
 import type { StalePackage } from "@/domains/packages"
@@ -76,6 +77,16 @@ export const useDashboardStalePackages = (
   useQuery({
     queryKey: dashboardKeys.stalePackages(months),
     queryFn: () => getStalePackages(months),
+    staleTime: 60 * 1000,
+    ...options,
+  })
+
+export const useDashboardSettings = (
+  options?: Partial<UseQueryOptions<ApiResponse<Record<string, string>>>>
+) =>
+  useQuery({
+    queryKey: ["settings"],
+    queryFn: () => getSettings(),
     staleTime: 60 * 1000,
     ...options,
   })

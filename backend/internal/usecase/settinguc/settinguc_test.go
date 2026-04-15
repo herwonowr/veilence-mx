@@ -529,11 +529,12 @@ func TestUpdateSettings_PackageCountWarningThreshold(t *testing.T) {
 		value   string
 		wantErr bool
 	}{
-		{"valid min", "1", false},
+		{"zero (disabled)", "0", false},
+		{"valid 1", "1", false},
 		{"valid mid", "500", false},
-		{"valid max", "10000", false},
-		{"zero", "0", true},
-		{"too high", "10001", true},
+		{"valid high", "10000", false},
+		{"valid max", "100000", false},
+		{"too high", "100001", true},
 		{"negative", "-1", true},
 		{"not a number", "abc", true},
 		{"float", "1.5", true},

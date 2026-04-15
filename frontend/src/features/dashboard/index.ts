@@ -5,6 +5,7 @@ export {
   useChartData,
   useRecentReleases,
   useDashboardStalePackages,
+  useDashboardSettings,
   dashboardKeys,
 } from "@/features/dashboard/hooks/use-dashboard"
 export { DashboardView } from "@/features/dashboard/ui/dashboard-view"

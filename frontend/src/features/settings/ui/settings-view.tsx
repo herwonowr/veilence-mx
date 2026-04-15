@@ -6,7 +6,7 @@ import { Button } from "@/ui/components/button"
 import { Separator } from "@/ui/components/separator"
 import { FormField } from "@/ui/form/form-field"
 import { Badge } from "@/ui/components/badge"
-import { Save, RefreshCw, Play, RotateCcw, Mail, AlertCircle, Radar, Activity, Info } from "lucide-react"
+import { Save, RefreshCw, Play, RotateCcw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangle } from "lucide-react"
 import { settingsSchema } from "@/domains/settings"
 import { ZodError } from "zod"
 import { useSettings, useUpdateSettings, useReanalyzeAll, useDiscoverNow, usePackageCountSummary } from "@/features/settings/hooks/use-settings"
@@ -206,6 +206,70 @@ export const SettingsView = () => {
               )}
             </div>
           )}
+          {(() => {
+            const threshold = parseInt(localSettings.package_count_warning_threshold ?? "0", 10)
+            const count = packageSummary?.activeCount ?? 0
+            return threshold > 0 && count > threshold ? (
+              <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>
+                  You are monitoring <strong>{count}</strong> packages, which exceeds your warning threshold of <strong>{threshold}</strong>.
+                </span>
+              </div>
+            ) : null
+          })()}
+          <Separator />
+          <div className="flex items-center gap-3">
+            <label htmlFor="auto-approve" className="flex items-center gap-2 cursor-pointer">
+              <input
+                id="auto-approve"
+                type="checkbox"
+                checked={localSettings.discovery_auto_approve === "true"}
+                onChange={(e) =>
+                  updateSetting("discovery_auto_approve", e.target.checked ? "true" : "false")
+                }
+                className="accent-primary h-4 w-4"
+                aria-describedby={validationErrors.discovery_auto_approve ? "auto-approve-error" : undefined}
+                aria-invalid={!!validationErrors.discovery_auto_approve}
+              />
+              <span className="text-sm font-medium">Auto-approve discovered packages</span>
+            </label>
+          </div>
+          {validationErrors.discovery_auto_approve && (
+            <p id="auto-approve-error" className="text-sm text-destructive" role="alert">
+              {validationErrors.discovery_auto_approve}
+            </p>
+          )}
+          {localSettings.discovery_auto_approve === "true" && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>
+                Discovered packages will be automatically added to active monitoring without manual review.
+              </span>
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              id="stale-auto-remove-months"
+              label="Auto-remove stale packages after (months)"
+              type="number"
+              value={localSettings.stale_auto_remove_months ?? ""}
+              onChange={(e) => updateSetting("stale_auto_remove_months", e.target.value)}
+              placeholder="0"
+              error={validationErrors.stale_auto_remove_months}
+              description="Packages with no updates in this many months will be automatically removed. Set to 0 to disable."
+            />
+            <FormField
+              id="package-count-warning-threshold"
+              label="Package count warning threshold"
+              type="number"
+              value={localSettings.package_count_warning_threshold ?? ""}
+              onChange={(e) => updateSetting("package_count_warning_threshold", e.target.value)}
+              placeholder="0"
+              error={validationErrors.package_count_warning_threshold}
+              description="Show a warning when monitored packages exceed this count. Set to 0 to disable."
+            />
+          </div>
         </CardContent>
       </Card>
 

@@ -26,7 +26,7 @@ import { DashboardCharts } from "@/features/dashboard/ui/dashboard-charts"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
 import { formatEcosystem } from "@/domains/common"
 import { useAuth } from "@/core/providers/auth-provider"
-import { useDashboardStats, useRecentReleases, useChartData, useDashboardStalePackages } from "@/features/dashboard/hooks/use-dashboard"
+import { useDashboardStats, useRecentReleases, useChartData, useDashboardStalePackages, useDashboardSettings } from "@/features/dashboard/hooks/use-dashboard"
 
 const classificationVariant = (c?: Classification) => {
   if (c === "malicious") return "destructive" as const
@@ -130,6 +130,9 @@ const DashboardData = () => {
   const { data: staleRes } = useDashboardStalePackages(6, { refetchInterval })
   const stalePackages = staleRes?.data ?? []
 
+  const { data: settingsRes } = useDashboardSettings({ refetchInterval })
+  const warningThreshold = parseInt(settingsRes?.data?.package_count_warning_threshold ?? "0", 10)
+
   const releasesSkeletonColumns: SkeletonColumn[] = [
     { width: "w-28", header: "Package" },
     { width: "w-16", header: "Ecosystem" },
@@ -181,6 +184,15 @@ const DashboardData = () => {
           )}
         </div>
       </div>
+
+      {warningThreshold > 0 && stats && stats.totalPackages > warningThreshold && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>
+            You are monitoring <strong>{stats.totalPackages}</strong> packages, which exceeds your warning threshold of <strong>{warningThreshold}</strong>.
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>

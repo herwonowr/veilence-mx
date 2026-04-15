@@ -88,8 +88,8 @@ func (uc *UseCase) UpdateSettings(ctx context.Context, orgID uint, settings map[
 			}
 		case entity.SettingPackageCountWarningThreshold:
 			n, err := strconv.Atoi(value)
-			if err != nil || n < 1 || n > 10000 {
-				return nil, fmt.Errorf("package_count_warning_threshold must be an integer between 1 and 10000")
+			if err != nil || n < 0 || n > 100000 {
+				return nil, fmt.Errorf("package_count_warning_threshold must be an integer between 0 and 100000")
 			}
 		}
 
