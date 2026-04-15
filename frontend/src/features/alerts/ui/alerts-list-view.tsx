@@ -38,6 +38,7 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table"
+import "@/ui/data/table.types"
 import { DataTablePagination } from "@/ui/data/data-table-pagination"
 import { SortableHeader } from "@/ui/data/sortable-header"
 import { useResponsiveColumns, type ColumnBreakpoints } from "@/core/hooks/use-responsive-columns"
@@ -128,7 +129,7 @@ const AlertsContent = () => {
     { width: "w-48", header: "Message" },
     { width: "w-16", header: "Status" },
     { width: "w-24", header: "Created" },
-    { width: "w-28", header: "Actions" },
+    { width: "w-28", header: "" },
   ]
 
   const columns = useMemo<ColumnDef<Alert>[]>(
@@ -179,25 +180,28 @@ const AlertsContent = () => {
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="sr-only">Actions</span>,
         enableSorting: false,
+        meta: { headerClassName: "w-[1%] whitespace-nowrap text-right", cellClassName: "text-right" },
         cell: ({ row }) => (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex items-center justify-end gap-1">
             {row.original.status === "new" && (
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={() => handleStatusChange(row.original.id, "acknowledged")}
               >
+                <Bell className="size-3.5 text-emerald-600 dark:text-emerald-500 mr-1" />
                 Acknowledge
               </Button>
             )}
             {row.original.status !== "resolved" && (
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={() => handleStatusChange(row.original.id, "resolved")}
               >
+                <ShieldCheck className="size-3.5 text-emerald-600 dark:text-emerald-500 mr-1" />
                 Resolve
               </Button>
             )}
@@ -310,6 +314,7 @@ const AlertsContent = () => {
                     return (
                     <TableHead
                       key={header.id}
+                      className={header.column.columnDef.meta?.headerClassName}
                       aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
                     >
                       {header.isPlaceholder
@@ -330,7 +335,7 @@ const AlertsContent = () => {
                     onClick={() => router.push(`/alerts/${row.original.id}`)}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
+                      <TableCell key={cell.id} className={cell.column.columnDef.meta?.cellClassName}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}

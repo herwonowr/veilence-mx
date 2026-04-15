@@ -59,6 +59,7 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table"
+import "@/ui/data/table.types"
 import {
   Tooltip,
   TooltipContent,
@@ -372,50 +373,52 @@ export const PackagesListView = () => {
       },
       {
         id: "actions",
-        header: "",
+        header: () => <span className="sr-only">Actions</span>,
         enableSorting: false,
-        size: 96,
+        meta: { headerClassName: "w-[1%] whitespace-nowrap text-right", cellClassName: "text-right" },
         cell: ({ row }) => {
           const pkg = row.original
           if (pkg.status === "blocked") {
             return (
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label={`Unblock package ${pkg.name}`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleUnblock(pkg.id, pkg.name)
-                }}
-              >
-                <ShieldCheck className="h-4 w-4 mr-1" />
-                Unblock
-              </Button>
+              <div className="flex items-center justify-end gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Unblock package ${pkg.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleUnblock(pkg.id, pkg.name)
+                  }}
+                >
+                  <ShieldCheck className="size-3.5 text-emerald-600 dark:text-emerald-500 mr-1" />
+                  Unblock
+                </Button>
+              </div>
             )
           }
           return (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center justify-end gap-1">
               <Button
                 variant="ghost"
-                size="icon"
+                size="icon-sm"
                 aria-label={`Block package ${pkg.name}`}
                 onClick={(e) => {
                   e.stopPropagation()
                   handleBlock(pkg.id, pkg.name)
                 }}
               >
-                <Ban className="h-4 w-4" />
+                <Ban className="size-4 text-destructive" />
               </Button>
               <Button
                 variant="ghost"
-                size="icon"
+                size="icon-sm"
                 aria-label={`Remove package ${pkg.name}`}
                 onClick={(e) => {
                   e.stopPropagation()
                   handleRemove(pkg.id, pkg.name)
                 }}
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="size-4 text-destructive" />
               </Button>
             </div>
           )
@@ -627,6 +630,7 @@ export const PackagesListView = () => {
                     return (
                     <TableHead
                       key={header.id}
+                      className={header.column.columnDef.meta?.headerClassName}
                       style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                       aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
                     >
@@ -649,7 +653,7 @@ export const PackagesListView = () => {
                     onClick={() => router.push(`/packages/${row.original.id}`)}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
+                      <TableCell key={cell.id} className={cell.column.columnDef.meta?.cellClassName}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}

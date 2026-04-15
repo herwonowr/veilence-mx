@@ -54,6 +54,7 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table"
+import "@/ui/data/table.types"
 import {
   usePackageSuggestions,
   useApprovePackage,
@@ -146,7 +147,7 @@ export const PackageSuggestionsView = () => {
     { width: "w-16", header: "Ecosystem" },
     { width: "w-12", header: "Rank" },
     { width: "w-20", header: "Popularity" },
-    { width: "w-16", header: "Actions" },
+    { width: "w-16", header: "" },
   ]
 
   const columns = useMemo<ColumnDef<Package>[]>(
@@ -202,13 +203,13 @@ export const PackageSuggestionsView = () => {
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="sr-only">Actions</span>,
         enableSorting: false,
-        size: 180,
+        meta: { headerClassName: "w-[1%] whitespace-nowrap text-right", cellClassName: "text-right" },
         cell: ({ row }) => {
           const pkg = row.original
           return (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center justify-end gap-1">
               <Button
                 variant="ghost"
                 size="sm"
@@ -216,7 +217,7 @@ export const PackageSuggestionsView = () => {
                 onClick={() => handleApprove(pkg.id)}
                 disabled={approveMutation.isPending}
               >
-                <Check className="h-4 w-4 mr-1" />
+                <Check className="size-3.5 text-emerald-600 dark:text-emerald-500 mr-1" />
                 Approve
               </Button>
               <Button
@@ -226,7 +227,7 @@ export const PackageSuggestionsView = () => {
                 onClick={() => handleReject(pkg.id)}
                 disabled={rejectMutation.isPending}
               >
-                <X className="h-4 w-4 mr-1" />
+                <X className="size-3.5 text-destructive mr-1" />
                 Reject
               </Button>
             </div>
@@ -350,6 +351,7 @@ export const PackageSuggestionsView = () => {
                         return (
                         <TableHead
                           key={header.id}
+                          className={header.column.columnDef.meta?.headerClassName}
                           aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
                         >
                           {header.isPlaceholder
@@ -366,7 +368,7 @@ export const PackageSuggestionsView = () => {
                     table.getRowModel().rows.map((row) => (
                       <TableRow key={row.id}>
                         {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id}>
+                          <TableCell key={cell.id} className={cell.column.columnDef.meta?.cellClassName}>
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </TableCell>
                         ))}

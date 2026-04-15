@@ -328,7 +328,9 @@ export const OrganizationDetailView = () => {
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Joined</TableHead>
-                    <TableHead className="w-24">Actions</TableHead>
+                    <TableHead className="w-[1%] whitespace-nowrap text-right">
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -367,7 +369,7 @@ export const OrganizationDetailView = () => {
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(member.joinedAt).toLocaleDateString()}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-right">
                         {member.userId !== user?.id && canRemove && (
                           <Button
                             variant="ghost"

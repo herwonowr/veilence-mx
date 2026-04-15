@@ -485,7 +485,9 @@ const DeadTable = ({
           <TableHead className="hidden lg:table-cell">Attempts</TableHead>
           <TableHead>Last Error</TableHead>
           <TableHead className="hidden lg:table-cell">Died At</TableHead>
-          <TableHead className="w-16">Action</TableHead>
+          <TableHead className="w-[1%] whitespace-nowrap text-right">
+            <span className="sr-only">Actions</span>
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -522,7 +524,7 @@ const DeadTable = ({
             <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">
               {formatTimestamp(job.updatedAt)}
             </TableCell>
-            <TableCell>
+            <TableCell className="text-right">
               <Button
                 variant="ghost"
                 size="icon-sm"

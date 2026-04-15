@@ -74,7 +74,7 @@ export const ApiKeysView = () => {
     { width: "w-20", header: "Last Used" },
     { width: "w-20", header: "Expires" },
     { width: "w-20", header: "Created" },
-    { width: "w-8", header: "Actions" },
+    { width: "w-8", header: "" },
   ]
 
   const keys = keysRes?.data ?? []
@@ -393,7 +393,9 @@ export const ApiKeysView = () => {
                   <TableHead className="hidden lg:table-cell">Last Used</TableHead>
                   <TableHead className="hidden md:table-cell">Expires</TableHead>
                   <TableHead className="hidden md:table-cell">Created</TableHead>
-                  <TableHead className="w-16">Actions</TableHead>
+                  <TableHead className="w-[1%] whitespace-nowrap text-right">
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -428,7 +430,7 @@ export const ApiKeysView = () => {
                     <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                       {new Date(key.createdAt).toLocaleDateString()}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       <Button
                         variant="ghost"
                         size="icon-sm"

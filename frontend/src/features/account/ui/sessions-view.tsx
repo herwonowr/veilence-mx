@@ -57,7 +57,7 @@ export const SessionsView = () => {
     { width: "w-24", header: "Created" },
     { width: "w-24", header: "Last Active" },
     { width: "w-20", header: "Expires" },
-    { width: "w-8", header: "Actions" },
+    { width: "w-8", header: "" },
   ]
 
   const sessions = sessionsRes?.data ?? []
@@ -96,7 +96,9 @@ export const SessionsView = () => {
                   <TableHead className="hidden md:table-cell">Created</TableHead>
                   <TableHead>Last Active</TableHead>
                   <TableHead className="hidden lg:table-cell">Expires</TableHead>
-                  <TableHead className="w-16">Actions</TableHead>
+                  <TableHead className="w-[1%] whitespace-nowrap text-right">
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -129,7 +131,7 @@ export const SessionsView = () => {
                     <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                       {new Date(session.expiresAt).toLocaleString()}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       {session.isCurrent ? (
                         <Button
                           variant="ghost"
