@@ -41,9 +41,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/components/select"
-import type { Package, PackageStatus, PackageSource } from "@/domains/packages"
+import type { Package, PackageSource } from "@/domains/packages"
 import type { Ecosystem } from "@/domains/common"
-import { Plus, Trash2, RefreshCw, Upload, Ban, ShieldCheck, MoreHorizontal } from "lucide-react"
+import { formatPopularity, formatFreshness } from "@/domains/packages"
+import { Plus, Trash2, RefreshCw, Upload, Ban, ShieldCheck } from "lucide-react"
 import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
 import { TableError } from "@/ui/feedback/table-error"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
@@ -58,6 +59,12 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/ui/components/tooltip"
 import { DataTablePagination } from "@/ui/data/data-table-pagination"
 import { SortableHeader } from "@/ui/data/sortable-header"
 import { useResponsiveColumns, type ColumnBreakpoints } from "@/core/hooks/use-responsive-columns"
@@ -119,6 +126,7 @@ export const PackagesListView = () => {
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({})
 
   const packageColumnBreakpoints: ColumnBreakpoints = useMemo(() => ({
+    popularity: "desktop",
     rank: "desktop",
     source: "tablet",
     status: "tablet",
@@ -240,6 +248,7 @@ export const PackagesListView = () => {
     { width: "w-32", header: "Name" },
     { width: "w-16", header: "Ecosystem" },
     { width: "w-20", header: "Latest Version" },
+    { width: "w-16", header: "Popularity" },
     { width: "w-12", header: "Rank" },
     { width: "w-16", header: "Source" },
     { width: "w-16", header: "Status" },
@@ -273,6 +282,24 @@ export const PackagesListView = () => {
         cell: ({ row }) => row.original.latestVersion || "\u2014",
       },
       {
+        id: "popularity",
+        accessorKey: "downloadCount",
+        header: ({ column }) => <SortableHeader column={column} title="Popularity" />,
+        cell: ({ row }) => {
+          const pkg = row.original
+          const text = formatPopularity(pkg.ecosystem, pkg.downloadCount, pkg.popularityScore)
+          const freshness = formatFreshness(pkg.downloadCountUpdatedAt)
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger render={<span className="text-sm tabular-nums">{text}</span>} />
+                <TooltipContent>{freshness}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )
+        },
+      },
+      {
         accessorKey: "rank",
         header: ({ column }) => <SortableHeader column={column} title="Rank" />,
         cell: ({ row }) => row.original.rank ?? "\u2014",
@@ -294,10 +321,26 @@ export const PackagesListView = () => {
         cell: ({ row }) => {
           if (row.original.status === "blocked") {
             return (
-              <Badge variant="destructive">
-                <Ban className="h-3 w-3 mr-1" />
-                Blocked
-              </Badge>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Badge variant="destructive">
+                        <Ban className="h-3 w-3 mr-1" />
+                        Blocked
+                      </Badge>
+                    }
+                  />
+                  {row.original.blockedReason && (
+                    <TooltipContent>{row.original.blockedReason}</TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+            )
+          }
+          if (row.original.status === "suggested") {
+            return (
+              <Badge variant="outline">Suggested</Badge>
             )
           }
           return null
@@ -481,11 +524,12 @@ export const PackagesListView = () => {
                 >
                   <SelectTrigger id="packages-status-filter" className="w-32">
                     <SelectValue>
-                      {statusFilter === "blocked" ? "Blocked" : statusFilter === "" ? "All" : "Active"}
+                      {statusFilter === "blocked" ? "Blocked" : statusFilter === "suggested" ? "Suggested" : statusFilter === "" ? "All" : "Active"}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="suggested">Suggested</SelectItem>
                     <SelectItem value="blocked">Blocked</SelectItem>
                     <SelectItem value="all">All</SelectItem>
                   </SelectContent>

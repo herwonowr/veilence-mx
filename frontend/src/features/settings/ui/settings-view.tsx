@@ -9,8 +9,9 @@ import { Badge } from "@/ui/components/badge"
 import { Save, RefreshCw, Play, RotateCcw, Mail, AlertCircle, Radar, Activity, Info } from "lucide-react"
 import { settingsSchema } from "@/domains/settings"
 import { ZodError } from "zod"
-import { useSettings, useUpdateSettings, useReanalyzeAll, useDiscoverNow } from "@/features/settings/hooks/use-settings"
+import { useSettings, useUpdateSettings, useReanalyzeAll, useDiscoverNow, usePackageCountSummary } from "@/features/settings/hooks/use-settings"
 import { useQueueStats, useRetryDeadJobs } from "@/features/settings/hooks/use-queue"
+import Link from "next/link"
 
 export const SettingsView = () => {
   const [localSettings, setLocalSettings] = useState<Record<string, string>>({})
@@ -24,6 +25,7 @@ export const SettingsView = () => {
   const reanalyzeMutation = useReanalyzeAll()
   const retryMutation = useRetryDeadJobs()
   const discoverMutation = useDiscoverNow()
+  const { data: packageSummary } = usePackageCountSummary()
 
   const queueStats = queueRes?.data ?? null
 
@@ -190,6 +192,20 @@ export const SettingsView = () => {
               Discovery only adds packages — it never removes them.
             </span>
           </div>
+          {packageSummary && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span>
+                Currently monitoring <strong>{packageSummary.activeCount}</strong> package{packageSummary.activeCount !== 1 ? "s" : ""}.
+              </span>
+              {packageSummary.suggestionsCount > 0 ? (
+                <Link href="/packages/suggestions" className="text-primary hover:underline">
+                  <strong>{packageSummary.suggestionsCount}</strong> suggestion{packageSummary.suggestionsCount !== 1 ? "s" : ""} pending review.
+                </Link>
+              ) : (
+                <span className="text-muted-foreground">No pending suggestions.</span>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

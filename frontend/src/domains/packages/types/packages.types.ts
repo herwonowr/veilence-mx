@@ -1,7 +1,7 @@
 import type { Ecosystem, ReleaseStatus, Classification, AnalyzerType } from "@/domains/common"
 
 export type PackageSource = "manual" | "discovered" | "imported"
-export type PackageStatus = "active" | "blocked" | "removed"
+export type PackageStatus = "active" | "suggested" | "blocked" | "removed"
 
 export interface Package {
   id: number
@@ -11,11 +11,19 @@ export interface Package {
   description: string
   source: PackageSource
   status: PackageStatus
+  downloadCount: number
+  popularityScore: number
+  downloadCountUpdatedAt: string | null
   rank: number | null
   blockedAt: string | null
   blockedReason: string | null
   createdAt: string
   updatedAt: string
+}
+
+export interface StalePackage extends Package {
+  lastReleaseAt: string | null
+  daysSinceLastRelease: number
 }
 
 export interface CreatePackageRequest {

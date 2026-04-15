@@ -5,6 +5,7 @@ export {
   useUpdateSettings,
   useReanalyzeAll,
   useDiscoverNow,
+  usePackageCountSummary,
   settingsKeys,
 } from "@/features/settings/hooks/use-settings"
 export { useQueueStats, useQueueJobs, useDeadJobs, useRetryDeadJobs, useRetryDeadJob, queueKeys } from "@/features/settings/hooks/use-queue"

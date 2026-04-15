@@ -11,13 +11,14 @@ import {
   updateSettings,
   reanalyzeAll,
 } from "@/domains/settings"
-import { discoverPackages } from "@/domains/packages"
+import { discoverPackages, getPackages, getPackageSuggestions } from "@/domains/packages"
 import type { ApiResponse } from "@/domains/common"
 import { toast } from "sonner"
 import { sanitizeErrorMessage } from "@/core"
 
 export const settingsKeys = {
   all: ["settings"] as const,
+  packageSummary: () => [...settingsKeys.all, "package-summary"] as const,
 }
 
 export const useSettings = (
@@ -58,6 +59,7 @@ export const useDiscoverNow = () => {
     mutationFn: (ecosystem?: string) => discoverPackages(ecosystem),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["packages"] })
+      queryClient.invalidateQueries({ queryKey: settingsKeys.packageSummary() })
       toast.success("Discovery started")
     },
     onError: (error: Error) => {
@@ -65,3 +67,19 @@ export const useDiscoverNow = () => {
     },
   })
 }
+
+export const usePackageCountSummary = () =>
+  useQuery({
+    queryKey: settingsKeys.packageSummary(),
+    queryFn: async () => {
+      const [activeRes, suggestionsRes] = await Promise.all([
+        getPackages({ status: "active", limit: 1 }),
+        getPackageSuggestions({ limit: 1 }),
+      ])
+      return {
+        activeCount: activeRes.meta?.total ?? 0,
+        suggestionsCount: suggestionsRes.meta?.total ?? 0,
+      }
+    },
+    staleTime: 30 * 1000,
+  })

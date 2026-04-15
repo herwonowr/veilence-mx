@@ -18,6 +18,7 @@ import { Skeleton } from "@/ui/components/skeleton"
 import { ArrowLeft, Activity, Package as PackageIcon, Ban } from "lucide-react"
 import { DetailError } from "@/ui/feedback/detail-error"
 import { formatEcosystem } from "@/domains/common"
+import { formatPopularity, formatFreshness } from "@/domains/packages"
 import { usePackage, usePackageReleases, useAnalysisHistory } from "@/features/packages/hooks/use-packages"
 import type { Classification } from "@/domains/common"
 
@@ -92,7 +93,18 @@ export const PackageDetailView = ({
               Blocked
             </Badge>
           )}
+          {pkg.status === "suggested" && (
+            <Badge variant="outline">Suggested</Badge>
+          )}
           <span className="font-mono text-sm text-muted-foreground">v{pkg.latestVersion}</span>
+          <span className="text-sm text-muted-foreground">
+            {formatPopularity(pkg.ecosystem, pkg.downloadCount, pkg.popularityScore)}
+          </span>
+          {pkg.downloadCountUpdatedAt && (
+            <span className="text-xs text-muted-foreground">
+              ({formatFreshness(pkg.downloadCountUpdatedAt)})
+            </span>
+          )}
           {pkg.description && (
             <span className="text-sm text-muted-foreground">{"\u2014"} {pkg.description}</span>
           )}

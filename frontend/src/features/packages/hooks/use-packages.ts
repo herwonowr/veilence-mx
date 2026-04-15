@@ -18,9 +18,14 @@ import {
   syncTopPackages,
   bulkImportPackages,
   getAnalysisHistory,
+  getPackageSuggestions,
+  approvePackage,
+  rejectPackage,
+  bulkApprovePackages,
+  getStalePackages,
 } from "@/domains/packages"
 import type { ApiResponse } from "@/domains/common"
-import type { Package, Release, AnalysisHistoryEntry } from "@/domains/packages"
+import type { Package, Release, AnalysisHistoryEntry, StalePackage } from "@/domains/packages"
 import { toast } from "sonner"
 import { sanitizeErrorMessage } from "@/core"
 
@@ -35,6 +40,10 @@ export const packageKeys = {
     [...packageKeys.all, "releases", packageId, page, limit] as const,
   analysisHistory: (packageId: number) =>
     [...packageKeys.all, "analysis-history", packageId] as const,
+  suggestions: (page?: number, limit?: number) =>
+    [...packageKeys.all, "suggestions", page, limit] as const,
+  stale: (months?: number) =>
+    [...packageKeys.all, "stale", months] as const,
 }
 
 export const usePackages = (
@@ -203,5 +212,72 @@ export const useAnalysisHistory = (
     queryKey: packageKeys.analysisHistory(packageId),
     queryFn: () => getAnalysisHistory(packageId),
     enabled: packageId > 0,
+    ...options,
+  })
+
+export const usePackageSuggestions = (
+  page = 1,
+  limit = 20,
+  options?: Partial<UseQueryOptions<ApiResponse<Package[]>>>
+) =>
+  useQuery({
+    queryKey: packageKeys.suggestions(page, limit),
+    queryFn: () => getPackageSuggestions({ page, limit }),
+    ...options,
+  })
+
+export const useApprovePackage = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: number) => approvePackage(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: packageKeys.all })
+      toast.success("Package approved and added to monitoring")
+    },
+    onError: (error: Error) => {
+      toast.error(sanitizeErrorMessage(error, "Failed to approve package"))
+    },
+  })
+}
+
+export const useRejectPackage = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: number) => rejectPackage(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: packageKeys.all })
+      toast.success("Suggestion rejected")
+    },
+    onError: (error: Error) => {
+      toast.error(sanitizeErrorMessage(error, "Failed to reject suggestion"))
+    },
+  })
+}
+
+export const useBulkApprovePackages = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (params: { packageIds: number[] } | { ecosystem: string }) =>
+      bulkApprovePackages(params),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: packageKeys.all })
+      toast.success(`Approved ${result.data.approved} package(s)`)
+    },
+    onError: (error: Error) => {
+      toast.error(sanitizeErrorMessage(error, "Failed to bulk approve packages"))
+    },
+  })
+}
+
+export const useStalePackages = (
+  months = 6,
+  options?: Partial<UseQueryOptions<ApiResponse<StalePackage[]>>>
+) =>
+  useQuery({
+    queryKey: packageKeys.stale(months),
+    queryFn: () => getStalePackages(months),
     ...options,
   })

@@ -26,7 +26,7 @@ import { DashboardCharts } from "@/features/dashboard/ui/dashboard-charts"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
 import { formatEcosystem } from "@/domains/common"
 import { useAuth } from "@/core/providers/auth-provider"
-import { useDashboardStats, useRecentReleases, useChartData } from "@/features/dashboard/hooks/use-dashboard"
+import { useDashboardStats, useRecentReleases, useChartData, useDashboardStalePackages } from "@/features/dashboard/hooks/use-dashboard"
 
 const classificationVariant = (c?: Classification) => {
   if (c === "malicious") return "destructive" as const
@@ -126,6 +126,9 @@ const DashboardData = () => {
     { refetchInterval }
   )
   const releases = releasesRes?.data ?? []
+
+  const { data: staleRes } = useDashboardStalePackages(6, { refetchInterval })
+  const stalePackages = staleRes?.data ?? []
 
   const releasesSkeletonColumns: SkeletonColumn[] = [
     { width: "w-28", header: "Package" },
@@ -329,6 +332,61 @@ const DashboardData = () => {
           </div>
         </CardContent>
       </Card>
+
+      {stalePackages.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-muted-foreground" />
+              Stale Packages ({stalePackages.length})
+            </CardTitle>
+            <Link href="/packages/stale">
+              <Button variant="outline" size="sm">View All</Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Package</TableHead>
+                    <TableHead className="hidden md:table-cell">Ecosystem</TableHead>
+                    <TableHead>Last Release</TableHead>
+                    <TableHead>Days Since</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stalePackages.slice(0, 5).map((pkg) => (
+                    <TableRow key={pkg.id}>
+                      <TableCell className="font-medium">
+                        <Link
+                          href={`/packages/${pkg.id}`}
+                          className="hover:underline text-primary"
+                        >
+                          {pkg.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <Badge variant="outline">{formatEcosystem(pkg.ecosystem)}</Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {pkg.lastReleaseAt
+                          ? new Date(pkg.lastReleaseAt).toLocaleDateString()
+                          : "Never"}
+                      </TableCell>
+                      <TableCell>
+                        <span className={pkg.daysSinceLastRelease > 365 ? "text-destructive font-medium" : ""}>
+                          {pkg.daysSinceLastRelease}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

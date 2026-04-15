@@ -1,6 +1,6 @@
 import { fetchApi } from "@/core"
 import type { ApiResponse } from "@/domains/common"
-import type { Package, Release, BulkImportResult, AnalysisHistoryEntry } from "@/domains/packages/types/packages.types"
+import type { Package, Release, BulkImportResult, AnalysisHistoryEntry, StalePackage } from "@/domains/packages/types/packages.types"
 
 export const getPackages = async (params?: {
   ecosystem?: string
@@ -93,3 +93,32 @@ export const getAnalysisHistory = async (
   fetchApi<AnalysisHistoryEntry[]>(
     `/api/packages/${packageId}/analysis-history`
   )
+
+export const getPackageSuggestions = async (params?: {
+  page?: number
+  limit?: number
+}): Promise<ApiResponse<Package[]>> => {
+  const searchParams = new URLSearchParams()
+  if (params?.page) searchParams.set("page", String(params.page))
+  if (params?.limit) searchParams.set("limit", String(params.limit))
+  return fetchApi<Package[]>(`/api/packages/suggestions?${searchParams.toString()}`)
+}
+
+export const approvePackage = async (id: number): Promise<ApiResponse<Package>> =>
+  fetchApi<Package>(`/api/packages/${id}/approve`, { method: "POST" })
+
+export const rejectPackage = async (id: number): Promise<ApiResponse<null>> =>
+  fetchApi<null>(`/api/packages/${id}/reject`, { method: "POST" })
+
+export const bulkApprovePackages = async (
+  params: { packageIds: number[] } | { ecosystem: string }
+): Promise<ApiResponse<{ approved: number }>> =>
+  fetchApi<{ approved: number }>("/api/packages/bulk-approve", {
+    method: "POST",
+    body: JSON.stringify(params),
+  })
+
+export const getStalePackages = async (months?: number): Promise<ApiResponse<StalePackage[]>> => {
+  const query = months ? `?months=${months}` : ""
+  return fetchApi<StalePackage[]>(`/api/packages/stale${query}`)
+}
