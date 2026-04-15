@@ -77,6 +77,20 @@ func (uc *UseCase) UpdateSettings(ctx context.Context, orgID uint, settings map[
 			if err := validateEmailRecipients(value); err != nil {
 				return nil, err
 			}
+		case entity.SettingDiscoveryAutoApprove:
+			if value != "true" && value != "false" {
+				return nil, fmt.Errorf("discovery_auto_approve must be 'true' or 'false'")
+			}
+		case entity.SettingStaleAutoRemoveMonths:
+			n, err := strconv.Atoi(value)
+			if err != nil || n < 0 || n > 36 {
+				return nil, fmt.Errorf("stale_auto_remove_months must be an integer between 0 and 36")
+			}
+		case entity.SettingPackageCountWarningThreshold:
+			n, err := strconv.Atoi(value)
+			if err != nil || n < 1 || n > 10000 {
+				return nil, fmt.Errorf("package_count_warning_threshold must be an integer between 1 and 10000")
+			}
 		}
 
 		if err := uc.settings.UpsertByOrgAndKey(ctx, orgID, key, value); err != nil {

@@ -422,6 +422,9 @@ const (
 	SettingEmailDigestEnabled    = "email_digest_enabled"
 	SettingEmailDigestFrequency  = "email_digest_frequency"
 	SettingEmailDigestRecipients = "email_digest_recipients"
+	SettingDiscoveryAutoApprove          = "discovery_auto_approve"
+	SettingStaleAutoRemoveMonths         = "stale_auto_remove_months"
+	SettingPackageCountWarningThreshold  = "package_count_warning_threshold"
 )
 
 // --- Notification Models ---

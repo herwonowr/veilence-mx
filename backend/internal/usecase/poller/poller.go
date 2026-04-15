@@ -434,14 +434,22 @@ func (p *Poller) runDiscoveryCycle(ctx context.Context) {
 			continue
 		}
 
-		slog.Info("running discovery for org", "org_id", orgID, "scan_depth", scanDepth)
+		autoApprove := p.getDiscoveryAutoApprove(orgID)
+
+		slog.Info("running discovery for org", "org_id", orgID, "scan_depth", scanDepth, "auto_approve", autoApprove)
 
 		// Scan both ecosystems to the full depth
 		if p.python != nil {
-			p.discoverPackages(ctx, p.python, scanDepth, orgID)
+			p.discoverPackages(ctx, p.python, scanDepth, orgID, autoApprove)
 		}
 		if p.npm != nil {
-			p.discoverPackages(ctx, p.npm, scanDepth, orgID)
+			p.discoverPackages(ctx, p.npm, scanDepth, orgID, autoApprove)
+		}
+
+		// Auto-remove stale packages if configured
+		staleMonths := p.getStaleAutoRemoveMonths(orgID)
+		if staleMonths > 0 {
+			p.removeStalePackages(ctx, orgID, staleMonths)
 		}
 
 		p.markOrgPolled(orgID, "discover")
@@ -450,31 +458,37 @@ func (p *Poller) runDiscoveryCycle(ctx context.Context) {
 
 // discoverPackages fetches top packages from a registry and upserts them.
 // Discovery is additive only — it never removes packages.
-// New packages are created with status 'suggested' (pending admin approval).
+// When autoApprove is true, new packages are created with status 'active' (auto-approved).
+// When autoApprove is false, new packages are created with status 'suggested' (pending admin approval).
 // Existing active packages get their download metrics refreshed.
-func (p *Poller) discoverPackages(ctx context.Context, reg registry.Registry, scanDepth int, orgID uint) {
+func (p *Poller) discoverPackages(ctx context.Context, reg registry.Registry, scanDepth int, orgID uint, autoApprove bool) {
 	rankings, err := reg.GetTopPackages(ctx, scanDepth)
 	if err != nil {
 		slog.Error("failed to fetch top packages for discovery", "ecosystem", reg.Name(), "org_id", orgID, "error", err)
 		return
 	}
 
-	p.upsertDiscoveredPackages(ctx, orgID, rankings, persistent.Ecosystem(reg.Name()))
+	p.upsertDiscoveredPackages(ctx, orgID, rankings, persistent.Ecosystem(reg.Name()), autoApprove)
 
 	slog.Info("discovery complete", "ecosystem", reg.Name(), "org_id", orgID, "scanned", len(rankings))
 }
 
 // upsertDiscoveredPackages processes a set of rankings for a given org and ecosystem.
 // For each ranking:
-//   - New package → create as 'suggested'
+//   - New package → create as 'active' (if autoApprove) or 'suggested'
 //   - Existing 'active' → update rank + download metrics
 //   - Existing 'suggested' → update rank + download metrics
 //   - Existing 'blocked' → skip entirely
-//   - Existing 'removed' → re-suggest (set status to 'suggested')
-func (p *Poller) upsertDiscoveredPackages(ctx context.Context, orgID uint, rankings []entity.PackageRanking, ecosystem persistent.Ecosystem) {
+//   - Existing 'removed' → re-suggest for admin review (or auto-approve if enabled)
+func (p *Poller) upsertDiscoveredPackages(ctx context.Context, orgID uint, rankings []entity.PackageRanking, ecosystem persistent.Ecosystem, autoApprove bool) {
 	now := time.Now()
 	var suggested int
 	var downloadUpdates []entity.PackageDownloadUpdate
+
+	newStatus := persistent.PackageStatusSuggested
+	if autoApprove {
+		newStatus = persistent.PackageStatusActive
+	}
 
 	for _, ranking := range rankings {
 		rank := ranking.Rank
@@ -482,20 +496,20 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, orgID uint, ranki
 		result := p.db.Where("org_id = ? AND name = ? AND ecosystem = ?", orgID, ranking.Name, string(ecosystem)).Limit(1).Find(&existing)
 
 		if result.RowsAffected == 0 {
-			// New package — create as suggested (pending admin approval)
+			// New package — create with appropriate status
 			pkg := persistent.Package{
 				OrgID:                  orgID,
 				Name:                   ranking.Name,
 				Ecosystem:              ecosystem,
 				Source:                 persistent.PackageSourceDiscovered,
-				Status:                 persistent.PackageStatusSuggested,
+				Status:                 newStatus,
 				Rank:                   &rank,
 				DownloadCount:          ranking.DownloadCount,
 				PopularityScore:        ranking.PopularityScore,
 				DownloadCountUpdatedAt: &now,
 			}
 			if err := p.db.Create(&pkg).Error; err != nil {
-				slog.Error("failed to create suggested package", "package", ranking.Name, "error", err)
+				slog.Error("failed to create discovered package", "package", ranking.Name, "error", err)
 				continue
 			}
 			suggested++
@@ -524,9 +538,9 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, orgID uint, ranki
 				// Skip entirely — do not update rank or download data
 				continue
 			case persistent.PackageStatusRemoved:
-				// Re-suggest for admin review (not auto-activate)
+				// Re-suggest for admin review (or auto-approve if enabled)
 				p.db.Model(&existing).Updates(map[string]any{
-					"status":                     persistent.PackageStatusSuggested,
+					"status":                     newStatus,
 					"rank":                       &rank,
 					"download_count":             ranking.DownloadCount,
 					"popularity_score":           ranking.PopularityScore,
@@ -545,7 +559,11 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, orgID uint, ranki
 	}
 
 	if suggested > 0 {
-		slog.Info("discovery suggested packages", "ecosystem", string(ecosystem), "org_id", orgID, "suggested", suggested)
+		label := "suggested"
+		if autoApprove {
+			label = "auto-approved"
+		}
+		slog.Info("discovery added packages", "ecosystem", string(ecosystem), "org_id", orgID, label, suggested)
 	}
 }
 
@@ -568,14 +586,40 @@ func (p *Poller) updateDownloadCounts(orgID uint, updates []entity.PackageDownlo
 }
 
 // SyncTopPackages is kept for backward compatibility with the API handler.
-// It delegates to discoverPackages.
+// It delegates to discoverPackages with auto-approve disabled (manual trigger = always suggest).
 func (p *Poller) SyncTopPackages(ctx context.Context, reg registry.Registry, limit int, orgID uint) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	slog.Info("syncing top packages (legacy)", "ecosystem", reg.Name(), "limit", limit, "org_id", orgID)
-	p.discoverPackages(ctx, reg, limit, orgID)
+	p.discoverPackages(ctx, reg, limit, orgID, false)
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Stale Package Removal
+// ---------------------------------------------------------------------------
+
+// removeStalePackages removes active packages that have had no updates for
+// the given number of months. Called at the end of the discovery cycle.
+func (p *Poller) removeStalePackages(ctx context.Context, orgID uint, months int) {
+	if months <= 0 {
+		return
+	}
+
+	staleBefore := time.Now().AddDate(0, -months, 0)
+	result := p.db.Model(&persistent.Package{}).
+		Where("org_id = ? AND status = ? AND updated_at < ?", orgID, persistent.PackageStatusActive, staleBefore).
+		Update("status", persistent.PackageStatusRemoved)
+
+	if result.Error != nil {
+		slog.Error("failed to remove stale packages", "org_id", orgID, "months", months, "error", result.Error)
+		return
+	}
+
+	if result.RowsAffected > 0 {
+		slog.Info("auto-removed stale packages", "org_id", orgID, "months", months, "removed", result.RowsAffected)
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -614,6 +658,22 @@ func (p *Poller) getDiscoveryScanDepth(orgID uint) int {
 		return v
 	}
 	return 50
+}
+
+// getDiscoveryAutoApprove returns whether newly discovered packages should be
+// automatically approved (status=active) instead of suggested (pending review).
+func (p *Poller) getDiscoveryAutoApprove(orgID uint) bool {
+	return p.getSetting(persistent.SettingDiscoveryAutoApprove, "false", orgID) == "true"
+}
+
+// getStaleAutoRemoveMonths returns the number of months after which active
+// packages with no updates are automatically removed. 0 means disabled.
+func (p *Poller) getStaleAutoRemoveMonths(orgID uint) int {
+	monthsStr := p.getSetting(persistent.SettingStaleAutoRemoveMonths, "0", orgID)
+	if v, err := strconv.Atoi(monthsStr); err == nil && v >= 0 {
+		return v
+	}
+	return 0
 }
 
 // isOrgDue returns true if the given org is due for the given purpose

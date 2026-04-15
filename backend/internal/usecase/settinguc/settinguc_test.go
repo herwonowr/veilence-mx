@@ -444,3 +444,115 @@ func TestUpdateSettings_AnalyzerMode_PassThrough(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "manual", result["analyzer_mode"])
 }
+
+// ---------------------------------------------------------------------------
+// UpdateSettings — discovery_auto_approve validation
+// ---------------------------------------------------------------------------
+
+func TestUpdateSettings_DiscoveryAutoApprove(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{"true", "true", false},
+		{"false", "false", false},
+		{"True (wrong case)", "True", true},
+		{"yes", "yes", true},
+		{"1", "1", true},
+		{"empty", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockRepo()
+			uc := settinguc.New(repo)
+			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+				entity.SettingDiscoveryAutoApprove: tt.value,
+			})
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "discovery_auto_approve")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// UpdateSettings — stale_auto_remove_months validation
+// ---------------------------------------------------------------------------
+
+func TestUpdateSettings_StaleAutoRemoveMonths(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{"zero (disabled)", "0", false},
+		{"valid 1 month", "1", false},
+		{"valid 6 months", "6", false},
+		{"valid 12 months", "12", false},
+		{"valid max 36", "36", false},
+		{"too high", "37", true},
+		{"negative", "-1", true},
+		{"not a number", "abc", true},
+		{"float", "1.5", true},
+		{"empty", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockRepo()
+			uc := settinguc.New(repo)
+			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+				entity.SettingStaleAutoRemoveMonths: tt.value,
+			})
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "stale_auto_remove_months")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// UpdateSettings — package_count_warning_threshold validation
+// ---------------------------------------------------------------------------
+
+func TestUpdateSettings_PackageCountWarningThreshold(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{"valid min", "1", false},
+		{"valid mid", "500", false},
+		{"valid max", "10000", false},
+		{"zero", "0", true},
+		{"too high", "10001", true},
+		{"negative", "-1", true},
+		{"not a number", "abc", true},
+		{"float", "1.5", true},
+		{"empty", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockRepo()
+			uc := settinguc.New(repo)
+			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+				entity.SettingPackageCountWarningThreshold: tt.value,
+			})
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "package_count_warning_threshold")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

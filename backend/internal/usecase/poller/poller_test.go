@@ -382,7 +382,7 @@ func TestDiscoverPackages_NewPackages(t *testing.T) {
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
 
-	p.discoverPackages(context.Background(), mock, 3, 1)
+	p.discoverPackages(context.Background(), mock, 3, 1, false)
 
 	var packages []persistent.Package
 	db.Find(&packages)
@@ -419,7 +419,7 @@ func TestDiscoverPackages_UpdateExistingRank(t *testing.T) {
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
 
-	p.discoverPackages(context.Background(), mock, 1, 1)
+	p.discoverPackages(context.Background(), mock, 1, 1, false)
 
 	var pkg persistent.Package
 	db.Where("name = ?", "requests").First(&pkg)
@@ -459,7 +459,7 @@ func TestDiscoverPackages_SkipsBlockedPackages(t *testing.T) {
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
 
-	p.discoverPackages(context.Background(), mock, 1, 1)
+	p.discoverPackages(context.Background(), mock, 1, 1, false)
 
 	var pkg persistent.Package
 	db.Where("name = ?", "malicious-pkg").First(&pkg)
@@ -491,7 +491,7 @@ func TestDiscoverPackages_ReAddsRemovedPackages(t *testing.T) {
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
 
-	p.discoverPackages(context.Background(), mock, 1, 1)
+	p.discoverPackages(context.Background(), mock, 1, 1, false)
 
 	var pkg persistent.Package
 	db.Where("name = ?", "requests").First(&pkg)
@@ -514,7 +514,7 @@ func TestDiscoverPackages_RegistryError(t *testing.T) {
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
 
 	// Should not panic — just logs the error
-	p.discoverPackages(context.Background(), mock, 10, 1)
+	p.discoverPackages(context.Background(), mock, 10, 1, false)
 
 	var count int64
 	db.Model(&persistent.Package{}).Count(&count)
@@ -537,7 +537,7 @@ func TestDiscoverPackages_AdditiveOnly(t *testing.T) {
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
 
-	p.discoverPackages(context.Background(), mock, 1, 1)
+	p.discoverPackages(context.Background(), mock, 1, 1, false)
 
 	var count int64
 	db.Model(&persistent.Package{}).Count(&count)
@@ -957,7 +957,7 @@ func TestDiscoverPackages_SuggestedPackagesGetUpdated(t *testing.T) {
 
 	p := New(db, mock, nil, Config{Concurrency: 1}, nil)
 
-	p.discoverPackages(context.Background(), mock, 1, 1)
+	p.discoverPackages(context.Background(), mock, 1, 1, false)
 
 	var pkg persistent.Package
 	db.Where("name = ?", "requests").First(&pkg)
@@ -1022,7 +1022,7 @@ func TestUpsertDiscoveredPackages_MixedStatuses(t *testing.T) {
 
 	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
 
-	p.upsertDiscoveredPackages(context.Background(), 1, rankings, persistent.EcosystemPython)
+	p.upsertDiscoveredPackages(context.Background(), 1, rankings, persistent.EcosystemPython, false)
 
 	tests := []struct {
 		name           string
@@ -1061,7 +1061,7 @@ func TestUpsertDiscoveredPackages_DownloadCountBatchUpdate(t *testing.T) {
 	}
 
 	p := New(db, nil, nil, Config{Concurrency: 1}, nil)
-	p.upsertDiscoveredPackages(context.Background(), 1, rankings, persistent.EcosystemPython)
+	p.upsertDiscoveredPackages(context.Background(), 1, rankings, persistent.EcosystemPython, false)
 
 	var pkgA, pkgB persistent.Package
 	db.Where("name = ?", "pkg-a").First(&pkgA)
@@ -1106,8 +1106,8 @@ func TestDiscoverPackages_MultiEcosystem(t *testing.T) {
 	p := New(db, pyMock, npmMock, Config{Concurrency: 1}, nil)
 
 	// Discover both ecosystems
-	p.discoverPackages(context.Background(), pyMock, 1, 1)
-	p.discoverPackages(context.Background(), npmMock, 1, 1)
+	p.discoverPackages(context.Background(), pyMock, 1, 1, false)
+	p.discoverPackages(context.Background(), npmMock, 1, 1, false)
 
 	var packages []persistent.Package
 	db.Where("org_id = ?", 1).Find(&packages)

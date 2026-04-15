@@ -256,3 +256,25 @@ func (uc *UseCase) ListStalePackages(ctx context.Context, orgID uint, staleBefor
 	}
 	return packages, nil
 }
+
+// RemoveStalePackages removes active packages that have had no updates for
+// the given number of months. Returns the number of packages removed.
+// A value of 0 means auto-removal is disabled.
+func (uc *UseCase) RemoveStalePackages(ctx context.Context, orgID uint, months int) (int, error) {
+	if months <= 0 {
+		return 0, nil
+	}
+
+	staleBefore := time.Now().AddDate(0, -months, 0)
+	count, err := uc.repo.RemoveStaleByOrgID(ctx, orgID, staleBefore)
+	if err != nil {
+		return 0, fmt.Errorf("PackageUseCase.RemoveStalePackages: %w", err)
+	}
+
+	if count > 0 {
+		uc.audit.LogAction(ctx, "auto_remove_stale", "package", 0,
+			fmt.Sprintf("auto-removed %d stale packages (no updates in %d months)", count, months))
+	}
+
+	return count, nil
+}

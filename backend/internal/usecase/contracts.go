@@ -57,6 +57,7 @@ type PackageRepository interface {
 	BulkApprovePackages(ctx context.Context, orgID uint, pkgIDs []uint) (int, error)
 	UpdateDownloadCounts(ctx context.Context, orgID uint, updates []entity.PackageDownloadUpdate) error
 	FindStaleByOrgID(ctx context.Context, orgID uint, staleBefore time.Time) ([]entity.Package, error)
+	RemoveStaleByOrgID(ctx context.Context, orgID uint, staleBefore time.Time) (int, error)
 }
 
 // ReleaseRepository defines persistence operations for Release entities.
@@ -256,6 +257,7 @@ type PackageService interface {
 	BulkApprovePackages(ctx context.Context, orgID uint, pkgIDs []uint) (int, error)
 	ListSuggestions(ctx context.Context, orgID uint, page, limit int) ([]entity.Package, int64, error)
 	ListStalePackages(ctx context.Context, orgID uint, staleBefore time.Time) ([]entity.Package, error)
+	RemoveStalePackages(ctx context.Context, orgID uint, months int) (int, error)
 }
 
 // AlertService defines the business logic operations for alerts.

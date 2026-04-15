@@ -35,13 +35,15 @@ type mockPackageRepo struct {
 	bulkApproveErr       error
 	findSuggestionsErr   error
 	findStaleErr         error
+	removeStaleErr       error
 
 	// Track calls
-	blockCalls   []blockCall
-	unblockCalls []unblockCall
-	removeCalls  []removeCall
-	approveCalls []approveCall
-	rejectCalls  []rejectCall
+	blockCalls       []blockCall
+	unblockCalls     []unblockCall
+	removeCalls      []removeCall
+	approveCalls     []approveCall
+	rejectCalls      []rejectCall
+	removeStaleCalls []removeStalCall
 }
 
 type blockCall struct {
@@ -52,6 +54,10 @@ type unblockCall struct{ orgID, pkgID uint }
 type removeCall struct{ orgID, pkgID uint }
 type approveCall struct{ orgID, pkgID uint }
 type rejectCall struct{ orgID, pkgID uint }
+type removeStalCall struct {
+	orgID       uint
+	staleBefore time.Time
+}
 
 func newMockRepo() *mockPackageRepo {
 	return &mockPackageRepo{
@@ -285,6 +291,21 @@ func (m *mockPackageRepo) FindStaleByOrgID(_ context.Context, orgID uint, _ time
 		}
 	}
 	return result, nil
+}
+
+func (m *mockPackageRepo) RemoveStaleByOrgID(_ context.Context, orgID uint, staleBefore time.Time) (int, error) {
+	m.removeStaleCalls = append(m.removeStaleCalls, removeStalCall{orgID, staleBefore})
+	if m.removeStaleErr != nil {
+		return 0, m.removeStaleErr
+	}
+	count := 0
+	for _, pkg := range m.packages {
+		if pkg.OrgID == orgID && pkg.Status == entity.PackageStatusActive && pkg.UpdatedAt.Before(staleBefore) {
+			pkg.Status = entity.PackageStatusRemoved
+			count++
+		}
+	}
+	return count, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -809,4 +830,82 @@ func TestListStalePackages_RepoError(t *testing.T) {
 	_, err := uc.ListStalePackages(context.Background(), 1, time.Now())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "db error")
+}
+
+// ===========================================================================
+// RemoveStalePackages
+// ===========================================================================
+
+func TestRemoveStalePackages_Success(t *testing.T) {
+	repo, audit, uc := setup()
+	// Seed a stale package (updated long ago)
+	stale := repo.seedPackage(1, "stale-lib", entity.EcosystemPython, entity.PackageStatusActive)
+	stale.UpdatedAt = time.Now().AddDate(0, -7, 0) // 7 months ago
+
+	count, err := uc.RemoveStalePackages(context.Background(), 1, 6)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+	assert.Equal(t, entity.PackageStatusRemoved, repo.packages[stale.ID].Status)
+
+	// Verify audit log
+	require.Len(t, audit.entries, 1)
+	assert.Equal(t, "auto_remove_stale", audit.entries[0].action)
+	assert.Contains(t, audit.entries[0].details, "1 stale packages")
+	assert.Contains(t, audit.entries[0].details, "6 months")
+}
+
+func TestRemoveStalePackages_DisabledWhenZero(t *testing.T) {
+	_, audit, uc := setup()
+
+	count, err := uc.RemoveStalePackages(context.Background(), 1, 0)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count)
+	assert.Empty(t, audit.entries) // No audit log when disabled
+}
+
+func TestRemoveStalePackages_DisabledWhenNegative(t *testing.T) {
+	_, audit, uc := setup()
+
+	count, err := uc.RemoveStalePackages(context.Background(), 1, -1)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count)
+	assert.Empty(t, audit.entries)
+}
+
+func TestRemoveStalePackages_NoStalePackages(t *testing.T) {
+	repo, audit, uc := setup()
+	// Seed a fresh package (updated recently)
+	fresh := repo.seedPackage(1, "fresh-lib", entity.EcosystemNPM, entity.PackageStatusActive)
+	fresh.UpdatedAt = time.Now() // updated just now
+
+	count, err := uc.RemoveStalePackages(context.Background(), 1, 6)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count)
+	assert.Equal(t, entity.PackageStatusActive, repo.packages[fresh.ID].Status)
+	assert.Empty(t, audit.entries) // No audit log when nothing removed
+}
+
+func TestRemoveStalePackages_RepoError(t *testing.T) {
+	repo, _, uc := setup()
+	repo.removeStaleErr = fmt.Errorf("db error")
+
+	_, err := uc.RemoveStalePackages(context.Background(), 1, 6)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "db error")
+}
+
+func TestRemoveStalePackages_OnlyRemovesOrgScoped(t *testing.T) {
+	repo, _, uc := setup()
+	// Org 1 stale
+	stale1 := repo.seedPackage(1, "stale-a", entity.EcosystemPython, entity.PackageStatusActive)
+	stale1.UpdatedAt = time.Now().AddDate(0, -13, 0)
+	// Org 2 stale (should NOT be removed when calling for org 1)
+	stale2 := repo.seedPackage(2, "stale-b", entity.EcosystemNPM, entity.PackageStatusActive)
+	stale2.UpdatedAt = time.Now().AddDate(0, -13, 0)
+
+	count, err := uc.RemoveStalePackages(context.Background(), 1, 12)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+	assert.Equal(t, entity.PackageStatusRemoved, repo.packages[stale1.ID].Status)
+	assert.Equal(t, entity.PackageStatusActive, repo.packages[stale2.ID].Status) // org 2 untouched
 }

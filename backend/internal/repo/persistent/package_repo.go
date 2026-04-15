@@ -305,6 +305,17 @@ func (r *PackageRepo) FindStaleByOrgID(ctx context.Context, orgID uint, staleBef
 	return result, nil
 }
 
+func (r *PackageRepo) RemoveStaleByOrgID(ctx context.Context, orgID uint, staleBefore time.Time) (int, error) {
+	result := r.db.WithContext(ctx).
+		Model(&Package{}).
+		Where("org_id = ? AND status = ? AND updated_at < ?", orgID, PackageStatusActive, staleBefore).
+		Update("status", PackageStatusRemoved)
+	if result.Error != nil {
+		return 0, fmt.Errorf("removing stale packages: %w", result.Error)
+	}
+	return int(result.RowsAffected), nil
+}
+
 // --- Converters ---
 
 func packageToDomain(m *Package) *entity.Package {
