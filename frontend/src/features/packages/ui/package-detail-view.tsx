@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/ui/components/table"
 import { Skeleton } from "@/ui/components/skeleton"
-import { ArrowLeft, Activity, Package as PackageIcon, Ban } from "lucide-react"
+import { ArrowLeft, Activity, Package as PackageIcon, Ban, Info } from "lucide-react"
 import { DetailError } from "@/ui/feedback/detail-error"
 import { formatEcosystem } from "@/domains/common"
 import { formatPopularity, formatFreshness } from "@/domains/packages"
@@ -115,6 +115,19 @@ export const PackageDetailView = ({
           </p>
         )}
       </div>
+
+      {pkg.status === "suggested" && analysisHistory.length > 0 && (
+        <div className="flex gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">Previously monitored</p>
+            <p className="mt-0.5 text-blue-700 dark:text-blue-400">
+              This package was previously monitored and has historical analysis data.
+              Releases during the monitoring gap may not have been analyzed.
+            </p>
+          </div>
+        </div>
+      )}
 
       <Card>
         <CardHeader>

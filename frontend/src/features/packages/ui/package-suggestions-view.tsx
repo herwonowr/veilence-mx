@@ -1,7 +1,10 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
+import { useDebouncedValue } from "@/core/hooks/use-debounced-value"
 import { useSortParams } from "@/core/hooks/use-sort-params"
+import { useFilterParams } from "@/core/hooks/use-filter-params"
 import Link from "next/link"
 import { Card, CardContent, CardHeader } from "@/ui/components/card"
 import { Button } from "@/ui/components/button"
@@ -37,6 +40,7 @@ import {
   SelectValue,
 } from "@/ui/components/select"
 import { formatEcosystem } from "@/domains/common"
+import type { Ecosystem } from "@/domains/common"
 import { formatPopularity } from "@/domains/packages"
 import type { Package } from "@/domains/packages"
 import { SortableHeader } from "@/ui/data/sortable-header"
@@ -63,30 +67,36 @@ import {
   useBulkApprovePackages,
 } from "@/features/packages/hooks/use-packages"
 
+const VALID_ECOSYSTEMS: Ecosystem[] = ["python", "npm"]
+
 export const PackageSuggestionsView = () => {
+  const searchParams = useSearchParams()
+
+  const initialEcosystem = searchParams.get("ecosystem") ?? ""
+
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 20,
   })
   const [bulkAction, setBulkAction] = useState<"all" | "python" | "npm" | null>(null)
   const [search, setSearch] = useState("")
-  const [debouncedSearch, setDebouncedSearch] = useState("")
-  const [ecosystemFilter, setEcosystemFilter] = useState("")
+  const debouncedSearch = useDebouncedValue(search, 300)
+  const [ecosystemFilter, setEcosystemFilter] = useState(
+    VALID_ECOSYSTEMS.includes(initialEcosystem as Ecosystem) ? initialEcosystem : ""
+  )
   const [sorting, setSorting] = useSortParams()
 
-  // Debounce search input to avoid excessive API calls
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search)
-      setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [search])
+  // Sync filter state → URL search params
+  useFilterParams(
+    useMemo(() => ({
+      ecosystem: ecosystemFilter,
+    }), [ecosystemFilter]),
+  )
 
   // Reset to first page when filters or sort change
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-  }, [ecosystemFilter, sorting])
+  }, [debouncedSearch, ecosystemFilter, sorting])
 
   // Server-side search/sort/filter/pagination
   const sort = sorting[0]
@@ -319,10 +329,7 @@ export const PackageSuggestionsView = () => {
               </Label>
               <Select
                 value={ecosystemFilter || "all"}
-                onValueChange={(v) => {
-                  setEcosystemFilter(v === "all" ? "" : (v ?? ""))
-                  setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-                }}
+                onValueChange={(v) => setEcosystemFilter(v === "all" ? "" : (v ?? ""))}
               >
                 <SelectTrigger id="suggestions-ecosystem-filter" className="w-32">
                   <SelectValue>{ecosystemFilter === "python" ? "Python" : ecosystemFilter === "npm" ? "NPM" : "All"}</SelectValue>
