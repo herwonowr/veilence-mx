@@ -44,6 +44,8 @@ export const packageKeys = {
     [...packageKeys.all, "suggestions", page, limit] as const,
   stale: (months?: number) =>
     [...packageKeys.all, "stale", months] as const,
+  suggestionCount: () =>
+    [...packageKeys.all, "suggestion-count"] as const,
 }
 
 export const usePackages = (
@@ -280,4 +282,14 @@ export const useStalePackages = (
     queryKey: packageKeys.stale(months),
     queryFn: () => getStalePackages(months),
     ...options,
+  })
+
+export const useSuggestionCount = () =>
+  useQuery({
+    queryKey: packageKeys.suggestionCount(),
+    queryFn: async () => {
+      const res = await getPackageSuggestions({ limit: 1 })
+      return res.meta?.total ?? 0
+    },
+    staleTime: 30_000,
   })

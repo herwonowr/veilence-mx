@@ -44,7 +44,7 @@ import {
 import type { Package, PackageSource } from "@/domains/packages"
 import type { Ecosystem } from "@/domains/common"
 import { formatPopularity, formatFreshness, popularityLabel } from "@/domains/packages"
-import { Plus, Trash2, RefreshCw, Upload, Ban, ShieldCheck } from "lucide-react"
+import { Plus, Trash2, RefreshCw, Upload, Ban, ShieldCheck, Radar } from "lucide-react"
 import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
 import { TableError } from "@/ui/feedback/table-error"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
@@ -77,6 +77,7 @@ import {
   useBlockPackage,
   useUnblockPackage,
   useDiscoverPackages,
+  useSuggestionCount,
 } from "@/features/packages/hooks/use-packages"
 
 const formatSource = (source: PackageSource): string => {
@@ -154,6 +155,8 @@ export const PackagesListView = () => {
   const blockMutation = useBlockPackage()
   const unblockMutation = useUnblockPackage()
   const discoverMutation = useDiscoverPackages()
+
+  const { data: suggestionsCount = 0 } = useSuggestionCount()
 
   // Reset to first page when filters or sort change
   useEffect(() => {
@@ -439,7 +442,20 @@ export const PackagesListView = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-3xl font-bold">Packages</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold">Packages</h1>
+          <Link href="/packages/suggestions">
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Radar className="h-4 w-4" />
+              Suggestions
+              {suggestionsCount > 0 && (
+                <Badge variant="secondary" className="ml-0.5 px-1.5 py-0 text-xs min-w-[1.25rem] justify-center">
+                  {suggestionsCount}
+                </Badge>
+              )}
+            </Button>
+          </Link>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={handleDiscover} disabled={discoverMutation.isPending}>
             <RefreshCw className={`h-4 w-4 mr-2 ${discoverMutation.isPending ? "animate-spin" : ""}`} />
@@ -504,6 +520,18 @@ export const PackagesListView = () => {
           </Dialog>
         </div>
       </div>
+
+      {suggestionsCount > 0 && (
+        <Link
+          href="/packages/suggestions"
+          className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 hover:bg-amber-100 transition-colors dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300 dark:hover:bg-amber-900"
+        >
+          <Radar className="h-4 w-4 shrink-0" />
+          <span>
+            <strong>{suggestionsCount}</strong> suggestion{suggestionsCount !== 1 ? "s" : ""} pending review
+          </span>
+        </Link>
+      )}
 
       <Card>
         <CardHeader>

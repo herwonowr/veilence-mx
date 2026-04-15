@@ -17,6 +17,7 @@ export {
   useRejectPackage,
   useBulkApprovePackages,
   useStalePackages,
+  useSuggestionCount,
   packageKeys,
 } from "@/features/packages/hooks/use-packages"
 export { useRelease, useReanalyzeRelease, releaseKeys } from "@/features/packages/hooks/use-releases"
