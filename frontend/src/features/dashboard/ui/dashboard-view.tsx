@@ -138,7 +138,7 @@ const DashboardData = () => {
     { width: "w-28", header: "Package" },
     { width: "w-16", header: "Ecosystem" },
     { width: "w-20", header: "Version" },
-    { width: "w-16", header: "Status" },
+    { width: "w-16", header: "Analysis Status" },
     { width: "w-20", header: "Classification" },
   ]
 
@@ -291,7 +291,7 @@ const DashboardData = () => {
                 <TableHead>Package</TableHead>
                 <TableHead className="hidden md:table-cell">Ecosystem</TableHead>
                 <TableHead>Version</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Analysis Status</TableHead>
                 <TableHead className="hidden lg:table-cell">Classification</TableHead>
               </TableRow>
             </TableHeader>
@@ -318,7 +318,7 @@ const DashboardData = () => {
                     {release.status === "completed" ? (
                       <span className="flex items-center gap-1 text-sm text-green-600">
                         <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                        Done
+                        Completed
                       </span>
                     ) : (
                       <Badge variant="secondary">{release.status}</Badge>

@@ -140,7 +140,7 @@ export const PackageDetailView = ({
               <TableRow>
                 <TableHead>Version</TableHead>
                 <TableHead>Published</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Analysis Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

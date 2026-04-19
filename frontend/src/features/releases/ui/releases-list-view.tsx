@@ -131,7 +131,7 @@ export const ReleasesListView = () => {
       ? [{ label: "Ecosystem", value: ecosystemFilter === "python" ? "Python" : "NPM", onRemove: () => setEcosystemFilter("") }]
       : []),
     ...(statusFilter
-      ? [{ label: "Status", value: statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1), onRemove: () => setStatusFilter("") }]
+      ? [{ label: "Analysis Status", value: statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1), onRemove: () => setStatusFilter("") }]
       : []),
     ...(classificationFilter
       ? [{ label: "Classification", value: classificationFilter.charAt(0).toUpperCase() + classificationFilter.slice(1), onRemove: () => setClassificationFilter("") }]
@@ -146,7 +146,7 @@ export const ReleasesListView = () => {
     { width: "w-16", header: "Ecosystem" },
     { width: "w-20", header: "Version" },
     { width: "w-24", header: "Published" },
-    { width: "w-16", header: "Status" },
+    { width: "w-16", header: "Analysis Status" },
     { width: "w-20", header: "Classification" },
   ]
 
@@ -189,12 +189,12 @@ export const ReleasesListView = () => {
       },
       {
         accessorKey: "status",
-        header: ({ column }) => <SortableHeader column={column} title="Status" />,
+        header: ({ column }) => <SortableHeader column={column} title="Analysis Status" />,
         cell: ({ row }) =>
           row.original.status === "completed" ? (
             <span className="flex items-center gap-1 text-sm text-green-600">
               <CheckCircle className="h-3.5 w-3.5" />
-              Done
+              Completed
             </span>
           ) : (
             <Badge variant="secondary">{row.original.status}</Badge>
@@ -272,7 +272,7 @@ export const ReleasesListView = () => {
               </div>
               <div className="space-y-1">
                 <Label htmlFor="releases-status-filter" className="text-xs text-muted-foreground">
-                  Status
+                  Analysis Status
                 </Label>
                 <Select
                   value={statusFilter || "all"}
