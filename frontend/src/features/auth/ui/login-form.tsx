@@ -78,6 +78,8 @@ const LoginFormInner = () => {
     ? rawRedirect
     : "/"
 
+  const isRegistered = searchParams.get("registered") === "true"
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -213,6 +215,14 @@ const LoginFormInner = () => {
             {serverError && (
               <Alert variant="destructive" className="text-center bg-destructive/10 border-destructive">
                 <AlertDescription>{serverError}</AlertDescription>
+              </Alert>
+            )}
+            {isRegistered && !emailVerificationRequired && (
+              <Alert variant="default" data-testid="registered-banner">
+                <MailCheck className="h-4 w-4" />
+                <AlertDescription>
+                  Please check your email to verify your account before signing in.
+                </AlertDescription>
               </Alert>
             )}
             {isLockedOut && (

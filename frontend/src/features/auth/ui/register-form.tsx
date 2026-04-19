@@ -15,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui/components/card"
-import { Shield, Loader2, Eye, EyeOff } from "lucide-react"
+import { Shield, Loader2, Eye, EyeOff, MailCheck } from "lucide-react"
 import { Alert, AlertDescription } from "@/ui/components/alert"
 import { ZodError } from "zod"
 
@@ -33,6 +33,7 @@ export const RegisterForm = () => {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [registrationSuccess, setRegistrationSuccess] = useState(false)
 
   // Password strength calculation
   const passwordStrength = useMemo(() => {
@@ -71,7 +72,7 @@ export const RegisterForm = () => {
       // If the backend created the account but could not generate tokens,
       // it returns a code instructing the user to log in manually.
       if (result?.code === "registration_complete_login_required") {
-        router.push("/login?registered=true")
+        setRegistrationSuccess(true)
         return
       }
       router.push("/workspaces?create=true")
@@ -93,6 +94,32 @@ export const RegisterForm = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (registrationSuccess) {
+    return (
+      <div className="w-full max-w-sm px-4">
+        <Card>
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-lg bg-green-600 text-white">
+              <MailCheck className="size-5" />
+            </div>
+            <CardTitle className="text-xl">Registration successful!</CardTitle>
+            <CardDescription>
+              Check your email for a verification link. You need to verify your
+              email address before you can sign in.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Link href="/login?registered=true">
+              <Button variant="outline" className="w-full">
+                Go to Sign In
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (

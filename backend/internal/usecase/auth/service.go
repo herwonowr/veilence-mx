@@ -178,7 +178,36 @@ func (s *Service) Register(email, password, firstName, lastName string) (*entity
 	}
 
 	slog.Info("user registered", "user_id", user.ID, "email", user.Email)
+
+	// Best-effort: send verification email if email verification is enabled.
+	// Registration succeeds regardless of whether the email is sent.
+	s.sendPostRegistrationVerification(ctx, user)
+
 	return user, nil
+}
+
+// sendPostRegistrationVerification sends a verification email to a newly
+// registered user if the require_email_verification setting is enabled.
+// Errors are logged but never propagated - registration must not fail
+// because of an email delivery issue.
+func (s *Service) sendPostRegistrationVerification(ctx context.Context, user *entity.User) {
+	// Check if email verification is required (global setting at workspace_id=0)
+	if s.settings == nil {
+		return
+	}
+	val, err := s.settings.GetSettingValue(ctx, 0, "require_email_verification")
+	if err != nil {
+		slog.Warn("failed to check email verification setting during registration", "user_id", user.ID, "error", err)
+		return
+	}
+	if val != "true" {
+		return
+	}
+
+	// Generate and send the verification email (reuses existing logic)
+	if _, err := s.GenerateEmailVerificationToken(user.ID); err != nil {
+		slog.Error("failed to send verification email after registration", "user_id", user.ID, "email", user.Email, "error", err)
+	}
 }
 
 // Login authenticates a user and returns a token pair.
