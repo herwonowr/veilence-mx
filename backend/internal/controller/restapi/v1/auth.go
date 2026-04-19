@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -585,7 +587,14 @@ func (h *AuthHandlers) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.Auth.ChangePassword(userID, req.CurrentPassword, req.NewPassword); err != nil {
+	// Hash the caller's refresh token to identify the current session to preserve.
+	var currentTokenHash string
+	if rt := r.Header.Get("X-Refresh-Token"); rt != "" {
+		h := sha256.Sum256([]byte(rt))
+		currentTokenHash = hex.EncodeToString(h[:])
+	}
+
+	if err := h.Auth.ChangePassword(userID, req.CurrentPassword, req.NewPassword, currentTokenHash); err != nil {
 		if errors.Is(err, auth.ErrInvalidPassword) {
 			respondAppError(w, BadRequest("current password is incorrect"))
 			return

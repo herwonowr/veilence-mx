@@ -130,6 +130,13 @@ func (r *SessionRepo) DeleteByUserID(ctx context.Context, userID uint) error {
 	return nil
 }
 
+func (r *SessionRepo) DeleteByUserIDExceptTokenHash(ctx context.Context, userID uint, exceptTokenHash string) error {
+	if err := r.db.WithContext(ctx).Where("user_id = ? AND token_hash != ?", userID, exceptTokenHash).Delete(&Session{}).Error; err != nil {
+		return fmt.Errorf("deleting sessions by user except current: %w", err)
+	}
+	return nil
+}
+
 // --- Converters ---
 
 func sessionToDomain(m *Session) *entity.Session {

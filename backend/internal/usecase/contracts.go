@@ -27,8 +27,10 @@ type RefreshTokenRepository interface {
 	Delete(ctx context.Context, id uint) error
 	DeleteByTokenHash(ctx context.Context, tokenHash string) error
 	DeleteByUserID(ctx context.Context, userID uint) error
+	DeleteByUserIDExceptTokenHash(ctx context.Context, userID uint, exceptTokenHash string) error
 }
 
+// DashboardRepository
 // APIKeyRepository defines persistence operations for APIKey entities.
 type APIKeyRepository interface {
 	FindByID(ctx context.Context, id uint) (*entity.APIKey, error)
@@ -240,6 +242,7 @@ type SessionRepository interface {
 	CountByUserID(ctx context.Context, userID uint) (int64, error)
 	DeleteOldestByUserID(ctx context.Context, userID uint) error
 	DeleteByUserID(ctx context.Context, userID uint) error
+	DeleteByUserIDExceptTokenHash(ctx context.Context, userID uint, exceptTokenHash string) error
 }
 
 // DashboardRepository defines read-only aggregation queries for the dashboard.

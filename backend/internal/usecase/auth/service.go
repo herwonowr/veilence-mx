@@ -294,12 +294,20 @@ func (s *Service) RefreshTokens(refreshToken string) (*TokenPair, error) {
 	return tokens, nil
 }
 
-// Logout invalidates a refresh token.
+// Logout invalidates a refresh token and its associated session.
 func (s *Service) Logout(refreshToken string) error {
 	ctx := context.Background()
 
 	// Hash the incoming token to find the stored hash
 	tokenHash := hashRefreshToken(refreshToken)
+
+	// Delete the associated session so it no longer appears in active sessions.
+	session, err := s.sessions.FindByTokenHash(ctx, tokenHash)
+	if err == nil {
+		if delErr := s.sessions.Delete(ctx, session.ID); delErr != nil {
+			slog.Warn("failed to delete session on logout", "session_id", session.ID, "error", delErr)
+		}
+	}
 
 	if err := s.refreshTokens.DeleteByTokenHash(ctx, tokenHash); err != nil {
 		return fmt.Errorf("deleting refresh token: %w", err)
@@ -888,7 +896,9 @@ func (s *Service) UpdateProfile(userID uint, firstName, lastName string) (*entit
 var ErrInvalidPassword = errors.New("current password is incorrect")
 
 // ChangePassword validates the current password and updates to a new one.
-func (s *Service) ChangePassword(userID uint, currentPassword, newPassword string) error {
+// currentTokenHash identifies the caller's active session so it is preserved;
+// all other sessions and refresh tokens are invalidated. Pass "" to invalidate all.
+func (s *Service) ChangePassword(userID uint, currentPassword, newPassword, currentTokenHash string) error {
 	ctx := context.Background()
 
 	user, err := s.users.FindByID(ctx, userID)
@@ -908,6 +918,24 @@ func (s *Service) ChangePassword(userID uint, currentPassword, newPassword strin
 	user.PasswordHash = passwordHash
 	if err := s.users.Update(ctx, user); err != nil {
 		return fmt.Errorf("updating password: %w", err)
+	}
+
+	// Invalidate all sessions and refresh tokens except the current one
+	// so any stolen tokens are no longer valid after password change.
+	if currentTokenHash != "" {
+		if err := s.refreshTokens.DeleteByUserIDExceptTokenHash(ctx, userID, currentTokenHash); err != nil {
+			slog.Error("failed to invalidate refresh tokens after password change", "user_id", userID, "error", err)
+		}
+		if err := s.sessions.DeleteByUserIDExceptTokenHash(ctx, userID, currentTokenHash); err != nil {
+			slog.Error("failed to invalidate sessions after password change", "user_id", userID, "error", err)
+		}
+	} else {
+		if err := s.refreshTokens.DeleteByUserID(ctx, userID); err != nil {
+			slog.Error("failed to invalidate refresh tokens after password change", "user_id", userID, "error", err)
+		}
+		if err := s.sessions.DeleteByUserID(ctx, userID); err != nil {
+			slog.Error("failed to invalidate sessions after password change", "user_id", userID, "error", err)
+		}
 	}
 
 	slog.Info("user password changed", "user_id", userID)
