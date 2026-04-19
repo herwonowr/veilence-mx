@@ -327,6 +327,7 @@ export const SettingsView = () => {
             </Field>
             <p className="mt-1.5 ml-6 text-sm text-muted-foreground">
               When enabled, users must verify their email address before they can log in.
+              This applies globally — if enabled in any workspace, unverified users are blocked from logging in.
             </p>
             {validationErrors.require_email_verification && (
               <FieldError>{validationErrors.require_email_verification}</FieldError>
