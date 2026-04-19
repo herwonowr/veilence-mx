@@ -9,7 +9,6 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/components/card"
 import { Button } from "@/ui/components/button"
 import { Badge } from "@/ui/components/badge"
-import { Separator } from "@/ui/components/separator"
 import { Input } from "@/ui/components/input"
 import { Field, FieldLabel, FieldError } from "@/ui/components/field"
 import {
@@ -38,7 +37,7 @@ import { ZodError } from "zod"
 export const AccountView = () => {
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold">Account</h1>
         <p className="mt-1 text-muted-foreground">
@@ -52,20 +51,14 @@ export const AccountView = () => {
       {/* Email Verification */}
       <EmailVerificationSection />
 
-      <Separator />
-
       {/* Password Change */}
       <PasswordSection />
 
-      <Separator />
-
-      {/* API Keys */}
-      <ApiKeysSection />
-
-      <Separator />
-
-      {/* Active Sessions */}
-      <SessionsSection />
+      {/* API Keys & Sessions in 2-column grid */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <ApiKeysSection />
+        <SessionsSection />
+      </div>
     </div>
   )
 }
@@ -117,8 +110,8 @@ const ProfileSection = () => {
           Your personal information.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
           <Field data-invalid={!!errors.firstName}>
             <FieldLabel htmlFor="firstName">First Name</FieldLabel>
             <Input
@@ -139,21 +132,25 @@ const ProfileSection = () => {
             />
             {errors.lastName && <FieldError>{errors.lastName}</FieldError>}
           </Field>
+          <Field className="sm:col-span-2">
+            <Label className="text-sm font-medium">Email</Label>
+            <Input
+              value={user?.email ?? ""}
+              disabled
+              className="bg-muted"
+            />
+          </Field>
         </div>
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Email</Label>
-          <p className="text-sm text-muted-foreground">
-            {user?.email ?? "-"}
-          </p>
+        <div className="flex justify-end">
+          <Button onClick={handleSave} disabled={updateProfile.isPending}>
+            {updateProfile.isPending ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 size-4" />
+            )}
+            Save Profile
+          </Button>
         </div>
-        <Button onClick={handleSave} disabled={updateProfile.isPending}>
-          {updateProfile.isPending ? (
-            <Loader2 className="mr-2 size-4 animate-spin" />
-          ) : (
-            <Save className="mr-2 size-4" />
-          )}
-          Save Profile
-        </Button>
       </CardContent>
     </Card>
   )
@@ -272,50 +269,54 @@ const PasswordSection = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="max-w-md space-y-4">
-          <Field data-invalid={!!errors.currentPassword}>
-            <FieldLabel htmlFor="currentPassword">Current Password</FieldLabel>
-            <Input
-              id="currentPassword"
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
-            {errors.currentPassword && <FieldError>{errors.currentPassword}</FieldError>}
-          </Field>
-          <Field data-invalid={!!errors.newPassword}>
-            <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
-            <Input
-              id="newPassword"
-              type="password"
-              placeholder="At least 8 characters"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              autoComplete="new-password"
-            />
-            {errors.newPassword && <FieldError>{errors.newPassword}</FieldError>}
-          </Field>
-          <Field data-invalid={!!errors.confirmPassword}>
-            <FieldLabel htmlFor="confirmPassword">Confirm New Password</FieldLabel>
-            <Input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              autoComplete="new-password"
-            />
-            {errors.confirmPassword && <FieldError>{errors.confirmPassword}</FieldError>}
-          </Field>
-          <Button type="submit" disabled={changePassword.isPending}>
-            {changePassword.isPending && (
-              <Loader2 className="mr-2 size-4 animate-spin" />
-            )}
-            Update Password
-          </Button>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+            <Field data-invalid={!!errors.currentPassword} className="sm:col-span-2">
+              <FieldLabel htmlFor="currentPassword">Current Password</FieldLabel>
+              <Input
+                id="currentPassword"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
+              {errors.currentPassword && <FieldError>{errors.currentPassword}</FieldError>}
+            </Field>
+            <Field data-invalid={!!errors.newPassword}>
+              <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
+              <Input
+                id="newPassword"
+                type="password"
+                placeholder="At least 8 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+              />
+              {errors.newPassword && <FieldError>{errors.newPassword}</FieldError>}
+            </Field>
+            <Field data-invalid={!!errors.confirmPassword}>
+              <FieldLabel htmlFor="confirmPassword">Confirm New Password</FieldLabel>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+              />
+              {errors.confirmPassword && <FieldError>{errors.confirmPassword}</FieldError>}
+            </Field>
+          </div>
+          <div className="flex justify-end">
+            <Button type="submit" disabled={changePassword.isPending}>
+              {changePassword.isPending && (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              )}
+              Update Password
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>
@@ -331,7 +332,7 @@ const ApiKeysSection = () => {
   const activeCount = keys.filter((k) => k.isActive).length
 
   return (
-    <Card>
+    <Card className="flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Key className="size-5" />
@@ -341,31 +342,29 @@ const ApiKeysSection = () => {
           Manage API keys for programmatic access.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {isLoading ? (
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <Badge variant="secondary" className="text-sm">
-                  {activeCount} active {activeCount === 1 ? "key" : "keys"}
-                </Badge>
-                {keys.length > activeCount && (
-                  <span className="text-xs text-muted-foreground">
-                    ({keys.length} total)
-                  </span>
-                )}
-              </>
-            )}
-          </div>
-          <Link href="/settings/api-keys">
-            <Button variant="outline" size="sm">
-              Manage API Keys
-              <ArrowRight className="ml-2 size-4" />
-            </Button>
-          </Link>
+      <CardContent className="flex flex-1 items-end justify-between">
+        <div className="flex items-center gap-3">
+          {isLoading ? (
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          ) : (
+            <>
+              <Badge variant="secondary" className="text-sm">
+                {activeCount} active {activeCount === 1 ? "key" : "keys"}
+              </Badge>
+              {keys.length > activeCount && (
+                <span className="text-xs text-muted-foreground">
+                  ({keys.length} total)
+                </span>
+              )}
+            </>
+          )}
         </div>
+        <Link href="/settings/api-keys">
+          <Button variant="outline" size="sm">
+            Manage API Keys
+            <ArrowRight className="ml-2 size-4" />
+          </Button>
+        </Link>
       </CardContent>
     </Card>
   )
@@ -380,7 +379,7 @@ const SessionsSection = () => {
   const activeCount = sessions.length
 
   return (
-    <Card>
+    <Card className="flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Monitor className="size-5" />
@@ -390,24 +389,22 @@ const SessionsSection = () => {
           View and manage your active sessions across devices.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {isLoading ? (
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            ) : (
-              <Badge variant="secondary" className="text-sm">
-                {activeCount} active {activeCount === 1 ? "session" : "sessions"}
-              </Badge>
-            )}
-          </div>
-          <Link href="/settings/sessions">
-            <Button variant="outline" size="sm">
-              Manage Sessions
-              <ArrowRight className="ml-2 size-4" />
-            </Button>
-          </Link>
+      <CardContent className="flex flex-1 items-end justify-between">
+        <div className="flex items-center gap-3">
+          {isLoading ? (
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          ) : (
+            <Badge variant="secondary" className="text-sm">
+              {activeCount} active {activeCount === 1 ? "session" : "sessions"}
+            </Badge>
+          )}
         </div>
+        <Link href="/settings/sessions">
+          <Button variant="outline" size="sm">
+            Manage Sessions
+            <ArrowRight className="ml-2 size-4" />
+          </Button>
+        </Link>
       </CardContent>
     </Card>
   )
