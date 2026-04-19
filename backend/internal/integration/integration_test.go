@@ -560,9 +560,21 @@ func TestIntegration_APIKeyFlow(t *testing.T) {
 	apiKeyObj := keyData["apiKey"].(map[string]any)
 	keyID := apiKeyObj["id"].(float64)
 
-	// List API keys
-	resp, result = ts.jsonRequestWithCSRF(t, "GET", "/api/auth/api-keys", nil, accessToken)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	// List API keys (must include workspace context)
+	csrfToken, cookies = ts.getCSRFToken(t)
+	req, err = http.NewRequest("GET", ts.server.URL+"/api/auth/api-keys", nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("X-Workspace-ID", fmt.Sprintf("%.0f", wsID))
+	req.Header.Set("X-CSRF-Token", csrfToken)
+	req.Header.Set("Origin", "http://localhost:3000")
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	listResp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	result = parseResponse(t, listResp)
+	assert.Equal(t, http.StatusOK, listResp.StatusCode)
 	keys := result["data"].([]any)
 	assert.Len(t, keys, 1)
 
@@ -583,13 +595,36 @@ func TestIntegration_APIKeyFlow(t *testing.T) {
 	assert.Equal(t, http.StatusOK, apiResp.StatusCode)
 	assert.Equal(t, "apikey@example.com", apiResult["data"].(map[string]any)["email"])
 
-	// Revoke the API key
-	resp, _ = ts.jsonRequestWithCSRF(t, "DELETE", fmt.Sprintf("/api/auth/api-keys/%.0f", keyID), nil, accessToken)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	// Revoke the API key (must include workspace context)
+	csrfToken, cookies = ts.getCSRFToken(t)
+	req, err = http.NewRequest("DELETE", ts.server.URL+fmt.Sprintf("/api/auth/api-keys/%.0f", keyID), nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("X-Workspace-ID", fmt.Sprintf("%.0f", wsID))
+	req.Header.Set("X-CSRF-Token", csrfToken)
+	req.Header.Set("Origin", "http://localhost:3000")
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	revokeResp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, revokeResp.StatusCode)
 
-	// List API keys — should be empty
-	resp, result = ts.jsonRequestWithCSRF(t, "GET", "/api/auth/api-keys", nil, accessToken)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	// List API keys — should be empty (must include workspace context)
+	csrfToken, cookies = ts.getCSRFToken(t)
+	req, err = http.NewRequest("GET", ts.server.URL+"/api/auth/api-keys", nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("X-Workspace-ID", fmt.Sprintf("%.0f", wsID))
+	req.Header.Set("X-CSRF-Token", csrfToken)
+	req.Header.Set("Origin", "http://localhost:3000")
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	listResp2, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	result = parseResponse(t, listResp2)
+	assert.Equal(t, http.StatusOK, listResp2.StatusCode)
 	keys = result["data"].([]any)
 	assert.Len(t, keys, 0)
 }

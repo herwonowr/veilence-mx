@@ -186,7 +186,7 @@ const AlertsContent = () => {
         accessorKey: "message",
         header: ({ column }) => <SortableHeader column={column} title="Message" />,
         cell: ({ row }) => (
-          <span className="max-w-[200px] truncate block">{row.original.message}</span>
+          <span className="max-w-50 truncate block">{row.original.message}</span>
         ),
       },
       {
