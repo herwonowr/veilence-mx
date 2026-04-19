@@ -89,10 +89,16 @@ func (h *AuthHandlers) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Automatically log in the newly registered user to return tokens
+	// Automatically log in the newly registered user to return tokens.
+	// If this fails the user already exists in the DB, so we tell the
+	// frontend to redirect to login rather than showing a dead-end error.
 	user, tokens, err := h.Auth.Login(req.Email, req.Password, r.RemoteAddr, r.UserAgent())
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "registration succeeded but failed to generate tokens")
+		slog.Error("post-registration login failed", "email", req.Email, "error", err)
+		respondJSON(w, http.StatusCreated, map[string]any{
+			"code":    "registration_complete_login_required",
+			"message": "Account created successfully. Please log in to continue.",
+		}, nil)
 		return
 	}
 

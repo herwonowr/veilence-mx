@@ -79,7 +79,7 @@ interface AuthContextValue {
     password: string
     firstName: string
     lastName: string
-  }) => Promise<void>
+  }) => Promise<{ code: string } | undefined>
   logout: () => Promise<void>
   setCurrentWorkspace: (workspace: Workspace) => void
   refreshUser: () => Promise<void>
@@ -224,7 +224,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       firstName: string
       lastName: string
     }) => {
-      const { data } = await fetchApi<LoginResponse>("/api/auth/register", {
+      const { data } = await fetchApi<LoginResponse & { code?: string }>("/api/auth/register", {
         method: "POST",
         body: JSON.stringify(params),
         skipAuth: true,
@@ -232,9 +232,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (!data) {
         throw new Error("Registration failed: no data received")
       }
+      // Backend may return a fallback response when user was created but
+      // token generation failed. Surface the code so the caller can redirect.
+      if (data.code === "registration_complete_login_required") {
+        return { code: data.code } as const
+      }
       storeTokens(data.accessToken, data.refreshToken)
       setUser(data.user)
       await refreshWorkspaces()
+      return undefined
     },
     [refreshWorkspaces]
   )

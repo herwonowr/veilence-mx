@@ -62,12 +62,18 @@ export const RegisterForm = () => {
         confirmPassword,
       })
       setLoading(true)
-      await register({
+      const result = await register({
         email: data.email,
         password: data.password,
         firstName: data.firstName,
         lastName: data.lastName,
       })
+      // If the backend created the account but could not generate tokens,
+      // it returns a code instructing the user to log in manually.
+      if (result?.code === "registration_complete_login_required") {
+        router.push("/login?registered=true")
+        return
+      }
       router.push("/workspaces?create=true")
     } catch (err) {
       if (err instanceof ZodError) {
