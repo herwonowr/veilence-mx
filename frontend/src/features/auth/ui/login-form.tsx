@@ -80,6 +80,13 @@ const LoginFormInner = () => {
 
   const isRegistered = searchParams.get("registered") === "true"
 
+  // Clear the just-registered flag after reading it so direct URL visits don't show the banner
+  useEffect(() => {
+    if (isRegistered) {
+      try { sessionStorage.removeItem("vmx_just_registered") } catch {}
+    }
+  }, [isRegistered])
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -217,7 +224,7 @@ const LoginFormInner = () => {
                 <AlertDescription>{serverError}</AlertDescription>
               </Alert>
             )}
-            {isRegistered && !emailVerificationRequired && (
+            {isRegistered && !emailVerificationRequired && typeof window !== "undefined" && sessionStorage.getItem("vmx_just_registered") === "true" && (
               <Alert variant="default" data-testid="registered-banner">
                 <MailCheck className="h-4 w-4" />
                 <AlertDescription>
