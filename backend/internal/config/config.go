@@ -67,8 +67,8 @@ func NewConfig() (*Config, error) {
 		// Required — no defaults
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		JWTSecret:   os.Getenv("JWT_SECRET"),
-		LLMApiURL:   os.Getenv("LLM_API_URL"),
-		LLMModel:    os.Getenv("LLM_MODEL"),
+		LLMApiURL:   os.Getenv("COPILOT_API_URL"),
+		LLMModel:    os.Getenv("COPILOT_MODEL"),
 
 		// Optional with defaults
 		RedisURL:    envOrDefault("REDIS_URL", "redis://localhost:6379/0"),
@@ -127,6 +127,9 @@ func (c *Config) Validate() error {
 	if c.DatabaseURL == "" {
 		errs = append(errs, "DATABASE_URL is required")
 	}
+	if c.JWTSecret == "" && c.AppEnv == "development" {
+		c.JWTSecret = "veilence-mx-dev-jwt-secret-change-in-production"
+	}
 	if c.JWTSecret == "" {
 		errs = append(errs, "JWT_SECRET is required")
 	}
@@ -134,10 +137,10 @@ func (c *Config) Validate() error {
 		errs = append(errs, "JWT_SECRET must be set to a secure value in production")
 	}
 	if c.LLMApiURL == "" {
-		errs = append(errs, "LLM_API_URL is required")
+		errs = append(errs, "COPILOT_API_URL is required")
 	}
 	if c.LLMModel == "" {
-		errs = append(errs, "LLM_MODEL is required")
+		errs = append(errs, "COPILOT_MODEL is required")
 	}
 	if c.LLMMaxDiffLen <= 0 {
 		errs = append(errs, "LLM_MAX_DIFF_LEN must be > 0")
