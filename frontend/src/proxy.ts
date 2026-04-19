@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 /**
- * SSR route protection middleware.
+ * SSR route protection proxy.
  *
  * Checks for the `vmx_authenticated` UX-hint cookie (set by the client-side
  * auth provider) and redirects unauthenticated users away from protected
@@ -29,7 +29,7 @@ const isAuthPagePath = (pathname: string): boolean =>
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   )
 
-export const middleware = (request: NextRequest): NextResponse => {
+export const proxy = (request: NextRequest): NextResponse => {
   const { pathname } = request.nextUrl
   const hasAuthCookie = request.cookies.has(AUTH_COOKIE)
 
