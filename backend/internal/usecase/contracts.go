@@ -353,7 +353,6 @@ type AuthEmailSender interface {
 // verification toggle) without depending on the full SettingRepository.
 type SettingGetter interface {
 	GetSettingValue(ctx context.Context, workspaceID uint, key string) (string, error)
-	IsSettingEnabledForAnyWorkspace(ctx context.Context, userID uint, key string) (bool, error)
 }
 
 // NotificationDispatcher defines the interface for dispatching system notifications.

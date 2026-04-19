@@ -180,7 +180,7 @@ export const SettingsView = () => {
             <Info className="mt-0.5 size-4 shrink-0" />
             <span>
               The total number of monitored packages grows over time as new packages enter the popularity rankings.
-              Discovery only adds packages — it never removes them.
+              Discovery only adds packages - it never removes them.
             </span>
           </div>
 
@@ -327,7 +327,7 @@ export const SettingsView = () => {
             </Field>
             <p className="mt-1.5 ml-6 text-sm text-muted-foreground">
               When enabled, users must verify their email address before they can log in.
-              This applies globally — if enabled in any workspace, unverified users are blocked from logging in.
+              This applies globally - if enabled, unverified users are blocked from logging in across all workspaces.
             </p>
             {validationErrors.require_email_verification && (
               <FieldError>{validationErrors.require_email_verification}</FieldError>
@@ -407,7 +407,7 @@ export const SettingsView = () => {
         </CardContent>
       </Card>
 
-      {/* Save button — right-aligned */}
+      {/* Save button - right-aligned */}
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={updateMutation.isPending}>
           {updateMutation.isPending ? (

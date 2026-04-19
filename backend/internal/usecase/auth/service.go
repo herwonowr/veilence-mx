@@ -191,12 +191,12 @@ func (s *Service) Login(email, password, ipAddress, userAgent string) (*entity.U
 		return nil, nil, errors.New("invalid email or password")
 	}
 
-	// Check email verification requirement across all user's workspaces
+	// Check global email verification requirement (stored at workspace_id=0)
 	if s.settings != nil && !user.EmailVerified {
-		enabled, err := s.settings.IsSettingEnabledForAnyWorkspace(ctx, user.ID, "require_email_verification")
+		val, err := s.settings.GetSettingValue(ctx, 0, "require_email_verification")
 		if err != nil {
 			slog.Warn("failed to check email verification setting", "error", err)
-		} else if enabled {
+		} else if val == "true" {
 			return nil, nil, ErrEmailVerificationRequired
 		}
 	}
@@ -251,12 +251,12 @@ func (s *Service) RefreshTokens(refreshToken string) (*TokenPair, error) {
 		return nil, errors.New("account is deactivated")
 	}
 
-	// Check email verification requirement across all user's workspaces
+	// Check global email verification requirement (stored at workspace_id=0)
 	if s.settings != nil && !user.EmailVerified {
-		enabled, err := s.settings.IsSettingEnabledForAnyWorkspace(ctx, user.ID, "require_email_verification")
+		val, err := s.settings.GetSettingValue(ctx, 0, "require_email_verification")
 		if err != nil {
 			slog.Warn("failed to check email verification setting", "error", err)
-		} else if enabled {
+		} else if val == "true" {
 			_ = s.refreshTokens.Delete(ctx, stored.ID)
 			return nil, ErrEmailVerificationRequired
 		}

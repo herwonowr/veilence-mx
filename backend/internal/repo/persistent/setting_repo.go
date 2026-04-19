@@ -90,22 +90,6 @@ func (r *SettingRepo) GetSettingValue(ctx context.Context, workspaceID uint, key
 	return setting.Value, nil
 }
 
-// IsSettingEnabledForAnyWorkspace checks whether any workspace the user belongs
-// to has the given setting set to "true". Returns true if at least one match exists.
-func (r *SettingRepo) IsSettingEnabledForAnyWorkspace(ctx context.Context, userID uint, key string) (bool, error) {
-	var count int64
-	err := r.db.WithContext(ctx).
-		Table("settings").
-		Joins("JOIN workspace_members ON workspace_members.workspace_id = settings.workspace_id").
-		Where("workspace_members.user_id = ? AND settings.key = ? AND settings.value = ?", userID, key, "true").
-		Limit(1).
-		Count(&count).Error
-	if err != nil {
-		return false, fmt.Errorf("IsSettingEnabledForAnyWorkspace: %w", err)
-	}
-	return count > 0, nil
-}
-
 // --- Converters ---
 
 func settingToDomain(m *Setting) *entity.Setting {
