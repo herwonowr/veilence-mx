@@ -54,18 +54,19 @@ func (r *DiffRepo) Create(ctx context.Context, diff *entity.Diff) error {
 }
 
 func (r *DiffRepo) FindFirstByReleaseID(ctx context.Context, releaseID uint) (*entity.Diff, error) {
-	var m Diff
+	var ms []Diff
 	err := r.db.WithContext(ctx).
 		Where("release_id = ?", releaseID).
 		Order("created_at ASC").
-		First(&m).Error
+		Limit(1).
+		Find(&ms).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("finding first diff by release: %w", err)
 	}
-	return diffToDomain(&m), nil
+	if len(ms) == 0 {
+		return nil, nil
+	}
+	return diffToDomain(&ms[0]), nil
 }
 
 func (r *DiffRepo) FindByReleaseIDs(ctx context.Context, releaseIDs []uint) ([]entity.Diff, error) {
