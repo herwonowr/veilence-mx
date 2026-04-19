@@ -12,3 +12,4 @@
 *.swo
 
 .playwright-mcp
+_workspace
