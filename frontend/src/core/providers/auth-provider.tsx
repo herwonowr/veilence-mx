@@ -151,6 +151,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const token = getStoredAccessToken()
     if (token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- auth initialization must run once on mount
       Promise.all([refreshUser(), refreshWorkspaces()]).finally(() => {
         setIsLoading(false)
       })

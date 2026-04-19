@@ -253,6 +253,7 @@ export const PackageImportView = () => {
   // Re-compute entries when existingNames changes (lazy re-check)
   useEffect(() => {
     if (entries.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync entry status with external data
       setEntries((prev) =>
         prev.map((e) => ({
           ...e,

@@ -10,13 +10,11 @@ import {
   apiGetApiKeys,
   apiCreateApiKey,
   apiDeleteApiKey,
-  apiGetCurrentMemberRole,
 } from "@/domains/account"
 import type { ApiResponse } from "@/domains/common"
 import type { ApiKeyInfo, APIKeyRole } from "@/domains/account"
 import { toast } from "sonner"
 import { sanitizeErrorMessage } from "@/core"
-import { useAuth } from "@/core/providers/auth-provider"
 
 export const apiKeyKeys = {
   all: ["api-keys"] as const,

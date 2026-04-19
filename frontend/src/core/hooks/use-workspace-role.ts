@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { fetchApi, type ApiResponse } from "@/core/http"
+import { fetchApi } from "@/core/http"
 import { useAuth } from "@/core/providers/auth-provider"
 
 /**

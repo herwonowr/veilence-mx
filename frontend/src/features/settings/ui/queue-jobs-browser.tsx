@@ -186,7 +186,7 @@ export const QueueJobsBrowser = forwardRef<QueueJobsBrowserHandle, QueueJobsBrow
       }
     }
 
-    // TanStack Table instance for pagination
+    // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table API is intentionally non-memoizable
     const table = useReactTable({
       data: jobs,
       columns: [],

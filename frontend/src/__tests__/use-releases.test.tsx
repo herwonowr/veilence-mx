@@ -35,6 +35,7 @@ const createWrapper = () => {
       mutations: { retry: false },
     },
   })
+  // eslint-disable-next-line react/display-name
   return ({ children }: { children: React.ReactNode }) => {
     return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   }

@@ -219,6 +219,7 @@ export const ReleasesListView = () => {
 
   const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize))
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table API is intentionally non-memoizable
   const table = useReactTable({
     data: releases,
     columns,

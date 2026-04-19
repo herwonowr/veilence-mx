@@ -23,7 +23,7 @@ import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton
 import { TableError } from "@/ui/feedback/table-error"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
 import { formatEcosystem } from "@/domains/common"
-import { formatPopularity, popularityLabel } from "@/domains/packages"
+import { formatPopularity } from "@/domains/packages"
 import type { StalePackage } from "@/domains/packages"
 import { ArrowLeft, Clock } from "lucide-react"
 import { Label } from "@/ui/components/label"
@@ -127,6 +127,7 @@ export const StalePackagesView = () => {
     []
   )
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table API is intentionally non-memoizable
   const table = useReactTable({
     data: stalePackages,
     columns,

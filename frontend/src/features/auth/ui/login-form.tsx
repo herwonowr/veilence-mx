@@ -97,11 +97,12 @@ const LoginFormInner = () => {
   )
   const [countdown, setCountdown] = useState(0)
 
-  const isLockedOut = lockoutUntil !== null && Date.now() < lockoutUntil
+  const isLockedOut = lockoutUntil !== null && countdown > 0
 
   // Countdown timer during lockout
   useEffect(() => {
     if (!lockoutUntil) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset countdown when lockout cleared
       setCountdown(0)
       return
     }

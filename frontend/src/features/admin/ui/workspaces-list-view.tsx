@@ -47,6 +47,7 @@ export const WorkspacesListView = () => {
 
   useEffect(() => {
     if (shouldCreateWorkspace) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- open dialog based on URL param
       setDialogOpen(true)
       // Clean up the URL so subsequent navigations to ?create=true trigger the effect again
       router.replace("/workspaces", { scroll: false })

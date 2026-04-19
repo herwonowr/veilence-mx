@@ -87,6 +87,7 @@ export const useNotificationsPage = () => {
 
   // Reset to first page when any filter changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync pagination with filter changes
     setPagination((prev) => ({ ...prev, pageIndex: 0 }))
   }, [readFilter, severityFilter, eventTypeFilter])
 
