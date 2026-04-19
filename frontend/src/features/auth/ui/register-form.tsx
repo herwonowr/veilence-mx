@@ -104,36 +104,34 @@ export const RegisterForm = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {serverError && (
-              <Alert variant="destructive">
+              <Alert variant="destructive" className="text-center bg-destructive/10 border-destructive">
                 <AlertDescription>{serverError}</AlertDescription>
               </Alert>
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field data-invalid={!!errors.firstName}>
-                <FieldLabel htmlFor="firstName">First Name</FieldLabel>
-                <Input
-                  id="firstName"
-                  placeholder="John"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
-                  autoComplete="given-name"
-                />
-                {errors.firstName && <FieldError>{errors.firstName}</FieldError>}
-              </Field>
-              <Field data-invalid={!!errors.lastName}>
-                <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
-                <Input
-                  id="lastName"
-                  placeholder="Doe"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  required
-                  autoComplete="family-name"
-                />
-                {errors.lastName && <FieldError>{errors.lastName}</FieldError>}
-              </Field>
-            </div>
+            <Field data-invalid={!!errors.firstName}>
+              <FieldLabel htmlFor="firstName">First Name</FieldLabel>
+              <Input
+                id="firstName"
+                placeholder="John"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+                autoComplete="given-name"
+              />
+              {errors.firstName && <FieldError>{errors.firstName}</FieldError>}
+            </Field>
+            <Field data-invalid={!!errors.lastName}>
+              <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
+              <Input
+                id="lastName"
+                placeholder="Doe"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
+                autoComplete="family-name"
+              />
+              {errors.lastName && <FieldError>{errors.lastName}</FieldError>}
+            </Field>
             <Field data-invalid={!!errors.email}>
               <FieldLabel htmlFor="email">Email</FieldLabel>
               <Input
@@ -165,7 +163,7 @@ export const RegisterForm = () => {
                 variant="ghost"
                 size="icon-xs"
                 type="button"
-                className="absolute right-2 top-[30px] text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-2 top-7.5 text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setShowPassword((prev) => !prev)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
                 tabIndex={-1}
@@ -207,7 +205,7 @@ export const RegisterForm = () => {
                 variant="ghost"
                 size="icon-xs"
                 type="button"
-                className="absolute right-2 top-[30px] text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-2 top-7.5 text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setShowConfirmPassword((prev) => !prev)}
                 aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                 tabIndex={-1}
