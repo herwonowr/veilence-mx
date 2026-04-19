@@ -10,7 +10,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
-// ListAuditLogs handles GET /api/workspaces/{workspaceId}/audit-logs — returns a paginated
+// ListAuditLogs handles GET /api/workspaces/{workspaceId}/audit-logs - returns a paginated
 // list of audit logs for a workspace with optional filters.
 func (h *AuditHandlers) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())

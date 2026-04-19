@@ -1,5 +1,5 @@
 // Package usecase defines the business logic interfaces for the application.
-// All repository and service interfaces are defined here — the consumer defines the contract.
+// All repository and service interfaces are defined here - the consumer defines the contract.
 // Implementations live in repo/ (for persistence) or other outer-layer packages.
 package usecase
 

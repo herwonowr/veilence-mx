@@ -49,22 +49,21 @@ type Config struct {
 	SMTPUseTLS   bool
 
 	// Settings seed defaults (from env)
-	DiscoveryScanDepth              string
-	DiscoveryAutoApprove            string
-	StaleAutoRemoveMonths           string
-	PackageCountWarningThreshold    string
-	RequireEmailVerification        string
+	DiscoveryScanDepth           string
+	DiscoveryAutoApprove         string
+	StaleAutoRemoveMonths        string
+	PackageCountWarningThreshold string
+	RequireEmailVerification     string
 }
 
 // NewConfig loads configuration from environment variables with sensible defaults for optional fields.
 func NewConfig() (*Config, error) {
-	// Load .env file before reading env vars. Ignore error — file is optional
+	// Load .env file before reading env vars. Ignore error - file is optional
 	// (env vars may be set directly in production).
 	_ = godotenv.Load()
 
-
 	cfg := &Config{
-		// Required — no defaults
+		// Required - no defaults
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		JWTSecret:   os.Getenv("JWT_SECRET"),
 		LLMApiURL:   os.Getenv("COPILOT_API_URL"),

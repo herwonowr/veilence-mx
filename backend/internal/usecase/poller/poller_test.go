@@ -168,7 +168,7 @@ func TestCheckPackageForNewReleases_FirstTime_IncludesBaseline(t *testing.T) {
 	// First time: takes latest + one baseline = 2 releases
 	assert.Len(t, releases, 2)
 
-	// Oldest first — baseline (2.30.0) should have lower ID
+	// Oldest first - baseline (2.30.0) should have lower ID
 	assert.Equal(t, "2.30.0", releases[0].Version)
 	assert.Equal(t, "2.31.0", releases[1].Version)
 }
@@ -196,7 +196,7 @@ func TestCheckPackageForNewReleases_ExistingRelease_NoBaseline(t *testing.T) {
 	dbPkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
 	db.Create(&dbPkg)
 	pkg := entity.Package{ID: dbPkg.ID, Name: "requests", Ecosystem: entity.EcosystemPython, Status: entity.PackageStatusActive, Source: entity.PackageSourceDiscovered}
-	// Already have a previous release — no baseline needed
+	// Already have a previous release - no baseline needed
 	db.Create(&persistent.Release{PackageID: pkg.ID, Version: "2.31.0", PublishedAt: now.Add(-24 * time.Hour), Status: persistent.ReleaseStatusCompleted})
 
 	err := p.checkPackageForNewReleases(context.Background(), mock, pkg)
@@ -291,7 +291,7 @@ func TestCheckPackageForNewReleases_UpdatesMetadata(t *testing.T) {
 }
 
 // TestCheckPackageForNewReleases_AllMissedReleases verifies that when multiple
-// releases are published since the last known, ALL of them are created — not
+// releases are published since the last known, ALL of them are created - not
 // just the latest one (the key behavioral change from the old applyVersionDepth).
 func TestCheckPackageForNewReleases_AllMissedReleases(t *testing.T) {
 	db := setupTestDB(t)
@@ -361,7 +361,7 @@ func TestCheckPackageForNewReleases_Idempotent(t *testing.T) {
 	pkg := entity.Package{ID: dbPkg.ID, Name: "requests", Ecosystem: entity.EcosystemPython, Status: entity.PackageStatusActive, Source: entity.PackageSourceDiscovered}
 	db.Create(&persistent.Release{PackageID: pkg.ID, Version: "2.31.0", PublishedAt: now.Add(-24 * time.Hour), Status: persistent.ReleaseStatusCompleted})
 
-	// Run twice — should not create duplicate releases
+	// Run twice - should not create duplicate releases
 	err := p.checkPackageForNewReleases(context.Background(), mock, pkg)
 	require.NoError(t, err)
 	err = p.checkPackageForNewReleases(context.Background(), mock, pkg)
@@ -380,7 +380,7 @@ func TestDiscoverPackages_NewPackages(t *testing.T) {
 	db := setupTestDB(t)
 
 	mock := &mockRegistry{
-		name:        "python",
+		name: "python",
 		topPackages: []entity.PackageRanking{
 			{Name: "requests", Rank: 1, DownloadCount: 1000000},
 			{Name: "boto3", Rank: 2, DownloadCount: 500000},
@@ -418,7 +418,7 @@ func TestDiscoverPackages_UpdateExistingRank(t *testing.T) {
 	db.Create(&persistent.Package{WorkspaceID: 1, Name: "requests", Ecosystem: "python", Rank: &rank, Source: persistent.PackageSourceDiscovered, Status: persistent.PackageStatusActive})
 
 	mock := &mockRegistry{
-		name:        "python",
+		name: "python",
 		topPackages: []entity.PackageRanking{
 			{Name: "requests", Rank: 1, DownloadCount: 2000000},
 		},
@@ -446,7 +446,7 @@ func TestDiscoverPackages_SkipsBlockedPackages(t *testing.T) {
 	now := time.Now()
 	rank := uint(10)
 	db.Create(&persistent.Package{
-		WorkspaceID:         1,
+		WorkspaceID:   1,
 		Name:          "malicious-pkg",
 		Ecosystem:     "python",
 		Rank:          &rank,
@@ -457,7 +457,7 @@ func TestDiscoverPackages_SkipsBlockedPackages(t *testing.T) {
 	})
 
 	mock := &mockRegistry{
-		name:        "python",
+		name: "python",
 		topPackages: []entity.PackageRanking{
 			{Name: "malicious-pkg", Rank: 1},
 		},
@@ -480,16 +480,16 @@ func TestDiscoverPackages_ReAddsRemovedPackages(t *testing.T) {
 
 	rank := uint(5)
 	db.Create(&persistent.Package{
-		WorkspaceID:     1,
-		Name:      "requests",
-		Ecosystem: "python",
-		Rank:      &rank,
-		Source:    persistent.PackageSourceDiscovered,
-		Status:    persistent.PackageStatusRemoved,
+		WorkspaceID: 1,
+		Name:        "requests",
+		Ecosystem:   "python",
+		Rank:        &rank,
+		Source:      persistent.PackageSourceDiscovered,
+		Status:      persistent.PackageStatusRemoved,
 	})
 
 	mock := &mockRegistry{
-		name:        "python",
+		name: "python",
 		topPackages: []entity.PackageRanking{
 			{Name: "requests", Rank: 1, DownloadCount: 5000000},
 		},
@@ -518,7 +518,7 @@ func TestDiscoverPackages_RegistryError(t *testing.T) {
 
 	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	// Should not panic — just logs the error
+	// Should not panic - just logs the error
 	p.discoverPackages(context.Background(), mock, 10, 1, false)
 
 	var count int64
@@ -534,7 +534,7 @@ func TestDiscoverPackages_AdditiveOnly(t *testing.T) {
 	db.Create(&persistent.Package{WorkspaceID: 1, Name: "old-pkg", Ecosystem: "python", Rank: &rank, Source: persistent.PackageSourceDiscovered, Status: persistent.PackageStatusActive})
 
 	mock := &mockRegistry{
-		name:        "python",
+		name: "python",
 		topPackages: []entity.PackageRanking{
 			{Name: "new-pkg", Rank: 1},
 		},
@@ -551,7 +551,7 @@ func TestDiscoverPackages_AdditiveOnly(t *testing.T) {
 
 	var oldPkg persistent.Package
 	db.Where("name = ?", "old-pkg").First(&oldPkg)
-	// old-pkg NOT removed — discovery is additive only
+	// old-pkg NOT removed - discovery is additive only
 	assert.Equal(t, persistent.PackageStatusActive, oldPkg.Status)
 
 	// New package is suggested, not active
@@ -565,7 +565,7 @@ func TestSyncTopPackages_BackwardCompat(t *testing.T) {
 	db := setupTestDB(t)
 
 	mock := &mockRegistry{
-		name:        "python",
+		name: "python",
 		topPackages: []entity.PackageRanking{
 			{Name: "requests", Rank: 1},
 			{Name: "flask", Rank: 2},
@@ -676,21 +676,21 @@ func TestGetDiscoveryScanDepth_InvalidValue(t *testing.T) {
 
 func TestIsWorkspaceDue_NeverPolled(t *testing.T) {
 	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
-	// Never polled — should be immediately due
+	// Never polled - should be immediately due
 	assert.True(t, p.isWorkspaceDue(1, "monitor", 5*time.Minute))
 }
 
 func TestIsWorkspaceDue_RecentlyPolled(t *testing.T) {
 	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
 	p.markWorkspacePolled(1, "monitor")
-	// Just polled — should NOT be due yet
+	// Just polled - should NOT be due yet
 	assert.False(t, p.isWorkspaceDue(1, "monitor", 5*time.Minute))
 }
 
 func TestIsWorkspaceDue_SeparatePurposes(t *testing.T) {
 	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
 	p.markWorkspacePolled(1, "monitor")
-	// Monitor is marked, but discover is never polled — should be due
+	// Monitor is marked, but discover is never polled - should be due
 	assert.True(t, p.isWorkspaceDue(1, "discover", 5*time.Minute))
 	assert.False(t, p.isWorkspaceDue(1, "monitor", 5*time.Minute))
 }
@@ -764,15 +764,15 @@ func TestMonitorWorkspacePackages_ChecksActivePackages(t *testing.T) {
 
 	p := New(persistent.NewPollerRepo(db), pyMock, npmMock, Config{Concurrency: 5}, nil, nil)
 
-	// Active packages — both ecosystems in same workspace
+	// Active packages - both ecosystems in same workspace
 	db.Create(&persistent.Package{WorkspaceID: 1, Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
 	db.Create(&persistent.Package{WorkspaceID: 1, Name: "express", Ecosystem: "npm", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
 
-	// Blocked package — should NOT be loaded
+	// Blocked package - should NOT be loaded
 	blockedAt := time.Now()
 	db.Create(&persistent.Package{WorkspaceID: 1, Name: "blocked-pkg", Ecosystem: "python", Status: persistent.PackageStatusBlocked, Source: persistent.PackageSourceDiscovered, BlockedAt: &blockedAt})
 
-	// Removed package — should NOT be loaded
+	// Removed package - should NOT be loaded
 	db.Create(&persistent.Package{WorkspaceID: 1, Name: "removed-pkg", Ecosystem: "python", Status: persistent.PackageStatusRemoved, Source: persistent.PackageSourceDiscovered})
 
 	checked := p.monitorWorkspacePackages(context.Background(), 1)
@@ -804,19 +804,19 @@ func TestRunMonitorCycle_SkipsNonDueWorkspaces(t *testing.T) {
 	// Create an active package so the workspace shows up
 	db.Create(&persistent.Package{WorkspaceID: 1, Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
 
-	// First cycle — workspace is due (never polled)
+	// First cycle - workspace is due (never polled)
 	p.runMonitorCycle(context.Background())
 
 	var count1 int64
 	db.Model(&persistent.Release{}).Count(&count1)
 	assert.Greater(t, count1, int64(0))
 
-	// Second cycle immediately — workspace should NOT be due yet
+	// Second cycle immediately - workspace should NOT be due yet
 	p.runMonitorCycle(context.Background())
 
 	var count2 int64
 	db.Model(&persistent.Release{}).Count(&count2)
-	// No additional releases — workspace was skipped
+	// No additional releases - workspace was skipped
 	assert.Equal(t, count1, count2)
 }
 
@@ -828,14 +828,14 @@ func TestRunDiscoveryCycle_DiscoversForDueWorkspaces(t *testing.T) {
 	db := setupTestDB(t)
 
 	pyMock := &mockRegistry{
-		name:        "python",
+		name: "python",
 		topPackages: []entity.PackageRanking{
 			{Name: "requests", Rank: 1},
 			{Name: "flask", Rank: 2},
 		},
 	}
 	npmMock := &mockRegistry{
-		name:        "npm",
+		name: "npm",
 		topPackages: []entity.PackageRanking{
 			{Name: "express", Rank: 1},
 			{Name: "lodash", Rank: 2},
@@ -867,7 +867,7 @@ func TestRunDiscoveryCycle_ZeroScanDepth_Skips(t *testing.T) {
 	db := setupTestDB(t)
 
 	pyMock := &mockRegistry{
-		name:        "python",
+		name: "python",
 		topPackages: []entity.PackageRanking{
 			{Name: "requests", Rank: 1},
 		},
@@ -878,7 +878,7 @@ func TestRunDiscoveryCycle_ZeroScanDepth_Skips(t *testing.T) {
 		Concurrency:       1,
 	}, nil, nil)
 
-	// Set scan depth to 0 — should skip discovery
+	// Set scan depth to 0 - should skip discovery
 	db.Create(&persistent.Setting{WorkspaceID: 1, Key: entity.SettingDiscoveryScanDepth, Value: "0"})
 
 	p.runDiscoveryCycle(context.Background())
@@ -943,17 +943,17 @@ func TestDiscoverPackages_SuggestedPackagesGetUpdated(t *testing.T) {
 	// Pre-existing suggested package with outdated metrics
 	rank := uint(10)
 	db.Create(&persistent.Package{
-		WorkspaceID:           1,
-		Name:            "requests",
-		Ecosystem:       "python",
-		Rank:            &rank,
-		Source:          persistent.PackageSourceDiscovered,
-		Status:          persistent.PackageStatusSuggested,
-		DownloadCount:   100000,
+		WorkspaceID:   1,
+		Name:          "requests",
+		Ecosystem:     "python",
+		Rank:          &rank,
+		Source:        persistent.PackageSourceDiscovered,
+		Status:        persistent.PackageStatusSuggested,
+		DownloadCount: 100000,
 	})
 
 	mock := &mockRegistry{
-		name:        "python",
+		name: "python",
 		topPackages: []entity.PackageRanking{
 			{Name: "requests", Rank: 1, DownloadCount: 2000000},
 		},
@@ -987,11 +987,11 @@ func TestDiscoverPackages_SuggestedNotMonitored(t *testing.T) {
 
 	p := New(persistent.NewPollerRepo(db), pyMock, nil, Config{Concurrency: 5}, nil, nil)
 
-	// Suggested package — should NOT be loaded for monitoring
+	// Suggested package - should NOT be loaded for monitoring
 	db.Create(&persistent.Package{WorkspaceID: 1, Name: "suggested-pkg", Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
 
 	checked := p.monitorWorkspacePackages(context.Background(), 1)
-	// Suggested packages are not monitored — only active ones
+	// Suggested packages are not monitored - only active ones
 	assert.Equal(t, 0, checked)
 
 	// No releases should be created
@@ -1092,13 +1092,13 @@ func TestDiscoverPackages_MultiEcosystem(t *testing.T) {
 	db := setupTestDB(t)
 
 	pyMock := &mockRegistry{
-		name:        "python",
+		name: "python",
 		topPackages: []entity.PackageRanking{
 			{Name: "requests", Rank: 1, DownloadCount: 1000000},
 		},
 	}
 	npmMock := &mockRegistry{
-		name:        "npm",
+		name: "npm",
 		topPackages: []entity.PackageRanking{
 			{Name: "requests", Rank: 1, DownloadCount: 500000}, // Same name, different ecosystem
 		},

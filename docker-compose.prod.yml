@@ -1,4 +1,4 @@
-# docker-compose.prod.yml — Production configuration for Veilence-MX
+# docker-compose.prod.yml - Production configuration for Veilence-MX
 #
 # Usage:
 #   docker compose -f docker-compose.prod.yml up -d --build
@@ -159,10 +159,10 @@ volumes:
     driver: local
 
 networks:
-  # Internal network — database and Redis are NOT exposed to the host
+  # Internal network - database and Redis are NOT exposed to the host
   internal:
     driver: bridge
     internal: true
-  # External network — API and frontend are accessible from the host
+  # External network - API and frontend are accessible from the host
   external:
     driver: bridge

@@ -7,7 +7,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
-// ListRoles handles GET /api/workspaces/{workspaceId}/roles — lists workspace roles.
+// ListRoles handles GET /api/workspaces/{workspaceId}/roles - lists workspace roles.
 func (h *WorkspaceHandlers) ListRoles(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == 0 {
@@ -39,7 +39,7 @@ func (h *WorkspaceHandlers) ListRoles(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, result, nil)
 }
 
-// ListPermissions handles GET /api/permissions — lists all available system permissions.
+// ListPermissions handles GET /api/permissions - lists all available system permissions.
 func (h *WorkspaceHandlers) ListPermissions(w http.ResponseWriter, r *http.Request) {
 	perms, err := h.RBAC.GetAllPermissions()
 	if err != nil {

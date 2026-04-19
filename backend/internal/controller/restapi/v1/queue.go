@@ -82,7 +82,7 @@ func (h *QueueHandlers) GetDeadJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// No type filter — fetch from all queue types and merge
+	// No type filter - fetch from all queue types and merge
 	var allJobs []queue.Job
 	for _, jt := range []string{queue.JobTypeDiff, queue.JobTypeAnalyze} {
 		jobs, _, err := h.Queue.DeadJobs(r.Context(), jt, 0, 50)
@@ -128,7 +128,7 @@ func (h *QueueHandlers) RetryDeadJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// No type filter — retry dead jobs from all queue types
+	// No type filter - retry dead jobs from all queue types
 	totalCount := 0
 	for _, jt := range []string{queue.JobTypeDiff, queue.JobTypeAnalyze} {
 		count, err := h.Queue.RequeueAllDead(r.Context(), jt)
@@ -175,11 +175,11 @@ func (h *QueueHandlers) GetQueueJobs(w http.ResponseWriter, r *http.Request) {
 	if !validJobStatuses[status] {
 		// Provide helpful message for completed/failed
 		if status == "completed" {
-			respondError(w, http.StatusBadRequest, "completed jobs are counter-only and cannot be listed — use GET /api/queue/stats for the completed count")
+			respondError(w, http.StatusBadRequest, "completed jobs are counter-only and cannot be listed - use GET /api/queue/stats for the completed count")
 			return
 		}
 		if status == "failed" {
-			respondError(w, http.StatusBadRequest, "failed is not a browsable status — retrying jobs appear as 'pending' with lastError set, exhausted jobs appear as 'dead'")
+			respondError(w, http.StatusBadRequest, "failed is not a browsable status - retrying jobs appear as 'pending' with lastError set, exhausted jobs appear as 'dead'")
 			return
 		}
 		respondError(w, http.StatusBadRequest, "invalid status parameter: must be 'pending', 'processing', or 'dead'")

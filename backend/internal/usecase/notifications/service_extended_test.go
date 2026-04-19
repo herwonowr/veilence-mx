@@ -112,7 +112,7 @@ func TestSMTPConfig_IsConfigured(t *testing.T) {
 }
 
 // =====================================================================
-// ListChannels — empty org
+// ListChannels - empty org
 // =====================================================================
 
 func TestListChannels_EmptyOrg(t *testing.T) {
@@ -125,7 +125,7 @@ func TestListChannels_EmptyOrg(t *testing.T) {
 }
 
 // =====================================================================
-// ListRules — empty org
+// ListRules - empty org
 // =====================================================================
 
 func TestListRules_EmptyOrg(t *testing.T) {
@@ -138,7 +138,7 @@ func TestListRules_EmptyOrg(t *testing.T) {
 }
 
 // =====================================================================
-// Dispatch — email channel (SMTP not configured)
+// Dispatch - email channel (SMTP not configured)
 // =====================================================================
 
 func TestDispatch_EmailChannel_SMTPNotConfigured(t *testing.T) {
@@ -150,7 +150,7 @@ func TestDispatch_EmailChannel_SMTPNotConfigured(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "Email Ch", entity.NotificationChannelEmail, config)
 	createTestRule(t, svc, 1, ch.ID, "low")
 
-	// Dispatch — should create notification record but skip email (SMTP not configured)
+	// Dispatch - should create notification record but skip email (SMTP not configured)
 	svc.Dispatch(context.Background(), 1, "critical", "Email Test", "Test body")
 
 	// Notification record should still be created
@@ -192,7 +192,7 @@ func TestDispatch_EmailChannel_EmptyRecipients(t *testing.T) {
 }
 
 // =====================================================================
-// Dispatch — email channel with configured SMTP (unreachable server)
+// Dispatch - email channel with configured SMTP (unreachable server)
 // =====================================================================
 
 func TestDispatch_EmailChannel_SMTPConfiguredButUnreachable(t *testing.T) {
@@ -238,7 +238,7 @@ func TestDispatch_EmailChannel_MultipleRecipients(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "Multi Recip", entity.NotificationChannelEmail, config)
 	createTestRule(t, svc, 1, ch.ID, "low")
 
-	// Should not panic — will fail on SMTP connect but exercises the email path
+	// Should not panic - will fail on SMTP connect but exercises the email path
 	svc.Dispatch(context.Background(), 1, "critical", "Multi Recipients", "Testing multiple recipients")
 
 	var notifs []persistent.Notification
@@ -247,7 +247,7 @@ func TestDispatch_EmailChannel_MultipleRecipients(t *testing.T) {
 }
 
 // =====================================================================
-// Dispatch — Slack channel
+// Dispatch - Slack channel
 // =====================================================================
 
 func TestDispatch_SlackChannel_Success(t *testing.T) {
@@ -318,7 +318,7 @@ func TestDispatch_SlackChannel_ServerError(t *testing.T) {
 	ch := createTestChannel(t, svc, 1, "Error Slack", entity.NotificationChannelSlack, config)
 	createTestRule(t, svc, 1, ch.ID, "low")
 
-	// Should not panic — logs the error
+	// Should not panic - logs the error
 	svc.Dispatch(context.Background(), 1, "critical", "Slack Error", "Server returns 500")
 
 	var notifs []persistent.Notification
@@ -343,7 +343,7 @@ func TestDispatch_SlackChannel_UnreachableURL(t *testing.T) {
 }
 
 // =====================================================================
-// Dispatch — unknown channel type
+// Dispatch - unknown channel type
 // =====================================================================
 
 func TestDispatch_UnknownChannelType(t *testing.T) {
@@ -352,24 +352,24 @@ func TestDispatch_UnknownChannelType(t *testing.T) {
 
 	// Create channel with unknown type directly in DB
 	ch := &persistent.NotificationChannel{
-		WorkspaceID:    1,
-		Name:     "Unknown Type",
-		Type:     "carrier_pigeon",
-		Config:   "{}",
-		IsActive: true,
+		WorkspaceID: 1,
+		Name:        "Unknown Type",
+		Type:        "carrier_pigeon",
+		Config:      "{}",
+		IsActive:    true,
 	}
 	require.NoError(t, db.Create(ch).Error)
 
 	// Create rule linked to this channel
 	rule := &persistent.NotificationRule{
-		WorkspaceID:     1,
-		ChannelID: ch.ID,
-		Severity:  "low",
-		IsActive:  true,
+		WorkspaceID: 1,
+		ChannelID:   ch.ID,
+		Severity:    "low",
+		IsActive:    true,
 	}
 	require.NoError(t, db.Create(rule).Error)
 
-	// Should not panic — logs a warning
+	// Should not panic - logs a warning
 	svc.Dispatch(context.Background(), 1, "critical", "Unknown Type", "Carrier pigeon channel")
 
 	var notifs []persistent.Notification

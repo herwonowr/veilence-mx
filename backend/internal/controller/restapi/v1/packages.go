@@ -342,7 +342,7 @@ func parseListFormat(content string) ([]importPackageEntry, error) {
 	return entries, nil
 }
 
-// ImportPackages handles POST /api/packages/bulk-import — bulk adds packages to monitoring.
+// ImportPackages handles POST /api/packages/bulk-import - bulk adds packages to monitoring.
 // Supports format-based parsing (requirements_txt, package_json, list) or a legacy
 // pre-parsed packages array.
 func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request) {

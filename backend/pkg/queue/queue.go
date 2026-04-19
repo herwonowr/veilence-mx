@@ -418,7 +418,7 @@ func (q *Queue) PendingJobs(ctx context.Context, jobType string, offset, limit i
 	for _, id := range jobIDs {
 		job, err := q.loadJob(ctx, id)
 		if err != nil {
-			continue // expired hash key — skip gracefully
+			continue // expired hash key - skip gracefully
 		}
 		jobs = append(jobs, *job)
 	}
@@ -464,7 +464,7 @@ func (q *Queue) ProcessingJobs(ctx context.Context, jobType string, offset, limi
 	for _, id := range jobIDs {
 		job, err := q.loadJob(ctx, id)
 		if err != nil {
-			// Hash expired between cleanup and load — remove stale member.
+			// Hash expired between cleanup and load - remove stale member.
 			q.rdb.ZRem(ctx, processingSet+jobType, id)
 			total--
 			continue
@@ -516,7 +516,7 @@ func (q *Queue) DeadJobs(ctx context.Context, jobType string, offset, limit int)
 	for _, id := range deadIDs {
 		job, err := q.loadJob(ctx, id)
 		if err != nil {
-			// Hash expired between cleanup and load — remove stale member.
+			// Hash expired between cleanup and load - remove stale member.
 			q.rdb.ZRem(ctx, deadSet+jobType, id)
 			total--
 			continue

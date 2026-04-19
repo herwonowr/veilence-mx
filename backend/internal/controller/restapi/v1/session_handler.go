@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 )
 
@@ -89,7 +88,7 @@ func (h *SessionHandlers) RevokeSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Prevent deleting the current session — identify it via X-Refresh-Token header
+	// Prevent deleting the current session - identify it via X-Refresh-Token header
 	if rt := r.Header.Get("X-Refresh-Token"); rt != "" {
 		rtHash := sha256.Sum256([]byte(rt))
 		currentTokenHash := hex.EncodeToString(rtHash[:])

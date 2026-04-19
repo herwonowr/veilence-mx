@@ -23,8 +23,8 @@ type mockSettingRepo struct {
 	store map[string]entity.Setting
 
 	// errors lets tests inject errors for specific methods.
-	findByWorkspaceIDErr    error
-	upsertByOrgKeyErr error
+	findByWorkspaceIDErr error
+	upsertByOrgKeyErr    error
 }
 
 func newMockRepo() *mockSettingRepo {
@@ -116,7 +116,7 @@ func TestGetSettings_EmptyOrg(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — invalid key
+// UpdateSettings - invalid key
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_InvalidKey(t *testing.T) {
@@ -131,7 +131,7 @@ func TestUpdateSettings_InvalidKey(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — discovery_scan_depth validation
+// UpdateSettings - discovery_scan_depth validation
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_DiscoveryScanDepth(t *testing.T) {
@@ -169,7 +169,7 @@ func TestUpdateSettings_DiscoveryScanDepth(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — diff_size_limit validation
+// UpdateSettings - diff_size_limit validation
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_DiffSizeLimit(t *testing.T) {
@@ -206,7 +206,7 @@ func TestUpdateSettings_DiffSizeLimit(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — monitoring_interval validation
+// UpdateSettings - monitoring_interval validation
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_MonitoringInterval(t *testing.T) {
@@ -221,10 +221,10 @@ func TestUpdateSettings_MonitoringInterval(t *testing.T) {
 		{"valid 24 hours", "24h", false},
 		{"valid 168 hours (max)", "168h", false},
 		{"valid compound", "1h30m", false},
-		{"too short — 59 seconds", "59s", true},
-		{"too short — 0s", "0s", true},
-		{"too long — 169 hours", "169h", true},
-		{"too long — 200h", "200h", true},
+		{"too short - 59 seconds", "59s", true},
+		{"too short - 0s", "0s", true},
+		{"too long - 169 hours", "169h", true},
+		{"too long - 200h", "200h", true},
 		{"not a duration", "abc", true},
 		{"empty", "", true},
 		{"negative", "-5m", true},
@@ -249,7 +249,7 @@ func TestUpdateSettings_MonitoringInterval(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — discovery_interval validation
+// UpdateSettings - discovery_interval validation
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_DiscoveryInterval(t *testing.T) {
@@ -285,7 +285,7 @@ func TestUpdateSettings_DiscoveryInterval(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — email_digest_enabled validation
+// UpdateSettings - email_digest_enabled validation
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_EmailDigestEnabled(t *testing.T) {
@@ -320,7 +320,7 @@ func TestUpdateSettings_EmailDigestEnabled(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — email_digest_frequency validation
+// UpdateSettings - email_digest_frequency validation
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_EmailDigestFrequency(t *testing.T) {
@@ -355,7 +355,7 @@ func TestUpdateSettings_EmailDigestFrequency(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — email_digest_recipients validation
+// UpdateSettings - email_digest_recipients validation
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_EmailDigestRecipients(t *testing.T) {
@@ -393,7 +393,7 @@ func TestUpdateSettings_EmailDigestRecipients(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — valid settings are persisted
+// UpdateSettings - valid settings are persisted
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_PersistsValidSettings(t *testing.T) {
@@ -416,7 +416,7 @@ func TestUpdateSettings_PersistsValidSettings(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — repo error propagation
+// UpdateSettings - repo error propagation
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_RepoUpsertError(t *testing.T) {
@@ -432,7 +432,7 @@ func TestUpdateSettings_RepoUpsertError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — analyzer_mode validation
+// UpdateSettings - analyzer_mode validation
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_AnalyzerMode(t *testing.T) {
@@ -471,7 +471,7 @@ func TestUpdateSettings_AnalyzerMode(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — discovery_auto_approve validation
+// UpdateSettings - discovery_auto_approve validation
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_DiscoveryAutoApprove(t *testing.T) {
@@ -506,7 +506,7 @@ func TestUpdateSettings_DiscoveryAutoApprove(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — stale_auto_remove_months validation
+// UpdateSettings - stale_auto_remove_months validation
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_StaleAutoRemoveMonths(t *testing.T) {
@@ -545,7 +545,7 @@ func TestUpdateSettings_StaleAutoRemoveMonths(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — package_count_warning_threshold validation
+// UpdateSettings - package_count_warning_threshold validation
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_PackageCountWarningThreshold(t *testing.T) {
@@ -584,7 +584,7 @@ func TestUpdateSettings_PackageCountWarningThreshold(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — require_email_verification validation
+// UpdateSettings - require_email_verification validation
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_RequireEmailVerification(t *testing.T) {
@@ -619,7 +619,7 @@ func TestUpdateSettings_RequireEmailVerification(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — validation errors wrap entity.ErrValidation
+// UpdateSettings - validation errors wrap entity.ErrValidation
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_ValidationErrorsWrapErrValidation(t *testing.T) {
@@ -658,7 +658,7 @@ func TestUpdateSettings_ValidationErrorsWrapErrValidation(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings — repo errors do NOT wrap entity.ErrValidation
+// UpdateSettings - repo errors do NOT wrap entity.ErrValidation
 // ---------------------------------------------------------------------------
 
 func TestUpdateSettings_RepoErrorsNotValidation(t *testing.T) {

@@ -36,7 +36,7 @@ const SeverityBadge = ({ severity }: { severity: string }) => {
 }
 
 // ---------------------------------------------------------------------------
-// NotificationPageItem — full-width item for the /notifications page
+// NotificationPageItem - full-width item for the /notifications page
 // ---------------------------------------------------------------------------
 
 type NotificationPageItemProps = {
@@ -74,7 +74,7 @@ export const NotificationPageItem = ({
           isSelected && "bg-primary/5",
         )}
       >
-        {/* Checkbox column — fixed width, always present in select mode */}
+        {/* Checkbox column - fixed width, always present in select mode */}
         {selectMode && (
           <div className="flex w-5 shrink-0 items-center justify-center self-start pt-2.5">
             <Checkbox
@@ -94,7 +94,7 @@ export const NotificationPageItem = ({
           <Icon className={cn("size-4.5", eventConfig.textClass)} />
         </div>
 
-        {/* Center: Content — expanded */}
+        {/* Center: Content - expanded */}
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           {/* Row 1: Title + Severity badge + Timestamp */}
           <div className="flex items-start justify-between gap-2">
@@ -115,7 +115,7 @@ export const NotificationPageItem = ({
             </div>
           </div>
 
-          {/* Row 2: Full message — NO line-clamp */}
+          {/* Row 2: Full message - NO line-clamp */}
           <p className="text-sm text-muted-foreground">
             {notification.message}
           </p>

@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
 	alertnoteuc "github.com/veilence/veilence-mx/backend/internal/usecase/alertnote"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/alertuc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/dashboarduc"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/pkguc"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/releaseuc"
@@ -460,7 +460,7 @@ func TestBlockPackage_AlreadyBlocked(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	// Package is already blocked — can't block again (repo returns not found for non-active)
+	// Package is already blocked - can't block again (repo returns not found for non-active)
 	pkg := persistent.Package{Name: "bad-pkg", Ecosystem: "npm", Status: persistent.PackageStatusBlocked, Source: persistent.PackageSourceDiscovered}
 	db.Create(&pkg)
 
@@ -505,7 +505,7 @@ func TestUnblockPackage_NotBlocked(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db)
 
-	// Package is active — can't unblock
+	// Package is active - can't unblock
 	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
 	db.Create(&pkg)
 
@@ -749,7 +749,7 @@ func TestGetAlert_WorkspaceScoping(t *testing.T) {
 	db.Create(&diff)
 	analysis := persistent.Analysis{DiffID: diff.ID, Classification: "malicious", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
 	db.Create(&analysis)
-	// Alert belongs to workspace 5 — request context has workspaceID=0 (default), so it should not be found
+	// Alert belongs to workspace 5 - request context has workspaceID=0 (default), so it should not be found
 	alert := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: 5, Severity: "high", Status: "new", Message: "Other org alert"}
 	db.Create(&alert)
 
@@ -1440,7 +1440,7 @@ func TestImportPackages_InvalidPackageName(t *testing.T) {
 	var resp map[string]any
 	json.NewDecoder(w.Body).Decode(&resp)
 	data := resp["data"].(map[string]any)
-	assert.Equal(t, float64(2), data["imported"])  // valid-pkg and ok.pkg
+	assert.Equal(t, float64(2), data["imported"]) // valid-pkg and ok.pkg
 	errors := data["errors"].([]any)
 	assert.Len(t, errors, 1) // evil pkg! has invalid characters
 }
@@ -1504,7 +1504,7 @@ func TestReanalyzeRelease_NotFound(t *testing.T) {
 	mq := &mockEnqueuer{}
 	h := newPackageHandlersWithQueue(db, mq)
 
-	// No release in DB — should get 404 after passing queue nil check
+	// No release in DB - should get 404 after passing queue nil check
 	r := chi.NewRouter()
 	r.Post("/api/releases/{id}/reanalyze", h.ReanalyzeRelease)
 
@@ -1896,7 +1896,7 @@ func TestRejectPackage(t *testing.T) {
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusNoContent, w.Code)
 
-	// Verify in DB — status should be removed
+	// Verify in DB - status should be removed
 	var updated persistent.Package
 	db.First(&updated, pkg.ID)
 	assert.Equal(t, persistent.PackageStatusRemoved, updated.Status)
@@ -2051,7 +2051,7 @@ func TestListStalePackages(t *testing.T) {
 	var resp map[string]any
 	json.NewDecoder(w.Body).Decode(&resp)
 	data := resp["data"].([]any)
-	// old-pkg has NULL download_count_updated_at, fresh-pkg is recent — old-pkg should be stale
+	// old-pkg has NULL download_count_updated_at, fresh-pkg is recent - old-pkg should be stale
 	assert.GreaterOrEqual(t, len(data), 1)
 }
 

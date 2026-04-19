@@ -17,9 +17,9 @@ import (
 	validation "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/request"
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
 
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
-	"github.com/veilence/veilence-mx/backend/internal/entity"
 )
 
 // registerRequest is the request body for user registration.
@@ -348,7 +348,7 @@ type forgotPasswordRequest struct {
 	Email string `json:"email"`
 }
 
-// ForgotPassword handles POST /api/auth/forgot-password — initiates a password reset.
+// ForgotPassword handles POST /api/auth/forgot-password - initiates a password reset.
 // Always returns 200 to prevent user enumeration.
 func (h *AuthHandlers) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	var req forgotPasswordRequest
@@ -386,7 +386,7 @@ type resetPasswordRequest struct {
 	NewPassword string `json:"newPassword"`
 }
 
-// ResetPassword handles POST /api/auth/reset-password — resets user password with a valid token.
+// ResetPassword handles POST /api/auth/reset-password - resets user password with a valid token.
 func (h *AuthHandlers) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var req resetPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -423,7 +423,7 @@ type verifyEmailRequest struct {
 	Token string `json:"token"`
 }
 
-// VerifyEmail handles POST /api/auth/verify-email — verifies user email with a valid token.
+// VerifyEmail handles POST /api/auth/verify-email - verifies user email with a valid token.
 func (h *AuthHandlers) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	var req verifyEmailRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -448,7 +448,7 @@ func (h *AuthHandlers) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]string{"message": "email verified successfully"}, nil)
 }
 
-// SendVerificationEmail handles POST /api/auth/send-verification — sends a new verification email.
+// SendVerificationEmail handles POST /api/auth/send-verification - sends a new verification email.
 func (h *AuthHandlers) SendVerificationEmail(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == 0 {
@@ -475,7 +475,7 @@ type resendVerificationByEmailRequest struct {
 	Email string `json:"email"`
 }
 
-// ResendVerificationByEmail handles POST /api/v1/auth/resend-verification — public endpoint.
+// ResendVerificationByEmail handles POST /api/v1/auth/resend-verification - public endpoint.
 // Always returns 200 to prevent user enumeration.
 func (h *AuthHandlers) ResendVerificationByEmail(w http.ResponseWriter, r *http.Request) {
 	var req resendVerificationByEmailRequest
@@ -512,7 +512,7 @@ type updateProfileRequest struct {
 	LastName  string `json:"lastName"`
 }
 
-// UpdateProfile handles PUT /api/auth/me — updates the current user's profile.
+// UpdateProfile handles PUT /api/auth/me - updates the current user's profile.
 func (h *AuthHandlers) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == 0 {
@@ -563,7 +563,7 @@ type changePasswordRequest struct {
 	NewPassword     string `json:"newPassword"`
 }
 
-// ChangePassword handles POST /api/auth/change-password — changes the user's password.
+// ChangePassword handles POST /api/auth/change-password - changes the user's password.
 func (h *AuthHandlers) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == 0 {

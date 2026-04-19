@@ -84,7 +84,7 @@ func CSRF(config CSRFConfig) func(http.Handler) http.Handler {
 				return
 			}
 
-			// Pre-auth routes are exempt — no session to hijack
+			// Pre-auth routes are exempt - no session to hijack
 			if csrfExemptPaths[r.URL.Path] {
 				ensureCSRFCookie(w, r, config)
 				next.ServeHTTP(w, r)

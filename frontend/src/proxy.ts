@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server"
  * auth provider) and redirects unauthenticated users away from protected
  * routes before any page HTML is sent, eliminating content flash.
  *
- * This is NOT a security boundary — the backend JWT check is authoritative.
+ * This is NOT a security boundary - the backend JWT check is authoritative.
  */
 
 const PUBLIC_PATHS = [

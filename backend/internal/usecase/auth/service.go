@@ -210,7 +210,7 @@ func (s *Service) Login(email, password, ipAddress, userAgent string) (*entity.U
 	_, err = s.CreateSession(user.ID, hashRefreshToken(tokens.RefreshToken), ipAddress, userAgent)
 	if err != nil {
 		slog.Warn("failed to create session", "user_id", user.ID, "error", err)
-		// Non-fatal — don't fail login if session creation fails
+		// Non-fatal - don't fail login if session creation fails
 	}
 
 	// Update last login time
@@ -608,7 +608,7 @@ func (s *Service) ForgotPassword(email string) (string, error) {
 			slog.Error("failed to send password reset email", "email", email, "error", err)
 		}
 	} else {
-		slog.Warn("email sender not configured — password reset email not sent", "email", email)
+		slog.Warn("email sender not configured - password reset email not sent", "email", email)
 	}
 
 	slog.Info("password reset token generated", "user_id", user.ID, "email", email)
@@ -706,7 +706,7 @@ func (s *Service) GenerateEmailVerificationToken(userID uint) (string, error) {
 			}
 		}
 	} else {
-		slog.Warn("email sender not configured — verification email not sent", "user_id", userID)
+		slog.Warn("email sender not configured - verification email not sent", "user_id", userID)
 	}
 
 	slog.Info("email verification token generated", "user_id", userID)
@@ -814,11 +814,11 @@ func (s *Service) GuardCurrentSession(userID, sessionID uint, currentTokenHash s
 
 	session, err := s.sessions.FindByID(ctx, sessionID)
 	if err != nil {
-		return nil // Session not found — let RevokeSession handle the 404
+		return nil // Session not found - let RevokeSession handle the 404
 	}
 
 	if session.UserID != userID {
-		return nil // Not the user's session — let RevokeSession handle the 404
+		return nil // Not the user's session - let RevokeSession handle the 404
 	}
 
 	if session.TokenHash == currentTokenHash {
@@ -849,7 +849,7 @@ func (s *Service) RevokeSession(userID, sessionID uint) error {
 	if session.TokenHash != "" {
 		if err := s.refreshTokens.DeleteByTokenHash(ctx, session.TokenHash); err != nil {
 			slog.Warn("failed to delete refresh token for session", "session_id", sessionID, "error", err)
-			// Non-fatal — session is already deleted
+			// Non-fatal - session is already deleted
 		}
 	}
 

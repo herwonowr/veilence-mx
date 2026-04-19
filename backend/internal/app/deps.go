@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-
 	"net/http"
 	"time"
 
@@ -99,7 +98,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	if smtpConfig.IsConfigured() {
 		slog.Info("SMTP configured for email notifications", "host", smtpConfig.Host, "port", smtpConfig.Port, "from", smtpConfig.From)
 	} else {
-		slog.Warn("SMTP not configured — email notifications will be skipped")
+		slog.Warn("SMTP not configured - email notifications will be skipped")
 	}
 
 	// Notification service

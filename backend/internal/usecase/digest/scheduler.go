@@ -120,7 +120,7 @@ func (s *Scheduler) tick(ctx context.Context) {
 func (s *Scheduler) isDue(workspaceID uint, frequency string, now time.Time) bool {
 	lastSent, ok := s.lastSentAt[workspaceID]
 	if !ok {
-		// Never sent — send now
+		// Never sent - send now
 		return true
 	}
 
@@ -218,7 +218,7 @@ func FormatDigestText(d *DigestContent) string {
 	if len(d.TopAlerts) > 0 {
 		b.WriteString("Top Alerts:\n")
 		for i, alert := range d.TopAlerts {
-			b.WriteString(fmt.Sprintf("  %d. [%s] %s — %s\n",
+			b.WriteString(fmt.Sprintf("  %d. [%s] %s - %s\n",
 				i+1, strings.ToUpper(alert.Severity), alert.PackageName, truncate(alert.Message, 80)))
 		}
 		b.WriteString("\n")

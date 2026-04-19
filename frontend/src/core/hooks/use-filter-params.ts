@@ -22,7 +22,7 @@ export const useFilterParams = (
   const isInitialMount = useRef(true)
 
   useEffect(() => {
-    // Skip the first render — on mount the URL is already the source of truth
+    // Skip the first render - on mount the URL is already the source of truth
     if (isInitialMount.current) {
       isInitialMount.current = false
       return

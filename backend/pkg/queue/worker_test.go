@@ -49,7 +49,7 @@ func waitFor(t *testing.T, timeout time.Duration, msg string, cond func() bool) 
 }
 
 // ------------------------------------------------------------
-// Worker — starts and processes a job
+// Worker - starts and processes a job
 // ------------------------------------------------------------
 
 func TestWorker_ProcessesJob(t *testing.T) {
@@ -87,7 +87,7 @@ func TestWorker_ProcessesJob(t *testing.T) {
 }
 
 // ------------------------------------------------------------
-// Worker — handles job failure
+// Worker - handles job failure
 // ------------------------------------------------------------
 
 func TestWorker_HandlesJobFailure(t *testing.T) {
@@ -110,7 +110,7 @@ func TestWorker_HandlesJobFailure(t *testing.T) {
 
 	go w.Start(ctx)
 
-	// Wait for the single attempt — with maxAttempts=1, it goes straight to dead
+	// Wait for the single attempt - with maxAttempts=1, it goes straight to dead
 	waitFor(t, 2*time.Second, "job failed", func() bool {
 		return attempts.Load() >= 1
 	})
@@ -124,7 +124,7 @@ func TestWorker_HandlesJobFailure(t *testing.T) {
 }
 
 // ------------------------------------------------------------
-// Worker — respects concurrency limits
+// Worker - respects concurrency limits
 // ------------------------------------------------------------
 
 func TestWorker_RespectsConcurrencyLimit(t *testing.T) {
@@ -181,7 +181,7 @@ func TestWorker_RespectsConcurrencyLimit(t *testing.T) {
 }
 
 // ------------------------------------------------------------
-// Worker — stops cleanly on context cancellation
+// Worker - stops cleanly on context cancellation
 // ------------------------------------------------------------
 
 func TestWorker_StopsCleanly(t *testing.T) {
@@ -211,14 +211,14 @@ func TestWorker_StopsCleanly(t *testing.T) {
 	// Worker should exit promptly
 	select {
 	case <-done:
-		// success — worker exited
+		// success - worker exited
 	case <-time.After(2 * time.Second):
 		t.Fatal("worker did not stop within 2 seconds of context cancellation")
 	}
 }
 
 // ------------------------------------------------------------
-// Worker — no-op when queue is empty
+// Worker - no-op when queue is empty
 // ------------------------------------------------------------
 
 func TestWorker_IdlesWhenQueueEmpty(t *testing.T) {
@@ -245,7 +245,7 @@ func TestWorker_IdlesWhenQueueEmpty(t *testing.T) {
 }
 
 // ------------------------------------------------------------
-// Worker — processes multiple job types independently
+// Worker - processes multiple job types independently
 // ------------------------------------------------------------
 
 func TestWorker_ProcessesOnlyItsJobType(t *testing.T) {
@@ -278,14 +278,14 @@ func TestWorker_ProcessesOnlyItsJobType(t *testing.T) {
 
 	assert.Equal(t, int32(1), diffProcessed.Load())
 
-	// The analyze job should still be pending — use fresh context
+	// The analyze job should still be pending - use fresh context
 	pendingCtx := context.Background()
 	pending, _ := q.rdb.LLen(pendingCtx, pendingList+JobTypeAnalyze).Result()
 	assert.Equal(t, int64(1), pending)
 }
 
 // ------------------------------------------------------------
-// NewWorker — default config values
+// NewWorker - default config values
 // ------------------------------------------------------------
 
 func TestNewWorker_DefaultConfig(t *testing.T) {
@@ -316,7 +316,7 @@ func TestNewWorker_CustomConfig(t *testing.T) {
 }
 
 // ------------------------------------------------------------
-// Worker — processes job then calls Complete
+// Worker - processes job then calls Complete
 // ------------------------------------------------------------
 
 func TestWorker_CompletesSuccessfulJob(t *testing.T) {
@@ -349,7 +349,7 @@ func TestWorker_CompletesSuccessfulJob(t *testing.T) {
 	job := loadTestJob(t, q, jobID)
 	assert.Equal(t, StatusCompleted, job.Status)
 
-	// Stats should reflect completion — use fresh context since we cancelled
+	// Stats should reflect completion - use fresh context since we cancelled
 	statsCtx := context.Background()
 	stats, err := q.Stats(statsCtx, JobTypeDiff)
 	require.NoError(t, err)
@@ -357,7 +357,7 @@ func TestWorker_CompletesSuccessfulJob(t *testing.T) {
 }
 
 // ------------------------------------------------------------
-// Worker — enqueue during processing
+// Worker - enqueue during processing
 // ------------------------------------------------------------
 
 func TestWorker_ProcessesJobsEnqueuedWhileRunning(t *testing.T) {

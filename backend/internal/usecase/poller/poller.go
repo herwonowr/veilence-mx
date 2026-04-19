@@ -151,7 +151,7 @@ func (p *Poller) Start(ctx context.Context) {
 // monitorLoop is a single goroutine that checks ALL active packages
 // (regardless of ecosystem) for new releases.
 func (p *Poller) monitorLoop(ctx context.Context) {
-	// Initial run — all workspaces are immediately due since lastPollAt is empty.
+	// Initial run - all workspaces are immediately due since lastPollAt is empty.
 	p.runMonitorCycle(ctx)
 
 	ticker := time.NewTicker(BaseTickInterval)
@@ -359,7 +359,7 @@ func (p *Poller) checkPackageForNewReleases(ctx context.Context, reg usecase.Reg
 // discoveryLoop is a single goroutine that periodically scans registry
 // popularity rankings and adds new packages to monitoring.
 func (p *Poller) discoveryLoop(ctx context.Context) {
-	// Initial run — all workspaces are immediately due since lastPollAt is empty.
+	// Initial run - all workspaces are immediately due since lastPollAt is empty.
 	p.runDiscoveryCycle(ctx)
 
 	ticker := time.NewTicker(BaseTickInterval)
@@ -422,7 +422,7 @@ func (p *Poller) runDiscoveryCycle(ctx context.Context) {
 }
 
 // discoverPackages fetches top packages from a registry and upserts them.
-// Discovery is additive only — it never removes packages.
+// Discovery is additive only - it never removes packages.
 // When autoApprove is true, new packages are created with status 'active' (auto-approved).
 // When autoApprove is false, new packages are created with status 'suggested' (pending admin approval).
 // Existing active packages get their download metrics refreshed.
@@ -460,7 +460,7 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID uint,
 		existing, _ := p.repo.FindPackageByWorkspaceAndName(ctx, workspaceID, ranking.Name, ecosystem)
 
 		if existing == nil {
-			// New package — create with appropriate status
+			// New package - create with appropriate status
 			pkg := &entity.Package{
 				WorkspaceID:            workspaceID,
 				Name:                   ranking.Name,
@@ -477,33 +477,33 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID uint,
 			}
 			suggested++
 		} else {
-			// Existing package — handle based on status
+			// Existing package - handle based on status
 			switch existing.Status {
 			case entity.PackageStatusActive:
 				// Update rank; collect download data for batch update
 				p.repo.UpdatePackageRank(ctx, existing.ID, rank)
 				downloadUpdates = append(downloadUpdates, entity.PackageDownloadUpdate{
-					PackageID:       existing.ID,
-					DownloadCount:   ranking.DownloadCount,
+					PackageID:     existing.ID,
+					DownloadCount: ranking.DownloadCount,
 				})
 			case entity.PackageStatusSuggested:
-				// Already pending review — update rank and download data
+				// Already pending review - update rank and download data
 				p.repo.UpdatePackageDiscoveryMetrics(ctx, existing.ID, map[string]interface{}{
-					"rank":                      &rank,
-					"download_count":            ranking.DownloadCount,
-	
+					"rank":           &rank,
+					"download_count": ranking.DownloadCount,
+
 					"download_count_updated_at": now,
 				})
 			case entity.PackageStatusBlocked:
-				// Skip entirely — do not update rank or download data
+				// Skip entirely - do not update rank or download data
 				continue
 			case entity.PackageStatusRemoved:
 				// Re-suggest for admin review (or auto-approve if enabled)
 				p.repo.UpdatePackageDiscoveryMetrics(ctx, existing.ID, map[string]interface{}{
-					"status":                    string(newStatus),
-					"rank":                      &rank,
-					"download_count":            ranking.DownloadCount,
-	
+					"status":         string(newStatus),
+					"rank":           &rank,
+					"download_count": ranking.DownloadCount,
+
 					"download_count_updated_at": now,
 				})
 				suggested++
@@ -645,7 +645,7 @@ func (p *Poller) isWorkspaceDue(workspaceID uint, purpose string, interval time.
 	p.lastPollMu.RUnlock()
 
 	if !ok {
-		return true // Never polled — immediately due.
+		return true // Never polled - immediately due.
 	}
 	return time.Since(last) >= interval
 }
@@ -667,7 +667,7 @@ func (p *Poller) getSetting(key, defaultValue string, workspaceID uint) string {
 		return v
 	}
 
-	// Cache miss — read from database, scoped to workspace
+	// Cache miss - read from database, scoped to workspace
 	value, err := p.repo.GetSetting(ctx_bg(), workspaceID, key)
 	if err == nil && value != "" {
 		p.settings.set(cacheKey, value)

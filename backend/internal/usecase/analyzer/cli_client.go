@@ -22,7 +22,7 @@ type CLIClient struct {
 }
 
 // CLIClientConfig holds configuration for the LLM API client.
-// All fields are mandatory — the application MUST fail to start if any are missing.
+// All fields are mandatory - the application MUST fail to start if any are missing.
 type CLIClientConfig struct {
 	// BaseURL is the LLM API proxy URL (required).
 	BaseURL string
@@ -188,4 +188,3 @@ func (c *CLIClient) Analyze(ctx context.Context, diff string, packageName string
 	result := ParseLLMResponse(rawResponse)
 	return result, nil
 }
-

@@ -71,11 +71,11 @@ func (uc *UseCase) Create(ctx context.Context, workspaceID, alertID, userID uint
 	userEmail := uc.resolveUserEmail(ctx, userID)
 
 	note := &entity.AlertNote{
-		AlertID:   alertID,
-		WorkspaceID:     workspaceID,
-		UserID:    userID,
-		UserEmail: userEmail,
-		Content:   content,
+		AlertID:     alertID,
+		WorkspaceID: workspaceID,
+		UserID:      userID,
+		UserEmail:   userEmail,
+		Content:     content,
 	}
 
 	if err := uc.notes.Create(ctx, note); err != nil {
@@ -86,7 +86,7 @@ func (uc *UseCase) Create(ctx context.Context, workspaceID, alertID, userID uint
 }
 
 // resolveUserEmail looks up a user's email by ID. Returns an empty string
-// if the user is not found (non-fatal — the note is still created).
+// if the user is not found (non-fatal - the note is still created).
 func (uc *UseCase) resolveUserEmail(ctx context.Context, userID uint) string {
 	user, err := uc.users.FindByID(ctx, userID)
 	if err != nil {

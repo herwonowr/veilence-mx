@@ -217,21 +217,21 @@ func TestIsDue(t *testing.T) {
 	s := newTestScheduler(db)
 	now := time.Now()
 
-	// Never sent — should be due
+	// Never sent - should be due
 	assert.True(t, s.isDue(1, "daily", now))
 	assert.True(t, s.isDue(1, "weekly", now))
 
-	// Sent 12 hours ago — daily should not be due, weekly should not be due
+	// Sent 12 hours ago - daily should not be due, weekly should not be due
 	s.lastSentAt[1] = now.Add(-12 * time.Hour)
 	assert.False(t, s.isDue(1, "daily", now))
 	assert.False(t, s.isDue(1, "weekly", now))
 
-	// Sent 25 hours ago — daily should be due, weekly should not be due
+	// Sent 25 hours ago - daily should be due, weekly should not be due
 	s.lastSentAt[1] = now.Add(-25 * time.Hour)
 	assert.True(t, s.isDue(1, "daily", now))
 	assert.False(t, s.isDue(1, "weekly", now))
 
-	// Sent 8 days ago — both should be due
+	// Sent 8 days ago - both should be due
 	s.lastSentAt[1] = now.Add(-8 * 24 * time.Hour)
 	assert.True(t, s.isDue(1, "daily", now))
 	assert.True(t, s.isDue(1, "weekly", now))

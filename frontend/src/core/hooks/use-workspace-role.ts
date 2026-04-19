@@ -5,11 +5,11 @@ import { fetchApi } from "@/core/http"
 import { useAuth } from "@/core/providers/auth-provider"
 
 /**
- * Shared workspace role hook — used by RequireRole, sidebar, and feature views.
+ * Shared workspace role hook - used by RequireRole, sidebar, and feature views.
  *
  * Lives in core/ so any feature can import it without cross-feature violations.
  * The role is always fetched from the server; it cannot be spoofed via
- * localStorage. Frontend role checks are UI convenience only — the backend
+ * localStorage. Frontend role checks are UI convenience only - the backend
  * enforces authorization on every endpoint.
  */
 
@@ -21,7 +21,7 @@ export const workspaceRoleKeys = {
     [...workspaceRoleKeys.all, "current", workspaceId] as const,
 }
 
-/** Role hierarchy — higher index = more privilege */
+/** Role hierarchy - higher index = more privilege */
 const ROLE_HIERARCHY: readonly WorkspaceRole[] = [
   "viewer",
   "member",

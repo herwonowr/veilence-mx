@@ -114,7 +114,7 @@ export const QueueJobsBrowser = forwardRef<QueueJobsBrowserHandle, QueueJobsBrow
     const nowSeconds = useNowSeconds()
 
     // Sync filter state → URL search params
-    // Defaults: type=diff, status=pending — omit from URL when they match
+    // Defaults: type=diff, status=pending - omit from URL when they match
     const QUEUE_FILTER_DEFAULTS = useMemo(() => ({ type: "diff", status: "pending" }), [])
     useFilterParams(
       useMemo(() => ({

@@ -18,9 +18,9 @@ import (
 
 // createChannelRequest is the request body for creating a notification channel.
 type createChannelRequest struct {
-	Name   string                          `json:"name"`
-	Type   entity.NotificationChannelType  `json:"type"`
-	Config string                          `json:"config"`
+	Name   string                         `json:"name"`
+	Type   entity.NotificationChannelType `json:"type"`
+	Config string                         `json:"config"`
 }
 
 // updateChannelRequest is the request body for updating a notification channel.
@@ -266,7 +266,7 @@ func (h *NotificationHandlers) DeleteNotificationRule(w http.ResponseWriter, r *
 	respondJSON(w, http.StatusOK, nil, nil)
 }
 
-// ListUserNotifications handles GET /api/notifications — lists the current
+// ListUserNotifications handles GET /api/notifications - lists the current
 // user's notifications across all workspaces.
 func (h *NotificationHandlers) ListUserNotifications(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
@@ -286,7 +286,7 @@ func (h *NotificationHandlers) ListUserNotifications(w http.ResponseWriter, r *h
 	respondJSON(w, http.StatusOK, response.NotificationsFromEntities(notifications), nil)
 }
 
-// GetUnreadCount handles GET /api/notifications/unread-count — returns the
+// GetUnreadCount handles GET /api/notifications/unread-count - returns the
 // count of unread notifications for the current user.
 func (h *NotificationHandlers) GetUnreadCount(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
@@ -304,7 +304,7 @@ func (h *NotificationHandlers) GetUnreadCount(w http.ResponseWriter, r *http.Req
 	respondJSON(w, http.StatusOK, map[string]int64{"count": count}, nil)
 }
 
-// MarkNotificationRead handles PUT /api/notifications/{id}/read — marks a
+// MarkNotificationRead handles PUT /api/notifications/{id}/read - marks a
 // notification as read.
 func (h *NotificationHandlers) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
@@ -328,7 +328,7 @@ func (h *NotificationHandlers) MarkNotificationRead(w http.ResponseWriter, r *ht
 	respondJSON(w, http.StatusOK, nil, nil)
 }
 
-// MarkAllNotificationsRead handles PUT /api/notifications/read-all — marks all
+// MarkAllNotificationsRead handles PUT /api/notifications/read-all - marks all
 // unread notifications as read for the current user across all workspaces.
 func (h *NotificationHandlers) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
@@ -372,7 +372,7 @@ func (h *NotificationHandlers) TestNotificationChannel(w http.ResponseWriter, r 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "test notification sent"}, nil)
 }
 
-// DeleteNotification handles DELETE /api/notifications/{id} — deletes a single
+// DeleteNotification handles DELETE /api/notifications/{id} - deletes a single
 // notification for the current user.
 func (h *NotificationHandlers) DeleteNotification(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
@@ -399,7 +399,7 @@ func (h *NotificationHandlers) DeleteNotification(w http.ResponseWriter, r *http
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// DeleteAllNotifications handles DELETE /api/notifications/all — deletes all
+// DeleteAllNotifications handles DELETE /api/notifications/all - deletes all
 // notifications for the current user.
 func (h *NotificationHandlers) DeleteAllNotifications(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
@@ -419,7 +419,7 @@ func (h *NotificationHandlers) DeleteAllNotifications(w http.ResponseWriter, r *
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// DeleteBatchNotifications handles DELETE /api/notifications — deletes
+// DeleteBatchNotifications handles DELETE /api/notifications - deletes
 // multiple notifications by IDs for the current user.
 func (h *NotificationHandlers) DeleteBatchNotifications(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())

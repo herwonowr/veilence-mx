@@ -12,15 +12,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	alertnoteuc "github.com/veilence/veilence-mx/backend/internal/usecase/alertnote"
 	v1 "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
 	"github.com/veilence/veilence-mx/backend/internal/testutil"
+	alertnoteuc "github.com/veilence/veilence-mx/backend/internal/usecase/alertnote"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 )
 
 // =====================================================================
-// PostgreSQL Integration Tests — Search functionality
+// PostgreSQL Integration Tests - Search functionality
 //
 // These tests verify case-insensitive search against a real PostgreSQL
 // database. Run with:
@@ -75,7 +75,7 @@ func TestIntegrationPG_AlertSearch_CaseInsensitive(t *testing.T) {
 		{"mixed case search", "ReQuEsTs", 1},
 		{"search by message lowercase", "malicious", 1},
 		{"search by message mixed case", "Suspicious", 1},
-		{"partial match", "equ", 1},     // matches "Requests"
+		{"partial match", "equ", 1}, // matches "Requests"
 		{"no match", "nonexistent", 0},
 		{"empty search returns all", "", 2},
 	}

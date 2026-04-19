@@ -17,16 +17,16 @@ import (
 
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi"
 	v1 "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1"
+	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
+	alertnoteuc "github.com/veilence/veilence-mx/backend/internal/usecase/alertnote"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/alertuc"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
-	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/notifications"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/alertuc"
-	alertnoteuc "github.com/veilence/veilence-mx/backend/internal/usecase/alertnote"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/dashboarduc"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/healthuc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/notifications"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/pkguc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/releaseuc"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/settinguc"
 )
@@ -610,7 +610,7 @@ func TestIntegration_APIKeyFlow(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, revokeResp.StatusCode)
 
-	// List API keys — should be empty (must include workspace context)
+	// List API keys - should be empty (must include workspace context)
 	csrfToken, cookies = ts.getCSRFToken(t)
 	req, err = http.NewRequest("GET", ts.server.URL+"/api/auth/api-keys", nil)
 	require.NoError(t, err)
@@ -657,7 +657,7 @@ func TestIntegration_ForgotPassword(t *testing.T) {
 }
 
 // =====================================================================
-// Test: RBAC enforcement — viewer cannot write
+// Test: RBAC enforcement - viewer cannot write
 // =====================================================================
 
 func TestIntegration_RBAC_ViewerCannotWrite(t *testing.T) {
@@ -707,7 +707,7 @@ func TestIntegration_RBAC_ViewerCannotWrite(t *testing.T) {
 	_, err = ts.rbacSvc.AcceptInvitation(rawToken, viewerID, "rbac-viewer@example.com")
 	require.NoError(t, err)
 
-	// Viewer tries to update the org (requires workspace:write) — should be denied
+	// Viewer tries to update the org (requires workspace:write) - should be denied
 	updateBody := map[string]string{"name": "Hacked", "slug": "rbac-workspace", "description": "Viewer wrote this"}
 	wsPath := fmt.Sprintf("/api/workspaces/%.0f", wsID)
 	resp, _ = ts.jsonRequestWithCSRF(t, "PUT", wsPath, updateBody, viewerToken)
@@ -1043,7 +1043,7 @@ func TestIntegration_PasswordReset(t *testing.T) {
 func TestIntegration_ResponseEnvelope(t *testing.T) {
 	ts := setupIntegrationServer(t)
 
-	// Register — success response should have {data: {...}, error: null}
+	// Register - success response should have {data: {...}, error: null}
 	resp, result := ts.jsonRequestWithCSRF(t, "POST", "/api/auth/register", map[string]string{
 		"email": "envelope@example.com", "password": "SecurePass123!", "firstName": "E", "lastName": "V",
 	}, "")

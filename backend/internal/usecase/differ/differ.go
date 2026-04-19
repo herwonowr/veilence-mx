@@ -66,7 +66,7 @@ func (d *Differ) processRelease(ctx context.Context, releaseID uint) error {
 	// Find the previous release for this package by publish time
 	prevRelease, err := d.repo.FindPreviousCompletedRelease(ctx, release.PackageID, release.PublishedAt)
 	if err != nil || prevRelease == nil {
-		// No previous release — mark as completed (first tracked version)
+		// No previous release - mark as completed (first tracked version)
 		slog.Info("no previous release found, skipping diff", "package_id", release.PackageID, "version", release.Version)
 		d.repo.UpdateReleaseStatus(ctx, release.ID, entity.ReleaseStatusCompleted)
 		return nil

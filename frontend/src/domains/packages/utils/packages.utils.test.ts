@@ -59,11 +59,11 @@ describe("formatPopularity", () => {
     })
 
     it("returns em-dash when downloadCount is null", () => {
-      expect(formatPopularity("npm", null)).toBe("—")
+      expect(formatPopularity("npm", null)).toBe("-")
     })
 
     it("returns em-dash when downloadCount is undefined", () => {
-      expect(formatPopularity("npm", undefined)).toBe("—")
+      expect(formatPopularity("npm", undefined)).toBe("-")
     })
 
     it("formats zero downloads", () => {
@@ -77,11 +77,11 @@ describe("formatPopularity", () => {
     })
 
     it("returns em-dash when downloadCount is null", () => {
-      expect(formatPopularity("python", null)).toBe("—")
+      expect(formatPopularity("python", null)).toBe("-")
     })
 
     it("returns em-dash when downloadCount is undefined", () => {
-      expect(formatPopularity("python", undefined)).toBe("—")
+      expect(formatPopularity("python", undefined)).toBe("-")
     })
 
     it("formats zero downloads", () => {
@@ -95,7 +95,7 @@ describe("formatPopularity", () => {
     })
 
     it("handles unknown ecosystem with no data", () => {
-      expect(formatPopularity("unknown", undefined)).toBe("—")
+      expect(formatPopularity("unknown", undefined)).toBe("-")
     })
   })
 })

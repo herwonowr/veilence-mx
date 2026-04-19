@@ -20,7 +20,7 @@ export const useLocalStorage = <T>(key: string, defaultValue: T): [T, (value: T 
         try {
           window.localStorage.setItem(key, JSON.stringify(nextValue))
         } catch {
-          // Storage full or unavailable — silently degrade
+          // Storage full or unavailable - silently degrade
         }
         return nextValue
       })

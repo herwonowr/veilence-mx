@@ -14,9 +14,9 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
@@ -127,8 +127,8 @@ func successHandler() http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			  "workspaceId":      rbac.WorkspaceIDFromContext(r.Context()),
-			"memberRole": rbac.MemberRoleFromContext(r.Context()),
+			"workspaceId": rbac.WorkspaceIDFromContext(r.Context()),
+			"memberRole":  rbac.MemberRoleFromContext(r.Context()),
 		})
 	}
 }
@@ -149,7 +149,7 @@ func TestRequireWorkspace_DenyWhenNoWorkspaceIDInURL(t *testing.T) {
 	env := setupMiddlewareEnv(t)
 	_, token := registerAndLogin(t, env, "no-wsid@example.com")
 
-	// Route with NO {workspaceId} parameter — middleware can't extract it.
+	// Route with NO {workspaceId} parameter - middleware can't extract it.
 	r := chi.NewRouter()
 	r.Route("/api/test", func(r chi.Router) {
 		r.Use(auth.Middleware(env.AuthSvc))
@@ -273,7 +273,7 @@ func TestRequireWorkspace_SetsOrgContextCorrectly(t *testing.T) {
 func TestRequireWorkspace_DenyWhenNoAuthentication(t *testing.T) {
 	env := setupMiddlewareEnv(t)
 
-	// No auth middleware in front — simulates an unauthenticated request
+	// No auth middleware in front - simulates an unauthenticated request
 	// reaching RequireOrg directly (userID will be 0).
 	r := chi.NewRouter()
 	r.Route("/api/workspaces/{workspaceId}", func(r chi.Router) {
@@ -420,7 +420,7 @@ func TestRequirePermission_DenyWhenNoOrgContext(t *testing.T) {
 	env := setupMiddlewareEnv(t)
 	_, token := registerAndLogin(t, env, "no-org-ctx@example.com")
 
-	// Use RequirePermission WITHOUT RequireOrg — org context won't be set.
+	// Use RequirePermission WITHOUT RequireOrg - org context won't be set.
 	r := chi.NewRouter()
 	r.Route("/api/workspaces/{workspaceId}", func(r chi.Router) {
 		r.Use(auth.Middleware(env.AuthSvc))
@@ -498,7 +498,7 @@ func TestRequirePermission_AllowWhenUserHasPermission(t *testing.T) {
 func TestRequirePermission_DenyNoAuthentication(t *testing.T) {
 	env := setupMiddlewareEnv(t)
 
-	// No auth middleware, no user context — both userID and workspaceID are 0.
+	// No auth middleware, no user context - both userID and workspaceID are 0.
 	r := chi.NewRouter()
 	r.Route("/api/workspaces/{workspaceId}", func(r chi.Router) {
 		r.Use(rbac.RequirePermission(env.RBACSvc, "packages", "read"))
@@ -610,7 +610,7 @@ func TestMemberRole_PermissionBoundaries(t *testing.T) {
 		"settings:read":  true,
 		"members:read":   true,
 		"roles:read":     true,
-		"workspace:read":       true,
+		"workspace:read": true,
 		"api_keys:read":  true,
 		"api_keys:write": true,
 	}
@@ -756,7 +756,7 @@ func TestMiddlewareChain_MultiplePermissionChecks(t *testing.T) {
 	org := createOrgWithOwner(t, env, owner.ID, "multi-perm")
 	addMemberWithRole(t, env, org, owner.ID, member, entity.RoleMember)
 
-	// Route requires packages:write — member should have it.
+	// Route requires packages:write - member should have it.
 	r := chi.NewRouter()
 	r.Route("/api/workspaces/{workspaceId}", func(r chi.Router) {
 		r.Use(auth.Middleware(env.AuthSvc))
@@ -807,14 +807,14 @@ func TestRequireWorkspace_DifferentOrgsAreSeparate(t *testing.T) {
 		r.Get("/", successHandler())
 	})
 
-	// Access org A — should succeed.
+	// Access org A - should succeed.
 	reqA := httptest.NewRequest(http.MethodGet, "/api/workspaces/"+workspaceIDStr(orgA.ID), nil)
 	reqA.Header.Set("Authorization", "Bearer "+memberToken)
 	wA := httptest.NewRecorder()
 	r.ServeHTTP(wA, reqA)
 	assert.Equal(t, http.StatusOK, wA.Code, "member should access org A")
 
-	// Access org B — should fail.
+	// Access org B - should fail.
 	reqB := httptest.NewRequest(http.MethodGet, "/api/workspaces/"+workspaceIDStr(orgB.ID), nil)
 	reqB.Header.Set("Authorization", "Bearer "+memberToken)
 	wB := httptest.NewRecorder()

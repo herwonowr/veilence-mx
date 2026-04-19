@@ -103,7 +103,7 @@ export const NotificationItem = ({
             </span>
             <div className="flex shrink-0 items-center gap-1.5">
               <SeverityBadge severity={severity} />
-              {/* Mark as read button — visible on hover for unread items */}
+              {/* Mark as read button - visible on hover for unread items */}
               {!notification.isRead && onMarkRead && (
                 <button
                   type="button"

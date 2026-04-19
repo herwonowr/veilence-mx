@@ -145,7 +145,7 @@ func TestGetRelease_CrossOrg_Returns404(t *testing.T) {
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
 
-	// Try to access the release as org 2 — should get 404
+	// Try to access the release as org 2 - should get 404
 	r := chi.NewRouter()
 	r.Get("/api/releases/{id}", func(w http.ResponseWriter, req *http.Request) {
 		req = withWorkspaceID(req, 2)
@@ -168,7 +168,7 @@ func TestGetRelease_SameOrg_ReturnsData(t *testing.T) {
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
 
-	// Access as org 1 — should succeed
+	// Access as org 1 - should succeed
 	r := chi.NewRouter()
 	r.Get("/api/releases/{id}", func(w http.ResponseWriter, req *http.Request) {
 		req = withWorkspaceID(req, 1)
@@ -195,7 +195,7 @@ func TestListPackageReleases_CrossOrg_Returns404(t *testing.T) {
 	db.Create(&pkg)
 	db.Create(&persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"})
 
-	// Try to list releases as org 2 — should get 404 (package not found for org 2)
+	// Try to list releases as org 2 - should get 404 (package not found for org 2)
 	r := chi.NewRouter()
 	r.Get("/api/packages/{id}/releases", func(w http.ResponseWriter, req *http.Request) {
 		req = withWorkspaceID(req, 2)
@@ -319,7 +319,7 @@ func TestUpdateAlert_CrossOrg_Returns404(t *testing.T) {
 	alert := persistent.Alert{WorkspaceID: 1, AnalysisID: analysis.ID, PackageID: pkg.ID, Severity: "critical", Status: "new", Message: "Org 1 alert"}
 	db.Create(&alert)
 
-	// Org 2 tries to update org 1's alert — should get 404
+	// Org 2 tries to update org 1's alert - should get 404
 	r := chi.NewRouter()
 	r.Patch("/api/alerts/{id}", func(w http.ResponseWriter, req *http.Request) {
 		req = withWorkspaceID(req, 2)
@@ -356,12 +356,12 @@ func TestAlertWorkspaceID_SetFromPackage(t *testing.T) {
 
 	// Create the alert with WorkspaceID set from the package (as the pipeline does at line 101 of pipeline.go)
 	alert := persistent.Alert{
-		WorkspaceID:      pkg.WorkspaceID,
-		AnalysisID: analysis.ID,
-		PackageID:  pkg.ID,
-		Severity:   persistent.AlertSeverityCritical,
-		Status:     persistent.AlertStatusNew,
-		Message:    "test alert",
+		WorkspaceID: pkg.WorkspaceID,
+		AnalysisID:  analysis.ID,
+		PackageID:   pkg.ID,
+		Severity:    persistent.AlertSeverityCritical,
+		Status:      persistent.AlertStatusNew,
+		Message:     "test alert",
 	}
 	err := db.Create(&alert).Error
 	require.NoError(t, err)
@@ -394,12 +394,12 @@ func TestPipelineProcessDiff_SetsAlertWorkspaceID(t *testing.T) {
 
 	// Simulate what pipeline.go does: create alert with WorkspaceID from pkg
 	alert := persistent.Alert{
-		WorkspaceID:      pkg.WorkspaceID,
-		AnalysisID: analysis.ID,
-		PackageID:  pkg.ID,
-		Severity:   persistent.AlertSeverityCritical,
-		Status:     persistent.AlertStatusNew,
-		Message:    fmt.Sprintf("Package %s v%s classified as malicious", pkg.Name, rel2.Version),
+		WorkspaceID: pkg.WorkspaceID,
+		AnalysisID:  analysis.ID,
+		PackageID:   pkg.ID,
+		Severity:    persistent.AlertSeverityCritical,
+		Status:      persistent.AlertStatusNew,
+		Message:     fmt.Sprintf("Package %s v%s classified as malicious", pkg.Name, rel2.Version),
 	}
 	err := db.Create(&alert).Error
 	require.NoError(t, err)

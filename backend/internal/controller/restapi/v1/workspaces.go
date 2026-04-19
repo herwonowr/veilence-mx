@@ -27,7 +27,7 @@ type updateOrgRequest struct {
 	Description *string `json:"description"`
 }
 
-// CreateWorkspace handles POST /api/workspaces — creates a new workspace.
+// CreateWorkspace handles POST /api/workspaces - creates a new workspace.
 func (h *WorkspaceHandlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == 0 {
@@ -68,7 +68,7 @@ func (h *WorkspaceHandlers) CreateWorkspace(w http.ResponseWriter, r *http.Reque
 	}, nil)
 }
 
-// ListWorkspaces handles GET /api/workspaces — lists workspaces the user belongs to.
+// ListWorkspaces handles GET /api/workspaces - lists workspaces the user belongs to.
 func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == 0 {
@@ -92,7 +92,7 @@ func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Reques
 	respondJSON(w, http.StatusOK, result, nil)
 }
 
-// GetWorkspace handles GET /api/workspaces/{workspaceId} — returns workspace details.
+// GetWorkspace handles GET /api/workspaces/{workspaceId} - returns workspace details.
 func (h *WorkspaceHandlers) GetWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == 0 {
@@ -116,7 +116,7 @@ func (h *WorkspaceHandlers) GetWorkspace(w http.ResponseWriter, r *http.Request)
 	}, nil)
 }
 
-// UpdateWorkspace handles PUT /api/workspaces/{workspaceId} — updates workspace details.
+// UpdateWorkspace handles PUT /api/workspaces/{workspaceId} - updates workspace details.
 func (h *WorkspaceHandlers) UpdateWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == 0 {
@@ -176,7 +176,7 @@ func (h *WorkspaceHandlers) UpdateWorkspace(w http.ResponseWriter, r *http.Reque
 	}, nil)
 }
 
-// DeleteWorkspace handles DELETE /api/workspaces/{workspaceId} — soft-deletes a workspace.
+// DeleteWorkspace handles DELETE /api/workspaces/{workspaceId} - soft-deletes a workspace.
 func (h *WorkspaceHandlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	wsIDStr := chi.URLParam(r, "workspaceId")
 	workspaceID, err := strconv.ParseUint(wsIDStr, 10, 64)

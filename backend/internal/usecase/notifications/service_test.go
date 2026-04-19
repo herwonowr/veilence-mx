@@ -77,13 +77,13 @@ func createTestRule(t *testing.T, svc *notifications.Service, workspaceID, chann
 func seedNotification(t *testing.T, db *gorm.DB, workspaceID, userID, channelID uint, title, message string, isRead bool) *persistent.Notification {
 	t.Helper()
 	n := &persistent.Notification{
-		WorkspaceID:     workspaceID,
-		UserID:    userID,
-		ChannelID: channelID,
-		Title:     title,
-		Message:   message,
-		IsRead:    isRead,
-		SentAt:    time.Now(),
+		WorkspaceID: workspaceID,
+		UserID:      userID,
+		ChannelID:   channelID,
+		Title:       title,
+		Message:     message,
+		IsRead:      isRead,
+		SentAt:      time.Now(),
 	}
 	require.NoError(t, db.Create(n).Error)
 	return n
@@ -323,7 +323,7 @@ func TestDeleteRule_NotFound(t *testing.T) {
 }
 
 // =========================================================================
-// Dispatch — severity routing
+// Dispatch - severity routing
 // =========================================================================
 
 func TestDispatch_MatchesSeverityAtThreshold(t *testing.T) {
@@ -626,7 +626,7 @@ func TestDispatch_WebhookServerError(t *testing.T) {
 }
 
 // =========================================================================
-// In-app notifications — ListNotifications
+// In-app notifications - ListNotifications
 // =========================================================================
 
 func TestListNotifications_Empty(t *testing.T) {
@@ -954,7 +954,7 @@ func TestDispatch_WebhookHMAC_NoSecretNoHeader(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newService(db)
 
-	// No secret in config — backward compatible
+	// No secret in config - backward compatible
 	config := fmt.Sprintf(`{"url":"%s"}`, ts.URL)
 	ch := createTestChannel(t, svc, 1, "No Secret Hook", entity.NotificationChannelWebhook, config)
 	createTestRule(t, svc, 1, ch.ID, "low")
@@ -982,7 +982,7 @@ func TestDispatch_WebhookHMAC_EmptySecretNoHeader(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newService(db)
 
-	// Empty string secret — should not sign
+	// Empty string secret - should not sign
 	config := fmt.Sprintf(`{"url":"%s","secret":""}`, ts.URL)
 	ch := createTestChannel(t, svc, 1, "Empty Secret", entity.NotificationChannelWebhook, config)
 	createTestRule(t, svc, 1, ch.ID, "low")
@@ -1243,7 +1243,7 @@ func TestValidateChannelConfig_Slack(t *testing.T) {
 }
 
 func TestValidateChannelConfig_Email(t *testing.T) {
-	// Email channels have no URL to validate — always pass.
+	// Email channels have no URL to validate - always pass.
 	cfg := `{"recipients":"test@example.com"}`
 	assert.NoError(t, notifications.ValidateChannelConfig("email", cfg))
 }

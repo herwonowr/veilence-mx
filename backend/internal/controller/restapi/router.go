@@ -4,10 +4,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 
+	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/middleware"
+	v1 "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
-	v1 "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1"
-	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/middleware"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
@@ -159,7 +159,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 				r.Group(func(r chi.Router) {
 					r.Use(rateLimitGroup.ForCategory(middleware.CategorySync))
 					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/discover", h.Settings.DiscoverPackages)
-						r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/reanalyze", h.Dashboard.ReanalyzeAll)
+					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/reanalyze", h.Dashboard.ReanalyzeAll)
 				})
 
 				// Queue monitoring (global data, but requires workspace membership)
@@ -187,7 +187,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 					r.With(rbac.RequirePermission(rbacService, "workspace", "delete")).Delete("/", h.Workspace.DeleteWorkspace)
 
 					// Members
-					r.Get("/members/me/role", h.Workspace.GetCurrentMemberRole) // No extra permission — any workspace member can read their own role
+					r.Get("/members/me/role", h.Workspace.GetCurrentMemberRole) // No extra permission - any workspace member can read their own role
 					r.With(rbac.RequirePermission(rbacService, "members", "read")).Get("/members", h.Workspace.ListMembers)
 					r.With(rbac.RequirePermission(rbacService, "members", "invite")).Post("/invitations", h.Workspace.InviteMember)
 					r.With(rbac.RequirePermission(rbacService, "members", "read")).Get("/invitations", h.Workspace.ListPendingInvitations)

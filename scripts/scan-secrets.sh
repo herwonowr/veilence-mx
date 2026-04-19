@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scan-secrets.sh — Scan the codebase for potential hardcoded secrets.
+# scan-secrets.sh - Scan the codebase for potential hardcoded secrets.
 #
 # Usage: ./scripts/scan-secrets.sh [path]
 #

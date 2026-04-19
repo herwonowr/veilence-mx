@@ -145,7 +145,7 @@ export const PackagesListView = () => {
   const [removeTarget, setRemoveTarget] = useState<{ id: number; name: string } | null>(null)
 
   // Sync filter state → URL search params
-  // For packages, "active" is the default status — omit from URL when it matches
+  // For packages, "active" is the default status - omit from URL when it matches
   const PACKAGES_FILTER_DEFAULTS = useMemo(() => ({ status: "active" }), [])
   useFilterParams(
     useMemo(() => ({
@@ -191,7 +191,7 @@ export const PackagesListView = () => {
   const { data: suggestionsCount = 0 } = useSuggestionCount()
 
   const { role } = useCurrentWorkspaceRole()
-  /** Viewers get a read-only view — all mutation buttons are hidden */
+  /** Viewers get a read-only view - all mutation buttons are hidden */
   const canWrite = hasMinimumRole(role, "member")
 
   // Reset to first page when filters or sort change

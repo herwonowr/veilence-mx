@@ -64,7 +64,7 @@ func TestNew_ReturnsNonNil(t *testing.T) {
 
 // TestBuildPasswordResetLink verifies the password reset email would contain
 // the correct link. We test this indirectly by ensuring the mailer attempts
-// to send (and fails with "SMTP not configured" for unconfigured) — the
+// to send (and fails with "SMTP not configured" for unconfigured) - the
 // message formatting is internal, so we verify the link pattern via a
 // lightweight send attempt on a configured-but-unreachable SMTP.
 func TestPasswordResetEmail_LinkFormat(t *testing.T) {

@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 )
 
 // =====================================================================
@@ -161,7 +161,7 @@ func TestCorrelationIDFromContext_NoValue(t *testing.T) {
 }
 
 // =====================================================================
-// ListAuditLogs — pagination
+// ListAuditLogs - pagination
 // =====================================================================
 
 func TestListAuditLogs_Pagination(t *testing.T) {
@@ -200,7 +200,7 @@ func TestListAuditLogs_FilterByUserID(t *testing.T) {
 }
 
 // =====================================================================
-// CaptureState/LogChange — multiple fields
+// CaptureState/LogChange - multiple fields
 // =====================================================================
 
 func TestCaptureState_MultipleFieldChanges(t *testing.T) {

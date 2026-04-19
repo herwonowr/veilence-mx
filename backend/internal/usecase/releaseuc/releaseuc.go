@@ -106,7 +106,7 @@ func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID 
 
 	diff, err := uc.diffs.FindFirstByReleaseID(ctx, release.ID)
 	if err != nil || diff == nil {
-		// No diff yet — re-enqueue as a diff job from scratch
+		// No diff yet - re-enqueue as a diff job from scratch
 		if err := uc.releases.UpdateStatus(ctx, release.ID, entity.ReleaseStatusPending); err != nil {
 			return "", "", fmt.Errorf("ReleaseUseCase.ReanalyzeRelease: updating status: %w", err)
 		}
@@ -117,7 +117,7 @@ func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID 
 		return "release re-queued for diffing and analysis", jobID, nil
 	}
 
-	// Diff exists — re-enqueue analysis job
+	// Diff exists - re-enqueue analysis job
 	if err := uc.releases.UpdateStatus(ctx, release.ID, entity.ReleaseStatusAnalyzing); err != nil {
 		return "", "", fmt.Errorf("ReleaseUseCase.ReanalyzeRelease: updating status: %w", err)
 	}

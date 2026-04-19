@@ -39,7 +39,7 @@ func (m *mockPackageRepo) FindByIDAndWorkspaceID(_ context.Context, _ uint, _ ui
 	return nil, entity.ErrNotFound
 }
 
-// Unused interface methods — satisfy the interface.
+// Unused interface methods - satisfy the interface.
 func (m *mockPackageRepo) FindByWorkspaceID(context.Context, uint, int, int, string, entity.PackageFilters) ([]entity.Package, int64, error) {
 	return nil, 0, nil
 }
@@ -49,11 +49,11 @@ func (m *mockPackageRepo) FindActiveByWorkspaceID(context.Context, uint) ([]enti
 func (m *mockPackageRepo) FindByWorkspaceAndName(context.Context, uint, string, entity.Ecosystem) (*entity.Package, error) {
 	return nil, nil
 }
-func (m *mockPackageRepo) Create(context.Context, *entity.Package) error   { return nil }
-func (m *mockPackageRepo) Update(context.Context, *entity.Package) error   { return nil }
+func (m *mockPackageRepo) Create(context.Context, *entity.Package) error          { return nil }
+func (m *mockPackageRepo) Update(context.Context, *entity.Package) error          { return nil }
 func (m *mockPackageRepo) BlockPackage(context.Context, uint, uint, string) error { return nil }
-func (m *mockPackageRepo) UnblockPackage(context.Context, uint, uint) error      { return nil }
-func (m *mockPackageRepo) RemovePackage(context.Context, uint, uint) error       { return nil }
+func (m *mockPackageRepo) UnblockPackage(context.Context, uint, uint) error       { return nil }
+func (m *mockPackageRepo) RemovePackage(context.Context, uint, uint) error        { return nil }
 func (m *mockPackageRepo) CountByWorkspace(context.Context, uint, *entity.Ecosystem) (int64, error) {
 	return 0, nil
 }
@@ -63,8 +63,8 @@ func (m *mockPackageRepo) ExistsByWorkspaceAndName(context.Context, uint, string
 func (m *mockPackageRepo) FindSuggestionsByWorkspaceID(context.Context, uint, int, int, string, entity.PackageFilters) ([]entity.Package, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockPackageRepo) ApprovePackage(context.Context, uint, uint) error          { return nil }
-func (m *mockPackageRepo) RejectPackage(context.Context, uint, uint) error           { return nil }
+func (m *mockPackageRepo) ApprovePackage(context.Context, uint, uint) error { return nil }
+func (m *mockPackageRepo) RejectPackage(context.Context, uint, uint) error  { return nil }
 func (m *mockPackageRepo) BulkApprovePackages(context.Context, uint, []uint) (int, error) {
 	return 0, nil
 }
@@ -215,10 +215,10 @@ func (m *mockAnalysisRepo) CountByDiffID(context.Context, uint) (int64, error) {
 // ---------------------------------------------------------------------------
 
 type mockQueue struct {
-	lastJobType    string
-	lastRefID      uint
-	enqueueResult  string
-	enqueueErr     error
+	lastJobType   string
+	lastRefID     uint
+	enqueueResult string
+	enqueueErr    error
 }
 
 func (m *mockQueue) Enqueue(_ context.Context, jobType string, refID uint) (string, error) {

@@ -75,11 +75,11 @@ func (s *Service) CreateChannel(workspaceID uint, name string, channelType entit
 	ctx := context.Background()
 
 	channel := &entity.NotificationChannel{
-		WorkspaceID:    workspaceID,
-		Name:     name,
-		Type:     channelType,
-		Config:   config,
-		IsActive: true,
+		WorkspaceID: workspaceID,
+		Name:        name,
+		Type:        channelType,
+		Config:      config,
+		IsActive:    true,
 	}
 
 	if err := s.channels.Create(ctx, channel); err != nil {
@@ -157,10 +157,10 @@ func (s *Service) CreateRule(workspaceID, channelID uint, severity string) (*ent
 	}
 
 	rule := &entity.NotificationRule{
-		WorkspaceID:     workspaceID,
-		ChannelID: channelID,
-		Severity:  severity,
-		IsActive:  true,
+		WorkspaceID: workspaceID,
+		ChannelID:   channelID,
+		Severity:    severity,
+		IsActive:    true,
 	}
 
 	if err := s.rules.Create(ctx, rule); err != nil {
@@ -232,7 +232,7 @@ func (s *Service) dispatchInternal(ctx context.Context, workspaceID uint, severi
 	// always has something to show regardless of whether notification
 	// rules/channels are configured.
 	inAppNotification := &entity.Notification{
-		WorkspaceID:         workspaceID,
+		WorkspaceID:   workspaceID,
 		UserID:        0, // org-wide
 		ChannelID:     0, // in-app notification, no external channel
 		Severity:      severity,
@@ -438,7 +438,7 @@ func (s *Service) sendEmailImplicitTLS(addr string, auth smtp.Auth, recipients [
 }
 
 // ---------------------------------------------------------------------------
-// SSRF prevention — URL validation
+// SSRF prevention - URL validation
 // ---------------------------------------------------------------------------
 
 // ErrSSRFBlocked is returned when a URL targets a private/internal address.
@@ -480,7 +480,7 @@ func ValidateWebhookURL(rawURL string) error {
 	// Resolve and check IP addresses.
 	ips, err := net.LookupHost(hostname)
 	if err != nil {
-		// If we can't resolve, block to be safe — the webhook would fail anyway.
+		// If we can't resolve, block to be safe - the webhook would fail anyway.
 		return fmt.Errorf("cannot resolve hostname %q: %w", hostname, err)
 	}
 
@@ -575,9 +575,9 @@ func isPrivateOrReservedIP(ip net.IP) bool {
 		{"169.254.0.0/16"}, // Link-local (redundant with IsLinkLocalUnicast but explicit)
 		{"127.0.0.0/8"},    // Loopback (redundant but explicit)
 		{"0.0.0.0/8"},      // "This" network
-		{"fc00::/7"},        // IPv6 unique local
-		{"::1/128"},         // IPv6 loopback
-		{"fe80::/10"},       // IPv6 link-local (redundant but explicit)
+		{"fc00::/7"},       // IPv6 unique local
+		{"::1/128"},        // IPv6 loopback
+		{"fe80::/10"},      // IPv6 link-local (redundant but explicit)
 	}
 
 	for _, r := range privateRanges {
@@ -904,7 +904,7 @@ func (s *Service) GetChannel(id, workspaceID uint) (*entity.NotificationChannel,
 
 // ComputeHMACSignature computes the HMAC-SHA256 hex digest of body using the
 // given secret key. The returned string is the lowercase hex-encoded digest
-// (without the "sha256=" prefix — callers add that when building the header).
+// (without the "sha256=" prefix - callers add that when building the header).
 func ComputeHMACSignature(secret, body []byte) string {
 	mac := hmac.New(sha256.New, secret)
 	mac.Write(body)

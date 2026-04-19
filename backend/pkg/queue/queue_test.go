@@ -803,13 +803,13 @@ func TestFullJobLifecycle_FailRetrySuccess(t *testing.T) {
 	jobID, err := q.Enqueue(ctx, JobTypeDiff, 42)
 	require.NoError(t, err)
 
-	// 2. First attempt — fail
+	// 2. First attempt - fail
 	job, _ := q.Dequeue(ctx, JobTypeDiff)
 	require.NotNil(t, job)
 	err = q.Fail(ctx, job, errors.New("attempt 1 failed"))
 	require.NoError(t, err)
 
-	// 3. Second attempt — succeed
+	// 3. Second attempt - succeed
 	job2, _ := q.Dequeue(ctx, JobTypeDiff)
 	require.NotNil(t, job2)
 	assert.Equal(t, jobID, job2.ID)
@@ -830,12 +830,12 @@ func TestFullJobLifecycle_FailUntilDead(t *testing.T) {
 	_, err := q.Enqueue(ctx, JobTypeDiff, 42)
 	require.NoError(t, err)
 
-	// First attempt — fail
+	// First attempt - fail
 	job, _ := q.Dequeue(ctx, JobTypeDiff)
 	require.NotNil(t, job)
 	_ = q.Fail(ctx, job, errors.New("fail 1"))
 
-	// Second attempt — fail again → dead
+	// Second attempt - fail again → dead
 	job2, _ := q.Dequeue(ctx, JobTypeDiff)
 	require.NotNil(t, job2)
 	assert.Equal(t, 1, job2.Attempts) // 1 failure so far
@@ -1136,7 +1136,7 @@ func TestProcessingJobs_SkipsExpiredHashes(t *testing.T) {
 	jobs, total, err := q.ProcessingJobs(ctx, JobTypeDiff, 0, 10)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), total) // stale member cleaned from ZSET
-	assert.Len(t, jobs, 1)          // only 1 job hash was loadable
+	assert.Len(t, jobs, 1)           // only 1 job hash was loadable
 }
 
 func TestProcessingJobs_DoesNotCrossJobTypes(t *testing.T) {

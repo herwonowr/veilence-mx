@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 )
 
 // =====================================================================
@@ -33,7 +33,7 @@ func TestForgotPassword_UnknownEmail_NoError(t *testing.T) {
 	db := setupAuthTestDB(t)
 	svc := newAuthService(db)
 
-	// Should not reveal that the email doesn't exist — returns nil error + empty token
+	// Should not reveal that the email doesn't exist - returns nil error + empty token
 	rawToken, err := svc.ForgotPassword("nonexistent@example.com")
 	require.NoError(t, err, "should not return error for unknown email")
 	assert.Empty(t, rawToken, "should return empty token for unknown email")
@@ -245,7 +245,7 @@ func TestVerifyEmail_TokenIsOneTimeUse(t *testing.T) {
 }
 
 // =====================================================================
-// Login — deactivated account
+// Login - deactivated account
 // =====================================================================
 
 func TestLogin_DeactivatedAccount(t *testing.T) {
@@ -264,7 +264,7 @@ func TestLogin_DeactivatedAccount(t *testing.T) {
 }
 
 // =====================================================================
-// ValidateAPIKey — expired key
+// ValidateAPIKey - expired key
 // =====================================================================
 
 func TestValidateAPIKey_ExpiredKey(t *testing.T) {
@@ -333,7 +333,7 @@ func TestValidateAPIKey_UpdatesLastUsedAt(t *testing.T) {
 }
 
 // =====================================================================
-// CreateSession — user agent truncation
+// CreateSession - user agent truncation
 // =====================================================================
 
 func TestCreateSession_UserAgentTruncation(t *testing.T) {
@@ -351,7 +351,7 @@ func TestCreateSession_UserAgentTruncation(t *testing.T) {
 }
 
 // =====================================================================
-// RefreshTokens — deactivated user during refresh
+// RefreshTokens - deactivated user during refresh
 // =====================================================================
 
 func TestRefreshTokens_DeactivatedUser(t *testing.T) {
@@ -409,7 +409,7 @@ func TestValidateAccessToken_WithPreviousSecret(t *testing.T) {
 }
 
 // =====================================================================
-// Logout — nonexistent token (idempotent)
+// Logout - nonexistent token (idempotent)
 // =====================================================================
 
 func TestLogout_NonexistentToken(t *testing.T) {

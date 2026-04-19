@@ -68,11 +68,11 @@ const NotificationListSkeleton = () => (
 )
 
 // ---------------------------------------------------------------------------
-// NotificationsListView — full page component
+// NotificationsListView - full page component
 //
 // RBAC note (FINDING-10): Notifications are per-user, not per-workspace.
 // All users can manage (mark read, delete) their own notifications.
-// No role gating is needed here — the backend only returns notifications
+// No role gating is needed here - the backend only returns notifications
 // belonging to the authenticated user.
 // ---------------------------------------------------------------------------
 
@@ -412,7 +412,7 @@ export const NotificationsListView = () => {
               </Button>
             </EmptyState>
           ) : allNotificationsCount === 0 ? (
-            /* Zero state — no notifications at all */
+            /* Zero state - no notifications at all */
             <EmptyState
               icon={<Bell className="size-8" />}
               title="No notifications yet"

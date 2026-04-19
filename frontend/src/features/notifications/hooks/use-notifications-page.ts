@@ -64,7 +64,7 @@ export const useNotificationsPage = () => {
   }
 
   // Sync filter state → URL search params
-  // "all" is the default for every filter — omit from URL when it matches
+  // "all" is the default for every filter - omit from URL when it matches
   const NOTIFICATIONS_FILTER_DEFAULTS = useMemo(() => ({
     read: "all",
     severity: "all",

@@ -1,6 +1,6 @@
 // Package mailer provides SMTP email delivery for authentication workflows
 // (password reset, email verification). It is a standalone pkg/ library that
-// does NOT import internal/ — all SMTP logic is self-contained.
+// does NOT import internal/ - all SMTP logic is self-contained.
 package mailer
 
 import (

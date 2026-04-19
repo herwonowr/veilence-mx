@@ -49,7 +49,7 @@ func TestGetWorkspaceMembers_EmptyOrg(t *testing.T) {
 	db := setupRBACTestDB(t)
 	svc := rbac.NewService(persistent.NewRBACRepo(db))
 
-	// Query members for a non-existent org — should return empty, not error
+	// Query members for a non-existent org - should return empty, not error
 	members, err := svc.GetWorkspaceMembers(99999)
 	require.NoError(t, err)
 	assert.Empty(t, members)
@@ -265,7 +265,7 @@ func TestGetAllPermissions(t *testing.T) {
 }
 
 // =====================================================================
-// InviteMember — cannot invite as owner
+// InviteMember - cannot invite as owner
 // =====================================================================
 
 func TestInviteMember_CannotInviteAsOwner(t *testing.T) {
@@ -293,7 +293,7 @@ func TestInviteMember_CannotInviteAsOwner(t *testing.T) {
 }
 
 // =====================================================================
-// AcceptInvitation — email mismatch
+// AcceptInvitation - email mismatch
 // =====================================================================
 
 func TestAcceptInvitation_EmailMismatch(t *testing.T) {
@@ -326,7 +326,7 @@ func TestAcceptInvitation_EmailMismatch(t *testing.T) {
 }
 
 // =====================================================================
-// AcceptInvitation — expired invitation
+// AcceptInvitation - expired invitation
 // =====================================================================
 
 func TestAcceptInvitation_Expired(t *testing.T) {
@@ -361,7 +361,7 @@ func TestAcceptInvitation_Expired(t *testing.T) {
 }
 
 // =====================================================================
-// UpdateWorkspace — slug uniqueness on update
+// UpdateWorkspace - slug uniqueness on update
 // =====================================================================
 
 func TestUpdateWorkspace_DuplicateSlugOnUpdate(t *testing.T) {
@@ -382,7 +382,7 @@ func TestUpdateWorkspace_DuplicateSlugOnUpdate(t *testing.T) {
 }
 
 // =====================================================================
-// UpdateMemberRole — role not found
+// UpdateMemberRole - role not found
 // =====================================================================
 
 func TestUpdateMemberRole_RoleNotFound(t *testing.T) {
@@ -417,7 +417,7 @@ func TestUpdateMemberRole_RoleNotFound(t *testing.T) {
 }
 
 // =====================================================================
-// DeleteWorkspace — not found
+// DeleteWorkspace - not found
 // =====================================================================
 
 func TestDeleteWorkspace_NotFound(t *testing.T) {
@@ -430,7 +430,7 @@ func TestDeleteWorkspace_NotFound(t *testing.T) {
 }
 
 // =====================================================================
-// RemoveMember — not found
+// RemoveMember - not found
 // =====================================================================
 
 func TestRemoveMember_NotFound(t *testing.T) {
@@ -476,7 +476,7 @@ func TestGetUserMembership_NotFound(t *testing.T) {
 }
 
 // =====================================================================
-// CheckPermission — non-member
+// CheckPermission - non-member
 // =====================================================================
 
 func TestCheckPermission_NonMember(t *testing.T) {
@@ -494,7 +494,7 @@ func TestCheckPermission_NonMember(t *testing.T) {
 }
 
 // =====================================================================
-// InviteMember — invalid role (wrong org)
+// InviteMember - invalid role (wrong org)
 // =====================================================================
 
 func TestInviteMember_RoleFromDifferentOrg(t *testing.T) {

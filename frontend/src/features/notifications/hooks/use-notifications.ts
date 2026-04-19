@@ -69,7 +69,7 @@ export const useMarkNotificationRead = () => {
       )
 
       // Optimistic update: mark as read in cached list
-      // Use notificationKeys.list() (not .all) to only match list queries —
+      // Use notificationKeys.list() (not .all) to only match list queries -
       // .all also matches the unread-count query whose data is not an array.
       queryClient.setQueriesData<ApiResponse<Notification[]>>(
         { queryKey: notificationKeys.list() },
@@ -132,7 +132,7 @@ export const useMarkAllNotificationsRead = () => {
       )
 
       // Optimistic: mark everything read
-      // Use notificationKeys.list() (not .all) to only match list queries —
+      // Use notificationKeys.list() (not .all) to only match list queries -
       // .all also matches the unread-count query whose data is not an array.
       queryClient.setQueriesData<ApiResponse<Notification[]>>(
         { queryKey: notificationKeys.list() },

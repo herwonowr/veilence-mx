@@ -16,7 +16,7 @@ const (
 )
 
 // ValidAPIKeyRoles is the set of valid API key roles.
-// Note: "owner" is intentionally excluded — API keys cannot have owner-level access.
+// Note: "owner" is intentionally excluded - API keys cannot have owner-level access.
 var ValidAPIKeyRoles = []APIKeyRole{APIKeyRoleViewer, APIKeyRoleMember, APIKeyRoleAdmin}
 
 // IsValidAPIKeyRole returns true if the given role string is a valid API key role.

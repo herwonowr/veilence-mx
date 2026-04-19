@@ -6,7 +6,7 @@ import { Skeleton } from "@/ui/components/skeleton"
 import { ShieldX } from "lucide-react"
 
 /**
- * RequireRole — gates children behind a minimum workspace role.
+ * RequireRole - gates children behind a minimum workspace role.
  *
  * NOTE: Frontend role checks are UI convenience only. The backend enforces
  * authorization on every API endpoint. This component prevents viewers from

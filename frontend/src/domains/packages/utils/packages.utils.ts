@@ -21,14 +21,14 @@ export const formatDownloadCount = (count: number | undefined | null): string =>
 /**
  * Format the popularity metric for display.
  * Both PyPI and NPM show formatted download counts (e.g., "12.5M/mo").
- * Returns "—" when no download count is available.
+ * Returns "-" when no download count is available.
  */
 export const formatPopularity = (
   _ecosystem: Ecosystem | string,
   downloadCount: number | undefined | null
 ): string => {
   if (downloadCount != null) return formatDownloadCount(downloadCount)
-  return "—"
+  return "-"
 }
 
 /**

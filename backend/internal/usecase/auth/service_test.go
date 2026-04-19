@@ -11,9 +11,9 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 )
 
 const testJWTSecret = "test-secret-key-for-jwt-signing-1234567890"
@@ -581,7 +581,7 @@ func TestCreateSession_EnforcesMaxLimit(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, sessions, auth.MaxSessionsPerUser)
 
-	// Create one more — should evict oldest
+	// Create one more - should evict oldest
 	_, err = svc.CreateSession(user.ID, "hash-overflow", "10.0.0.1", "Browser")
 	require.NoError(t, err)
 

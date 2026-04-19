@@ -63,7 +63,7 @@ func ParseLLMResponse(rawResponse string) *Result {
 		}
 	}
 
-	// Step 4: Fallback — mark as suspicious (fail-safe).
+	// Step 4: Fallback - mark as suspicious (fail-safe).
 	slog.Warn("failed to parse LLM response, falling back to suspicious",
 		"raw_length", len(rawResponse),
 	)

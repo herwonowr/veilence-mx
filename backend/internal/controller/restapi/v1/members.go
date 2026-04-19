@@ -11,7 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	validation "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/request"
-	
+
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
@@ -30,18 +30,18 @@ type updateMemberRoleRequest struct {
 // The frontend expects email, firstName, and lastName at the top level
 // instead of nested under a "user" object.
 type flatMember struct {
-	ID        uint        `json:"id"`
-	WorkspaceID     uint        `json:"workspaceId"`
-	UserID    uint        `json:"userId"`
-	RoleID    uint        `json:"roleId"`
-	Role      entity.Role `json:"role"`
-	JoinedAt  time.Time   `json:"joinedAt"`
-	Email     string      `json:"email"`
-	FirstName string      `json:"firstName"`
-	LastName  string      `json:"lastName"`
+	ID          uint        `json:"id"`
+	WorkspaceID uint        `json:"workspaceId"`
+	UserID      uint        `json:"userId"`
+	RoleID      uint        `json:"roleId"`
+	Role        entity.Role `json:"role"`
+	JoinedAt    time.Time   `json:"joinedAt"`
+	Email       string      `json:"email"`
+	FirstName   string      `json:"firstName"`
+	LastName    string      `json:"lastName"`
 }
 
-// ListMembers handles GET /api/workspaces/{workspaceId}/members — lists workspace members.
+// ListMembers handles GET /api/workspaces/{workspaceId}/members - lists workspace members.
 func (h *WorkspaceHandlers) ListMembers(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == 0 {
@@ -71,22 +71,22 @@ func (h *WorkspaceHandlers) ListMembers(w http.ResponseWriter, r *http.Request) 
 			lastName = m.User.LastName
 		}
 		flat[i] = flatMember{
-			ID:        m.ID,
-			WorkspaceID:     m.WorkspaceID,
-			UserID:    m.UserID,
-			RoleID:    m.RoleID,
-			Role:      role,
-			JoinedAt:  m.JoinedAt,
-			Email:     email,
-			FirstName: firstName,
-			LastName:  lastName,
+			ID:          m.ID,
+			WorkspaceID: m.WorkspaceID,
+			UserID:      m.UserID,
+			RoleID:      m.RoleID,
+			Role:        role,
+			JoinedAt:    m.JoinedAt,
+			Email:       email,
+			FirstName:   firstName,
+			LastName:    lastName,
 		}
 	}
 
 	respondJSON(w, http.StatusOK, flat, nil)
 }
 
-// InviteMember handles POST /api/workspaces/{workspaceId}/invitations — invites a user to the workspace.
+// InviteMember handles POST /api/workspaces/{workspaceId}/invitations - invites a user to the workspace.
 func (h *WorkspaceHandlers) InviteMember(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	userID := rbac.UserIDFromContext(r.Context())
@@ -129,18 +129,18 @@ func (h *WorkspaceHandlers) InviteMember(w http.ResponseWriter, r *http.Request)
 	// Return the invitation with the raw token so the caller can construct the invitation URL.
 	// The token is not stored in the model (only the hash is), so we include it explicitly.
 	respondJSON(w, http.StatusCreated, map[string]any{
-		"id":        invitation.ID,
-		  "workspaceId":     invitation.WorkspaceID,
-		"email":     invitation.Email,
-		"roleId":    invitation.RoleID,
-		"token":     rawToken,
-		"invitedBy": invitation.InvitedBy,
-		"expiresAt": invitation.ExpiresAt,
-		"createdAt": invitation.CreatedAt,
+		"id":          invitation.ID,
+		"workspaceId": invitation.WorkspaceID,
+		"email":       invitation.Email,
+		"roleId":      invitation.RoleID,
+		"token":       rawToken,
+		"invitedBy":   invitation.InvitedBy,
+		"expiresAt":   invitation.ExpiresAt,
+		"createdAt":   invitation.CreatedAt,
 	}, nil)
 }
 
-// AcceptInvitation handles POST /api/workspaces/{workspaceId}/invitations/{token}/accept — accepts an invitation.
+// AcceptInvitation handles POST /api/workspaces/{workspaceId}/invitations/{token}/accept - accepts an invitation.
 func (h *WorkspaceHandlers) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	if token == "" {
@@ -191,7 +191,7 @@ func (h *WorkspaceHandlers) AcceptInvitation(w http.ResponseWriter, r *http.Requ
 	respondJSON(w, http.StatusOK, member, nil)
 }
 
-// GetInvitationInfo handles GET /api/invitations/{token} — returns invitation details
+// GetInvitationInfo handles GET /api/invitations/{token} - returns invitation details
 // so the frontend can display "You've been invited to {org}" before the user accepts.
 // This endpoint is public (no auth required) so unauthenticated users can see the
 // invitation info and then register/log in before accepting.
@@ -212,17 +212,17 @@ func (h *WorkspaceHandlers) GetInvitationInfo(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Return limited info — don't expose internal IDs
+	// Return limited info - don't expose internal IDs
 	respondJSON(w, http.StatusOK, map[string]any{
-		"email":     invitation.Email,
-		  "workspaceId":     invitation.WorkspaceID,
-		"expiresAt": invitation.ExpiresAt,
-		"accepted":  invitation.AcceptedAt != nil,
-		"expired":   time.Now().After(invitation.ExpiresAt),
+		"email":       invitation.Email,
+		"workspaceId": invitation.WorkspaceID,
+		"expiresAt":   invitation.ExpiresAt,
+		"accepted":    invitation.AcceptedAt != nil,
+		"expired":     time.Now().After(invitation.ExpiresAt),
 	}, nil)
 }
 
-// ListPendingInvitations handles GET /api/workspaces/{workspaceId}/invitations — lists
+// ListPendingInvitations handles GET /api/workspaces/{workspaceId}/invitations - lists
 // pending invitations for the workspace.
 func (h *WorkspaceHandlers) ListPendingInvitations(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
@@ -240,7 +240,7 @@ func (h *WorkspaceHandlers) ListPendingInvitations(w http.ResponseWriter, r *htt
 	respondJSON(w, http.StatusOK, invitations, nil)
 }
 
-// RevokeInvitation handles DELETE /api/workspaces/{workspaceId}/invitations/{id} — revokes
+// RevokeInvitation handles DELETE /api/workspaces/{workspaceId}/invitations/{id} - revokes
 // a pending invitation.
 func (h *WorkspaceHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
@@ -270,7 +270,7 @@ func (h *WorkspaceHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Requ
 	respondJSON(w, http.StatusOK, map[string]string{"message": "invitation revoked"}, nil)
 }
 
-// RemoveMember handles DELETE /api/workspaces/{workspaceId}/members/{userId} — removes a member.
+// RemoveMember handles DELETE /api/workspaces/{workspaceId}/members/{userId} - removes a member.
 func (h *WorkspaceHandlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == 0 {
@@ -303,7 +303,7 @@ func (h *WorkspaceHandlers) RemoveMember(w http.ResponseWriter, r *http.Request)
 	respondJSON(w, http.StatusOK, nil, nil)
 }
 
-// GetCurrentMemberRole handles GET /api/workspaces/{workspaceId}/members/me/role — returns the
+// GetCurrentMemberRole handles GET /api/workspaces/{workspaceId}/members/me/role - returns the
 // authenticated user's role in the current workspace. The role is already resolved by the
 // RequireWorkspace middleware and stored in the request context.
 func (h *WorkspaceHandlers) GetCurrentMemberRole(w http.ResponseWriter, r *http.Request) {
@@ -315,7 +315,7 @@ func (h *WorkspaceHandlers) GetCurrentMemberRole(w http.ResponseWriter, r *http.
 	respondJSON(w, http.StatusOK, map[string]string{"role": role}, nil)
 }
 
-// UpdateMemberRole handles PUT /api/workspaces/{workspaceId}/members/{userId}/role — changes a member's role.
+// UpdateMemberRole handles PUT /api/workspaces/{workspaceId}/members/{userId}/role - changes a member's role.
 func (h *WorkspaceHandlers) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == 0 {
