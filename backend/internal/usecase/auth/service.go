@@ -252,6 +252,17 @@ func (s *Service) RefreshTokens(refreshToken string) (*TokenPair, error) {
 		return nil, errors.New("account is deactivated")
 	}
 
+	// Check email verification requirement
+	if s.settings != nil && !user.EmailVerified {
+		val, err := s.settings.GetSettingValue(ctx, 0, "require_email_verification")
+		if err != nil {
+			slog.Warn("failed to check email verification setting", "error", err)
+		} else if val == "true" {
+			_ = s.refreshTokens.Delete(ctx, stored.ID)
+			return nil, ErrEmailVerificationRequired
+		}
+	}
+
 	// Update session LastActive if a session exists for this refresh token hash
 	oldTokenHash := tokenHash
 	session, sessionErr := s.sessions.FindByTokenHash(ctx, oldTokenHash)
