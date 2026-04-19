@@ -14,11 +14,8 @@ import (
 	"strings"
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
-	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
 	"github.com/veilence/veilence-mx/backend/pkg/queue"
-	"github.com/veilence/veilence-mx/backend/internal/repo/registry"
-	"gorm.io/gorm"
 )
 
 // Config holds configuration for the differ.
@@ -28,21 +25,21 @@ type Config struct {
 
 // Differ generates diffs between consecutive package releases.
 type Differ struct {
-	db       *gorm.DB
-	python   registry.Registry
-	npm      registry.Registry
+	repo     DifferRepository
+	python   usecase.Registry
+	npm      usecase.Registry
 	config   Config
 	queue    *queue.Queue
 	notifier usecase.NotificationDispatcher
 }
 
 // New creates a new Differ instance.
-func New(db *gorm.DB, python registry.Registry, npm registry.Registry, config Config, q *queue.Queue, notifier usecase.NotificationDispatcher) *Differ {
+func New(repo DifferRepository, python usecase.Registry, npm usecase.Registry, config Config, q *queue.Queue, notifier usecase.NotificationDispatcher) *Differ {
 	if config.DiffSizeLimit <= 0 {
 		config.DiffSizeLimit = 100 * 1024 // 100KB default
 	}
 	return &Differ{
-		db:       db,
+		repo:     repo,
 		python:   python,
 		npm:      npm,
 		config:   config,
@@ -58,43 +55,40 @@ func (d *Differ) ProcessJob(ctx context.Context, job *queue.Job) error {
 
 // processRelease generates a diff for a new release.
 func (d *Differ) processRelease(ctx context.Context, releaseID uint) error {
-	var release persistent.Release
-	if err := d.db.Preload("Package").First(&release, releaseID).Error; err != nil {
+	release, pkg, err := d.repo.FindReleaseByIDWithPackage(ctx, releaseID)
+	if err != nil {
 		return fmt.Errorf("loading release %d: %w", releaseID, err)
 	}
 
 	// Update status to diffing
-	d.db.Model(&release).Update("status", persistent.ReleaseStatusDiffing)
+	d.repo.UpdateReleaseStatus(ctx, release.ID, entity.ReleaseStatusDiffing)
 
 	// Find the previous release for this package by publish time
-	var prevRelease persistent.Release
-	result := d.db.Where("package_id = ? AND published_at < ? AND status = ?", release.PackageID, release.PublishedAt, persistent.ReleaseStatusCompleted).
-		Order("published_at DESC").Limit(1).Find(&prevRelease)
-
-	if result.RowsAffected == 0 {
+	prevRelease, err := d.repo.FindPreviousCompletedRelease(ctx, release.PackageID, release.PublishedAt)
+	if err != nil || prevRelease == nil {
 		// No previous release — mark as completed (first tracked version)
 		slog.Info("no previous release found, skipping diff", "package_id", release.PackageID, "version", release.Version)
-		d.db.Model(&release).Update("status", persistent.ReleaseStatusCompleted)
+		d.repo.UpdateReleaseStatus(ctx, release.ID, entity.ReleaseStatusCompleted)
 		return nil
 	}
 
 	// Get the appropriate registry client
-	reg := d.getRegistry(string(release.Package.Ecosystem))
+	reg := d.getRegistry(string(pkg.Ecosystem))
 	if reg == nil {
-		return fmt.Errorf("unknown ecosystem: %s", release.Package.Ecosystem)
+		return fmt.Errorf("unknown ecosystem: %s", pkg.Ecosystem)
 	}
 
 	// Download both tarballs
 	newPath, err := reg.DownloadTarball(ctx, release.TarballURL)
 	if err != nil {
-		d.markError(&release, "downloading new tarball: "+err.Error())
+		d.markError(ctx, release, pkg, "downloading new tarball: "+err.Error())
 		return fmt.Errorf("downloading new tarball: %w", err)
 	}
 	defer os.RemoveAll(filepath.Dir(newPath))
 
 	oldPath, err := reg.DownloadTarball(ctx, prevRelease.TarballURL)
 	if err != nil {
-		d.markError(&release, "downloading previous tarball: "+err.Error())
+		d.markError(ctx, release, pkg, "downloading previous tarball: "+err.Error())
 		return fmt.Errorf("downloading previous tarball: %w", err)
 	}
 	defer os.RemoveAll(filepath.Dir(oldPath))
@@ -102,14 +96,14 @@ func (d *Differ) processRelease(ctx context.Context, releaseID uint) error {
 	// Extract tarballs
 	newDir, err := extractTarball(newPath)
 	if err != nil {
-		d.markError(&release, "extracting new tarball: "+err.Error())
+		d.markError(ctx, release, pkg, "extracting new tarball: "+err.Error())
 		return fmt.Errorf("extracting new tarball: %w", err)
 	}
 	defer os.RemoveAll(newDir)
 
 	oldDir, err := extractTarball(oldPath)
 	if err != nil {
-		d.markError(&release, "extracting previous tarball: "+err.Error())
+		d.markError(ctx, release, pkg, "extracting previous tarball: "+err.Error())
 		return fmt.Errorf("extracting previous tarball: %w", err)
 	}
 	defer os.RemoveAll(oldDir)
@@ -117,7 +111,7 @@ func (d *Differ) processRelease(ctx context.Context, releaseID uint) error {
 	// Generate unified diff
 	diffContent, stats, err := generateDiff(oldDir, newDir)
 	if err != nil {
-		d.markError(&release, "generating diff: "+err.Error())
+		d.markError(ctx, release, pkg, "generating diff: "+err.Error())
 		return fmt.Errorf("generating diff: %w", err)
 	}
 
@@ -127,7 +121,7 @@ func (d *Differ) processRelease(ctx context.Context, releaseID uint) error {
 	}
 
 	// Store diff
-	diff := persistent.Diff{
+	diff := &entity.Diff{
 		ReleaseID:        release.ID,
 		PrevReleaseID:    prevRelease.ID,
 		DiffContent:      diffContent,
@@ -136,16 +130,16 @@ func (d *Differ) processRelease(ctx context.Context, releaseID uint) error {
 		LinesRemoved:     stats.linesRemoved,
 	}
 
-	if err := d.db.Create(&diff).Error; err != nil {
-		d.markError(&release, "saving diff: "+err.Error())
+	if err := d.repo.CreateDiff(ctx, diff); err != nil {
+		d.markError(ctx, release, pkg, "saving diff: "+err.Error())
 		return fmt.Errorf("saving diff: %w", err)
 	}
 
 	// Update release status
-	d.db.Model(&release).Update("status", persistent.ReleaseStatusAnalyzing)
+	d.repo.UpdateReleaseStatus(ctx, release.ID, entity.ReleaseStatusAnalyzing)
 
 	slog.Info("diff generated",
-		"package", release.Package.Name,
+		"package", pkg.Name,
 		"version", release.Version,
 		"files_changed", stats.filesChanged,
 		"lines_added", stats.linesAdded,
@@ -163,7 +157,7 @@ func (d *Differ) processRelease(ctx context.Context, releaseID uint) error {
 	return nil
 }
 
-func (d *Differ) getRegistry(name string) registry.Registry {
+func (d *Differ) getRegistry(name string) usecase.Registry {
 	switch name {
 	case "python":
 		return d.python
@@ -174,17 +168,14 @@ func (d *Differ) getRegistry(name string) registry.Registry {
 	}
 }
 
-func (d *Differ) markError(release *persistent.Release, msg string) {
-	d.db.Model(release).Updates(map[string]any{
-		"status":        persistent.ReleaseStatusError,
-		"error_message": msg,
-	})
-	if d.notifier != nil && release.Package.ID > 0 {
-		d.notifier.DispatchEvent(context.Background(), release.Package.WorkspaceID, entity.NotificationEvent{
+func (d *Differ) markError(ctx context.Context, release *entity.Release, pkg *entity.Package, msg string) {
+	d.repo.UpdateReleaseError(ctx, release.ID, entity.ReleaseStatusError, msg)
+	if d.notifier != nil && pkg.ID > 0 {
+		d.notifier.DispatchEvent(ctx, pkg.WorkspaceID, entity.NotificationEvent{
 			Severity:      "medium",
 			EventType:     entity.NotifEventDiffError,
-			Title:         fmt.Sprintf("Diff failed: %s v%s", release.Package.Name, release.Version),
-			Message:       fmt.Sprintf("Failed to generate diff for %s v%s (%s): %s", release.Package.Name, release.Version, release.Package.Ecosystem, msg),
+			Title:         fmt.Sprintf("Diff failed: %s v%s", pkg.Name, release.Version),
+			Message:       fmt.Sprintf("Failed to generate diff for %s v%s (%s): %s", pkg.Name, release.Version, pkg.Ecosystem, msg),
 			ReferenceID:   release.ID,
 			ReferenceType: "release",
 		})

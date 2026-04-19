@@ -75,7 +75,7 @@ func newDashboardHandlersWithQueue(db *gorm.DB, q *mockEnqueuer) *v1.DashboardHa
 
 // newPackageHandlers creates a PackageHandlers for testing.
 func newPackageHandlers(db *gorm.DB) *v1.PackageHandlers {
-	auditSvc := audit.NewService(db)
+	auditSvc := audit.NewService(persistent.NewAuditLogRepo(db))
 	pkgRepo := persistent.NewPackageRepo(db)
 	pkgSvc := pkguc.New(pkgRepo, auditSvc)
 	relRepo := persistent.NewReleaseRepo(db)
@@ -87,7 +87,7 @@ func newPackageHandlers(db *gorm.DB) *v1.PackageHandlers {
 
 // newPackageHandlersWithQueue creates a PackageHandlers with a mock queue for testing.
 func newPackageHandlersWithQueue(db *gorm.DB, q *mockEnqueuer) *v1.PackageHandlers {
-	auditSvc := audit.NewService(db)
+	auditSvc := audit.NewService(persistent.NewAuditLogRepo(db))
 	pkgRepo := persistent.NewPackageRepo(db)
 	pkgSvc := pkguc.New(pkgRepo, auditSvc)
 	relRepo := persistent.NewReleaseRepo(db)
@@ -132,7 +132,7 @@ func newAlertHandlers(db *gorm.DB) *v1.AlertHandlers {
 	alertRepo := persistent.NewAlertRepo(db)
 	userRepo := persistent.NewUserRepo(db)
 	noteSvc := alertnoteuc.New(alertNoteRepo, alertRepo, userRepo)
-	auditSvc := audit.NewService(db)
+	auditSvc := audit.NewService(persistent.NewAuditLogRepo(db))
 	alertSvc := alertuc.New(alertRepo, auditSvc)
 	return &v1.AlertHandlers{AlertSvc: alertSvc, Notes: noteSvc, Audit: auditSvc}
 }
@@ -141,7 +141,7 @@ func newAlertHandlers(db *gorm.DB) *v1.AlertHandlers {
 func newSettingsHandlers(db *gorm.DB) *v1.SettingsHandlers {
 	settingRepo := persistent.NewSettingRepo(db)
 	settingSvc := settinguc.New(settingRepo)
-	return &v1.SettingsHandlers{SettingSvc: settingSvc, Audit: audit.NewService(db)}
+	return &v1.SettingsHandlers{SettingSvc: settingSvc, Audit: audit.NewService(persistent.NewAuditLogRepo(db))}
 }
 
 // --- Dashboard ---

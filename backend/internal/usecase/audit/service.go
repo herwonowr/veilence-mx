@@ -6,23 +6,16 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"time"
 
-	"gorm.io/gorm"
-
+	"github.com/veilence/veilence-mx/backend/internal/entity"
+	"github.com/veilence/veilence-mx/backend/internal/usecase"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
-	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
-// AuditLogFilters holds the query parameters for filtering audit logs.
-type AuditLogFilters struct {
-	Action   string
-	Resource string
-	UserID   uint
-	FromDate *time.Time
-	ToDate   *time.Time
-}
+// AuditLogFilters is an alias for entity.AuditLogFilters.
+// Kept for backward compatibility with controller imports.
+type AuditLogFilters = entity.AuditLogFilters
 
 // AuditContext captures the before-state of a resource for audit logging.
 // Use CaptureState to snapshot the current state before a mutation, then
@@ -37,12 +30,12 @@ type AuditContext struct {
 
 // Service provides audit logging operations.
 type Service struct {
-	db *gorm.DB
+	repo usecase.AuditLogRepository
 }
 
 // NewService creates a new audit service.
-func NewService(db *gorm.DB) *Service {
-	return &Service{db: db}
+func NewService(repo usecase.AuditLogRepository) *Service {
+	return &Service{repo: repo}
 }
 
 // LogAction creates an audit log entry, extracting user, org, IP, user-agent,
@@ -59,9 +52,9 @@ func (s *Service) LogAction(ctx context.Context, action, resource string, resour
 		userAgent = r.Header.Get("User-Agent")
 	}
 
-	entry := &persistent.AuditLog{
+	entry := &entity.AuditLog{
 		UserID:        userID,
-		WorkspaceID:         workspaceID,
+		WorkspaceID:   workspaceID,
 		Action:        action,
 		Resource:      resource,
 		ResourceID:    resourceID,
@@ -71,7 +64,7 @@ func (s *Service) LogAction(ctx context.Context, action, resource string, resour
 		CorrelationID: correlationID,
 	}
 
-	if err := s.db.Create(entry).Error; err != nil {
+	if err := s.repo.Create(ctx, entry); err != nil {
 		slog.Error("failed to create audit log",
 			"error", err,
 			"action", action,
@@ -107,9 +100,9 @@ func (s *Service) LogAuthEvent(ctx context.Context, action string, userID uint, 
 		userAgent = r.Header.Get("User-Agent")
 	}
 
-	entry := &persistent.AuditLog{
+	entry := &entity.AuditLog{
 		UserID:        userID,
-		WorkspaceID:         0, // Auth events are not org-scoped
+		WorkspaceID:   0, // Auth events are not org-scoped
 		Action:        action,
 		Resource:      "auth",
 		ResourceID:    userID,
@@ -119,7 +112,7 @@ func (s *Service) LogAuthEvent(ctx context.Context, action string, userID uint, 
 		CorrelationID: correlationID,
 	}
 
-	if err := s.db.Create(entry).Error; err != nil {
+	if err := s.repo.Create(ctx, entry); err != nil {
 		slog.Error("failed to create auth audit log",
 			"error", err,
 			"action", action,
@@ -185,50 +178,13 @@ func (ac *AuditContext) LogChange(action string, after map[string]any) {
 
 // ListAuditLogs returns a paginated list of audit logs for a workspace
 // with optional filters.
-func (s *Service) ListAuditLogs(workspaceID uint, filters AuditLogFilters, page, limit int) ([]persistent.AuditLog, int64, error) {
-	query := s.db.Model(&persistent.AuditLog{}).Where("workspace_id = ?", workspaceID)
-
-	if filters.Action != "" {
-		query = query.Where("action = ?", filters.Action)
-	}
-	if filters.Resource != "" {
-		query = query.Where("resource = ?", filters.Resource)
-	}
-	if filters.UserID != 0 {
-		query = query.Where("user_id = ?", filters.UserID)
-	}
-	if filters.FromDate != nil {
-		query = query.Where("created_at >= ?", *filters.FromDate)
-	}
-	if filters.ToDate != nil {
-		query = query.Where("created_at <= ?", *filters.ToDate)
-	}
-
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("counting audit logs: %w", err)
-	}
-
-	var logs []persistent.AuditLog
-	err := query.
-		Order("created_at DESC").
-		Offset((page - 1) * limit).
-		Limit(limit).
-		Find(&logs).Error
-	if err != nil {
-		return nil, 0, fmt.Errorf("listing audit logs: %w", err)
-	}
-
-	return logs, total, nil
+func (s *Service) ListAuditLogs(workspaceID uint, filters AuditLogFilters, page, limit int) ([]entity.AuditLog, int64, error) {
+	return s.repo.FindByWorkspaceID(context.Background(), workspaceID, filters, page, limit)
 }
 
 // GetAuditLog returns a single audit log entry by ID.
-func (s *Service) GetAuditLog(id uint) (*persistent.AuditLog, error) {
-	var entry persistent.AuditLog
-	if err := s.db.First(&entry, id).Error; err != nil {
-		return nil, fmt.Errorf("getting audit log: %w", err)
-	}
-	return &entry, nil
+func (s *Service) GetAuditLog(id uint) (*entity.AuditLog, error) {
+	return s.repo.FindByID(context.Background(), id)
 }
 
 // httpRequestKeyType is the context key type for storing the HTTP request.

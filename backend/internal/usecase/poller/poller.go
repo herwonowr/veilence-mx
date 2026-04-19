@@ -10,13 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gorm.io/gorm"
-
 	"github.com/veilence/veilence-mx/backend/internal/entity"
-	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
-	"github.com/veilence/veilence-mx/backend/pkg/queue"
-	"github.com/veilence/veilence-mx/backend/internal/repo/registry"
 )
 
 // Config holds configuration for the poller.
@@ -84,13 +79,16 @@ const BaseTickInterval = 30 * time.Second
 // many workspaces are due simultaneously.
 const MaxWorkspaceConcurrency = 5
 
+// JobTypeDiff is the queue job type for diff processing.
+const JobTypeDiff = "diff"
+
 // Poller polls package registries for new releases and discovers new packages.
 type Poller struct {
-	db       *gorm.DB
-	python   registry.Registry
-	npm      registry.Registry
+	repo     PollerRepository
+	python   usecase.Registry
+	npm      usecase.Registry
 	config   Config
-	queue    *queue.Queue
+	queue    usecase.QueueEnqueuer
 	notifier usecase.NotificationDispatcher
 	mu       sync.Mutex
 	settings *settingsCache
@@ -103,12 +101,12 @@ type Poller struct {
 }
 
 // New creates a new Poller instance.
-func New(db *gorm.DB, python registry.Registry, npm registry.Registry, config Config, q *queue.Queue, notifier usecase.NotificationDispatcher) *Poller {
+func New(repo PollerRepository, python usecase.Registry, npm usecase.Registry, config Config, q usecase.QueueEnqueuer, notifier usecase.NotificationDispatcher) *Poller {
 	if config.Concurrency <= 0 {
 		config.Concurrency = 5
 	}
 	return &Poller{
-		db:         db,
+		repo:       repo,
 		python:     python,
 		npm:        npm,
 		config:     config,
@@ -172,11 +170,8 @@ func (p *Poller) monitorLoop(ctx context.Context) {
 // runMonitorCycle checks all workspaces and monitors due ones.
 func (p *Poller) runMonitorCycle(ctx context.Context) {
 	// Fetch distinct workspace IDs that have active packages
-	var wsIDs []uint
-	if err := p.db.Model(&persistent.Package{}).
-		Where("status = ?", persistent.PackageStatusActive).
-		Distinct("workspace_id").
-		Pluck("workspace_id", &wsIDs).Error; err != nil {
+	wsIDs, err := p.repo.DistinctActiveWorkspaceIDs(ctx)
+	if err != nil {
 		slog.Error("failed to load workspace IDs for monitoring", "error", err)
 		return
 	}
@@ -226,9 +221,8 @@ func (p *Poller) runMonitorCycle(ctx context.Context) {
 // monitorWorkspacePackages loads all active packages for a workspace (both ecosystems)
 // and checks each for new releases. Returns the number of packages checked.
 func (p *Poller) monitorWorkspacePackages(ctx context.Context, workspaceID uint) int {
-	var packages []persistent.Package
-	if err := p.db.Where("workspace_id = ? AND status = ?", workspaceID, persistent.PackageStatusActive).
-		Find(&packages).Error; err != nil {
+	packages, err := p.repo.FindActivePackagesByWorkspace(ctx, workspaceID)
+	if err != nil {
 		slog.Error("failed to load active packages for monitoring", "workspace_id", workspaceID, "error", err)
 		return 0
 	}
@@ -242,7 +236,7 @@ func (p *Poller) monitorWorkspacePackages(ctx context.Context, workspaceID uint)
 
 	for _, pkg := range packages {
 		wg.Add(1)
-		go func(pkg persistent.Package) {
+		go func(pkg entity.Package) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
@@ -263,11 +257,11 @@ func (p *Poller) monitorWorkspacePackages(ctx context.Context, workspaceID uint)
 }
 
 // registryForEcosystem returns the appropriate registry client for an ecosystem.
-func (p *Poller) registryForEcosystem(ecosystem persistent.Ecosystem) registry.Registry {
+func (p *Poller) registryForEcosystem(ecosystem entity.Ecosystem) usecase.Registry {
 	switch ecosystem {
-	case persistent.EcosystemPython:
+	case entity.EcosystemPython:
 		return p.python
-	case persistent.EcosystemNPM:
+	case entity.EcosystemNPM:
 		return p.npm
 	default:
 		return nil
@@ -276,29 +270,25 @@ func (p *Poller) registryForEcosystem(ecosystem persistent.Ecosystem) registry.R
 
 // checkPackageForNewReleases fetches registry info and creates releases
 // for ALL versions published after the last known release (no version depth cap).
-func (p *Poller) checkPackageForNewReleases(ctx context.Context, reg registry.Registry, pkg persistent.Package) error {
+func (p *Poller) checkPackageForNewReleases(ctx context.Context, reg usecase.Registry, pkg entity.Package) error {
 	info, err := reg.GetPackage(ctx, pkg.Name)
 	if err != nil {
 		return fmt.Errorf("fetching package info: %w", err)
 	}
 
 	// Update package metadata
-	p.db.Model(&pkg).Updates(map[string]any{
-		"latest_version": info.Version,
-		"description":    info.Description,
-	})
+	p.repo.UpdatePackageMetadata(ctx, pkg.ID, info.Version, info.Description)
 
 	if len(info.Versions) == 0 {
 		return nil
 	}
 
 	// Find the most recent release we already know about
-	var latestKnownRelease persistent.Release
-	p.db.Where("package_id = ?", pkg.ID).Order("published_at DESC").Limit(1).Find(&latestKnownRelease)
+	latestKnownRelease, _ := p.repo.FindLatestRelease(ctx, pkg.ID)
 
 	var newVersions []entity.RegistryVersionInfo
 
-	if latestKnownRelease.ID > 0 {
+	if latestKnownRelease != nil && latestKnownRelease.ID > 0 {
 		// Find all versions published AFTER our latest known release
 		for _, v := range info.Versions {
 			if v.PublishedAt.After(latestKnownRelease.PublishedAt) && v.Version != latestKnownRelease.Version {
@@ -323,26 +313,25 @@ func (p *Poller) checkPackageForNewReleases(ctx context.Context, reg registry.Re
 
 	for _, v := range newVersions {
 		// Double-check: don't create if already exists (idempotency)
-		var existingRelease persistent.Release
-		result := p.db.Where("package_id = ? AND version = ?", pkg.ID, v.Version).Limit(1).Find(&existingRelease)
-		if result.Error != nil {
-			slog.Error("failed to check release", "package", pkg.Name, "version", v.Version, "error", result.Error)
+		existing, err := p.repo.FindReleaseByPackageAndVersion(ctx, pkg.ID, v.Version)
+		if err != nil {
+			slog.Error("failed to check release", "package", pkg.Name, "version", v.Version, "error", err)
 			continue
 		}
-		if result.RowsAffected > 0 {
+		if existing != nil {
 			continue
 		}
 
-		release := persistent.Release{
+		release := &entity.Release{
 			PackageID:   pkg.ID,
 			Version:     v.Version,
 			PublishedAt: v.PublishedAt,
 			TarballURL:  v.TarballURL,
 			SHA256:      v.SHA256,
-			Status:      persistent.ReleaseStatusPending,
+			Status:      entity.ReleaseStatusPending,
 		}
 
-		if err := p.db.Create(&release).Error; err != nil {
+		if err := p.repo.CreateRelease(ctx, release); err != nil {
 			slog.Error("failed to create release", "package", pkg.Name, "version", v.Version, "error", err)
 			continue
 		}
@@ -351,7 +340,7 @@ func (p *Poller) checkPackageForNewReleases(ctx context.Context, reg registry.Re
 
 		// Enqueue diff job via Redis queue
 		if p.queue != nil {
-			jobID, err := p.queue.Enqueue(ctx, queue.JobTypeDiff, release.ID)
+			jobID, err := p.queue.Enqueue(ctx, JobTypeDiff, release.ID)
 			if err != nil {
 				slog.Error("failed to enqueue diff job", "release_id", release.ID, "error", err)
 				continue
@@ -388,37 +377,10 @@ func (p *Poller) discoveryLoop(ctx context.Context) {
 
 // runDiscoveryCycle checks all workspaces and runs discovery for due ones.
 func (p *Poller) runDiscoveryCycle(ctx context.Context) {
-	// Get all workspace IDs that have settings (i.e., are set up)
-	var wsIDs []uint
-	if err := p.db.Model(&persistent.Setting{}).
-		Where("workspace_id > 0").
-		Distinct("workspace_id").
-		Pluck("workspace_id", &wsIDs).Error; err != nil {
+	allWorkspaceIDs, err := p.repo.DistinctWorkspaceIDs(ctx)
+	if err != nil {
 		slog.Error("failed to load workspace IDs for discovery", "error", err)
 		return
-	}
-
-	// Also include workspaces that have packages but might not have settings yet
-	var pkgWsIDs []uint
-	if err := p.db.Model(&persistent.Package{}).
-		Distinct("workspace_id").
-		Pluck("workspace_id", &pkgWsIDs).Error; err != nil {
-		slog.Error("failed to load package workspace IDs for discovery", "error", err)
-		return
-	}
-
-	// Merge unique workspace IDs
-	seen := make(map[uint]bool, len(wsIDs)+len(pkgWsIDs))
-	for _, id := range wsIDs {
-		seen[id] = true
-	}
-	for _, id := range pkgWsIDs {
-		seen[id] = true
-	}
-
-	var allWorkspaceIDs []uint
-	for id := range seen {
-		allWorkspaceIDs = append(allWorkspaceIDs, id)
 	}
 
 	if len(allWorkspaceIDs) == 0 {
@@ -464,14 +426,14 @@ func (p *Poller) runDiscoveryCycle(ctx context.Context) {
 // When autoApprove is true, new packages are created with status 'active' (auto-approved).
 // When autoApprove is false, new packages are created with status 'suggested' (pending admin approval).
 // Existing active packages get their download metrics refreshed.
-func (p *Poller) discoverPackages(ctx context.Context, reg registry.Registry, scanDepth int, workspaceID uint, autoApprove bool) {
+func (p *Poller) discoverPackages(ctx context.Context, reg usecase.Registry, scanDepth int, workspaceID uint, autoApprove bool) {
 	rankings, err := reg.GetTopPackages(ctx, scanDepth)
 	if err != nil {
 		slog.Error("failed to fetch top packages for discovery", "ecosystem", reg.Name(), "workspace_id", workspaceID, "error", err)
 		return
 	}
 
-	p.upsertDiscoveredPackages(ctx, workspaceID, rankings, persistent.Ecosystem(reg.Name()), autoApprove)
+	p.upsertDiscoveredPackages(ctx, workspaceID, rankings, entity.Ecosystem(reg.Name()), autoApprove)
 
 	slog.Info("discovery complete", "ecosystem", reg.Name(), "workspace_id", workspaceID, "scanned", len(rankings))
 }
@@ -483,35 +445,34 @@ func (p *Poller) discoverPackages(ctx context.Context, reg registry.Registry, sc
 //   - Existing 'suggested' → update rank + download metrics
 //   - Existing 'blocked' → skip entirely
 //   - Existing 'removed' → re-suggest for admin review (or auto-approve if enabled)
-func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID uint, rankings []entity.PackageRanking, ecosystem persistent.Ecosystem, autoApprove bool) {
+func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID uint, rankings []entity.PackageRanking, ecosystem entity.Ecosystem, autoApprove bool) {
 	now := time.Now()
 	var suggested int
 	var downloadUpdates []entity.PackageDownloadUpdate
 
-	newStatus := persistent.PackageStatusSuggested
+	newStatus := entity.PackageStatusSuggested
 	if autoApprove {
-		newStatus = persistent.PackageStatusActive
+		newStatus = entity.PackageStatusActive
 	}
 
 	for _, ranking := range rankings {
 		rank := ranking.Rank
-		var existing persistent.Package
-		result := p.db.Where("workspace_id = ? AND name = ? AND ecosystem = ?", workspaceID, ranking.Name, string(ecosystem)).Limit(1).Find(&existing)
+		existing, _ := p.repo.FindPackageByWorkspaceAndName(ctx, workspaceID, ranking.Name, ecosystem)
 
-		if result.RowsAffected == 0 {
+		if existing == nil {
 			// New package — create with appropriate status
-			pkg := persistent.Package{
-				WorkspaceID:                  workspaceID,
+			pkg := &entity.Package{
+				WorkspaceID:            workspaceID,
 				Name:                   ranking.Name,
 				Ecosystem:              ecosystem,
-				Source:                 persistent.PackageSourceDiscovered,
+				Source:                 entity.PackageSourceDiscovered,
 				Status:                 newStatus,
 				Rank:                   &rank,
 				DownloadCount:          ranking.DownloadCount,
 				PopularityScore:        ranking.PopularityScore,
 				DownloadCountUpdatedAt: &now,
 			}
-			if err := p.db.Create(&pkg).Error; err != nil {
+			if err := p.repo.CreatePackage(ctx, pkg); err != nil {
 				slog.Error("failed to create discovered package", "package", ranking.Name, "error", err)
 				continue
 			}
@@ -519,35 +480,33 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID uint,
 		} else {
 			// Existing package — handle based on status
 			switch existing.Status {
-			case persistent.PackageStatusActive:
+			case entity.PackageStatusActive:
 				// Update rank; collect download data for batch update
-				p.db.Model(&existing).Updates(map[string]any{
-					"rank": &rank,
-				})
+				p.repo.UpdatePackageRank(ctx, existing.ID, rank)
 				downloadUpdates = append(downloadUpdates, entity.PackageDownloadUpdate{
 					PackageID:       existing.ID,
 					DownloadCount:   ranking.DownloadCount,
 					PopularityScore: ranking.PopularityScore,
 				})
-			case persistent.PackageStatusSuggested:
+			case entity.PackageStatusSuggested:
 				// Already pending review — update rank and download data
-				p.db.Model(&existing).Updates(map[string]any{
-					"rank":                       &rank,
-					"download_count":             ranking.DownloadCount,
-					"popularity_score":           ranking.PopularityScore,
-					"download_count_updated_at":  now,
+				p.repo.UpdatePackageDiscoveryMetrics(ctx, existing.ID, map[string]interface{}{
+					"rank":                      &rank,
+					"download_count":            ranking.DownloadCount,
+					"popularity_score":          ranking.PopularityScore,
+					"download_count_updated_at": now,
 				})
-			case persistent.PackageStatusBlocked:
+			case entity.PackageStatusBlocked:
 				// Skip entirely — do not update rank or download data
 				continue
-			case persistent.PackageStatusRemoved:
+			case entity.PackageStatusRemoved:
 				// Re-suggest for admin review (or auto-approve if enabled)
-				p.db.Model(&existing).Updates(map[string]any{
-					"status":                     newStatus,
-					"rank":                       &rank,
-					"download_count":             ranking.DownloadCount,
-					"popularity_score":           ranking.PopularityScore,
-					"download_count_updated_at":  now,
+				p.repo.UpdatePackageDiscoveryMetrics(ctx, existing.ID, map[string]interface{}{
+					"status":                    string(newStatus),
+					"rank":                      &rank,
+					"download_count":            ranking.DownloadCount,
+					"popularity_score":          ranking.PopularityScore,
+					"download_count_updated_at": now,
 				})
 				suggested++
 			}
@@ -556,7 +515,7 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID uint,
 
 	// Batch update download counts for active packages
 	if len(downloadUpdates) > 0 {
-		if err := p.updateDownloadCounts(workspaceID, downloadUpdates); err != nil {
+		if err := p.repo.UpdateDownloadCounts(ctx, workspaceID, downloadUpdates); err != nil {
 			slog.Error("failed to batch update download counts", "workspace_id", workspaceID, "ecosystem", ecosystem, "error", err)
 		}
 	}
@@ -580,27 +539,9 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID uint,
 	}
 }
 
-// updateDownloadCounts updates download metrics for a batch of packages.
-// Uses direct DB updates (will be replaced with repo interface in Phase 5).
-func (p *Poller) updateDownloadCounts(workspaceID uint, updates []entity.PackageDownloadUpdate) error {
-	now := time.Now()
-	for _, u := range updates {
-		if err := p.db.Model(&persistent.Package{}).
-			Where("id = ? AND workspace_id = ?", u.PackageID, workspaceID).
-			Updates(map[string]any{
-				"download_count":             u.DownloadCount,
-				"popularity_score":           u.PopularityScore,
-				"download_count_updated_at":  now,
-			}).Error; err != nil {
-			return fmt.Errorf("updateDownloadCounts: package %d: %w", u.PackageID, err)
-		}
-	}
-	return nil
-}
-
 // SyncTopPackages is kept for backward compatibility with the API handler.
 // It delegates to discoverPackages with auto-approve disabled (manual trigger = always suggest).
-func (p *Poller) SyncTopPackages(ctx context.Context, reg registry.Registry, limit int, workspaceID uint) error {
+func (p *Poller) SyncTopPackages(ctx context.Context, reg usecase.Registry, limit int, workspaceID uint) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -621,23 +562,20 @@ func (p *Poller) removeStalePackages(ctx context.Context, workspaceID uint, mont
 	}
 
 	staleBefore := time.Now().AddDate(0, -months, 0)
-	result := p.db.Model(&persistent.Package{}).
-		Where("workspace_id = ? AND status = ? AND updated_at < ?", workspaceID, persistent.PackageStatusActive, staleBefore).
-		Update("status", persistent.PackageStatusRemoved)
-
-	if result.Error != nil {
-		slog.Error("failed to remove stale packages", "workspace_id", workspaceID, "months", months, "error", result.Error)
+	removed, err := p.repo.RemoveStalePackages(ctx, workspaceID, staleBefore)
+	if err != nil {
+		slog.Error("failed to remove stale packages", "workspace_id", workspaceID, "months", months, "error", err)
 		return
 	}
 
-	if result.RowsAffected > 0 {
-		slog.Info("auto-removed stale packages", "workspace_id", workspaceID, "months", months, "removed", result.RowsAffected)
+	if removed > 0 {
+		slog.Info("auto-removed stale packages", "workspace_id", workspaceID, "months", months, "removed", removed)
 		if p.notifier != nil {
 			p.notifier.DispatchEvent(ctx, workspaceID, entity.NotificationEvent{
 				Severity:      "medium",
 				EventType:     entity.NotifEventStaleRemoved,
-				Title:         fmt.Sprintf("%d stale packages auto-removed", result.RowsAffected),
-				Message:       fmt.Sprintf("%d packages with no updates in %d months were automatically removed from monitoring.", result.RowsAffected, months),
+				Title:         fmt.Sprintf("%d stale packages auto-removed", removed),
+				Message:       fmt.Sprintf("%d packages with no updates in %d months were automatically removed from monitoring.", removed, months),
 				ReferenceID:   0,
 				ReferenceType: "",
 			})
@@ -657,7 +595,7 @@ func pollRegistryKey(workspaceID uint, purpose string) string {
 // getWorkspaceMonitoringInterval returns the monitoring interval for a specific workspace.
 // Falls back to the global config default if no per-workspace setting exists.
 func (p *Poller) getWorkspaceMonitoringInterval(workspaceID uint) time.Duration {
-	intervalStr := p.getSetting(persistent.SettingMonitoringInterval, p.config.MonitoringInterval.String(), workspaceID)
+	intervalStr := p.getSetting(entity.SettingMonitoringInterval, p.config.MonitoringInterval.String(), workspaceID)
 	if d, err := time.ParseDuration(intervalStr); err == nil && d > 0 {
 		return d
 	}
@@ -666,7 +604,7 @@ func (p *Poller) getWorkspaceMonitoringInterval(workspaceID uint) time.Duration 
 
 // getWorkspaceDiscoveryInterval returns the discovery interval for a specific workspace.
 func (p *Poller) getWorkspaceDiscoveryInterval(workspaceID uint) time.Duration {
-	intervalStr := p.getSetting(persistent.SettingDiscoveryInterval, p.config.DiscoveryInterval.String(), workspaceID)
+	intervalStr := p.getSetting(entity.SettingDiscoveryInterval, p.config.DiscoveryInterval.String(), workspaceID)
 	if d, err := time.ParseDuration(intervalStr); err == nil && d > 0 {
 		return d
 	}
@@ -676,7 +614,7 @@ func (p *Poller) getWorkspaceDiscoveryInterval(workspaceID uint) time.Duration {
 // getDiscoveryScanDepth returns the discovery scan depth for a specific workspace.
 // A value of 0 means discovery is disabled for that workspace.
 func (p *Poller) getDiscoveryScanDepth(workspaceID uint) int {
-	depthStr := p.getSetting(persistent.SettingDiscoveryScanDepth, "50", workspaceID)
+	depthStr := p.getSetting(entity.SettingDiscoveryScanDepth, "50", workspaceID)
 	if v, err := strconv.Atoi(depthStr); err == nil && v >= 0 {
 		return v
 	}
@@ -686,13 +624,13 @@ func (p *Poller) getDiscoveryScanDepth(workspaceID uint) int {
 // getDiscoveryAutoApprove returns whether newly discovered packages should be
 // automatically approved (status=active) instead of suggested (pending review).
 func (p *Poller) getDiscoveryAutoApprove(workspaceID uint) bool {
-	return p.getSetting(persistent.SettingDiscoveryAutoApprove, "false", workspaceID) == "true"
+	return p.getSetting(entity.SettingDiscoveryAutoApprove, "false", workspaceID) == "true"
 }
 
 // getStaleAutoRemoveMonths returns the number of months after which active
 // packages with no updates are automatically removed. 0 means disabled.
 func (p *Poller) getStaleAutoRemoveMonths(workspaceID uint) int {
-	monthsStr := p.getSetting(persistent.SettingStaleAutoRemoveMonths, "0", workspaceID)
+	monthsStr := p.getSetting(entity.SettingStaleAutoRemoveMonths, "0", workspaceID)
 	if v, err := strconv.Atoi(monthsStr); err == nil && v >= 0 {
 		return v
 	}
@@ -732,13 +670,20 @@ func (p *Poller) getSetting(key, defaultValue string, workspaceID uint) string {
 	}
 
 	// Cache miss — read from database, scoped to workspace
-	var setting persistent.Setting
-	if tx := p.db.Where("key = ? AND workspace_id = ?", key, workspaceID).Limit(1).Find(&setting); tx.RowsAffected > 0 {
-		p.settings.set(cacheKey, setting.Value)
-		return setting.Value
+	value, err := p.repo.GetSetting(ctx_bg(), workspaceID, key)
+	if err == nil && value != "" {
+		p.settings.set(cacheKey, value)
+		return value
 	}
 
 	// Not found in DB, cache the default
 	p.settings.set(cacheKey, defaultValue)
 	return defaultValue
+}
+
+// ctx_bg returns a background context for settings lookups that don't
+// have a context readily available. This is safe because settings reads
+// are fast, non-blocking operations.
+func ctx_bg() context.Context {
+	return context.Background()
 }

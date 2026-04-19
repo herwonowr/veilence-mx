@@ -60,20 +60,15 @@ func (h *WorkspaceHandlers) ListMembers(w http.ResponseWriter, r *http.Request) 
 	// a nested user object.
 	flat := make([]flatMember, len(members))
 	for i, m := range members {
-		// Convert persistent.Role → entity.Role for the response DTO.
-		var perms []entity.Permission
-		for _, p := range m.Role.Permissions {
-			perms = append(perms, entity.Permission{ID: p.ID, Resource: p.Resource, Action: p.Action})
+		role := entity.Role{}
+		if m.Role != nil {
+			role = *m.Role
 		}
-		role := entity.Role{
-			ID:          m.Role.ID,
-			WorkspaceID:       m.Role.WorkspaceID,
-			Name:        m.Role.Name,
-			Description: m.Role.Description,
-			IsSystem:    m.Role.IsSystem,
-			CreatedAt:   m.Role.CreatedAt,
-			UpdatedAt:   m.Role.UpdatedAt,
-			Permissions: perms,
+		var email, firstName, lastName string
+		if m.User != nil {
+			email = m.User.Email
+			firstName = m.User.FirstName
+			lastName = m.User.LastName
 		}
 		flat[i] = flatMember{
 			ID:        m.ID,
@@ -82,9 +77,9 @@ func (h *WorkspaceHandlers) ListMembers(w http.ResponseWriter, r *http.Request) 
 			RoleID:    m.RoleID,
 			Role:      role,
 			JoinedAt:  m.JoinedAt,
-			Email:     m.User.Email,
-			FirstName: m.User.FirstName,
-			LastName:  m.User.LastName,
+			Email:     email,
+			FirstName: firstName,
+			LastName:  lastName,
 		}
 	}
 

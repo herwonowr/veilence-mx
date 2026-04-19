@@ -92,7 +92,7 @@ func setupIntegrationServer(t *testing.T) *testServer {
 	require.NoError(t, err)
 
 	// Seed permissions for RBAC
-	err = rbac.SeedPermissions(db)
+	err = rbac.SeedPermissions(persistent.NewRBACRepo(db))
 	require.NoError(t, err)
 
 	// Create services
@@ -104,8 +104,8 @@ func setupIntegrationServer(t *testing.T) *testServer {
 	sessionRepo := persistent.NewSessionRepo(db)
 
 	authSvc := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, nil, nil, testJWTSecret)
-	rbacSvc := rbac.NewService(db)
-	auditSvc := audit.NewService(db)
+	rbacSvc := rbac.NewService(persistent.NewRBACRepo(db))
+	auditSvc := audit.NewService(persistent.NewAuditLogRepo(db))
 
 	channelRepo := persistent.NewNotificationChannelRepo(db)
 	ruleRepo := persistent.NewNotificationRuleRepo(db)

@@ -21,6 +21,7 @@ type WorkspaceMember struct {
 	UserID         uint
 	RoleID         uint
 	Role           *Role
+	User           *User
 	JoinedAt       time.Time
 	CreatedAt      time.Time
 	UpdatedAt      time.Time

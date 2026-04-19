@@ -10,6 +10,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/notifications"
 )
@@ -35,7 +36,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 }
 
 func newTestScheduler(db *gorm.DB) *Scheduler {
-	return New(db, notifications.SMTPConfig{}, Config{CheckInterval: time.Minute})
+	return New(persistent.NewDigestRepo(db), notifications.SMTPConfig{}, Config{CheckInterval: time.Minute})
 }
 
 func TestGenerateDigest_Empty(t *testing.T) {
@@ -180,7 +181,7 @@ func TestFormatDigestText(t *testing.T) {
 			"malicious":  1,
 			"suspicious": 2,
 		},
-		TopAlerts: []TopAlert{
+		TopAlerts: []entity.DigestTopAlert{
 			{ID: 1, PackageName: "requests", Severity: "critical", Message: "Malicious code detected", CreatedAt: time.Now()},
 			{ID: 2, PackageName: "flask", Severity: "medium", Message: "Suspicious pattern found", CreatedAt: time.Now()},
 		},

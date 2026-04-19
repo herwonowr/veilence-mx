@@ -119,10 +119,11 @@ func TestCheckPackageForNewReleases_NewRelease(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
-	db.Create(&pkg)
+	dbPkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
+	db.Create(&dbPkg)
+	pkg := entity.Package{ID: dbPkg.ID, Name: "requests", Ecosystem: entity.EcosystemPython, Status: entity.PackageStatusActive, Source: entity.PackageSourceDiscovered}
 
 	err := p.checkPackageForNewReleases(context.Background(), mock, pkg)
 	require.NoError(t, err)
@@ -153,10 +154,11 @@ func TestCheckPackageForNewReleases_FirstTime_IncludesBaseline(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
-	db.Create(&pkg)
+	dbPkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
+	db.Create(&dbPkg)
+	pkg := entity.Package{ID: dbPkg.ID, Name: "requests", Ecosystem: entity.EcosystemPython, Status: entity.PackageStatusActive, Source: entity.PackageSourceDiscovered}
 
 	err := p.checkPackageForNewReleases(context.Background(), mock, pkg)
 	require.NoError(t, err)
@@ -189,10 +191,11 @@ func TestCheckPackageForNewReleases_ExistingRelease_NoBaseline(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
-	db.Create(&pkg)
+	dbPkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
+	db.Create(&dbPkg)
+	pkg := entity.Package{ID: dbPkg.ID, Name: "requests", Ecosystem: entity.EcosystemPython, Status: entity.PackageStatusActive, Source: entity.PackageSourceDiscovered}
 	// Already have a previous release — no baseline needed
 	db.Create(&persistent.Release{PackageID: pkg.ID, Version: "2.31.0", PublishedAt: now.Add(-24 * time.Hour), Status: persistent.ReleaseStatusCompleted})
 
@@ -222,10 +225,11 @@ func TestCheckPackageForNewReleases_ExistingRelease_NoNew(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
-	db.Create(&pkg)
+	dbPkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
+	db.Create(&dbPkg)
+	pkg := entity.Package{ID: dbPkg.ID, Name: "requests", Ecosystem: entity.EcosystemPython, Status: entity.PackageStatusActive, Source: entity.PackageSourceDiscovered}
 	db.Create(&persistent.Release{PackageID: pkg.ID, Version: "2.31.0", PublishedAt: now, Status: persistent.ReleaseStatusCompleted})
 
 	err := p.checkPackageForNewReleases(context.Background(), mock, pkg)
@@ -244,10 +248,11 @@ func TestCheckPackageForNewReleases_EcosystemError(t *testing.T) {
 		getErr: fmt.Errorf("network timeout"),
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
-	db.Create(&pkg)
+	dbPkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
+	db.Create(&dbPkg)
+	pkg := entity.Package{ID: dbPkg.ID, Name: "requests", Ecosystem: entity.EcosystemPython, Status: entity.PackageStatusActive, Source: entity.PackageSourceDiscovered}
 
 	err := p.checkPackageForNewReleases(context.Background(), mock, pkg)
 	assert.Error(t, err)
@@ -271,15 +276,16 @@ func TestCheckPackageForNewReleases_UpdatesMetadata(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
-	db.Create(&pkg)
+	dbPkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
+	db.Create(&dbPkg)
+	pkg := entity.Package{ID: dbPkg.ID, Name: "requests", Ecosystem: entity.EcosystemPython, Status: entity.PackageStatusActive, Source: entity.PackageSourceDiscovered}
 
 	p.checkPackageForNewReleases(context.Background(), mock, pkg)
 
 	var updated persistent.Package
-	db.First(&updated, pkg.ID)
+	db.First(&updated, dbPkg.ID)
 	assert.Equal(t, "2.31.0", updated.LatestVersion)
 	assert.Equal(t, "HTTP library for Python", updated.Description)
 }
@@ -308,10 +314,11 @@ func TestCheckPackageForNewReleases_AllMissedReleases(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
-	db.Create(&pkg)
+	dbPkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
+	db.Create(&dbPkg)
+	pkg := entity.Package{ID: dbPkg.ID, Name: "requests", Ecosystem: entity.EcosystemPython, Status: entity.PackageStatusActive, Source: entity.PackageSourceDiscovered}
 	// We already know 2.31.0
 	db.Create(&persistent.Release{PackageID: pkg.ID, Version: "2.31.0", PublishedAt: baseTime, Status: persistent.ReleaseStatusCompleted})
 
@@ -347,10 +354,11 @@ func TestCheckPackageForNewReleases_Idempotent(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
-	db.Create(&pkg)
+	dbPkg := persistent.Package{Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered}
+	db.Create(&dbPkg)
+	pkg := entity.Package{ID: dbPkg.ID, Name: "requests", Ecosystem: entity.EcosystemPython, Status: entity.PackageStatusActive, Source: entity.PackageSourceDiscovered}
 	db.Create(&persistent.Release{PackageID: pkg.ID, Version: "2.31.0", PublishedAt: now.Add(-24 * time.Hour), Status: persistent.ReleaseStatusCompleted})
 
 	// Run twice — should not create duplicate releases
@@ -380,7 +388,7 @@ func TestDiscoverPackages_NewPackages(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	p.discoverPackages(context.Background(), mock, 3, 1, false)
 
@@ -417,7 +425,7 @@ func TestDiscoverPackages_UpdateExistingRank(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	p.discoverPackages(context.Background(), mock, 1, 1, false)
 
@@ -457,7 +465,7 @@ func TestDiscoverPackages_SkipsBlockedPackages(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	p.discoverPackages(context.Background(), mock, 1, 1, false)
 
@@ -489,7 +497,7 @@ func TestDiscoverPackages_ReAddsRemovedPackages(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	p.discoverPackages(context.Background(), mock, 1, 1, false)
 
@@ -511,7 +519,7 @@ func TestDiscoverPackages_RegistryError(t *testing.T) {
 		topErr: fmt.Errorf("API unavailable"),
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	// Should not panic — just logs the error
 	p.discoverPackages(context.Background(), mock, 10, 1, false)
@@ -535,7 +543,7 @@ func TestDiscoverPackages_AdditiveOnly(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	p.discoverPackages(context.Background(), mock, 1, 1, false)
 
@@ -567,7 +575,7 @@ func TestSyncTopPackages_BackwardCompat(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	err := p.SyncTopPackages(context.Background(), mock, 2, 1)
 	require.NoError(t, err)
@@ -589,7 +597,7 @@ func TestSyncTopPackages_BackwardCompat(t *testing.T) {
 func TestGetWorkspaceMonitoringInterval_DefaultFallback(t *testing.T) {
 	db := setupTestDB(t)
 
-	p := New(db, nil, nil, Config{
+	p := New(persistent.NewPollerRepo(db), nil, nil, Config{
 		MonitoringInterval: 15 * time.Minute,
 		Concurrency:        1,
 	}, nil, nil)
@@ -600,9 +608,9 @@ func TestGetWorkspaceMonitoringInterval_DefaultFallback(t *testing.T) {
 
 func TestGetWorkspaceMonitoringInterval_WorkspaceOverride(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: persistent.SettingMonitoringInterval, Value: "30m"})
+	db.Create(&persistent.Setting{WorkspaceID: 1, Key: entity.SettingMonitoringInterval, Value: "30m"})
 
-	p := New(db, nil, nil, Config{
+	p := New(persistent.NewPollerRepo(db), nil, nil, Config{
 		MonitoringInterval: 15 * time.Minute,
 		Concurrency:        1,
 	}, nil, nil)
@@ -614,7 +622,7 @@ func TestGetWorkspaceMonitoringInterval_WorkspaceOverride(t *testing.T) {
 func TestGetWorkspaceDiscoveryInterval_DefaultFallback(t *testing.T) {
 	db := setupTestDB(t)
 
-	p := New(db, nil, nil, Config{
+	p := New(persistent.NewPollerRepo(db), nil, nil, Config{
 		DiscoveryInterval: 24 * time.Hour,
 		Concurrency:       1,
 	}, nil, nil)
@@ -625,9 +633,9 @@ func TestGetWorkspaceDiscoveryInterval_DefaultFallback(t *testing.T) {
 
 func TestGetWorkspaceDiscoveryInterval_WorkspaceOverride(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: persistent.SettingDiscoveryInterval, Value: "12h"})
+	db.Create(&persistent.Setting{WorkspaceID: 1, Key: entity.SettingDiscoveryInterval, Value: "12h"})
 
-	p := New(db, nil, nil, Config{
+	p := New(persistent.NewPollerRepo(db), nil, nil, Config{
 		DiscoveryInterval: 24 * time.Hour,
 		Concurrency:       1,
 	}, nil, nil)
@@ -639,7 +647,7 @@ func TestGetWorkspaceDiscoveryInterval_WorkspaceOverride(t *testing.T) {
 func TestGetDiscoveryScanDepth_Default(t *testing.T) {
 	db := setupTestDB(t)
 
-	p := New(db, nil, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), nil, nil, Config{Concurrency: 1}, nil, nil)
 
 	depth := p.getDiscoveryScanDepth(1)
 	assert.Equal(t, 50, depth)
@@ -647,9 +655,9 @@ func TestGetDiscoveryScanDepth_Default(t *testing.T) {
 
 func TestGetDiscoveryScanDepth_WorkspaceOverride(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "200"})
+	db.Create(&persistent.Setting{WorkspaceID: 1, Key: entity.SettingDiscoveryScanDepth, Value: "200"})
 
-	p := New(db, nil, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), nil, nil, Config{Concurrency: 1}, nil, nil)
 
 	depth := p.getDiscoveryScanDepth(1)
 	assert.Equal(t, 200, depth)
@@ -657,9 +665,9 @@ func TestGetDiscoveryScanDepth_WorkspaceOverride(t *testing.T) {
 
 func TestGetDiscoveryScanDepth_InvalidValue(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "invalid"})
+	db.Create(&persistent.Setting{WorkspaceID: 1, Key: entity.SettingDiscoveryScanDepth, Value: "invalid"})
 
-	p := New(db, nil, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), nil, nil, Config{Concurrency: 1}, nil, nil)
 
 	depth := p.getDiscoveryScanDepth(1)
 	assert.Equal(t, 50, depth) // Falls back to default
@@ -727,8 +735,8 @@ func TestRegistryForEcosystem(t *testing.T) {
 	npmMock := &mockRegistry{name: "npm"}
 	p := New(nil, pyMock, npmMock, Config{Concurrency: 1}, nil, nil)
 
-	assert.Equal(t, pyMock, p.registryForEcosystem(persistent.EcosystemPython))
-	assert.Equal(t, npmMock, p.registryForEcosystem(persistent.EcosystemNPM))
+	assert.Equal(t, pyMock, p.registryForEcosystem(entity.EcosystemPython))
+	assert.Equal(t, npmMock, p.registryForEcosystem(entity.EcosystemNPM))
 	assert.Nil(t, p.registryForEcosystem("unknown"))
 }
 
@@ -757,7 +765,7 @@ func TestMonitorWorkspacePackages_ChecksActivePackages(t *testing.T) {
 		},
 	}
 
-	p := New(db, pyMock, npmMock, Config{Concurrency: 5}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), pyMock, npmMock, Config{Concurrency: 5}, nil, nil)
 
 	// Active packages — both ecosystems in same workspace
 	db.Create(&persistent.Package{WorkspaceID: 1, Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
@@ -791,7 +799,7 @@ func TestRunMonitorCycle_SkipsNonDueWorkspaces(t *testing.T) {
 		},
 	}
 
-	p := New(db, pyMock, nil, Config{
+	p := New(persistent.NewPollerRepo(db), pyMock, nil, Config{
 		MonitoringInterval: 1 * time.Hour,
 		Concurrency:        1,
 	}, nil, nil)
@@ -837,13 +845,13 @@ func TestRunDiscoveryCycle_DiscoversForDueWorkspaces(t *testing.T) {
 		},
 	}
 
-	p := New(db, pyMock, npmMock, Config{
+	p := New(persistent.NewPollerRepo(db), pyMock, npmMock, Config{
 		DiscoveryInterval: 1 * time.Hour,
 		Concurrency:       1,
 	}, nil, nil)
 
 	// Create a setting so workspace 1 shows up
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "2"})
+	db.Create(&persistent.Setting{WorkspaceID: 1, Key: entity.SettingDiscoveryScanDepth, Value: "2"})
 
 	p.runDiscoveryCycle(context.Background())
 
@@ -868,13 +876,13 @@ func TestRunDiscoveryCycle_ZeroScanDepth_Skips(t *testing.T) {
 		},
 	}
 
-	p := New(db, pyMock, nil, Config{
+	p := New(persistent.NewPollerRepo(db), pyMock, nil, Config{
 		DiscoveryInterval: 1 * time.Hour,
 		Concurrency:       1,
 	}, nil, nil)
 
 	// Set scan depth to 0 — should skip discovery
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "0"})
+	db.Create(&persistent.Setting{WorkspaceID: 1, Key: entity.SettingDiscoveryScanDepth, Value: "0"})
 
 	p.runDiscoveryCycle(context.Background())
 
@@ -913,7 +921,7 @@ func TestSettingsCache_Invalidate(t *testing.T) {
 
 func TestInvalidateSettingsCache(t *testing.T) {
 	db := setupTestDB(t)
-	p := New(db, nil, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), nil, nil, Config{Concurrency: 1}, nil, nil)
 
 	// Populate the cache
 	p.settings.set("1:monitoring_interval", "5m")
@@ -955,7 +963,7 @@ func TestDiscoverPackages_SuggestedPackagesGetUpdated(t *testing.T) {
 		},
 	}
 
-	p := New(db, mock, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	p.discoverPackages(context.Background(), mock, 1, 1, false)
 
@@ -982,7 +990,7 @@ func TestDiscoverPackages_SuggestedNotMonitored(t *testing.T) {
 		},
 	}
 
-	p := New(db, pyMock, nil, Config{Concurrency: 5}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), pyMock, nil, Config{Concurrency: 5}, nil, nil)
 
 	// Suggested package — should NOT be loaded for monitoring
 	db.Create(&persistent.Package{WorkspaceID: 1, Name: "suggested-pkg", Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
@@ -1020,28 +1028,28 @@ func TestUpsertDiscoveredPackages_MixedStatuses(t *testing.T) {
 		{Name: "new-pkg", Rank: 6, DownloadCount: 500, PopularityScore: 70.0},
 	}
 
-	p := New(db, nil, nil, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), nil, nil, Config{Concurrency: 1}, nil, nil)
 
-	p.upsertDiscoveredPackages(context.Background(), 1, rankings, persistent.EcosystemPython, false)
+	p.upsertDiscoveredPackages(context.Background(), 1, rankings, entity.EcosystemPython, false)
 
 	tests := []struct {
 		name           string
-		expectedStatus persistent.PackageStatus
+		expectedStatus entity.PackageStatus
 		expectedRank   uint
 		downloadCount  int64
 	}{
-		{"active-pkg", persistent.PackageStatusActive, 2, 100},
-		{"suggested-pkg", persistent.PackageStatusSuggested, 3, 200},
-		{"blocked-pkg", persistent.PackageStatusBlocked, 10, 0}, // Rank NOT updated, original values
-		{"removed-pkg", persistent.PackageStatusSuggested, 5, 400},
-		{"new-pkg", persistent.PackageStatusSuggested, 6, 500},
+		{"active-pkg", entity.PackageStatusActive, 2, 100},
+		{"suggested-pkg", entity.PackageStatusSuggested, 3, 200},
+		{"blocked-pkg", entity.PackageStatusBlocked, 10, 0}, // Rank NOT updated, original values
+		{"removed-pkg", entity.PackageStatusSuggested, 5, 400},
+		{"new-pkg", entity.PackageStatusSuggested, 6, 500},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var pkg persistent.Package
 			db.Where("name = ?", tt.name).First(&pkg)
-			assert.Equal(t, tt.expectedStatus, pkg.Status, "status mismatch for %s", tt.name)
+			assert.Equal(t, persistent.PackageStatus(tt.expectedStatus), pkg.Status, "status mismatch for %s", tt.name)
 			assert.Equal(t, tt.expectedRank, *pkg.Rank, "rank mismatch for %s", tt.name)
 			assert.Equal(t, tt.downloadCount, pkg.DownloadCount, "download count mismatch for %s", tt.name)
 		})
@@ -1060,8 +1068,8 @@ func TestUpsertDiscoveredPackages_DownloadCountBatchUpdate(t *testing.T) {
 		{Name: "pkg-b", Rank: 2, DownloadCount: 300000, PopularityScore: 88.0},
 	}
 
-	p := New(db, nil, nil, Config{Concurrency: 1}, nil, nil)
-	p.upsertDiscoveredPackages(context.Background(), 1, rankings, persistent.EcosystemPython, false)
+	p := New(persistent.NewPollerRepo(db), nil, nil, Config{Concurrency: 1}, nil, nil)
+	p.upsertDiscoveredPackages(context.Background(), 1, rankings, entity.EcosystemPython, false)
 
 	var pkgA, pkgB persistent.Package
 	db.Where("name = ?", "pkg-a").First(&pkgA)
@@ -1103,7 +1111,7 @@ func TestDiscoverPackages_MultiEcosystem(t *testing.T) {
 		},
 	}
 
-	p := New(db, pyMock, npmMock, Config{Concurrency: 1}, nil, nil)
+	p := New(persistent.NewPollerRepo(db), pyMock, npmMock, Config{Concurrency: 1}, nil, nil)
 
 	// Discover both ecosystems
 	p.discoverPackages(context.Background(), pyMock, 1, 1, false)

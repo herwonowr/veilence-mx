@@ -369,7 +369,7 @@ func TestPipeline_ProcessDiff_Benign(t *testing.T) {
 		typ: "test",
 	}
 
-	pipeline := analyzer.NewPipeline(db, nil, mock)
+	pipeline := analyzer.NewPipeline(persistent.NewPipelineRepo(db), nil, mock)
 	err := pipeline.ProcessJob(context.Background(), &queue.Job{ReferenceID: diff.ID})
 	require.NoError(t, err)
 
@@ -403,7 +403,7 @@ func TestPipeline_ProcessDiff_Malicious(t *testing.T) {
 		typ: "test",
 	}
 
-	pipeline := analyzer.NewPipeline(db, nil, mock)
+	pipeline := analyzer.NewPipeline(persistent.NewPipelineRepo(db), nil, mock)
 	err := pipeline.ProcessJob(context.Background(), &queue.Job{ReferenceID: diff.ID})
 	require.NoError(t, err)
 
@@ -429,7 +429,7 @@ func TestPipeline_ProcessDiff_Suspicious(t *testing.T) {
 		typ: "test",
 	}
 
-	pipeline := analyzer.NewPipeline(db, nil, mock)
+	pipeline := analyzer.NewPipeline(persistent.NewPipelineRepo(db), nil, mock)
 	err := pipeline.ProcessJob(context.Background(), &queue.Job{ReferenceID: diff.ID})
 	require.NoError(t, err)
 
@@ -449,7 +449,7 @@ func TestPipeline_ProcessDiff_AnalyzerError(t *testing.T) {
 		typ:    "test",
 	}
 
-	pipeline := analyzer.NewPipeline(db, nil, mock)
+	pipeline := analyzer.NewPipeline(persistent.NewPipelineRepo(db), nil, mock)
 	err := pipeline.ProcessJob(context.Background(), &queue.Job{ReferenceID: diff.ID})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "all analyzers failed")
@@ -478,7 +478,7 @@ func TestPipeline_MultipleAnalyzers(t *testing.T) {
 		typ:    "analyzer2",
 	}
 
-	pipeline := analyzer.NewPipeline(db, nil, mock1, mock2)
+	pipeline := analyzer.NewPipeline(persistent.NewPipelineRepo(db), nil, mock1, mock2)
 	err := pipeline.ProcessJob(context.Background(), &queue.Job{ReferenceID: diff.ID})
 	require.NoError(t, err)
 

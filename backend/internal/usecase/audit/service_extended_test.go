@@ -18,8 +18,7 @@ import (
 // =====================================================================
 
 func TestGetAuditLog_Success(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	db, svc := setupTestDB(t)
 
 	ctx := context.Background()
 	svc.LogAction(ctx, "create", "package", 42, "created pkg lodash")
@@ -36,8 +35,7 @@ func TestGetAuditLog_Success(t *testing.T) {
 }
 
 func TestGetAuditLog_NotFound(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	_, svc := setupTestDB(t)
 
 	_, err := svc.GetAuditLog(99999)
 	require.Error(t, err)
@@ -48,8 +46,7 @@ func TestGetAuditLog_NotFound(t *testing.T) {
 // =====================================================================
 
 func TestLogAction_WithHTTPRequest_ExtractsIPAndUA(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	db, svc := setupTestDB(t)
 
 	// Build context with an HTTP request containing IP and User-Agent
 	req := httptest.NewRequest("POST", "/api/packages", nil)
@@ -67,8 +64,7 @@ func TestLogAction_WithHTTPRequest_ExtractsIPAndUA(t *testing.T) {
 }
 
 func TestLogAuthEvent_WithHTTPRequest_ExtractsIPAndUA(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	db, svc := setupTestDB(t)
 
 	req := httptest.NewRequest("POST", "/api/auth/login", nil)
 	req.RemoteAddr = "10.0.0.1:12345"
@@ -89,8 +85,7 @@ func TestLogAuthEvent_WithHTTPRequest_ExtractsIPAndUA(t *testing.T) {
 // =====================================================================
 
 func TestRequestCaptureMiddleware(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	db, svc := setupTestDB(t)
 
 	// Handler that uses the audit service to log an action
 	handler := audit.RequestCaptureMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -118,8 +113,7 @@ func TestRequestCaptureMiddleware(t *testing.T) {
 // =====================================================================
 
 func TestCorrelationMiddleware_GeneratesID(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	db, svc := setupTestDB(t)
 
 	handler := audit.CorrelationMiddleware(audit.RequestCaptureMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// The correlation ID should be in the context
@@ -171,8 +165,7 @@ func TestCorrelationIDFromContext_NoValue(t *testing.T) {
 // =====================================================================
 
 func TestListAuditLogs_Pagination(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	_, svc := setupTestDB(t)
 
 	ctx := context.Background()
 	for i := 0; i < 25; i++ {
@@ -193,8 +186,7 @@ func TestListAuditLogs_Pagination(t *testing.T) {
 }
 
 func TestListAuditLogs_FilterByUserID(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	_, svc := setupTestDB(t)
 
 	ctx := context.Background()
 	svc.LogAuthEvent(ctx, "login", 1, "user 1 logged in")
@@ -212,8 +204,7 @@ func TestListAuditLogs_FilterByUserID(t *testing.T) {
 // =====================================================================
 
 func TestCaptureState_MultipleFieldChanges(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	db, svc := setupTestDB(t)
 
 	ctx := context.Background()
 	before := map[string]any{

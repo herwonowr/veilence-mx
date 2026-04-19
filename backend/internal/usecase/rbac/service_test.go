@@ -9,6 +9,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
@@ -28,7 +29,7 @@ func setupRBACTestDB(t *testing.T) *gorm.DB {
 	require.NoError(t, err)
 
 	// Seed system permissions
-	err = rbac.SeedPermissions(db)
+	err = rbac.SeedPermissions(persistent.NewRBACRepo(db))
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -55,7 +56,7 @@ func createTestUser(t *testing.T, db *gorm.DB, email string) *persistent.User {
 
 func TestCreateWorkspace_WithDefaultRoles(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "owner@example.com")
 
 	org, err := svc.CreateWorkspace(owner.ID, "Test Workspace", "test-workspace", "A test workspace")
@@ -83,7 +84,7 @@ func TestCreateWorkspace_WithDefaultRoles(t *testing.T) {
 
 func TestCreateWorkspace_DuplicateSlug(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "owner2@example.com")
 
 	_, err := svc.CreateWorkspace(owner.ID, "Workspace One", "my-workspace", "First workspace")
@@ -98,7 +99,7 @@ func TestCreateWorkspace_DuplicateSlug(t *testing.T) {
 
 func TestCheckPermission_OwnerHasAll(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "perm-owner@example.com")
 
 	org, err := svc.CreateWorkspace(owner.ID, "Perm Org", "perm-org", "")
@@ -131,7 +132,7 @@ func TestCheckPermission_OwnerHasAll(t *testing.T) {
 
 func TestCheckPermission_ViewerReadOnly(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "viewer-owner@example.com")
 	viewer := createTestUser(t, db, "viewer@example.com")
 
@@ -141,9 +142,9 @@ func TestCheckPermission_ViewerReadOnly(t *testing.T) {
 	// Get the viewer role
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
-	var viewerRole *persistent.Role
+	var viewerRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleViewer {
+		if roles[i].Name == entity.RoleViewer {
 			viewerRole = &roles[i]
 			break
 		}
@@ -174,7 +175,7 @@ func TestCheckPermission_ViewerReadOnly(t *testing.T) {
 
 func TestInviteMember_AcceptInvitation(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "invite-owner@example.com")
 	member := createTestUser(t, db, "invitee@example.com")
 
@@ -184,9 +185,9 @@ func TestInviteMember_AcceptInvitation(t *testing.T) {
 	// Get the member role
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
-	var memberRole *persistent.Role
+	var memberRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleMember {
+		if roles[i].Name == entity.RoleMember {
 			memberRole = &roles[i]
 			break
 		}
@@ -209,7 +210,7 @@ func TestInviteMember_AcceptInvitation(t *testing.T) {
 
 func TestInviteMember_AlreadyMember(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "dup-owner@example.com")
 	member := createTestUser(t, db, "dup-member@example.com")
 
@@ -218,9 +219,9 @@ func TestInviteMember_AlreadyMember(t *testing.T) {
 
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
-	var memberRole *persistent.Role
+	var memberRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleMember {
+		if roles[i].Name == entity.RoleMember {
 			memberRole = &roles[i]
 			break
 		}
@@ -245,7 +246,7 @@ func TestInviteMember_AlreadyMember(t *testing.T) {
 
 func TestRemoveMember_Success(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "rm-owner@example.com")
 	member := createTestUser(t, db, "rm-member@example.com")
 
@@ -254,9 +255,9 @@ func TestRemoveMember_Success(t *testing.T) {
 
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
-	var memberRole *persistent.Role
+	var memberRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleMember {
+		if roles[i].Name == entity.RoleMember {
 			memberRole = &roles[i]
 			break
 		}
@@ -279,7 +280,7 @@ func TestRemoveMember_Success(t *testing.T) {
 
 func TestRemoveMember_CannotRemoveOwner(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "rm-owner2@example.com")
 
 	org, err := svc.CreateWorkspace(owner.ID, "Owner Remove Org", "owner-remove-org", "")
@@ -294,7 +295,7 @@ func TestRemoveMember_CannotRemoveOwner(t *testing.T) {
 
 func TestUpdateMemberRole_Success(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "role-owner@example.com")
 	member := createTestUser(t, db, "role-member@example.com")
 
@@ -304,12 +305,12 @@ func TestUpdateMemberRole_Success(t *testing.T) {
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
 
-	var memberRole, adminRole *persistent.Role
+	var memberRole, adminRole *entity.Role
 	for i := range roles {
 		switch roles[i].Name {
-		case persistent.RoleMember:
+		case entity.RoleMember:
 			memberRole = &roles[i]
-		case persistent.RoleAdmin:
+		case entity.RoleAdmin:
 			adminRole = &roles[i]
 		}
 	}
@@ -330,7 +331,7 @@ func TestUpdateMemberRole_Success(t *testing.T) {
 
 func TestUpdateMemberRole_CannotChangeOwner(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "role-owner2@example.com")
 
 	org, err := svc.CreateWorkspace(owner.ID, "Owner Role Org", "owner-role-org", "")
@@ -338,9 +339,9 @@ func TestUpdateMemberRole_CannotChangeOwner(t *testing.T) {
 
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
-	var memberRole *persistent.Role
+	var memberRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleMember {
+		if roles[i].Name == entity.RoleMember {
 			memberRole = &roles[i]
 			break
 		}
@@ -356,7 +357,7 @@ func TestUpdateMemberRole_CannotChangeOwner(t *testing.T) {
 
 func TestGetWorkspace(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "get-org@example.com")
 
 	created, err := svc.CreateWorkspace(owner.ID, "Get Org", "get-org", "desc")
@@ -370,7 +371,7 @@ func TestGetWorkspace(t *testing.T) {
 
 func TestGetWorkspace_NotFound(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 
 	_, err := svc.GetWorkspace(99999)
 	require.Error(t, err)
@@ -379,7 +380,7 @@ func TestGetWorkspace_NotFound(t *testing.T) {
 
 func TestGetUserWorkspaces(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "list-orgs@example.com")
 
 	_, err := svc.CreateWorkspace(owner.ID, "Workspace A", "workspace-a", "")
@@ -394,7 +395,7 @@ func TestGetUserWorkspaces(t *testing.T) {
 
 func TestUpdateWorkspace(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "update-org@example.com")
 
 	org, err := svc.CreateWorkspace(owner.ID, "Old Name", "old-slug", "old desc")
@@ -409,7 +410,7 @@ func TestUpdateWorkspace(t *testing.T) {
 
 func TestDeleteWorkspace(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "delete-org@example.com")
 
 	org, err := svc.CreateWorkspace(owner.ID, "Delete Org", "delete-org", "")

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
@@ -16,7 +17,7 @@ import (
 
 func TestGetWorkspaceMembers_ReturnsAllMembers(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "members-owner@example.com")
 	member := createTestUser(t, db, "members-member@example.com")
 
@@ -25,9 +26,9 @@ func TestGetWorkspaceMembers_ReturnsAllMembers(t *testing.T) {
 
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
-	var memberRole *persistent.Role
+	var memberRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleMember {
+		if roles[i].Name == entity.RoleMember {
 			memberRole = &roles[i]
 			break
 		}
@@ -46,7 +47,7 @@ func TestGetWorkspaceMembers_ReturnsAllMembers(t *testing.T) {
 
 func TestGetWorkspaceMembers_EmptyOrg(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 
 	// Query members for a non-existent org — should return empty, not error
 	members, err := svc.GetWorkspaceMembers(99999)
@@ -60,7 +61,7 @@ func TestGetWorkspaceMembers_EmptyOrg(t *testing.T) {
 
 func TestGetInvitationByToken_Success(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "invite-token-owner@example.com")
 
 	org, err := svc.CreateWorkspace(owner.ID, "Token Org", "token-org", "")
@@ -68,9 +69,9 @@ func TestGetInvitationByToken_Success(t *testing.T) {
 
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
-	var memberRole *persistent.Role
+	var memberRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleMember {
+		if roles[i].Name == entity.RoleMember {
 			memberRole = &roles[i]
 			break
 		}
@@ -89,7 +90,7 @@ func TestGetInvitationByToken_Success(t *testing.T) {
 
 func TestGetInvitationByToken_NotFound(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 
 	_, err := svc.GetInvitationByToken("nonexistent-token")
 	require.Error(t, err)
@@ -102,7 +103,7 @@ func TestGetInvitationByToken_NotFound(t *testing.T) {
 
 func TestListPendingInvitations_Success(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "pending-owner@example.com")
 
 	org, err := svc.CreateWorkspace(owner.ID, "Pending Org", "pending-org", "")
@@ -110,9 +111,9 @@ func TestListPendingInvitations_Success(t *testing.T) {
 
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
-	var memberRole *persistent.Role
+	var memberRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleMember {
+		if roles[i].Name == entity.RoleMember {
 			memberRole = &roles[i]
 			break
 		}
@@ -132,7 +133,7 @@ func TestListPendingInvitations_Success(t *testing.T) {
 
 func TestListPendingInvitations_ExcludesAccepted(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "exclude-owner@example.com")
 	invitee := createTestUser(t, db, "exclude-invitee@example.com")
 
@@ -141,9 +142,9 @@ func TestListPendingInvitations_ExcludesAccepted(t *testing.T) {
 
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
-	var memberRole *persistent.Role
+	var memberRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleMember {
+		if roles[i].Name == entity.RoleMember {
 			memberRole = &roles[i]
 			break
 		}
@@ -172,7 +173,7 @@ func TestListPendingInvitations_ExcludesAccepted(t *testing.T) {
 
 func TestRevokeInvitation_Success(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "revoke-inv-owner@example.com")
 
 	org, err := svc.CreateWorkspace(owner.ID, "Revoke Inv Org", "revoke-inv-org", "")
@@ -180,9 +181,9 @@ func TestRevokeInvitation_Success(t *testing.T) {
 
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
-	var memberRole *persistent.Role
+	var memberRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleMember {
+		if roles[i].Name == entity.RoleMember {
 			memberRole = &roles[i]
 			break
 		}
@@ -203,7 +204,7 @@ func TestRevokeInvitation_Success(t *testing.T) {
 
 func TestRevokeInvitation_NotFound(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 
 	err := svc.RevokeInvitation(1, 99999)
 	require.Error(t, err)
@@ -212,7 +213,7 @@ func TestRevokeInvitation_NotFound(t *testing.T) {
 
 func TestRevokeInvitation_CannotRevokeAccepted(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "revoke-accepted-owner@example.com")
 	invitee := createTestUser(t, db, "revoke-accepted-invitee@example.com")
 
@@ -221,9 +222,9 @@ func TestRevokeInvitation_CannotRevokeAccepted(t *testing.T) {
 
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
-	var memberRole *persistent.Role
+	var memberRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleMember {
+		if roles[i].Name == entity.RoleMember {
 			memberRole = &roles[i]
 			break
 		}
@@ -247,7 +248,7 @@ func TestRevokeInvitation_CannotRevokeAccepted(t *testing.T) {
 
 func TestGetAllPermissions(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 
 	perms, err := svc.GetAllPermissions()
 	require.NoError(t, err)
@@ -269,7 +270,7 @@ func TestGetAllPermissions(t *testing.T) {
 
 func TestInviteMember_CannotInviteAsOwner(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "no-owner-invite@example.com")
 
 	org, err := svc.CreateWorkspace(owner.ID, "No Owner Inv", "no-owner-inv", "")
@@ -277,9 +278,9 @@ func TestInviteMember_CannotInviteAsOwner(t *testing.T) {
 
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
-	var ownerRole *persistent.Role
+	var ownerRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleOwner {
+		if roles[i].Name == entity.RoleOwner {
 			ownerRole = &roles[i]
 			break
 		}
@@ -297,7 +298,7 @@ func TestInviteMember_CannotInviteAsOwner(t *testing.T) {
 
 func TestAcceptInvitation_EmailMismatch(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "mismatch-owner@example.com")
 	wrongUser := createTestUser(t, db, "wrong-user@example.com")
 
@@ -306,9 +307,9 @@ func TestAcceptInvitation_EmailMismatch(t *testing.T) {
 
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
-	var memberRole *persistent.Role
+	var memberRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleMember {
+		if roles[i].Name == entity.RoleMember {
 			memberRole = &roles[i]
 			break
 		}
@@ -330,7 +331,7 @@ func TestAcceptInvitation_EmailMismatch(t *testing.T) {
 
 func TestAcceptInvitation_Expired(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "expired-inv-owner@example.com")
 	invitee := createTestUser(t, db, "expired-inv@example.com")
 
@@ -339,9 +340,9 @@ func TestAcceptInvitation_Expired(t *testing.T) {
 
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
-	var memberRole *persistent.Role
+	var memberRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleMember {
+		if roles[i].Name == entity.RoleMember {
 			memberRole = &roles[i]
 			break
 		}
@@ -365,7 +366,7 @@ func TestAcceptInvitation_Expired(t *testing.T) {
 
 func TestUpdateWorkspace_DuplicateSlugOnUpdate(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "dup-slug-update@example.com")
 
 	org1, err := svc.CreateWorkspace(owner.ID, "Workspace One", "workspace-one-slug", "")
@@ -386,7 +387,7 @@ func TestUpdateWorkspace_DuplicateSlugOnUpdate(t *testing.T) {
 
 func TestUpdateMemberRole_RoleNotFound(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "role-nf-owner@example.com")
 	member := createTestUser(t, db, "role-nf-member@example.com")
 
@@ -395,9 +396,9 @@ func TestUpdateMemberRole_RoleNotFound(t *testing.T) {
 
 	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
-	var memberRole *persistent.Role
+	var memberRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleMember {
+		if roles[i].Name == entity.RoleMember {
 			memberRole = &roles[i]
 			break
 		}
@@ -421,7 +422,7 @@ func TestUpdateMemberRole_RoleNotFound(t *testing.T) {
 
 func TestDeleteWorkspace_NotFound(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 
 	err := svc.DeleteWorkspace(99999)
 	require.Error(t, err)
@@ -434,7 +435,7 @@ func TestDeleteWorkspace_NotFound(t *testing.T) {
 
 func TestRemoveMember_NotFound(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "rm-nf-owner@example.com")
 
 	org, err := svc.CreateWorkspace(owner.ID, "RM NF Org", "rm-nf-org", "")
@@ -451,7 +452,7 @@ func TestRemoveMember_NotFound(t *testing.T) {
 
 func TestGetUserMembership_Success(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "membership-owner@example.com")
 
 	org, err := svc.CreateWorkspace(owner.ID, "Membership Org", "membership-org", "")
@@ -462,12 +463,12 @@ func TestGetUserMembership_Success(t *testing.T) {
 	assert.Equal(t, owner.ID, membership.UserID)
 	assert.Equal(t, org.ID, membership.WorkspaceID)
 	assert.NotNil(t, membership.Role)
-	assert.Equal(t, persistent.RoleOwner, membership.Role.Name)
+	assert.Equal(t, entity.RoleOwner, membership.Role.Name)
 }
 
 func TestGetUserMembership_NotFound(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 
 	_, err := svc.GetUserMembership(99999, 99999)
 	require.Error(t, err)
@@ -480,7 +481,7 @@ func TestGetUserMembership_NotFound(t *testing.T) {
 
 func TestCheckPermission_NonMember(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "nonmember-owner@example.com")
 	outsider := createTestUser(t, db, "outsider@example.com")
 
@@ -498,7 +499,7 @@ func TestCheckPermission_NonMember(t *testing.T) {
 
 func TestInviteMember_RoleFromDifferentOrg(t *testing.T) {
 	db := setupRBACTestDB(t)
-	svc := rbac.NewService(db)
+	svc := rbac.NewService(persistent.NewRBACRepo(db))
 	owner := createTestUser(t, db, "cross-org-owner@example.com")
 
 	org1, err := svc.CreateWorkspace(owner.ID, "Workspace A", "cross-org-a", "")
@@ -510,9 +511,9 @@ func TestInviteMember_RoleFromDifferentOrg(t *testing.T) {
 	// Get a role from org2
 	roles, err := svc.GetWorkspaceRoles(org2.ID)
 	require.NoError(t, err)
-	var org2MemberRole *persistent.Role
+	var org2MemberRole *entity.Role
 	for i := range roles {
-		if roles[i].Name == persistent.RoleMember {
+		if roles[i].Name == entity.RoleMember {
 			org2MemberRole = &roles[i]
 			break
 		}

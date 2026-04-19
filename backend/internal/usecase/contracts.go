@@ -357,3 +357,56 @@ type NotificationDispatcher interface {
 	Dispatch(ctx context.Context, workspaceID uint, severity, title, message string)
 	DispatchEvent(ctx context.Context, workspaceID uint, evt entity.NotificationEvent)
 }
+
+// RBACRepository defines the persistence operations needed by the RBAC service.
+// Defined here (in the shared usecase package) so that repo implementations can
+// reference it without creating import cycles.
+type RBACRepository interface {
+	// Workspace operations
+	CountWorkspacesBySlug(ctx context.Context, slug string, excludeID *uint) (int64, error)
+	CreateWorkspace(ctx context.Context, ws *entity.Workspace) error
+	FindWorkspaceByID(ctx context.Context, id uint) (*entity.Workspace, error)
+	UpdateWorkspace(ctx context.Context, ws *entity.Workspace) error
+	SoftDeleteWorkspace(ctx context.Context, id uint) error
+	FindWorkspacesByUserID(ctx context.Context, userID uint) ([]entity.Workspace, error)
+
+	// Role & Permission operations
+	FindAllPermissions(ctx context.Context) ([]entity.Permission, error)
+	CreateRole(ctx context.Context, role *entity.Role) error
+	FindRoleByIDAndWorkspace(ctx context.Context, roleID, workspaceID uint) (*entity.Role, error)
+	FindRolesByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.Role, error)
+
+	// Member operations
+	CreateMember(ctx context.Context, member *entity.WorkspaceMember) error
+	FindMembersByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.WorkspaceMember, error)
+	FindMemberByUserAndWorkspace(ctx context.Context, userID, workspaceID uint) (*entity.WorkspaceMember, error)
+	CountMembersByUserAndWorkspace(ctx context.Context, userID, workspaceID uint) (int64, error)
+	UpdateMember(ctx context.Context, member *entity.WorkspaceMember) error
+	DeleteMemberByUserAndWorkspace(ctx context.Context, userID, workspaceID uint) error
+
+	// Invitation operations
+	CreateInvitation(ctx context.Context, invitation *entity.Invitation) error
+	FindInvitationByTokenHash(ctx context.Context, tokenHash string) (*entity.Invitation, error)
+	UpdateInvitation(ctx context.Context, invitation *entity.Invitation) error
+	FindPendingInvitations(ctx context.Context, workspaceID uint) ([]entity.Invitation, error)
+	DeletePendingInvitation(ctx context.Context, workspaceID, invitationID uint) error
+
+	// Permission check
+	CheckUserPermission(ctx context.Context, userID, workspaceID uint, resource, action string) (bool, error)
+	CheckRolePermission(ctx context.Context, workspaceID uint, roleName, resource, action string) (bool, error)
+
+	// SeedPermission ensures a permission exists (idempotent).
+	SeedPermission(ctx context.Context, perm entity.Permission) error
+
+	// Transaction support: runs fn within a transaction.
+	WithTransaction(ctx context.Context, fn func(tx RBACRepository) error) error
+}
+
+// DigestRepository defines the persistence operations needed by the digest scheduler.
+type DigestRepository interface {
+	FindEnabledDigestConfigs(ctx context.Context) ([]entity.DigestOrgConfig, error)
+	CountAlertsSince(ctx context.Context, workspaceID uint, since time.Time) (int64, error)
+	CountPackagesAnalyzedSince(ctx context.Context, workspaceID uint, since time.Time) (int64, error)
+	GetClassificationBreakdownSince(ctx context.Context, workspaceID uint, since time.Time) (map[string]int64, error)
+	GetTopAlertsSince(ctx context.Context, workspaceID uint, since time.Time, limit int) ([]entity.DigestTopAlert, error)
+}

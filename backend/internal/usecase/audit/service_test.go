@@ -10,23 +10,24 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 )
 
-func setupTestDB(t *testing.T) *gorm.DB {
+func setupTestDB(t *testing.T) (*gorm.DB, *audit.Service) {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Discard,
 	})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&persistent.AuditLog{}))
-	return db
+	repo := persistent.NewAuditLogRepo(db)
+	svc := audit.NewService(repo)
+	return db, svc
 }
 
 func TestService_LogAction(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	db, svc := setupTestDB(t)
 
 	ctx := context.Background()
 	svc.LogAction(ctx, "create", "package", 1, "added package react")
@@ -41,8 +42,7 @@ func TestService_LogAction(t *testing.T) {
 }
 
 func TestService_LogAuthEvent(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	db, svc := setupTestDB(t)
 
 	ctx := context.Background()
 
@@ -59,8 +59,7 @@ func TestService_LogAuthEvent(t *testing.T) {
 }
 
 func TestService_LogAuthEvent_FailedLogin(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	db, svc := setupTestDB(t)
 
 	ctx := context.Background()
 
@@ -75,8 +74,7 @@ func TestService_LogAuthEvent_FailedLogin(t *testing.T) {
 }
 
 func TestService_LogAuthEvent_Logout(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	db, svc := setupTestDB(t)
 
 	ctx := context.Background()
 	svc.LogAuthEvent(ctx, "logout", 42, "user logged out")
@@ -89,8 +87,7 @@ func TestService_LogAuthEvent_Logout(t *testing.T) {
 }
 
 func TestService_CaptureState_LogChange(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	db, svc := setupTestDB(t)
 
 	ctx := context.Background()
 
@@ -129,8 +126,7 @@ func TestService_CaptureState_LogChange(t *testing.T) {
 }
 
 func TestService_CaptureState_NoChanges(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	db, svc := setupTestDB(t)
 
 	ctx := context.Background()
 
@@ -149,8 +145,7 @@ func TestService_CaptureState_NoChanges(t *testing.T) {
 }
 
 func TestService_ListAuditLogs_Filters(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	_, svc := setupTestDB(t)
 
 	ctx := context.Background()
 
@@ -174,8 +169,7 @@ func TestService_ListAuditLogs_Filters(t *testing.T) {
 }
 
 func TestService_AuditLogCoverage_AuthEvents(t *testing.T) {
-	db := setupTestDB(t)
-	svc := audit.NewService(db)
+	db, svc := setupTestDB(t)
 
 	ctx := context.Background()
 

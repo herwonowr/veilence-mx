@@ -6,25 +6,22 @@ import (
 	"log/slog"
 	"strings"
 
-	"gorm.io/gorm"
-
 	"github.com/veilence/veilence-mx/backend/internal/entity"
-	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
 	"github.com/veilence/veilence-mx/backend/pkg/queue"
 )
 
 // Pipeline processes diffs through the LLM analyzer and creates alerts.
 type Pipeline struct {
-	db        *gorm.DB
+	repo      PipelineRepository
 	analyzers []Analyzer
 	notifier  usecase.NotificationDispatcher
 }
 
 // NewPipeline creates a new analysis pipeline.
-func NewPipeline(db *gorm.DB, notifier usecase.NotificationDispatcher, analyzers ...Analyzer) *Pipeline {
+func NewPipeline(repo PipelineRepository, notifier usecase.NotificationDispatcher, analyzers ...Analyzer) *Pipeline {
 	return &Pipeline{
-		db:        db,
+		repo:      repo,
 		analyzers: analyzers,
 		notifier:  notifier,
 	}
@@ -37,18 +34,16 @@ func (p *Pipeline) ProcessJob(ctx context.Context, job *queue.Job) error {
 
 // processDiff runs all configured analyzers on a diff.
 func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
-	var diff persistent.Diff
-	if err := p.db.Preload("Release.Package").First(&diff, diffID).Error; err != nil {
+	diff, release, pkg, err := p.repo.FindDiffWithRelease(ctx, diffID)
+	if err != nil {
 		return fmt.Errorf("loading diff %d: %w", diffID, err)
 	}
 
 	// Find previous release version
-	var prevRelease persistent.Release
-	if err := p.db.First(&prevRelease, diff.PrevReleaseID).Error; err != nil {
+	prevRelease, err := p.repo.FindReleaseByID(ctx, diff.PrevReleaseID)
+	if err != nil {
 		return fmt.Errorf("loading previous release: %w", err)
 	}
-
-	pkg := diff.Release.Package
 
 	var analysisCreated bool
 	var lastErr error
@@ -72,7 +67,7 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
 			pkg.Name,
 			string(pkg.Ecosystem),
 			prevRelease.Version,
-			diff.Release.Version,
+			release.Version,
 		)
 		if err != nil {
 			slog.Error("analyzer failed", "type", analyzer.Type(), "package", pkg.Name, "error", err)
@@ -81,17 +76,17 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
 		}
 
 		// Store analysis
-		analysis := persistent.Analysis{
+		analysis := &entity.Analysis{
 			DiffID:         diff.ID,
-			Classification: persistent.Classification(result.Classification),
+			Classification: entity.Classification(result.Classification),
 			Confidence:     result.Confidence,
 			Reasoning:      result.Reasoning,
 			ModelUsed:      "claude",
-			AnalyzerType:   persistent.AnalyzerType(analyzer.Type()),
+			AnalyzerType:   entity.AnalyzerType(analyzer.Type()),
 			RawResponse:    result.RawResponse,
 		}
 
-		if err := p.db.Create(&analysis).Error; err != nil {
+		if err := p.repo.CreateAnalysis(ctx, analysis); err != nil {
 			slog.Error("failed to save analysis", "error", err)
 			lastErr = err
 			continue
@@ -101,7 +96,7 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
 
 		slog.Info("analysis complete",
 			"package", pkg.Name,
-			"version", diff.Release.Version,
+			"version", release.Version,
 			"classification", result.Classification,
 			"confidence", result.Confidence,
 			"analyzer", analyzer.Type(),
@@ -109,21 +104,21 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
 
 		// Create alert if suspicious or malicious
 		if result.Classification == "suspicious" || result.Classification == "malicious" {
-			severity := persistent.AlertSeverityMedium
+			severity := entity.AlertSeverityMedium
 			if result.Classification == "malicious" {
-				severity = persistent.AlertSeverityCritical
+				severity = entity.AlertSeverityCritical
 			}
 
-			alert := persistent.Alert{
-				WorkspaceID:      pkg.WorkspaceID,
-				AnalysisID: analysis.ID,
-				PackageID:  pkg.ID,
-				Severity:   severity,
-				Status:     persistent.AlertStatusNew,
-				Message:    fmt.Sprintf("Package %s v%s classified as %s (confidence: %.0f%%): %s", pkg.Name, diff.Release.Version, result.Classification, result.Confidence*100, result.Reasoning),
+			alert := &entity.Alert{
+				WorkspaceID: pkg.WorkspaceID,
+				AnalysisID:  analysis.ID,
+				PackageID:   pkg.ID,
+				Severity:    severity,
+				Status:      entity.AlertStatusNew,
+				Message:     fmt.Sprintf("Package %s v%s classified as %s (confidence: %.0f%%): %s", pkg.Name, release.Version, result.Classification, result.Confidence*100, result.Reasoning),
 			}
 
-			if err := p.db.Create(&alert).Error; err != nil {
+			if err := p.repo.CreateAlert(ctx, alert); err != nil {
 				slog.Error("failed to create alert", "error", err)
 			} else {
 				slog.Warn("alert created",
@@ -142,8 +137,8 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
 					p.notifier.DispatchEvent(ctx, pkg.WorkspaceID, entity.NotificationEvent{
 						Severity:      notifSeverity,
 						EventType:     notifEventType,
-						Title:         fmt.Sprintf("%s package detected: %s v%s", strings.ToUpper(result.Classification[:1])+result.Classification[1:], pkg.Name, diff.Release.Version),
-						Message:       fmt.Sprintf("Package %s v%s (%s) classified as %s with %.0f%% confidence. %s", pkg.Name, diff.Release.Version, pkg.Ecosystem, result.Classification, result.Confidence*100, result.Reasoning),
+						Title:         fmt.Sprintf("%s package detected: %s v%s", strings.ToUpper(result.Classification[:1])+result.Classification[1:], pkg.Name, release.Version),
+						Message:       fmt.Sprintf("Package %s v%s (%s) classified as %s with %.0f%% confidence. %s", pkg.Name, release.Version, pkg.Ecosystem, result.Classification, result.Confidence*100, result.Reasoning),
 						ReferenceID:   alert.ID,
 						ReferenceType: "alert",
 					})
@@ -158,9 +153,9 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
 			p.notifier.DispatchEvent(ctx, pkg.WorkspaceID, entity.NotificationEvent{
 				Severity:      "high",
 				EventType:     entity.NotifEventAnalysisError,
-				Title:         fmt.Sprintf("Analysis failed: %s v%s", pkg.Name, diff.Release.Version),
-				Message:       fmt.Sprintf("All analyzers failed for %s v%s (%s). The release will be retried. Error: %v", pkg.Name, diff.Release.Version, pkg.Ecosystem, lastErr),
-				ReferenceID:   diff.Release.ID,
+				Title:         fmt.Sprintf("Analysis failed: %s v%s", pkg.Name, release.Version),
+				Message:       fmt.Sprintf("All analyzers failed for %s v%s (%s). The release will be retried. Error: %v", pkg.Name, release.Version, pkg.Ecosystem, lastErr),
+				ReferenceID:   release.ID,
 				ReferenceType: "release",
 			})
 		}
@@ -168,7 +163,9 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
 	}
 
 	// Update release status to completed
-	p.db.Model(&diff.Release).Update("status", persistent.ReleaseStatusCompleted)
+	if err := p.repo.UpdateReleaseStatus(ctx, release.ID, entity.ReleaseStatusCompleted); err != nil {
+		slog.Error("failed to update release status", "release_id", release.ID, "error", err)
+	}
 
 	return nil
 }

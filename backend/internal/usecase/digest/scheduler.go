@@ -10,9 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"gorm.io/gorm"
-
-	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/notifications"
 )
 
@@ -20,7 +18,7 @@ import (
 // is due for its email digest, generates the digest content, and sends it via
 // the existing SMTP infrastructure.
 type Scheduler struct {
-	db   *gorm.DB
+	repo DigestRepository
 	smtp notifications.SMTPConfig
 
 	// checkInterval controls how often the scheduler polls for due digests.
@@ -44,13 +42,13 @@ type Config struct {
 }
 
 // New creates a new digest Scheduler.
-func New(db *gorm.DB, smtpCfg notifications.SMTPConfig, cfg Config) *Scheduler {
+func New(repo DigestRepository, smtpCfg notifications.SMTPConfig, cfg Config) *Scheduler {
 	interval := cfg.CheckInterval
 	if interval <= 0 {
 		interval = 1 * time.Hour
 	}
 	return &Scheduler{
-		db:            db,
+		repo:          repo,
 		smtp:          smtpCfg,
 		checkInterval: interval,
 		nowFunc:       time.Now,
@@ -78,56 +76,10 @@ func (s *Scheduler) Start(ctx context.Context) {
 
 // tick checks all orgs and sends digests for any that are due.
 func (s *Scheduler) tick(ctx context.Context) {
-	// Find all orgs that have digest enabled
-	type orgDigestConfig struct {
-		WorkspaceID      uint
-		Frequency  string
-		Recipients string
-	}
-
-	var enabledOrgs []orgDigestConfig
-
-	// Get all org IDs that have email_digest_enabled=true
-	var enabledSettings []persistent.Setting
-	if err := s.db.WithContext(ctx).
-		Where("key = ? AND value = ?", persistent.SettingEmailDigestEnabled, "true").
-		Find(&enabledSettings).Error; err != nil {
+	enabledOrgs, err := s.repo.FindEnabledDigestConfigs(ctx)
+	if err != nil {
 		slog.Error("digest: failed to query enabled orgs", "error", err)
 		return
-	}
-
-	for _, setting := range enabledSettings {
-		wsID := setting.WorkspaceID
-
-		// Get frequency and recipients for this workspace
-		var frequency, recipients string
-		var freqSetting, recipSetting persistent.Setting
-
-		if err := s.db.WithContext(ctx).
-			Where("workspace_id = ? AND key = ?", wsID, persistent.SettingEmailDigestFrequency).
-			First(&freqSetting).Error; err != nil {
-			frequency = "daily" // default
-		} else {
-			frequency = freqSetting.Value
-		}
-
-		if err := s.db.WithContext(ctx).
-			Where("workspace_id = ? AND key = ?", wsID, persistent.SettingEmailDigestRecipients).
-			First(&recipSetting).Error; err != nil {
-			continue // no recipients configured, skip
-		} else {
-			recipients = recipSetting.Value
-		}
-
-		if recipients == "" {
-			continue
-		}
-
-		enabledOrgs = append(enabledOrgs, orgDigestConfig{
-			WorkspaceID:      wsID,
-			Frequency:  frequency,
-			Recipients: recipients,
-		})
 	}
 
 	now := s.nowFunc()
@@ -191,16 +143,7 @@ type DigestContent struct {
 	// ClassificationBreakdown maps classification -> count.
 	ClassificationBreakdown map[string]int64
 	// TopAlerts contains up to 5 most severe recent alerts.
-	TopAlerts []TopAlert
-}
-
-// TopAlert is a summary of an alert for the digest.
-type TopAlert struct {
-	ID          uint
-	PackageName string
-	Severity    string
-	Message     string
-	CreatedAt   time.Time
+	TopAlerts []entity.DigestTopAlert
 }
 
 // GenerateDigest generates the digest content for an org over the given period.
@@ -222,72 +165,32 @@ func (s *Scheduler) GenerateDigest(ctx context.Context, workspaceID uint, freque
 	}
 
 	// Count new alerts in the period
-	if err := s.db.WithContext(ctx).
-		Model(&persistent.Alert{}).
-		Where("workspace_id = ? AND created_at >= ?", workspaceID, since).
-		Count(&digest.NewAlertsCount).Error; err != nil {
+	alertCount, err := s.repo.CountAlertsSince(ctx, workspaceID, since)
+	if err != nil {
 		return nil, fmt.Errorf("counting new alerts: %w", err)
 	}
+	digest.NewAlertsCount = alertCount
 
-	// Count packages analyzed (distinct package_id from releases created in period)
-	if err := s.db.WithContext(ctx).
-		Model(&persistent.Release{}).
-		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("packages.workspace_id = ? AND releases.created_at >= ?", workspaceID, since).
-		Distinct("releases.package_id").
-		Count(&digest.PackagesAnalyzed).Error; err != nil {
+	// Count packages analyzed
+	pkgCount, err := s.repo.CountPackagesAnalyzedSince(ctx, workspaceID, since)
+	if err != nil {
 		return nil, fmt.Errorf("counting packages analyzed: %w", err)
 	}
+	digest.PackagesAnalyzed = pkgCount
 
-	// Classification breakdown from analyses in the period
-	type classCount struct {
-		Classification string
-		Count          int64
-	}
-	var classRows []classCount
-	if err := s.db.WithContext(ctx).
-		Model(&persistent.Analysis{}).
-		Select("analyses.classification, COUNT(*) as count").
-		Joins("JOIN diffs ON diffs.id = analyses.diff_id").
-		Joins("JOIN releases ON releases.id = diffs.release_id").
-		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("packages.workspace_id = ? AND analyses.created_at >= ?", workspaceID, since).
-		Group("analyses.classification").
-		Scan(&classRows).Error; err != nil {
+	// Classification breakdown
+	breakdown, err := s.repo.GetClassificationBreakdownSince(ctx, workspaceID, since)
+	if err != nil {
 		return nil, fmt.Errorf("querying classification breakdown: %w", err)
 	}
-	for _, row := range classRows {
-		digest.ClassificationBreakdown[row.Classification] = row.Count
-	}
+	digest.ClassificationBreakdown = breakdown
 
-	// Top 5 alerts by severity (critical > high > medium > low), most recent first
-	type alertRow struct {
-		ID          uint
-		PackageName string
-		Severity    string
-		Message     string
-		CreatedAt   time.Time
-	}
-	var topRows []alertRow
-	if err := s.db.WithContext(ctx).
-		Model(&persistent.Alert{}).
-		Select("alerts.id, packages.name as package_name, alerts.severity, alerts.message, alerts.created_at").
-		Joins("JOIN packages ON packages.id = alerts.package_id").
-		Where("alerts.workspace_id = ? AND alerts.created_at >= ?", workspaceID, since).
-		Order("CASE alerts.severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END ASC, alerts.created_at DESC").
-		Limit(5).
-		Scan(&topRows).Error; err != nil {
+	// Top 5 alerts
+	topAlerts, err := s.repo.GetTopAlertsSince(ctx, workspaceID, since, 5)
+	if err != nil {
 		return nil, fmt.Errorf("querying top alerts: %w", err)
 	}
-	for _, row := range topRows {
-		digest.TopAlerts = append(digest.TopAlerts, TopAlert{
-			ID:          row.ID,
-			PackageName: row.PackageName,
-			Severity:    row.Severity,
-			Message:     row.Message,
-			CreatedAt:   row.CreatedAt,
-		})
-	}
+	digest.TopAlerts = topAlerts
 
 	return digest, nil
 }

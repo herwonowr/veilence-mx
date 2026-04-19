@@ -109,13 +109,15 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, smtpConfig)
 
 	// Pipeline
-	pollerService := poller.New(db, pythonClient, npmClient, poller.Config{
+	pollerRepo := persistent.NewPollerRepo(db)
+	pollerService := poller.New(pollerRepo, pythonClient, npmClient, poller.Config{
 		MonitoringInterval: cfg.MonitoringInterval,
 		DiscoveryInterval:  cfg.DiscoveryInterval,
 		Concurrency:        cfg.PollerConcurrency,
 	}, jobQueue, notificationService)
 
-	differService := differ.New(db, pythonClient, npmClient, differ.Config{
+	differRepo := persistent.NewDifferRepo(db)
+	differService := differ.New(differRepo, pythonClient, npmClient, differ.Config{
 		DiffSizeLimit: cfg.DiffSizeLimit,
 	}, jobQueue, notificationService)
 
@@ -132,7 +134,8 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 
 	llmClient := analyzer.NewCLIClient(llmConfig)
 	slog.Info("LLM analyzer enabled", "url", llmConfig.BaseURL, "model", llmConfig.Model)
-	pipeline := analyzer.NewPipeline(db, notificationService, llmClient)
+	pipelineRepo := persistent.NewPipelineRepo(db)
+	pipeline := analyzer.NewPipeline(pipelineRepo, notificationService, llmClient)
 
 	// Queue workers
 	diffWorker := queue.NewWorker(jobQueue, queue.JobTypeDiff, differService.ProcessJob, queue.WorkerConfig{
@@ -171,8 +174,13 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	}
 
 	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, authEmailSender, settingRepo, cfg.JWTSecret, previousSecrets...)
-	rbacService := rbac.NewService(db)
-	auditService := audit.NewService(db)
+	auditLogRepo := persistent.NewAuditLogRepo(db)
+	rbacRepo := persistent.NewRBACRepo(db)
+	if err := rbac.SeedPermissions(rbacRepo); err != nil {
+		return nil, fmt.Errorf("seeding permissions: %w", err)
+	}
+	rbacService := rbac.NewService(rbacRepo)
+	auditService := audit.NewService(auditLogRepo)
 	dashboardRepo := persistent.NewDashboardRepo(db)
 	alertNoteRepo := persistent.NewAlertNoteRepo(db)
 	alertRepo := persistent.NewAlertRepo(db)
@@ -190,7 +198,8 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	healthService := healthuc.New(dbPinger{db: db}, jobQueue)
 
 	// Digest scheduler
-	digestScheduler := digest.New(db, smtpConfig, digest.Config{})
+	digestRepo := persistent.NewDigestRepo(db)
+	digestScheduler := digest.New(digestRepo, smtpConfig, digest.Config{})
 
 	// HTTP handlers + router
 	h := v1.NewHandlers(

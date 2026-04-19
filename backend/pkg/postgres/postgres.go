@@ -13,7 +13,6 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 	"github.com/veilence/veilence-mx/backend/migrations"
 )
 
@@ -42,11 +41,6 @@ func Connect(dsn string) (*gorm.DB, error) {
 
 	if err := RunMigrations(sqlDB); err != nil {
 		return nil, fmt.Errorf("running migrations: %w", err)
-	}
-
-	// Seed system permissions after schema is ready
-	if err := rbac.SeedPermissions(db); err != nil {
-		return nil, fmt.Errorf("seeding permissions: %w", err)
 	}
 
 	return db, nil

@@ -54,7 +54,7 @@ func setupMiddlewareEnv(t *testing.T) *middlewareTestEnv {
 	)
 	require.NoError(t, err)
 
-	err = rbac.SeedPermissions(db)
+	err = rbac.SeedPermissions(persistent.NewRBACRepo(db))
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -65,7 +65,7 @@ func setupMiddlewareEnv(t *testing.T) *middlewareTestEnv {
 	return &middlewareTestEnv{
 		DB:      db,
 		AuthSvc: auth.NewService(persistent.NewUserRepo(db), persistent.NewRefreshTokenRepo(db), persistent.NewAPIKeyRepo(db), persistent.NewPasswordResetTokenRepo(db), persistent.NewEmailVerificationTokenRepo(db), persistent.NewSessionRepo(db), nil, nil, testJWTSecret),
-		RBACSvc: rbac.NewService(db),
+		RBACSvc: rbac.NewService(persistent.NewRBACRepo(db)),
 	}
 }
 
@@ -83,7 +83,7 @@ func registerAndLogin(t *testing.T, env *middlewareTestEnv, email string) (*enti
 
 // createOrgWithOwner creates an org and returns it. The registering user
 // automatically becomes the owner.
-func createOrgWithOwner(t *testing.T, env *middlewareTestEnv, ownerID uint, slug string) *persistent.Workspace {
+func createOrgWithOwner(t *testing.T, env *middlewareTestEnv, ownerID uint, slug string) *entity.Workspace {
 	t.Helper()
 	org, err := env.RBACSvc.CreateWorkspace(ownerID, "Test Workspace "+slug, slug, "test")
 	require.NoError(t, err)
@@ -92,13 +92,13 @@ func createOrgWithOwner(t *testing.T, env *middlewareTestEnv, ownerID uint, slug
 
 // addMemberWithRole invites a user to the org with the given role name and
 // accepts the invitation, returning the membership record.
-func addMemberWithRole(t *testing.T, env *middlewareTestEnv, org *persistent.Workspace, ownerID uint, member *entity.User, roleName string) *persistent.WorkspaceMember {
+func addMemberWithRole(t *testing.T, env *middlewareTestEnv, org *entity.Workspace, ownerID uint, member *entity.User, roleName string) *entity.WorkspaceMember {
 	t.Helper()
 
 	roles, err := env.RBACSvc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
 
-	var targetRole *persistent.Role
+	var targetRole *entity.Role
 	for i := range roles {
 		if roles[i].Name == roleName {
 			targetRole = &roles[i]
@@ -267,7 +267,7 @@ func TestRequireWorkspace_SetsOrgContextCorrectly(t *testing.T) {
 	resp := decodeJSON(t, w)
 	// workspaceId is stored as uint, JSON decodes to float64.
 	assert.Equal(t, float64(org.ID), resp["workspaceId"])
-	assert.Equal(t, persistent.RoleOwner, resp["memberRole"])
+	assert.Equal(t, entity.RoleOwner, resp["memberRole"])
 }
 
 func TestRequireWorkspace_DenyWhenNoAuthentication(t *testing.T) {
@@ -391,7 +391,7 @@ func TestRequireWorkspace_InvitedMemberAllowed(t *testing.T) {
 	member, memberToken := registerAndLogin(t, env, "inv-member@example.com")
 
 	org := createOrgWithOwner(t, env, owner.ID, "invited-member")
-	addMemberWithRole(t, env, org, owner.ID, member, persistent.RoleMember)
+	addMemberWithRole(t, env, org, owner.ID, member, entity.RoleMember)
 
 	r := chi.NewRouter()
 	r.Route("/api/workspaces/{workspaceId}", func(r chi.Router) {
@@ -409,7 +409,7 @@ func TestRequireWorkspace_InvitedMemberAllowed(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	resp := decodeJSON(t, w)
 	assert.Equal(t, float64(org.ID), resp["workspaceId"])
-	assert.Equal(t, persistent.RoleMember, resp["memberRole"])
+	assert.Equal(t, entity.RoleMember, resp["memberRole"])
 }
 
 // ========================================================================
@@ -446,7 +446,7 @@ func TestRequirePermission_DenyWhenUserLacksPermission(t *testing.T) {
 	viewer, viewerToken := registerAndLogin(t, env, "perm-deny-viewer@example.com")
 
 	org := createOrgWithOwner(t, env, owner.ID, "perm-deny")
-	addMemberWithRole(t, env, org, owner.ID, viewer, persistent.RoleViewer)
+	addMemberWithRole(t, env, org, owner.ID, viewer, entity.RoleViewer)
 
 	// Viewer cannot write packages.
 	r := chi.NewRouter()
@@ -475,7 +475,7 @@ func TestRequirePermission_AllowWhenUserHasPermission(t *testing.T) {
 	member, memberToken := registerAndLogin(t, env, "perm-allow-member@example.com")
 
 	org := createOrgWithOwner(t, env, owner.ID, "perm-allow")
-	addMemberWithRole(t, env, org, owner.ID, member, persistent.RoleMember)
+	addMemberWithRole(t, env, org, owner.ID, member, entity.RoleMember)
 
 	// Member CAN write packages.
 	r := chi.NewRouter()
@@ -553,7 +553,7 @@ func TestViewerRole_HasOnlyReadPermissions(t *testing.T) {
 	viewer, viewerToken := registerAndLogin(t, env, "viewer-perms@example.com")
 
 	org := createOrgWithOwner(t, env, owner.ID, "viewer-perms")
-	addMemberWithRole(t, env, org, owner.ID, viewer, persistent.RoleViewer)
+	addMemberWithRole(t, env, org, owner.ID, viewer, entity.RoleViewer)
 
 	// Viewer allowed permissions.
 	viewerAllowed := map[string]bool{
@@ -599,7 +599,7 @@ func TestMemberRole_PermissionBoundaries(t *testing.T) {
 	member, memberToken := registerAndLogin(t, env, "member-perms@example.com")
 
 	org := createOrgWithOwner(t, env, owner.ID, "member-perms")
-	addMemberWithRole(t, env, org, owner.ID, member, persistent.RoleMember)
+	addMemberWithRole(t, env, org, owner.ID, member, entity.RoleMember)
 
 	memberAllowed := map[string]bool{
 		"packages:read":  true,
@@ -686,7 +686,7 @@ func TestAdminRole_HasAllExceptOrgDelete(t *testing.T) {
 	admin, adminToken := registerAndLogin(t, env, "admin-perms@example.com")
 
 	org := createOrgWithOwner(t, env, owner.ID, "admin-perms")
-	addMemberWithRole(t, env, org, owner.ID, admin, persistent.RoleAdmin)
+	addMemberWithRole(t, env, org, owner.ID, admin, entity.RoleAdmin)
 
 	for _, perm := range persistent.SystemPermissions {
 		key := perm.Resource + ":" + perm.Action
@@ -744,7 +744,7 @@ func TestMiddlewareChain_RequireOrgThenPermission(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	resp := decodeJSON(t, w)
 	assert.Equal(t, float64(org.ID), resp["workspaceId"])
-	assert.Equal(t, persistent.RoleOwner, resp["memberRole"])
+	assert.Equal(t, entity.RoleOwner, resp["memberRole"])
 }
 
 func TestMiddlewareChain_MultiplePermissionChecks(t *testing.T) {
@@ -754,7 +754,7 @@ func TestMiddlewareChain_MultiplePermissionChecks(t *testing.T) {
 	member, memberToken := registerAndLogin(t, env, "multi-perm-member@example.com")
 
 	org := createOrgWithOwner(t, env, owner.ID, "multi-perm")
-	addMemberWithRole(t, env, org, owner.ID, member, persistent.RoleMember)
+	addMemberWithRole(t, env, org, owner.ID, member, entity.RoleMember)
 
 	// Route requires packages:write — member should have it.
 	r := chi.NewRouter()
@@ -798,7 +798,7 @@ func TestRequireWorkspace_DifferentOrgsAreSeparate(t *testing.T) {
 	orgB := createOrgWithOwner(t, env, owner.ID, "cross-org-b")
 
 	// Member belongs to org A only.
-	addMemberWithRole(t, env, orgA, owner.ID, member, persistent.RoleMember)
+	addMemberWithRole(t, env, orgA, owner.ID, member, entity.RoleMember)
 
 	r := chi.NewRouter()
 	r.Route("/api/workspaces/{workspaceId}", func(r chi.Router) {
