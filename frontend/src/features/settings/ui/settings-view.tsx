@@ -1,12 +1,11 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/ui/components/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/components/card"
 import { Button } from "@/ui/components/button"
-import { Separator } from "@/ui/components/separator"
 import { Input } from "@/ui/components/input"
 import { Field, FieldLabel, FieldDescription, FieldError } from "@/ui/components/field"
-import { Save, RefreshCw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangle, ShieldCheck } from "lucide-react"
+import { Save, RefreshCw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangle, ShieldCheck, Loader2, Cpu } from "lucide-react"
 import { Checkbox } from "@/ui/components/checkbox"
 import { Label } from "@/ui/components/label"
 import { RadioGroup, RadioGroupItem } from "@/ui/components/radio-group"
@@ -26,7 +25,6 @@ export const SettingsView = () => {
   const discoverMutation = useDiscoverNow()
   const { data: packageSummary } = usePackageCountSummary()
 
-  // The server-loaded settings (source of truth for dirty detection)
   const serverSettings = settingsRes?.data ?? null
 
   // React-recommended "store previous props" pattern for syncing derived state
@@ -38,7 +36,6 @@ export const SettingsView = () => {
     }
   }
 
-  // Dirty state: has anything changed from server-loaded values?
   const isDirty = useMemo(() => {
     if (!serverSettings) return false
     return Object.keys(localSettings).some(
@@ -46,12 +43,10 @@ export const SettingsView = () => {
     )
   }, [localSettings, serverSettings])
 
-  // Warn before closing/refreshing the browser tab with unsaved changes
   useEffect(() => {
     if (!isDirty) return
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault()
-      // Modern browsers show a generic message; returnValue is required for legacy
       e.returnValue = ""
     }
     window.addEventListener("beforeunload", handler)
@@ -80,21 +75,27 @@ export const SettingsView = () => {
   }, [localSettings, updateMutation])
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Settings</h1>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold">Settings</h1>
+        <p className="mt-1 text-muted-foreground">
+          Configure monitoring, discovery, analysis, and notifications.
+        </p>
+      </div>
 
+      {/* Monitoring */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
+            <Activity className="size-5" />
             Monitoring
           </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
+          <CardDescription>
             How often to check all monitored packages for new releases.
-          </p>
-          <div className="max-w-xs">
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
             <Field data-invalid={!!validationErrors.monitoring_interval}>
               <FieldLabel htmlFor="monitoring-interval">Monitoring Interval</FieldLabel>
               <Input
@@ -114,31 +115,36 @@ export const SettingsView = () => {
         </CardContent>
       </Card>
 
+      {/* Discovery */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Radar className="h-5 w-5" />
-              Discovery
-            </CardTitle>
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Radar className="size-5" />
+                Discovery
+              </CardTitle>
+              <CardDescription className="mt-1.5">
+                Automatically scan registry popularity rankings and add new packages to monitoring.
+              </CardDescription>
+            </div>
             <Button
               variant="outline"
               size="sm"
               onClick={() => discoverMutation.mutate(undefined)}
               disabled={discoverMutation.isPending}
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${discoverMutation.isPending ? "animate-spin" : ""}`} />
+              {discoverMutation.isPending ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 size-4" />
+              )}
               Discover Now
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Automatically scan registry popularity rankings and add new packages to monitoring.
-            The scan depth controls how deep into each ecosystem&apos;s rankings to look each cycle
-            (e.g., 50 = top 50 PyPI + top 50 NPM).
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
             <Field data-invalid={!!validationErrors.discovery_scan_depth}>
               <FieldLabel htmlFor="discovery-scan-depth">Discovery Scan Depth</FieldLabel>
               <Input
@@ -169,13 +175,15 @@ export const SettingsView = () => {
               <FieldDescription>Go duration format (e.g., 12h, 24h, 7d)</FieldDescription>
             </Field>
           </div>
+
           <div className="flex items-start gap-2 rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
-            <Info className="h-4 w-4 mt-0.5 shrink-0" />
+            <Info className="mt-0.5 size-4 shrink-0" />
             <span>
               The total number of monitored packages grows over time as new packages enter the popularity rankings.
-              Discovery only adds packages - it never removes them.
+              Discovery only adds packages — it never removes them.
             </span>
           </div>
+
           {packageSummary && (
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span>
@@ -190,19 +198,20 @@ export const SettingsView = () => {
               )}
             </div>
           )}
+
           {(() => {
             const threshold = parseInt(localSettings.package_count_warning_threshold ?? "0", 10)
             const count = packageSummary?.activeCount ?? 0
             return threshold > 0 && count > threshold ? (
               <Alert variant="warning">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="size-4" />
                 <AlertDescription>
                   You are monitoring <strong>{count}</strong> packages, which exceeds your warning threshold of <strong>{threshold}</strong>.
                 </AlertDescription>
               </Alert>
             ) : null
           })()}
-          <Separator />
+
           <Field orientation="horizontal" data-invalid={!!validationErrors.discovery_auto_approve}>
             <Checkbox
               id="auto-approve"
@@ -220,13 +229,14 @@ export const SettingsView = () => {
           )}
           {localSettings.discovery_auto_approve === "true" && (
             <Alert variant="warning">
-              <AlertTriangle className="h-4 w-4" />
+              <AlertTriangle className="size-4" />
               <AlertDescription>
                 Discovered packages will be automatically added to active monitoring without manual review.
               </AlertDescription>
             </Alert>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
             <Field data-invalid={!!validationErrors.stale_auto_remove_months}>
               <FieldLabel htmlFor="stale-auto-remove-months">Auto-remove stale packages after (months)</FieldLabel>
               <Input
@@ -259,82 +269,93 @@ export const SettingsView = () => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Analyzer</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <span className="text-sm font-medium">
-              Analyzer Backend
-            </span>
-            <p className="text-sm text-muted-foreground mt-1">
-              Using <strong>copilot-api</strong> proxy → GitHub Copilot → Claude Sonnet 4.6
-            </p>
-          </div>
-          <Separator />
-          <Field data-invalid={!!validationErrors.diff_size_limit}>
-            <FieldLabel htmlFor="diff-size-limit">Diff Size Limit (bytes)</FieldLabel>
-            <Input
-              id="diff-size-limit"
-              type="number"
-              value={localSettings.diff_size_limit ?? ""}
-              onChange={(e) =>
-                updateSetting("diff_size_limit", e.target.value)
-              }
-              placeholder="102400"
-            />
-            {validationErrors.diff_size_limit && (
-              <FieldError>{validationErrors.diff_size_limit}</FieldError>
-            )}
-            <FieldDescription>Maximum diff size sent to LLM for analysis. Default: 100KB.</FieldDescription>
-          </Field>
-        </CardContent>
-      </Card>
+      {/* Analyzer & Security side by side */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card className="flex flex-col">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Cpu className="size-5" />
+              Analyzer
+            </CardTitle>
+            <CardDescription>
+              LLM backend and diff analysis configuration.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <Field>
+              <FieldLabel>Analyzer Backend</FieldLabel>
+              <Input
+                value="copilot-api → GitHub Copilot → Claude Sonnet 4.6"
+                disabled
+                className="bg-muted"
+              />
+            </Field>
+            <Field data-invalid={!!validationErrors.diff_size_limit}>
+              <FieldLabel htmlFor="diff-size-limit">Diff Size Limit (bytes)</FieldLabel>
+              <Input
+                id="diff-size-limit"
+                type="number"
+                value={localSettings.diff_size_limit ?? ""}
+                onChange={(e) =>
+                  updateSetting("diff_size_limit", e.target.value)
+                }
+                placeholder="102400"
+              />
+              {validationErrors.diff_size_limit && (
+                <FieldError>{validationErrors.diff_size_limit}</FieldError>
+              )}
+              <FieldDescription>Maximum diff size sent to LLM for analysis. Default: 100KB.</FieldDescription>
+            </Field>
+          </CardContent>
+        </Card>
 
+        <Card className="flex flex-col">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="size-5" />
+              Security
+            </CardTitle>
+            <CardDescription>
+              Authentication and access control settings.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div>
+              <Field orientation="horizontal" data-invalid={!!validationErrors.require_email_verification}>
+                <Checkbox
+                  id="require-email-verification"
+                  checked={localSettings.require_email_verification === "true"}
+                  onCheckedChange={(checked) =>
+                    updateSetting("require_email_verification", String(checked))
+                  }
+                />
+                <FieldLabel htmlFor="require-email-verification" className="cursor-pointer">
+                  Require Email Verification
+                </FieldLabel>
+              </Field>
+              <p className="mt-1.5 ml-6 text-sm text-muted-foreground">
+                When enabled, users must verify their email address before they can log in.
+              </p>
+              {validationErrors.require_email_verification && (
+                <FieldError>{validationErrors.require_email_verification}</FieldError>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Email Digest */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5" />
-            Security
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Authentication and access control settings.
-          </p>
-          <Field orientation="horizontal" data-invalid={!!validationErrors.require_email_verification}>
-            <Checkbox
-              id="require-email-verification"
-              checked={localSettings.require_email_verification === "true"}
-              onCheckedChange={(checked) =>
-                updateSetting("require_email_verification", String(checked))
-              }
-            />
-            <FieldLabel htmlFor="require-email-verification" className="cursor-pointer">
-              Require Email Verification
-            </FieldLabel>
-          </Field>
-          <p className="text-sm text-muted-foreground ml-6">
-            When enabled, users must verify their email address before they can log in.
-          </p>
-          {validationErrors.require_email_verification && (
-            <FieldError>{validationErrors.require_email_verification}</FieldError>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
+            <Mail className="size-5" />
             Email Digest
           </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
+          <CardDescription>
             Receive periodic email summaries of new alerts, analysis results, and classification breakdowns.
-          </p>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
           <Field orientation="horizontal" data-invalid={!!validationErrors.email_digest_enabled}>
             <Checkbox
               id="digest-enabled"
@@ -351,14 +372,14 @@ export const SettingsView = () => {
             <FieldError>{validationErrors.email_digest_enabled}</FieldError>
           )}
           {localSettings.email_digest_enabled === "true" && (
-            <div className="space-y-4 ml-6">
+            <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
               <Field data-invalid={!!validationErrors.email_digest_frequency}>
                 <FieldLabel id="digest-frequency-label">Frequency</FieldLabel>
                 <RadioGroup
                   value={localSettings.email_digest_frequency ?? "daily"}
                   onValueChange={(v) => updateSetting("email_digest_frequency", v)}
                   aria-labelledby="digest-frequency-label"
-                  className="flex flex-col gap-2 mt-1"
+                  className="mt-1 flex flex-col gap-2"
                 >
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="daily" id="digest-daily" />
@@ -393,14 +414,16 @@ export const SettingsView = () => {
         </CardContent>
       </Card>
 
-      <div className="flex items-center gap-4">
+      {/* Save button — right-aligned */}
+      <div className="flex justify-end">
         <Button onClick={handleSave} disabled={updateMutation.isPending}>
-          <Save className="h-4 w-4 mr-2" />
-          {updateMutation.isPending ? "Saving..." : "Save Settings"}
+          {updateMutation.isPending ? (
+            <Loader2 className="mr-2 size-4 animate-spin" />
+          ) : (
+            <Save className="mr-2 size-4" />
+          )}
+          Save Settings
         </Button>
-        {updateMutation.isSuccess && (
-          <span className="text-sm text-green-600">Settings saved successfully.</span>
-        )}
       </div>
 
       {/* Spacer for sticky footer */}
@@ -411,7 +434,7 @@ export const SettingsView = () => {
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
           <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
             <div className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400">
-              <AlertCircle className="h-4 w-4" />
+              <AlertCircle className="size-4" />
               <span className="font-medium">You have unsaved changes</span>
             </div>
             <div className="flex items-center gap-3">
@@ -419,7 +442,7 @@ export const SettingsView = () => {
                 <span className="text-sm text-green-600">Saved!</span>
               )}
               <Button onClick={handleSave} disabled={updateMutation.isPending} size="sm">
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="mr-2 size-4" />
                 {updateMutation.isPending ? "Saving..." : "Save Settings"}
               </Button>
             </div>
