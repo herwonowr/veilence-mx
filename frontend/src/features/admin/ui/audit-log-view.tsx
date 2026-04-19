@@ -113,7 +113,7 @@ export const AuditLogView = () => {
       ? [{ label: "Resource", value: resource, onRemove: () => { setResource(""); setPage(1) } }]
       : []),
     ...(fromDate
-      ? [{ label: "From", value: fromDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), onRemove: () => { setFromDate(undefined); setPage(1) } }]
+      ? [{ label: "From", value: fromDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), onRemove: () => { setFromDate(undefined); setToDate(undefined); setPage(1) } }]
       : []),
     ...(toDate
       ? [{ label: "To", value: toDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), onRemove: () => { setToDate(undefined); setPage(1) } }]
@@ -240,14 +240,16 @@ export const AuditLogView = () => {
               <Label className="text-xs">
                 To
               </Label>
-              <Popover open={toOpen} onOpenChange={setToOpen}>
+              <Popover open={toOpen} onOpenChange={fromDate ? setToOpen : undefined}>
                 <PopoverTrigger
                   render={
                     <button
                       type="button"
+                      disabled={!fromDate}
                       className={cn(
                         buttonVariants({ variant: "outline" }),
-                        "w-full justify-start text-left font-normal h-8"
+                        "w-full justify-start text-left font-normal h-8",
+                        !fromDate && "opacity-50 cursor-not-allowed"
                       )}
                       aria-label="Select end date"
                     />
