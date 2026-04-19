@@ -93,6 +93,13 @@ export const PackageSuggestionsView = () => {
     }), [ecosystemFilter]),
   )
 
+  const hasActiveFilters = !!(search || ecosystemFilter)
+
+  const clearAllFilters = () => {
+    setSearch("")
+    setEcosystemFilter("")
+  }
+
   // Reset to first page when filters or sort change
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }))
@@ -383,12 +390,25 @@ export const PackageSuggestionsView = () => {
                       </TableRow>
                     ))
                   ) : (
+                    hasActiveFilters ? (
+                      <TableEmptyState
+                        colSpan={columns.length}
+                        icon={<Radar className="h-8 w-8" />}
+                        title="No matching suggestions."
+                        description="Try adjusting your filters."
+                      >
+                        <Button variant="outline" size="sm" onClick={clearAllFilters}>
+                          Clear filters
+                        </Button>
+                      </TableEmptyState>
+                    ) : (
                     <TableEmptyState
                       colSpan={columns.length}
                       icon={<Radar className="h-8 w-8" />}
                       title="No pending suggestions."
                       description="Run discovery to find new packages to monitor."
                     />
+                    )
                   )}
                 </TableBody>
               </Table>

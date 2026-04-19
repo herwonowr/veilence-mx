@@ -696,6 +696,18 @@ export const PackagesListView = () => {
                   </TableRow>
                 ))
               ) : (
+                hasActiveFilters ? (
+                  <TableEmptyState
+                    colSpan={columns.length}
+                    icon={<Plus className="h-8 w-8" />}
+                    title="No matching packages."
+                    description="Try adjusting your filters."
+                  >
+                    <Button variant="outline" size="sm" onClick={clearAllFilters}>
+                      Clear filters
+                    </Button>
+                  </TableEmptyState>
+                ) : (
                 <TableEmptyState
                   colSpan={columns.length}
                   icon={<Plus className="h-8 w-8" />}
@@ -709,6 +721,7 @@ export const PackagesListView = () => {
                     Discover Packages
                   </Button>
                 </TableEmptyState>
+                )
               )}
             </TableBody>
           </Table>

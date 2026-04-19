@@ -94,6 +94,16 @@ export const AuditLogView = () => {
     setPage(1)
   }
 
+  const hasActiveFilters = !!(action || resource || fromDate || toDate)
+
+  const clearAllFilters = () => {
+    setAction("")
+    setResource("")
+    setFromDate(undefined)
+    setToDate(undefined)
+    setPage(1)
+  }
+
   const { data: logsRes, isLoading } = useAuditLogs(validOrgId, {
     action: debouncedAction || undefined,
     resource: debouncedResource || undefined,
@@ -293,12 +303,25 @@ export const AuditLogView = () => {
                   </TableRow>
                 ))}
                 {logs.length === 0 && (
+                  hasActiveFilters ? (
+                    <TableEmptyState
+                      colSpan={5}
+                      icon={<ScrollText className="h-8 w-8" />}
+                      title="No matching audit logs."
+                      description="Try adjusting your filters."
+                    >
+                      <Button variant="outline" size="sm" onClick={clearAllFilters}>
+                        Clear filters
+                      </Button>
+                    </TableEmptyState>
+                  ) : (
                   <TableEmptyState
                     colSpan={5}
                     icon={<ScrollText className="h-8 w-8" />}
                     title="No audit logs found."
                     description="Activity history will appear here as actions are performed in this organization."
                   />
+                  )
                 )}
               </TableBody>
             </Table>

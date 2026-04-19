@@ -54,7 +54,7 @@ const classificationVariant = (c: Classification) => {
 }
 
 const VALID_ECOSYSTEMS: Ecosystem[] = ["python", "npm"]
-const VALID_STATUSES: ReleaseStatus[] = ["pending", "diffing", "analyzing", "in_progress", "completed", "error"]
+const VALID_STATUSES: ReleaseStatus[] = ["in_progress", "completed", "error"]
 const VALID_CLASSIFICATIONS: Classification[] = ["benign", "suspicious", "malicious", "baseline"]
 
 export const ReleasesListView = () => {
@@ -284,9 +284,6 @@ export const ReleasesListView = () => {
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="diffing">Diffing</SelectItem>
-                    <SelectItem value="analyzing">Analyzing</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                     <SelectItem value="error">Error</SelectItem>
                   </SelectContent>
@@ -361,6 +358,18 @@ export const ReleasesListView = () => {
                   </TableRow>
                 ))
               ) : (
+                hasActiveFilters ? (
+                  <TableEmptyState
+                    colSpan={columns.length}
+                    icon={<Activity className="h-8 w-8" />}
+                    title="No matching releases."
+                    description="Try adjusting your filters."
+                  >
+                    <Button variant="outline" size="sm" onClick={clearAllFilters}>
+                      Clear filters
+                    </Button>
+                  </TableEmptyState>
+                ) : (
                 <TableEmptyState
                   colSpan={columns.length}
                   icon={<Activity className="h-8 w-8" />}
@@ -373,6 +382,7 @@ export const ReleasesListView = () => {
                     </Button>
                   </Link>
                 </TableEmptyState>
+                )
               )}
             </TableBody>
           </Table>
