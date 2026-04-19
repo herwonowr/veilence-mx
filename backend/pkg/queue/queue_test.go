@@ -146,7 +146,7 @@ func TestDequeue_ReturnsJobAndMovesToProcessing(t *testing.T) {
 
 	assert.Equal(t, jobID, job.ID)
 	assert.Equal(t, StatusProcessing, job.Status)
-	assert.Equal(t, 1, job.Attempts)
+	assert.Equal(t, 0, job.Attempts) // Attempts only increment on Fail, not Dequeue
 
 	// Job should now be in the processing sorted set
 	members, err := q.rdb.ZRange(ctx, processingSet+JobTypeDiff, 0, -1).Result()
@@ -177,7 +177,7 @@ func TestDequeue_IncrementsAttempts(t *testing.T) {
 
 	job, err := q.Dequeue(ctx, JobTypeDiff)
 	require.NoError(t, err)
-	assert.Equal(t, 1, job.Attempts)
+	assert.Equal(t, 0, job.Attempts) // Attempts only increment on Fail, not Dequeue
 }
 
 func TestDequeue_FIFO_Order(t *testing.T) {
@@ -275,7 +275,7 @@ func TestFail_RetriesWhenAttemptsRemain(t *testing.T) {
 	job, err := q.Dequeue(ctx, JobTypeDiff)
 	require.NoError(t, err)
 	require.NotNil(t, job)
-	assert.Equal(t, 1, job.Attempts) // first attempt
+	assert.Equal(t, 0, job.Attempts) // Attempts only increment on Fail
 
 	// Fail the job
 	err = q.Fail(ctx, job, errors.New("transient error"))
@@ -307,9 +307,9 @@ func TestFail_MovesToDeadWhenMaxAttemptsExceeded(t *testing.T) {
 	job, err := q.Dequeue(ctx, JobTypeDiff)
 	require.NoError(t, err)
 	require.NotNil(t, job)
-	assert.Equal(t, 1, job.Attempts) // first and only attempt
+	assert.Equal(t, 0, job.Attempts) // Attempts only increment on Fail
 
-	// Fail should move to dead since Attempts (1) >= MaxAttempts (1)
+	// Fail should move to dead since Fail increments to 1, and MaxAttempts is 1
 	err = q.Fail(ctx, job, errors.New("fatal error"))
 	require.NoError(t, err)
 
@@ -477,7 +477,11 @@ func TestRecoverStuckJobs_MovesToDeadWhenMaxAttemptsExceeded(t *testing.T) {
 	_, _ = q.Enqueue(ctx, JobTypeDiff, 1)
 	job, _ := q.Dequeue(ctx, JobTypeDiff)
 	require.NotNil(t, job)
-	assert.Equal(t, 1, job.Attempts)
+	assert.Equal(t, 0, job.Attempts) // Dequeue doesn't increment
+
+	// Simulate a prior failure: set attempts to maxAttempts so recovery sends to dead
+	job.Attempts = 1
+	q.saveJob(ctx, job)
 
 	// Backdate the processing score so the job appears stuck
 	stuckScore := float64(time.Now().Unix() - 10)
@@ -783,7 +787,7 @@ func TestFullJobLifecycle_Success(t *testing.T) {
 	// 4. Verify final state
 	final := loadTestJob(t, q, jobID)
 	assert.Equal(t, StatusCompleted, final.Status)
-	assert.Equal(t, 1, final.Attempts)
+	assert.Equal(t, 0, final.Attempts) // No failures, so attempts stays 0
 
 	stats, _ := q.Stats(ctx, JobTypeDiff)
 	assert.Equal(t, int64(0), stats.Pending)
@@ -809,14 +813,14 @@ func TestFullJobLifecycle_FailRetrySuccess(t *testing.T) {
 	job2, _ := q.Dequeue(ctx, JobTypeDiff)
 	require.NotNil(t, job2)
 	assert.Equal(t, jobID, job2.ID)
-	assert.Equal(t, 2, job2.Attempts)
+	assert.Equal(t, 1, job2.Attempts) // 1 failure recorded
 
 	err = q.Complete(ctx, job2)
 	require.NoError(t, err)
 
 	final := loadTestJob(t, q, jobID)
 	assert.Equal(t, StatusCompleted, final.Status)
-	assert.Equal(t, 2, final.Attempts)
+	assert.Equal(t, 1, final.Attempts) // 1 failure total
 }
 
 func TestFullJobLifecycle_FailUntilDead(t *testing.T) {
@@ -834,7 +838,7 @@ func TestFullJobLifecycle_FailUntilDead(t *testing.T) {
 	// Second attempt — fail again → dead
 	job2, _ := q.Dequeue(ctx, JobTypeDiff)
 	require.NotNil(t, job2)
-	assert.Equal(t, 2, job2.Attempts)
+	assert.Equal(t, 1, job2.Attempts) // 1 failure so far
 	_ = q.Fail(ctx, job2, errors.New("fail 2"))
 
 	final := loadTestJob(t, q, job.ID)
@@ -865,7 +869,7 @@ func TestFullJobLifecycle_DeadThenRequeue(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, job2)
 	assert.Equal(t, job.ID, job2.ID)
-	assert.Equal(t, 1, job2.Attempts) // reset to 0 then incremented by Dequeue
+	assert.Equal(t, 0, job2.Attempts) // reset to 0 by RequeueDead, Dequeue doesn't increment
 
 	// Complete this time
 	err = q.Complete(ctx, job2)

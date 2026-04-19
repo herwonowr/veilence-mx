@@ -168,7 +168,6 @@ func (q *Queue) Dequeue(ctx context.Context, jobType string) (*Job, error) {
 
 	now := time.Now().Unix()
 	job.Status = StatusProcessing
-	job.Attempts++
 	job.UpdatedAt = now
 
 	if err := q.saveJob(ctx, job); err != nil {
@@ -197,6 +196,7 @@ func (q *Queue) Complete(ctx context.Context, job *Job) error {
 }
 
 func (q *Queue) Fail(ctx context.Context, job *Job, jobErr error) error {
+	job.Attempts++
 	job.LastError = jobErr.Error()
 	job.UpdatedAt = time.Now().Unix()
 
