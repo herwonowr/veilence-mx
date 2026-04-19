@@ -224,14 +224,16 @@ export const DashboardCharts = ({ data, range, onRangeChange }: DashboardChartsP
               </PopoverContent>
             </Popover>
             <span className="text-sm text-muted-foreground">to</span>
-            <Popover open={toOpen} onOpenChange={setToOpen}>
+            <Popover open={toOpen} onOpenChange={fromDate ? setToOpen : undefined}>
               <PopoverTrigger
                 render={
                   <button
                     type="button"
+                    disabled={!fromDate}
                     className={cn(
                       buttonVariants({ variant: "outline", size: "sm" }),
-                      "w-40 justify-start text-left font-normal"
+                      "w-40 justify-start text-left font-normal",
+                      !fromDate && "opacity-50 cursor-not-allowed"
                     )}
                     aria-label="Select end date"
                   />
