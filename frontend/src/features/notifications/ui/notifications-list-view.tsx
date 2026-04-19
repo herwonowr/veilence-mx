@@ -261,17 +261,6 @@ export const NotificationsListView = () => {
         <CardHeader>
           <div className="space-y-3">
             <div className="flex flex-wrap items-end gap-4">
-              {/* Select all checkbox in select mode */}
-              {selectMode && notifications.length > 0 && (
-                <div className="flex items-end pb-1">
-                  <Checkbox
-                    checked={allPageSelected}
-                    onCheckedChange={handleSelectAll}
-                    aria-label="Select all on this page"
-                  />
-                </div>
-              )}
-
               {/* Read state filter */}
               <div className="space-y-1">
                 <Label
@@ -442,6 +431,19 @@ export const NotificationsListView = () => {
           ) : (
             /* Notification list */
             <>
+              {/* Select all header row */}
+              {selectMode && notifications.length > 0 && (
+                <div className="flex items-center gap-3 border-b border-border px-4 py-2">
+                  <div className="flex w-5 shrink-0 items-center justify-center">
+                    <Checkbox
+                      checked={allPageSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </div>
+                </div>
+              )}
+
               <ul className="divide-y divide-border">
                 {notifications.map((notification) => (
                   <NotificationPageItem
