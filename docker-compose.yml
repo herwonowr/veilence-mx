@@ -34,6 +34,16 @@ services:
       timeout: 5s
       retries: 5
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: veilence-mx-mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - veilence-net
+    restart: unless-stopped
+
   backend:
     build:
       context: ./backend
@@ -50,6 +60,10 @@ services:
       FRONTEND_URL: http://localhost:3000
       COPILOT_API_URL: http://host.docker.internal:4141
       COPILOT_MODEL: claude-sonnet-4.6
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM: noreply@veilence-mx.dev
+      SMTP_USE_TLS: "false"
     depends_on:
       postgres:
         condition: service_healthy
