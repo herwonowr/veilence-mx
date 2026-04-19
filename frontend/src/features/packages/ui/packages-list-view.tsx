@@ -161,8 +161,7 @@ export const PackagesListView = () => {
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({})
 
   const packageColumnBreakpoints: ColumnBreakpoints = useMemo(() => ({
-    popularity: "desktop",
-    rank: "desktop",
+    downloadCount: "desktop",
     source: "tablet",
     status: "tablet",
   }), [])
@@ -297,7 +296,6 @@ export const PackagesListView = () => {
     { width: "w-16", header: "Ecosystem" },
     { width: "w-20", header: "Latest Version" },
     { width: "w-16", header: "Popularity" },
-    { width: "w-12", header: "Rank" },
     { width: "w-16", header: "Source" },
     { width: "w-16", header: "Status" },
     { width: "w-8", header: "" },
@@ -330,7 +328,7 @@ export const PackagesListView = () => {
         cell: ({ row }) => row.original.latestVersion || "\u2014",
       },
       {
-        id: "popularity",
+        id: "downloadCount",
         accessorKey: "downloadCount",
         header: ({ column }) => (
           <TooltipProvider>
@@ -339,16 +337,14 @@ export const PackagesListView = () => {
                 <SortableHeader column={column} title="Popularity" />
               </TooltipTrigger>
               <TooltipContent>
-                {ecosystemFilter
-                  ? popularityLabel(ecosystemFilter)
-                  : "Downloads/mo (Python) · Score (NPM)"}
+                {popularityLabel(ecosystemFilter)}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         ),
         cell: ({ row }) => {
           const pkg = row.original
-          const text = formatPopularity(pkg.ecosystem, pkg.downloadCount, pkg.popularityScore)
+          const text = formatPopularity(pkg.ecosystem, pkg.downloadCount)
           const freshness = formatFreshness(pkg.downloadCountUpdatedAt)
           return (
             <TooltipProvider>
@@ -359,11 +355,6 @@ export const PackagesListView = () => {
             </TooltipProvider>
           )
         },
-      },
-      {
-        accessorKey: "rank",
-        header: ({ column }) => <SortableHeader column={column} title="Rank" />,
-        cell: ({ row }) => row.original.rank ?? "\u2014",
       },
       {
         accessorKey: "source",

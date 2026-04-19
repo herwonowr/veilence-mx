@@ -18,9 +18,7 @@ type PackageResponse struct {
 	Description            string     `json:"description"`
 	Source                 string     `json:"source"`
 	Status                 string     `json:"status"`
-	Rank                   *uint      `json:"rank,omitempty"`
 	DownloadCount          int64      `json:"downloadCount"`
-	PopularityScore        float64    `json:"popularityScore"`
 	DownloadCountUpdatedAt *time.Time `json:"downloadCountUpdatedAt,omitempty"`
 	BlockedAt              *time.Time `json:"blockedAt,omitempty"`
 	BlockedReason          string     `json:"blockedReason,omitempty"`
@@ -39,9 +37,7 @@ func PackageFromEntity(p *entity.Package) PackageResponse {
 		Description:            p.Description,
 		Source:                 string(p.Source),
 		Status:                 string(p.Status),
-		Rank:                   p.Rank,
 		DownloadCount:          p.DownloadCount,
-		PopularityScore:        p.PopularityScore,
 		DownloadCountUpdatedAt: p.DownloadCountUpdatedAt,
 		BlockedAt:              p.BlockedAt,
 		BlockedReason:          p.BlockedReason,

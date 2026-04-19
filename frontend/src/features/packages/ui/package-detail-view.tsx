@@ -98,7 +98,7 @@ export const PackageDetailView = ({
           )}
           <span className="font-mono text-sm text-muted-foreground">v{pkg.latestVersion}</span>
           <span className="text-sm text-muted-foreground">
-            {formatPopularity(pkg.ecosystem, pkg.downloadCount, pkg.popularityScore)}
+            {formatPopularity(pkg.ecosystem, pkg.downloadCount)}
           </span>
           {pkg.downloadCountUpdatedAt && (
             <span className="text-xs text-muted-foreground">

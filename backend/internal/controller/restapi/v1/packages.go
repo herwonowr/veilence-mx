@@ -48,11 +48,11 @@ func (h *PackageHandlers) ListPackages(w http.ResponseWriter, r *http.Request) {
 		"name":          "name",
 		"ecosystem":     "ecosystem",
 		"latestVersion": "latest_version",
-		"rank":          "rank",
+		"downloadCount": "download_count",
 		"source":        "source",
 		"status":        "status",
 		"createdAt":     "created_at",
-	}, "rank ASC NULLS LAST, name ASC")
+	}, "download_count DESC, name ASC")
 
 	var filters entity.PackageFilters
 	if eco := r.URL.Query().Get("ecosystem"); eco != "" {
@@ -443,11 +443,10 @@ func (h *PackageHandlers) ListSuggestions(w http.ResponseWriter, r *http.Request
 
 	page, limit := parsePagination(r)
 	sortOrder := parseSort(r, map[string]string{
-		"name":       "name",
-		"ecosystem":  "ecosystem",
-		"rank":       "rank",
-		"popularity": "CASE WHEN ecosystem = 'npm' THEN popularity_score ELSE download_count END",
-	}, "rank ASC NULLS LAST, name ASC")
+		"name":          "name",
+		"ecosystem":     "ecosystem",
+		"downloadCount": "download_count",
+	}, "download_count DESC, name ASC")
 
 	var filters entity.PackageFilters
 	if eco := r.URL.Query().Get("ecosystem"); eco != "" {

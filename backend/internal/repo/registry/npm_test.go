@@ -57,9 +57,9 @@ func TestNPMClient_GetTopPackages(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"objects": []map[string]any{
-				{"package": map[string]string{"name": "lodash"}, "score": map[string]any{"detail": map[string]any{"popularity": 0.95}}},
-				{"package": map[string]string{"name": "react"}, "score": map[string]any{"detail": map[string]any{"popularity": 0.90}}},
-				{"package": map[string]string{"name": "express"}, "score": map[string]any{"detail": map[string]any{"popularity": 0.85}}},
+				{"package": map[string]string{"name": "lodash"}, "downloads": map[string]any{"monthly": 50000000, "weekly": 12000000}, "score": map[string]any{"detail": map[string]any{"popularity": 0.95}}},
+				{"package": map[string]string{"name": "react"}, "downloads": map[string]any{"monthly": 40000000, "weekly": 10000000}, "score": map[string]any{"detail": map[string]any{"popularity": 0.90}}},
+				{"package": map[string]string{"name": "express"}, "downloads": map[string]any{"monthly": 30000000, "weekly": 8000000}, "score": map[string]any{"detail": map[string]any{"popularity": 0.85}}},
 			},
 			"total": 3,
 		}
@@ -72,8 +72,10 @@ func TestNPMClient_GetTopPackages(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, rankings, 3)
 	assert.Equal(t, "lodash", rankings[0].Name)
-	assert.InDelta(t, 0.95, rankings[0].PopularityScore, 0.01)
+	assert.Equal(t, int64(50000000), rankings[0].DownloadCount)
 	assert.Equal(t, uint(1), rankings[0].Rank)
+	assert.Equal(t, int64(40000000), rankings[1].DownloadCount)
+	assert.Equal(t, int64(30000000), rankings[2].DownloadCount)
 }
 
 func TestNPMClient_Name(t *testing.T) {

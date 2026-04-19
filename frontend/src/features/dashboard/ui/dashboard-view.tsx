@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useLocalStorage } from "@/core"
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/components/card"
 import { Badge } from "@/ui/components/badge"
 import { Button } from "@/ui/components/button"
@@ -111,8 +112,8 @@ const DashboardOnboarding = ({ hasAnyWorkspace, user }: OnboardingProps) => {
 
 const DashboardData = () => {
   const router = useRouter()
-  const [autoRefresh, setAutoRefresh] = useState(true)
-  const [intervalSec, setIntervalSec] = useState(30)
+  const [autoRefresh, setAutoRefresh] = useLocalStorage("vmx-dashboard-auto-refresh", true)
+  const [intervalSec, setIntervalSec] = useLocalStorage("vmx-dashboard-refresh-interval", 30)
   const [chartRange, setChartRange] = useState<{ from?: string; to?: string }>({})
 
   const refetchInterval = autoRefresh && intervalSec > 0 ? intervalSec * 1000 : false

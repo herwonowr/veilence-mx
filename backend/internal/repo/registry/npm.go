@@ -39,6 +39,10 @@ type npmSearchResponse struct {
 		Package struct {
 			Name string `json:"name"`
 		} `json:"package"`
+		Downloads struct {
+			Monthly int64 `json:"monthly"`
+			Weekly  int64 `json:"weekly"`
+		} `json:"downloads"`
 		Score struct {
 			Detail struct {
 				Popularity float64 `json:"popularity"`
@@ -184,7 +188,7 @@ func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pac
 		for _, obj := range searchResp.Objects {
 			allRankings = append(allRankings, entity.PackageRanking{
 				Name:            obj.Package.Name,
-				PopularityScore: obj.Score.Detail.Popularity,
+				DownloadCount:   obj.Downloads.Monthly,
 				Rank:            uint(fetched + len(allRankings) - len(allRankings) + len(allRankings) + 1),
 			})
 		}

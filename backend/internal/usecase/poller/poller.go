@@ -469,7 +469,6 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID uint,
 				Status:                 newStatus,
 				Rank:                   &rank,
 				DownloadCount:          ranking.DownloadCount,
-				PopularityScore:        ranking.PopularityScore,
 				DownloadCountUpdatedAt: &now,
 			}
 			if err := p.repo.CreatePackage(ctx, pkg); err != nil {
@@ -486,14 +485,13 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID uint,
 				downloadUpdates = append(downloadUpdates, entity.PackageDownloadUpdate{
 					PackageID:       existing.ID,
 					DownloadCount:   ranking.DownloadCount,
-					PopularityScore: ranking.PopularityScore,
 				})
 			case entity.PackageStatusSuggested:
 				// Already pending review — update rank and download data
 				p.repo.UpdatePackageDiscoveryMetrics(ctx, existing.ID, map[string]interface{}{
 					"rank":                      &rank,
 					"download_count":            ranking.DownloadCount,
-					"popularity_score":          ranking.PopularityScore,
+	
 					"download_count_updated_at": now,
 				})
 			case entity.PackageStatusBlocked:
@@ -505,7 +503,7 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID uint,
 					"status":                    string(newStatus),
 					"rank":                      &rank,
 					"download_count":            ranking.DownloadCount,
-					"popularity_score":          ranking.PopularityScore,
+	
 					"download_count_updated_at": now,
 				})
 				suggested++

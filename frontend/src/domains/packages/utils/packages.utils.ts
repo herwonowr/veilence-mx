@@ -1,9 +1,8 @@
 import type { Ecosystem } from "@/domains/common"
 
 /**
- * Format download count for PyPI packages as human-readable string.
- * PyPI: "12.5M/mo", "1.2K/mo", etc.
- * NPM: shows popularity score instead (handled separately).
+ * Format download count as human-readable string.
+ * Works for both PyPI and NPM: "12.5M/mo", "1.2K/mo", etc.
  */
 export const formatDownloadCount = (count: number | undefined | null): string => {
   if (count == null) return "-"
@@ -20,29 +19,23 @@ export const formatDownloadCount = (count: number | undefined | null): string =>
 }
 
 /**
- * Format the popularity metric for display based on ecosystem.
- * PyPI: formatted download count (e.g., "12.5M/mo")
- * NPM: popularity score with suffix (e.g., "0.95 pop.")
+ * Format the popularity metric for display.
+ * Both PyPI and NPM show formatted download counts (e.g., "12.5M/mo").
+ * Returns "—" when no download count is available.
  */
 export const formatPopularity = (
-  ecosystem: Ecosystem | string,
-  downloadCount: number | undefined | null,
-  popularityScore: number | undefined | null
+  _ecosystem: Ecosystem | string,
+  downloadCount: number | undefined | null
 ): string => {
-  if (ecosystem === "npm") {
-    if (popularityScore == null) return "-"
-    return `${popularityScore.toFixed(2)} pop.`
-  }
-  return formatDownloadCount(downloadCount)
+  if (downloadCount != null) return formatDownloadCount(downloadCount)
+  return "—"
 }
 
 /**
  * Returns a human-readable label for the popularity column header tooltip.
  */
-export const popularityLabel = (ecosystem: Ecosystem | string): string => {
-  if (ecosystem === "npm") return "Popularity Score"
-  return "Downloads (30-day)"
-}
+export const popularityLabel = (_ecosystem?: Ecosystem | string): string =>
+  "Downloads (30-day)"
 
 /**
  * Format a date string as relative freshness text.

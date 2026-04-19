@@ -50,71 +50,59 @@ describe("formatDownloadCount", () => {
 
 describe("formatPopularity", () => {
   describe("NPM ecosystem", () => {
-    it("returns popularity score with suffix", () => {
-      expect(formatPopularity("npm", 1000, 0.95)).toBe("0.95 pop.")
+    it("returns formatted download count when available", () => {
+      expect(formatPopularity("npm", 2_700_000_000)).toBe("2.7B/mo")
     })
 
-    it("returns em-dash when popularityScore is null", () => {
-      expect(formatPopularity("npm", 1000, null)).toBe("-")
+    it("returns formatted download count for millions", () => {
+      expect(formatPopularity("npm", 633_000_000)).toBe("633.0M/mo")
     })
 
-    it("returns em-dash when popularityScore is undefined", () => {
-      expect(formatPopularity("npm", 1000, undefined)).toBe("-")
+    it("returns em-dash when downloadCount is null", () => {
+      expect(formatPopularity("npm", null)).toBe("—")
     })
 
-    it("formats zero score", () => {
-      expect(formatPopularity("npm", 0, 0)).toBe("0.00 pop.")
+    it("returns em-dash when downloadCount is undefined", () => {
+      expect(formatPopularity("npm", undefined)).toBe("—")
     })
 
-    it("formats score of 1.0", () => {
-      expect(formatPopularity("npm", 0, 1)).toBe("1.00 pop.")
-    })
-
-    it("ignores downloadCount for npm", () => {
-      expect(formatPopularity("npm", undefined, 0.5)).toBe("0.50 pop.")
+    it("formats zero downloads", () => {
+      expect(formatPopularity("npm", 0)).toBe("0/mo")
     })
   })
 
   describe("Python ecosystem", () => {
     it("returns formatted download count", () => {
-      expect(formatPopularity("python", 12_500_000, 0.8)).toBe("12.5M/mo")
+      expect(formatPopularity("python", 12_500_000)).toBe("12.5M/mo")
     })
 
     it("returns em-dash when downloadCount is null", () => {
-      expect(formatPopularity("python", null, 0.5)).toBe("-")
+      expect(formatPopularity("python", null)).toBe("—")
     })
 
     it("returns em-dash when downloadCount is undefined", () => {
-      expect(formatPopularity("python", undefined, 0.5)).toBe("-")
+      expect(formatPopularity("python", undefined)).toBe("—")
     })
 
     it("formats zero downloads", () => {
-      expect(formatPopularity("python", 0, null)).toBe("0/mo")
-    })
-
-    it("ignores popularityScore for python", () => {
-      expect(formatPopularity("python", 5000, null)).toBe("5.0K/mo")
+      expect(formatPopularity("python", 0)).toBe("0/mo")
     })
   })
 
   describe("edge cases", () => {
-    it("handles both values as null for npm", () => {
-      expect(formatPopularity("npm", null, null)).toBe("-")
+    it("handles unknown ecosystem with download count", () => {
+      expect(formatPopularity("unknown", 1000)).toBe("1.0K/mo")
     })
 
-    it("handles both values as undefined for python", () => {
-      expect(formatPopularity("python", undefined, undefined)).toBe("-")
-    })
-
-    it("handles unknown ecosystem as python-like", () => {
-      expect(formatPopularity("unknown", 1000, 0.5)).toBe("1.0K/mo")
+    it("handles unknown ecosystem with no data", () => {
+      expect(formatPopularity("unknown", undefined)).toBe("—")
     })
   })
 })
 
 describe("popularityLabel", () => {
-  it("returns 'Popularity Score' for npm", () => {
-    expect(popularityLabel("npm")).toBe("Popularity Score")
+  it("returns 'Downloads (30-day)' for npm", () => {
+    expect(popularityLabel("npm")).toBe("Downloads (30-day)")
   })
 
   it("returns 'Downloads (30-day)' for python", () => {

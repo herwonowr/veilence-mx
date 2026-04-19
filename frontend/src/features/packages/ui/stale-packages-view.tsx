@@ -118,7 +118,7 @@ export const StalePackagesView = () => {
           const pkg = row.original
           return (
             <span className="text-sm tabular-nums">
-              {formatPopularity(pkg.ecosystem, pkg.downloadCount, pkg.popularityScore)}
+              {formatPopularity(pkg.ecosystem, pkg.downloadCount)}
             </span>
           )
         },

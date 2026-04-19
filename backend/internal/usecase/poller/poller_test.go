@@ -382,9 +382,9 @@ func TestDiscoverPackages_NewPackages(t *testing.T) {
 	mock := &mockRegistry{
 		name:        "python",
 		topPackages: []entity.PackageRanking{
-			{Name: "requests", Rank: 1, DownloadCount: 1000000, PopularityScore: 95.5},
-			{Name: "boto3", Rank: 2, DownloadCount: 500000, PopularityScore: 88.0},
-			{Name: "flask", Rank: 3, DownloadCount: 300000, PopularityScore: 82.1},
+			{Name: "requests", Rank: 1, DownloadCount: 1000000},
+			{Name: "boto3", Rank: 2, DownloadCount: 500000},
+			{Name: "flask", Rank: 3, DownloadCount: 300000},
 		},
 	}
 
@@ -403,7 +403,6 @@ func TestDiscoverPackages_NewPackages(t *testing.T) {
 	// Phase 2: new packages are created as 'suggested', NOT 'active'
 	assert.Equal(t, persistent.PackageStatusSuggested, pkg.Status)
 	assert.Equal(t, int64(1000000), pkg.DownloadCount)
-	assert.Equal(t, 95.5, pkg.PopularityScore)
 	assert.NotNil(t, pkg.DownloadCountUpdatedAt)
 
 	var pkg2 persistent.Package
@@ -421,7 +420,7 @@ func TestDiscoverPackages_UpdateExistingRank(t *testing.T) {
 	mock := &mockRegistry{
 		name:        "python",
 		topPackages: []entity.PackageRanking{
-			{Name: "requests", Rank: 1, DownloadCount: 2000000, PopularityScore: 97.5},
+			{Name: "requests", Rank: 1, DownloadCount: 2000000},
 		},
 	}
 
@@ -438,7 +437,6 @@ func TestDiscoverPackages_UpdateExistingRank(t *testing.T) {
 	assert.Equal(t, persistent.PackageStatusActive, pkg.Status)
 	// Download metrics updated via batch
 	assert.Equal(t, int64(2000000), pkg.DownloadCount)
-	assert.Equal(t, 97.5, pkg.PopularityScore)
 	assert.NotNil(t, pkg.DownloadCountUpdatedAt)
 }
 
@@ -493,7 +491,7 @@ func TestDiscoverPackages_ReAddsRemovedPackages(t *testing.T) {
 	mock := &mockRegistry{
 		name:        "python",
 		topPackages: []entity.PackageRanking{
-			{Name: "requests", Rank: 1, DownloadCount: 5000000, PopularityScore: 99.0},
+			{Name: "requests", Rank: 1, DownloadCount: 5000000},
 		},
 	}
 
@@ -507,7 +505,6 @@ func TestDiscoverPackages_ReAddsRemovedPackages(t *testing.T) {
 	assert.Equal(t, persistent.PackageStatusSuggested, pkg.Status)
 	assert.Equal(t, uint(1), *pkg.Rank)
 	assert.Equal(t, int64(5000000), pkg.DownloadCount)
-	assert.Equal(t, 99.0, pkg.PopularityScore)
 	assert.NotNil(t, pkg.DownloadCountUpdatedAt)
 }
 
@@ -953,13 +950,12 @@ func TestDiscoverPackages_SuggestedPackagesGetUpdated(t *testing.T) {
 		Source:          persistent.PackageSourceDiscovered,
 		Status:          persistent.PackageStatusSuggested,
 		DownloadCount:   100000,
-		PopularityScore: 50.0,
 	})
 
 	mock := &mockRegistry{
 		name:        "python",
 		topPackages: []entity.PackageRanking{
-			{Name: "requests", Rank: 1, DownloadCount: 2000000, PopularityScore: 98.5},
+			{Name: "requests", Rank: 1, DownloadCount: 2000000},
 		},
 	}
 
@@ -974,7 +970,6 @@ func TestDiscoverPackages_SuggestedPackagesGetUpdated(t *testing.T) {
 	// Rank and download data updated
 	assert.Equal(t, uint(1), *pkg.Rank)
 	assert.Equal(t, int64(2000000), pkg.DownloadCount)
-	assert.Equal(t, 98.5, pkg.PopularityScore)
 	assert.NotNil(t, pkg.DownloadCountUpdatedAt)
 }
 
@@ -1021,11 +1016,11 @@ func TestUpsertDiscoveredPackages_MixedStatuses(t *testing.T) {
 	db.Create(&persistent.Package{WorkspaceID: 1, Name: "removed-pkg", Ecosystem: "python", Rank: &rank10, Status: persistent.PackageStatusRemoved, Source: persistent.PackageSourceDiscovered})
 
 	rankings := []entity.PackageRanking{
-		{Name: "active-pkg", Rank: 2, DownloadCount: 100, PopularityScore: 90.0},
-		{Name: "suggested-pkg", Rank: 3, DownloadCount: 200, PopularityScore: 85.0},
-		{Name: "blocked-pkg", Rank: 4, DownloadCount: 300, PopularityScore: 80.0},
-		{Name: "removed-pkg", Rank: 5, DownloadCount: 400, PopularityScore: 75.0},
-		{Name: "new-pkg", Rank: 6, DownloadCount: 500, PopularityScore: 70.0},
+		{Name: "active-pkg", Rank: 2, DownloadCount: 100},
+		{Name: "suggested-pkg", Rank: 3, DownloadCount: 200},
+		{Name: "blocked-pkg", Rank: 4, DownloadCount: 300},
+		{Name: "removed-pkg", Rank: 5, DownloadCount: 400},
+		{Name: "new-pkg", Rank: 6, DownloadCount: 500},
 	}
 
 	p := New(persistent.NewPollerRepo(db), nil, nil, Config{Concurrency: 1}, nil, nil)
@@ -1064,8 +1059,8 @@ func TestUpsertDiscoveredPackages_DownloadCountBatchUpdate(t *testing.T) {
 	db.Create(&persistent.Package{WorkspaceID: 1, Name: "pkg-b", Ecosystem: "python", Rank: &rank2, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered, DownloadCount: 20})
 
 	rankings := []entity.PackageRanking{
-		{Name: "pkg-a", Rank: 1, DownloadCount: 500000, PopularityScore: 95.0},
-		{Name: "pkg-b", Rank: 2, DownloadCount: 300000, PopularityScore: 88.0},
+		{Name: "pkg-a", Rank: 1, DownloadCount: 500000},
+		{Name: "pkg-b", Rank: 2, DownloadCount: 300000},
 	}
 
 	p := New(persistent.NewPollerRepo(db), nil, nil, Config{Concurrency: 1}, nil, nil)
@@ -1076,11 +1071,9 @@ func TestUpsertDiscoveredPackages_DownloadCountBatchUpdate(t *testing.T) {
 	db.Where("name = ?", "pkg-b").First(&pkgB)
 
 	assert.Equal(t, int64(500000), pkgA.DownloadCount)
-	assert.Equal(t, 95.0, pkgA.PopularityScore)
 	assert.NotNil(t, pkgA.DownloadCountUpdatedAt)
 
 	assert.Equal(t, int64(300000), pkgB.DownloadCount)
-	assert.Equal(t, 88.0, pkgB.PopularityScore)
 	assert.NotNil(t, pkgB.DownloadCountUpdatedAt)
 }
 

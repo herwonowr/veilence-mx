@@ -50,7 +50,6 @@ type Package struct {
 	Status                 PackageStatus
 	Rank                   *uint
 	DownloadCount          int64
-	PopularityScore        float64
 	DownloadCountUpdatedAt *time.Time
 	BlockedAt              *time.Time
 	BlockedReason          string
@@ -90,13 +89,11 @@ type ImportResult struct {
 type PackageDownloadUpdate struct {
 	PackageID       uint
 	DownloadCount   int64
-	PopularityScore float64
 }
 
 // PackageRanking holds a package's ranking data from a registry.
 type PackageRanking struct {
 	Name            string
 	DownloadCount   int64
-	PopularityScore float64
 	Rank            uint
 }

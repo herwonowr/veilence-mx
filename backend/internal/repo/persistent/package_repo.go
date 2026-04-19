@@ -315,7 +315,6 @@ func (r *PackageRepo) UpdateDownloadCounts(ctx context.Context, workspaceID uint
 			Where("id = ? AND workspace_id = ?", u.PackageID, workspaceID).
 			Updates(map[string]any{
 				"download_count":            u.DownloadCount,
-				"popularity_score":          u.PopularityScore,
 				"download_count_updated_at": now,
 			})
 		if result.Error != nil {
@@ -366,7 +365,6 @@ func packageToDomain(m *Package) *entity.Package {
 		Status:                 entity.PackageStatus(m.Status),
 		Rank:                   m.Rank,
 		DownloadCount:          m.DownloadCount,
-		PopularityScore:        m.PopularityScore,
 		DownloadCountUpdatedAt: m.DownloadCountUpdatedAt,
 		BlockedAt:              m.BlockedAt,
 		BlockedReason:          m.BlockedReason,
@@ -387,7 +385,6 @@ func packageToModel(d *entity.Package) *Package {
 		Status:                 PackageStatus(d.Status),
 		Rank:                   d.Rank,
 		DownloadCount:          d.DownloadCount,
-		PopularityScore:        d.PopularityScore,
 		DownloadCountUpdatedAt: d.DownloadCountUpdatedAt,
 		BlockedAt:              d.BlockedAt,
 		BlockedReason:          d.BlockedReason,

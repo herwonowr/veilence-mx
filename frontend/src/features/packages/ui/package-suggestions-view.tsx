@@ -162,7 +162,6 @@ export const PackageSuggestionsView = () => {
   const skeletonColumns: SkeletonColumn[] = [
     { width: "w-32", header: "Name" },
     { width: "w-16", header: "Ecosystem" },
-    { width: "w-12", header: "Rank" },
     { width: "w-20", header: "Popularity" },
     { width: "w-16", header: "" },
   ]
@@ -184,13 +183,7 @@ export const PackageSuggestionsView = () => {
         ),
       },
       {
-        accessorKey: "rank",
-        header: "Rank",
-        enableSorting: false,
-        cell: ({ row }) => row.original.rank ?? "\u2014",
-      },
-      {
-        id: "popularity",
+        id: "downloadCount",
         accessorKey: "downloadCount",
         header: ({ column }) => (
           <div className="flex items-center gap-1">
@@ -199,11 +192,7 @@ export const PackageSuggestionsView = () => {
               <Tooltip>
                 <TooltipTrigger render={<span><HelpCircle className="h-3.5 w-3.5 text-muted-foreground" /></span>} />
                 <TooltipContent>
-                  <p className="font-medium mb-1">Different metrics per ecosystem:</p>
-                  <ul className="text-xs space-y-0.5">
-                    <li><strong>Python (PyPI)</strong> - Downloads per month</li>
-                    <li><strong>NPM</strong> - Popularity score (0–1)</li>
-                  </ul>
+                  <p className="text-xs">Downloads (30-day) from package registry</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -213,7 +202,7 @@ export const PackageSuggestionsView = () => {
           const pkg = row.original
           return (
             <span className="text-sm tabular-nums">
-              {formatPopularity(pkg.ecosystem, pkg.downloadCount, pkg.popularityScore)}
+              {formatPopularity(pkg.ecosystem, pkg.downloadCount)}
             </span>
           )
         },

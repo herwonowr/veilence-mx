@@ -12,7 +12,6 @@ export interface Package {
   source: PackageSource
   status: PackageStatus
   downloadCount: number
-  popularityScore: number
   downloadCountUpdatedAt: string | null
   rank: number | null
   blockedAt: string | null

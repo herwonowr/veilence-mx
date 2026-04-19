@@ -170,7 +170,6 @@ func (r *PollerRepo) CreatePackage(ctx context.Context, pkg *entity.Package) err
 		Status:                 PackageStatus(pkg.Status),
 		Rank:                   pkg.Rank,
 		DownloadCount:          pkg.DownloadCount,
-		PopularityScore:        pkg.PopularityScore,
 		DownloadCountUpdatedAt: pkg.DownloadCountUpdatedAt,
 	}
 	if err := r.db.WithContext(ctx).Create(&model).Error; err != nil {
@@ -199,7 +198,6 @@ func (r *PollerRepo) UpdateDownloadCounts(ctx context.Context, workspaceID uint,
 			Where("id = ? AND workspace_id = ?", u.PackageID, workspaceID).
 			Updates(map[string]interface{}{
 				"download_count":            u.DownloadCount,
-				"popularity_score":          u.PopularityScore,
 				"download_count_updated_at": now,
 			}).Error; err != nil {
 			return fmt.Errorf("PollerRepo.UpdateDownloadCounts: package %d: %w", u.PackageID, err)
@@ -245,7 +243,6 @@ func packageModelToEntity(m Package) entity.Package {
 		Status:                 entity.PackageStatus(m.Status),
 		Rank:                   m.Rank,
 		DownloadCount:          m.DownloadCount,
-		PopularityScore:        m.PopularityScore,
 		DownloadCountUpdatedAt: m.DownloadCountUpdatedAt,
 		BlockedAt:              m.BlockedAt,
 		BlockedReason:          m.BlockedReason,
