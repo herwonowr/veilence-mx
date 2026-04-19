@@ -6,7 +6,7 @@ export type Classification = "benign" | "suspicious" | "malicious" | "baseline"
 export type AnalyzerType = "api" | "cli" | "copilot"
 export type AlertSeverity = "low" | "medium" | "high" | "critical"
 export type AlertStatus = "new" | "acknowledged" | "resolved"
-export type ReleaseStatus = "pending" | "diffing" | "analyzing" | "completed" | "error"
+export type ReleaseStatus = "pending" | "diffing" | "analyzing" | "completed" | "error" | "in_progress"
 export type SortDirection = "asc" | "desc"
 
 export interface PaginationMeta {

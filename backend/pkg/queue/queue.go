@@ -53,7 +53,6 @@ type QueueStats struct {
 	Pending    int64 `json:"pending"`
 	Processing int64 `json:"processing"`
 	Completed  int64 `json:"completed"`
-	Failed     int64 `json:"failed"`
 	Dead       int64 `json:"dead"`
 }
 
@@ -339,6 +338,10 @@ func (q *Queue) RequeueAllDead(ctx context.Context, jobType string) (int, error)
 }
 
 func (q *Queue) Stats(ctx context.Context, jobType string) (*QueueStats, error) {
+	// Lazy-clean stale sorted set members before counting.
+	q.cleanStaleSortedSetMembers(ctx, processingSet+jobType)
+	q.cleanStaleSortedSetMembers(ctx, deadSet+jobType)
+
 	pending, err := q.rdb.LLen(ctx, pendingList+jobType).Result()
 	if err != nil {
 		return nil, err
@@ -355,13 +358,11 @@ func (q *Queue) Stats(ctx context.Context, jobType string) (*QueueStats, error) 
 	}
 
 	completed, _ := q.rdb.HGet(ctx, statsHash, "total_completed").Int64()
-	failed, _ := q.rdb.HGet(ctx, statsHash, "total_dead").Int64()
 
 	return &QueueStats{
 		Pending:    pending,
 		Processing: processing,
 		Completed:  completed,
-		Failed:     failed,
 		Dead:       dead,
 	}, nil
 }
@@ -438,6 +439,13 @@ func (q *Queue) ProcessingJobs(ctx context.Context, jobType string, offset, limi
 		offset = 0
 	}
 
+	// Clean up stale members first, then get accurate count.
+	staleCount := q.cleanStaleSortedSetMembers(ctx, processingSet+jobType)
+	if staleCount > 0 {
+		slog.Warn("cleaned stale members from processing set",
+			"type", jobType, "removed", staleCount)
+	}
+
 	total, err := q.rdb.ZCard(ctx, processingSet+jobType).Result()
 	if err != nil {
 		return nil, 0, fmt.Errorf("counting processing jobs: %w", err)
@@ -456,7 +464,10 @@ func (q *Queue) ProcessingJobs(ctx context.Context, jobType string, offset, limi
 	for _, id := range jobIDs {
 		job, err := q.loadJob(ctx, id)
 		if err != nil {
-			continue // expired hash key — skip gracefully
+			// Hash expired between cleanup and load — remove stale member.
+			q.rdb.ZRem(ctx, processingSet+jobType, id)
+			total--
+			continue
 		}
 		jobs = append(jobs, *job)
 	}
@@ -480,6 +491,13 @@ func (q *Queue) DeadJobs(ctx context.Context, jobType string, offset, limit int)
 		offset = 0
 	}
 
+	// Clean up stale members first, then get accurate count.
+	staleCount := q.cleanStaleSortedSetMembers(ctx, deadSet+jobType)
+	if staleCount > 0 {
+		slog.Warn("cleaned stale members from dead set",
+			"type", jobType, "removed", staleCount)
+	}
+
 	total, err := q.rdb.ZCard(ctx, deadSet+jobType).Result()
 	if err != nil {
 		return nil, 0, fmt.Errorf("counting dead jobs: %w", err)
@@ -498,7 +516,10 @@ func (q *Queue) DeadJobs(ctx context.Context, jobType string, offset, limit int)
 	for _, id := range deadIDs {
 		job, err := q.loadJob(ctx, id)
 		if err != nil {
-			continue // expired hash key — skip gracefully
+			// Hash expired between cleanup and load — remove stale member.
+			q.rdb.ZRem(ctx, deadSet+jobType, id)
+			total--
+			continue
 		}
 		jobs = append(jobs, *job)
 	}
@@ -510,6 +531,38 @@ func (q *Queue) DeadJobs(ctx context.Context, jobType string, offset, limit int)
 // look up a job (e.g., single dead job retry).
 func (q *Queue) LoadJob(ctx context.Context, jobID string) (*Job, error) {
 	return q.loadJob(ctx, jobID)
+}
+
+// cleanStaleSortedSetMembers removes members from a sorted set whose job hash
+// keys have expired (TTL). Returns the number of stale members removed.
+func (q *Queue) cleanStaleSortedSetMembers(ctx context.Context, key string) int {
+	memberIDs, err := q.rdb.ZRange(ctx, key, 0, -1).Result()
+	if err != nil || len(memberIDs) == 0 {
+		return 0
+	}
+
+	var stale []interface{}
+	for _, id := range memberIDs {
+		exists, err := q.rdb.Exists(ctx, jobHash+id).Result()
+		if err != nil {
+			continue
+		}
+		if exists == 0 {
+			stale = append(stale, id)
+		}
+	}
+
+	if len(stale) == 0 {
+		return 0
+	}
+
+	removed, err := q.rdb.ZRem(ctx, key, stale...).Result()
+	if err != nil {
+		slog.Error("failed to remove stale sorted set members",
+			"key", key, "count", len(stale), "error", err)
+		return 0
+	}
+	return int(removed)
 }
 
 func (q *Queue) loadJob(ctx context.Context, jobID string) (*Job, error) {

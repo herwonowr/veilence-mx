@@ -97,7 +97,11 @@ func (r *ReleaseRepo) FindByOrgID(ctx context.Context, orgID uint, page, limit i
 		query = query.Where("packages.ecosystem = ?", string(*filters.Ecosystem))
 	}
 	if filters.Status != nil {
-		query = query.Where("releases.status = ?", string(*filters.Status))
+		if *filters.Status == entity.ReleaseStatusInProgress {
+			query = query.Where("releases.status IN ?", entity.InProgressStatuses)
+		} else {
+			query = query.Where("releases.status = ?", string(*filters.Status))
+		}
 	}
 	if filters.Search != nil && *filters.Search != "" {
 		query = query.Where("LOWER(packages.name) LIKE LOWER(?)", "%"+*filters.Search+"%")
@@ -140,7 +144,11 @@ func (r *ReleaseRepo) FindByOrgIDWithDetails(ctx context.Context, orgID uint, pa
 		query = query.Where("packages.ecosystem = ?", string(*filters.Ecosystem))
 	}
 	if filters.Status != nil {
-		query = query.Where("releases.status = ?", string(*filters.Status))
+		if *filters.Status == entity.ReleaseStatusInProgress {
+			query = query.Where("releases.status IN ?", entity.InProgressStatuses)
+		} else {
+			query = query.Where("releases.status = ?", string(*filters.Status))
+		}
 	}
 	if filters.Search != nil && *filters.Search != "" {
 		query = query.Where("LOWER(packages.name) LIKE LOWER(?)", "%"+*filters.Search+"%")

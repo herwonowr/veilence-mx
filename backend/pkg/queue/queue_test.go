@@ -405,7 +405,6 @@ func TestStats_ReturnsCorrectCounts(t *testing.T) {
 	assert.Equal(t, int64(0), stats.Processing)
 	assert.Equal(t, int64(1), stats.Completed)
 	assert.Equal(t, int64(1), stats.Dead)
-	assert.Equal(t, int64(1), stats.Failed) // same as total_dead counter
 }
 
 func TestStats_EmptyQueue(t *testing.T) {
@@ -417,7 +416,6 @@ func TestStats_EmptyQueue(t *testing.T) {
 	assert.Equal(t, int64(0), stats.Pending)
 	assert.Equal(t, int64(0), stats.Processing)
 	assert.Equal(t, int64(0), stats.Completed)
-	assert.Equal(t, int64(0), stats.Failed)
 	assert.Equal(t, int64(0), stats.Dead)
 }
 
@@ -1133,8 +1131,8 @@ func TestProcessingJobs_SkipsExpiredHashes(t *testing.T) {
 
 	jobs, total, err := q.ProcessingJobs(ctx, JobTypeDiff, 0, 10)
 	require.NoError(t, err)
-	assert.Equal(t, int64(2), total) // ZSET still has 2 members
-	assert.Len(t, jobs, 1)          // but only 1 job hash was loadable
+	assert.Equal(t, int64(1), total) // stale member cleaned from ZSET
+	assert.Len(t, jobs, 1)          // only 1 job hash was loadable
 }
 
 func TestProcessingJobs_DoesNotCrossJobTypes(t *testing.T) {
@@ -1216,7 +1214,7 @@ func TestDeadJobs_SkipsExpiredHashes(t *testing.T) {
 
 	jobs, total, err := q.DeadJobs(ctx, JobTypeDiff, 0, 10)
 	require.NoError(t, err)
-	assert.Equal(t, int64(2), total)
+	assert.Equal(t, int64(1), total) // stale member cleaned from ZSET
 	assert.Len(t, jobs, 1)
 }
 

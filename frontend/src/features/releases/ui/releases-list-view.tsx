@@ -54,7 +54,7 @@ const classificationVariant = (c: Classification) => {
 }
 
 const VALID_ECOSYSTEMS: Ecosystem[] = ["python", "npm"]
-const VALID_STATUSES: ReleaseStatus[] = ["pending", "diffing", "analyzing", "completed", "error"]
+const VALID_STATUSES: ReleaseStatus[] = ["pending", "diffing", "analyzing", "in_progress", "completed", "error"]
 const VALID_CLASSIFICATIONS: Classification[] = ["benign", "suspicious", "malicious", "baseline"]
 
 export const ReleasesListView = () => {
@@ -131,7 +131,7 @@ export const ReleasesListView = () => {
       ? [{ label: "Ecosystem", value: ecosystemFilter === "python" ? "Python" : "NPM", onRemove: () => setEcosystemFilter("") }]
       : []),
     ...(statusFilter
-      ? [{ label: "Analysis Status", value: statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1), onRemove: () => setStatusFilter("") }]
+      ? [{ label: "Analysis Status", value: statusFilter === "in_progress" ? "In Progress" : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1), onRemove: () => setStatusFilter("") }]
       : []),
     ...(classificationFilter
       ? [{ label: "Classification", value: classificationFilter.charAt(0).toUpperCase() + classificationFilter.slice(1), onRemove: () => setClassificationFilter("") }]
@@ -279,10 +279,11 @@ export const ReleasesListView = () => {
                   onValueChange={(v) => setStatusFilter(v === "all" ? "" : (v ?? ""))}
                 >
                   <SelectTrigger id="releases-status-filter" className="w-36">
-                    <SelectValue>{statusFilter ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) : "All Statuses"}</SelectValue>
+                    <SelectValue>{statusFilter === "in_progress" ? "In Progress" : statusFilter ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) : "All Statuses"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="diffing">Diffing</SelectItem>
                     <SelectItem value="analyzing">Analyzing</SelectItem>

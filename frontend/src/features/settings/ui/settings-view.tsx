@@ -450,9 +450,6 @@ export const SettingsView = () => {
                   <Badge variant="secondary">{queueStats.diff.pending} pending</Badge>
                   <Badge variant="default">{queueStats.diff.processing} processing</Badge>
                   <Badge variant="outline">{queueStats.diff.completed} completed</Badge>
-                  {queueStats.diff.failed > 0 && (
-                    <Badge variant="secondary">{queueStats.diff.failed} failed</Badge>
-                  )}
                   {queueStats.diff.dead > 0 && (
                     <Badge variant="destructive">{queueStats.diff.dead} dead</Badge>
                   )}
@@ -475,9 +472,6 @@ export const SettingsView = () => {
                   <Badge variant="secondary">{queueStats.analyze.pending} pending</Badge>
                   <Badge variant="default">{queueStats.analyze.processing} processing</Badge>
                   <Badge variant="outline">{queueStats.analyze.completed} completed</Badge>
-                  {queueStats.analyze.failed > 0 && (
-                    <Badge variant="secondary">{queueStats.analyze.failed} failed</Badge>
-                  )}
                   {queueStats.analyze.dead > 0 && (
                     <Badge variant="destructive">{queueStats.analyze.dead} dead</Badge>
                   )}

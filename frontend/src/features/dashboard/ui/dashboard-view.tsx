@@ -220,7 +220,7 @@ const DashboardData = () => {
           </Card>
         </Link>
 
-        <Link href="/releases?status=pending" className="group/stat-link">
+        <Link href="/releases?status=in_progress" className="group/stat-link">
           <Card className="cursor-pointer transition-all hover:border-l-2! group-hover/stat-link:border-l-2! h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Pending</CardTitle>

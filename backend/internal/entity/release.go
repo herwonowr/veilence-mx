@@ -16,7 +16,12 @@ const (
 	ReleaseStatusCompleted ReleaseStatus = "completed"
 	// ReleaseStatusError indicates an error occurred during processing.
 	ReleaseStatusError ReleaseStatus = "error"
+	// ReleaseStatusInProgress is a virtual status that matches pending, diffing, and analyzing.
+	ReleaseStatusInProgress ReleaseStatus = "in_progress"
 )
+
+// InProgressStatuses returns the real statuses that "in_progress" expands to.
+var InProgressStatuses = []ReleaseStatus{ReleaseStatusPending, ReleaseStatusDiffing, ReleaseStatusAnalyzing}
 
 // Release represents a specific version release of a package.
 type Release struct {

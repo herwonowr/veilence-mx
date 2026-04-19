@@ -11,7 +11,6 @@ import {
   Clock,
   Activity,
   CheckCircle2,
-  XCircle,
   Skull,
   ListOrdered,
   ChevronRight,
@@ -34,7 +33,7 @@ export const QueueStatsCard = ({
   onStatusClick,
 }: QueueStatsCardProps) => {
   const total =
-    stats.pending + stats.processing + stats.completed + stats.failed + stats.dead
+    stats.pending + stats.processing + stats.completed + stats.dead
 
   const clickableItems: {
     label: string
@@ -72,13 +71,6 @@ export const QueueStatsCard = ({
       icon: <CheckCircle2 className="size-4 text-green-500" />,
       color: "text-green-500",
       tooltip: "Total completed jobs (counter only \u2014 individual jobs expire after 1 hour)",
-    },
-    {
-      label: "Total Dead",
-      value: stats.failed,
-      icon: <XCircle className="size-4 text-orange-500" />,
-      color: "text-orange-500",
-      tooltip: "Cumulative count of jobs that exceeded max retries (includes retried jobs)",
     },
   ]
 
@@ -193,12 +185,6 @@ export const QueueStatsCard = ({
               <div
                 className="bg-muted-foreground/30"
                 style={{ width: `${(stats.pending / total) * 100}%` }}
-              />
-            )}
-            {stats.failed > 0 && (
-              <div
-                className="bg-orange-500"
-                style={{ width: `${(stats.failed / total) * 100}%` }}
               />
             )}
             {stats.dead > 0 && (
