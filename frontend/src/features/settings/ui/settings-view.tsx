@@ -6,33 +6,25 @@ import { Button } from "@/ui/components/button"
 import { Separator } from "@/ui/components/separator"
 import { Input } from "@/ui/components/input"
 import { Field, FieldLabel, FieldDescription, FieldError } from "@/ui/components/field"
-import { Badge } from "@/ui/components/badge"
-import { Save, RefreshCw, Play, RotateCcw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangle, ShieldCheck } from "lucide-react"
+import { Save, RefreshCw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangle, ShieldCheck } from "lucide-react"
 import { Checkbox } from "@/ui/components/checkbox"
 import { Label } from "@/ui/components/label"
 import { RadioGroup, RadioGroupItem } from "@/ui/components/radio-group"
 import { Alert, AlertDescription } from "@/ui/components/alert"
 import { settingsSchema } from "@/domains/settings"
 import { ZodError } from "zod"
-import { useSettings, useUpdateSettings, useReanalyzeAll, useDiscoverNow, usePackageCountSummary } from "@/features/settings/hooks/use-settings"
-import { useQueueStats, useRetryDeadJobs } from "@/features/settings/hooks/use-queue"
+import { useSettings, useUpdateSettings, useDiscoverNow, usePackageCountSummary } from "@/features/settings/hooks/use-settings"
 import Link from "next/link"
 
 export const SettingsView = () => {
   const [localSettings, setLocalSettings] = useState<Record<string, string>>({})
   const [prevSettingsKey, setPrevSettingsKey] = useState<string | null>(null)
-  const [queueMessage, setQueueMessage] = useState("")
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
   const { data: settingsRes } = useSettings()
-  const { data: queueRes, refetch: refetchQueue, isRefetching: queueRefetching } = useQueueStats()
   const updateMutation = useUpdateSettings()
-  const reanalyzeMutation = useReanalyzeAll()
-  const retryMutation = useRetryDeadJobs()
   const discoverMutation = useDiscoverNow()
   const { data: packageSummary } = usePackageCountSummary()
-
-  const queueStats = queueRes?.data ?? null
 
   // The server-loaded settings (source of truth for dirty detection)
   const serverSettings = settingsRes?.data ?? null
@@ -86,31 +78,6 @@ export const SettingsView = () => {
       }
     }
   }, [localSettings, updateMutation])
-
-  const handleReanalyze = async () => {
-    setQueueMessage("")
-    try {
-      const { data } = await reanalyzeMutation.mutateAsync()
-      setQueueMessage(
-        `Queued ${data.queued} job(s)` +
-          (data.dead_retried > 0 ? `, retried ${data.dead_retried} dead job(s)` : "")
-      )
-      refetchQueue()
-    } catch (err) {
-      setQueueMessage(err instanceof Error ? err.message : "Failed to trigger re-analysis")
-    }
-  }
-
-  const handleRetryDead = async (type: string) => {
-    setQueueMessage("")
-    try {
-      const { data } = await retryMutation.mutateAsync(type)
-      setQueueMessage(`Retried ${data.count} dead ${type} job(s)`)
-      refetchQueue()
-    } catch (err) {
-      setQueueMessage(err instanceof Error ? err.message : "Failed to retry dead jobs")
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -423,91 +390,6 @@ export const SettingsView = () => {
               </Field>
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Analysis Queue</CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refetchQueue()}
-              disabled={queueRefetching}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${queueRefetching ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {queueStats ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">Diff Queue</h4>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">{queueStats.diff.pending} pending</Badge>
-                  <Badge variant="default">{queueStats.diff.processing} processing</Badge>
-                  <Badge variant="outline">{queueStats.diff.completed} completed</Badge>
-                  {queueStats.diff.dead > 0 && (
-                    <Badge variant="destructive">{queueStats.diff.dead} dead</Badge>
-                  )}
-                </div>
-                {queueStats.diff.dead > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleRetryDead("diff")}
-                    disabled={retryMutation.isPending}
-                  >
-                    <RotateCcw className="h-3 w-3 mr-1" />
-                    Retry dead diff jobs
-                  </Button>
-                )}
-              </div>
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">Analyze Queue</h4>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">{queueStats.analyze.pending} pending</Badge>
-                  <Badge variant="default">{queueStats.analyze.processing} processing</Badge>
-                  <Badge variant="outline">{queueStats.analyze.completed} completed</Badge>
-                  {queueStats.analyze.dead > 0 && (
-                    <Badge variant="destructive">{queueStats.analyze.dead} dead</Badge>
-                  )}
-                </div>
-                {queueStats.analyze.dead > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleRetryDead("analyze")}
-                    disabled={retryMutation.isPending}
-                  >
-                    <RotateCcw className="h-3 w-3 mr-1" />
-                    Retry dead analyze jobs
-                  </Button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Queue stats unavailable. Redis may not be running.
-            </p>
-          )}
-          <Separator />
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={handleReanalyze}
-              disabled={reanalyzeMutation.isPending}
-            >
-              <Play className="h-4 w-4 mr-2" />
-              {reanalyzeMutation.isPending ? "Queuing..." : "Re-analyze Unanalyzed Diffs"}
-            </Button>
-            {queueMessage && (
-              <span className="text-sm text-muted-foreground">{queueMessage}</span>
-            )}
-          </div>
         </CardContent>
       </Card>
 

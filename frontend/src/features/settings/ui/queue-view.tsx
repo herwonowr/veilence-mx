@@ -1,10 +1,11 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import { Card, CardContent } from "@/ui/components/card"
 import { Button } from "@/ui/components/button"
-import { RefreshCw, Loader2 } from "lucide-react"
-import { useQueueStats, queueKeys } from "@/features/settings/hooks/use-queue"
+import { RefreshCw, Loader2, Play, RotateCcw } from "lucide-react"
+import { useQueueStats, useRetryDeadJobs, queueKeys } from "@/features/settings/hooks/use-queue"
+import { useReanalyzeAll } from "@/features/settings/hooks/use-settings"
 import { useQueryClient } from "@tanstack/react-query"
 import { QueueStatsCard } from "@/features/settings/ui/queue-stats-card"
 import { QueueJobsBrowser, type QueueJobsBrowserHandle } from "@/features/settings/ui/queue-jobs-browser"
@@ -13,6 +14,7 @@ import type { QueueJobStatus, QueueJobType } from "@/domains/queue"
 export const QueueView = () => {
   const jobsBrowserRef = useRef<QueueJobsBrowserHandle>(null)
   const queryClient = useQueryClient()
+  const [queueMessage, setQueueMessage] = useState("")
 
   const {
     data: queueRes,
@@ -21,9 +23,36 @@ export const QueueView = () => {
   } = useQueueStats({ refetchInterval: 10_000 })
 
   const stats = queueRes?.data ?? null
+  const reanalyzeMutation = useReanalyzeAll()
+  const retryMutation = useRetryDeadJobs()
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: queueKeys.all })
+  }
+
+  const handleReanalyze = async () => {
+    setQueueMessage("")
+    try {
+      const { data } = await reanalyzeMutation.mutateAsync()
+      setQueueMessage(
+        `Queued ${data.queued} job(s)` +
+          (data.dead_retried > 0 ? `, retried ${data.dead_retried} dead job(s)` : "")
+      )
+      handleRefresh()
+    } catch (err) {
+      setQueueMessage(err instanceof Error ? err.message : "Failed to trigger re-analysis")
+    }
+  }
+
+  const handleRetryDead = async (type: string) => {
+    setQueueMessage("")
+    try {
+      const { data } = await retryMutation.mutateAsync(type)
+      setQueueMessage(`Retried ${data.count} dead ${type} job(s)`)
+      handleRefresh()
+    } catch (err) {
+      setQueueMessage(err instanceof Error ? err.message : "Failed to retry dead jobs")
+    }
   }
 
   const handleStatusClick = (type: QueueJobType, status: QueueJobStatus) => {
@@ -40,17 +69,47 @@ export const QueueView = () => {
             10 seconds.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={statsRefetching}
-        >
-          <RefreshCw
-            className={`mr-2 size-4 ${statsRefetching ? "animate-spin" : ""}`}
-          />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleReanalyze}
+            disabled={reanalyzeMutation.isPending}
+          >
+            {reanalyzeMutation.isPending ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Play className="mr-2 size-4" />
+            )}
+            {reanalyzeMutation.isPending ? "Queuing..." : "Re-analyze Unanalyzed Diffs"}
+          </Button>
+          {stats && stats.analyze.dead > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleRetryDead("analyze")}
+              disabled={retryMutation.isPending}
+            >
+              {retryMutation.isPending ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <RotateCcw className="mr-2 size-4" />
+              )}
+              Retry {stats.analyze.dead} Dead Job{stats.analyze.dead !== 1 ? "s" : ""}
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={statsRefetching}
+          >
+            <RefreshCw
+              className={`mr-2 size-4 ${statsRefetching ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Queue Stats Cards */}
@@ -79,6 +138,10 @@ export const QueueView = () => {
             Queue stats unavailable. Redis may not be running.
           </CardContent>
         </Card>
+      )}
+
+      {queueMessage && (
+        <p className="text-sm text-muted-foreground">{queueMessage}</p>
       )}
 
       {/* Jobs Browser - replaces old Dead Jobs section */}
