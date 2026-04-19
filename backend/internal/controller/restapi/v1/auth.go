@@ -465,6 +465,12 @@ func (h *AuthHandlers) SendVerificationEmail(w http.ResponseWriter, r *http.Requ
 	// The raw token is intentionally not included in the HTTP response.
 	_, err := h.Auth.GenerateEmailVerificationToken(userID)
 	if err != nil {
+		if errors.Is(err, auth.ErrVerificationEmailCooldown) {
+			respondJSON(w, http.StatusOK, map[string]string{
+				"message": "verification email sent",
+			}, nil)
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "failed to generate verification token")
 		return
 	}
@@ -502,7 +508,9 @@ func (h *AuthHandlers) ResendVerificationByEmail(w http.ResponseWriter, r *http.
 		slog.Info("resend-verification requested for unknown email", "email", req.Email)
 	} else if !user.EmailVerified {
 		if _, err := h.Auth.GenerateEmailVerificationToken(user.ID); err != nil {
-			slog.Error("failed to generate verification token", "email", req.Email, "error", err)
+			if !errors.Is(err, auth.ErrVerificationEmailCooldown) {
+				slog.Error("failed to generate verification token", "email", req.Email, "error", err)
+			}
 		}
 	}
 

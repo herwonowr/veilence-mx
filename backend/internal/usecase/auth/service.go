@@ -42,6 +42,8 @@ const (
 	PasswordResetCooldown = 2 * time.Minute
 	// EmailVerificationDuration is the lifetime of an email verification token.
 	EmailVerificationDuration = 24 * time.Hour
+	// VerificationEmailCooldown is the minimum interval between verification email requests.
+	VerificationEmailCooldown = 2 * time.Minute
 	// SessionDuration is the lifetime of a session.
 	SessionDuration = 7 * 24 * time.Hour
 	// MaxSessionsPerUser is the maximum number of concurrent sessions per user.
@@ -576,6 +578,9 @@ func (s *Service) RevokeAPIKey(userID, workspaceID, keyID uint) error {
 // ErrPasswordResetCooldown is returned when a password reset is requested too soon.
 var ErrPasswordResetCooldown = errors.New("please wait before requesting another reset email")
 
+// ErrVerificationEmailCooldown is returned when a verification email is requested too soon.
+var ErrVerificationEmailCooldown = errors.New("please wait before requesting another verification email")
+
 // ForgotPassword generates a password reset token for the given email address.
 // The raw token is returned so the caller can send it via email.
 // If the email doesn't exist, returns nil error and empty string (to prevent user enumeration).
@@ -699,6 +704,19 @@ func (s *Service) ResetPassword(rawToken, newPassword string) error {
 // Returns the raw token to be sent via email.
 func (s *Service) GenerateEmailVerificationToken(userID uint) (string, error) {
 	ctx := context.Background()
+
+	// Rate limit: one verification email per user per cooldown period.
+	if s.rateLimiter != nil {
+		key := fmt.Sprintf("verify_email:%d", userID)
+		allowed, err := s.rateLimiter.Allow(ctx, key, VerificationEmailCooldown)
+		if err != nil {
+			slog.Error("rate limiter error during email verification", "user_id", userID, "error", err)
+			// Fail open: if Redis is down, allow the request rather than blocking users.
+		} else if !allowed {
+			slog.Info("verification email rate limited", "user_id", userID)
+			return "", ErrVerificationEmailCooldown
+		}
+	}
 
 	// Clean up old tokens for this user
 	_ = s.emailVerifications.DeleteByUserID(ctx, userID)
