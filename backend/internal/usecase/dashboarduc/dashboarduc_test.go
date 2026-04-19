@@ -113,7 +113,13 @@ func (m *mockReleaseRepo) FindByID(context.Context, uint) (*entity.Release, erro
 func (m *mockReleaseRepo) FindByIDWithPackage(context.Context, uint) (*entity.Release, *entity.Package, error) {
 	return nil, nil, nil
 }
+func (m *mockReleaseRepo) FindByIDWithPackageAndWorkspace(context.Context, uint, uint) (*entity.Release, *entity.Package, error) {
+	return nil, nil, nil
+}
 func (m *mockReleaseRepo) FindByPackageID(context.Context, uint, int, int) ([]entity.Release, int64, error) {
+	return nil, 0, nil
+}
+func (m *mockReleaseRepo) FindByPackageIDAndWorkspace(context.Context, uint, uint, int, int) ([]entity.Release, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockReleaseRepo) FindByWorkspaceID(context.Context, uint, int, int, string, entity.ReleaseFilters) ([]entity.Release, int64, error) {
@@ -141,7 +147,13 @@ func (m *mockReleaseRepo) Update(context.Context, *entity.Release) error { retur
 type mockDiffRepo struct{}
 
 func (m *mockDiffRepo) FindByID(context.Context, uint) (*entity.Diff, error)           { return nil, nil }
+func (m *mockDiffRepo) FindByIDAndWorkspace(context.Context, uint, uint) (*entity.Diff, error) {
+	return nil, nil
+}
 func (m *mockDiffRepo) FindByReleaseID(context.Context, uint) ([]entity.Diff, error)   { return nil, nil }
+func (m *mockDiffRepo) FindByReleaseIDAndWorkspace(context.Context, uint, uint) ([]entity.Diff, error) {
+	return nil, nil
+}
 func (m *mockDiffRepo) FindFirstByReleaseID(context.Context, uint) (*entity.Diff, error) {
 	return nil, nil
 }

@@ -1,12 +1,14 @@
 "use client"
 
-import { ProtectedRoute, RequireWorkspace } from "@/features/auth"
+import { ProtectedRoute, RequireWorkspace, RequireRole } from "@/features/auth"
 import { ChannelsView } from "@/features/notifications"
 
 const ChannelsPage = () => (
   <ProtectedRoute>
     <RequireWorkspace feature="notification channels">
-      <ChannelsView />
+      <RequireRole minimumRole="admin">
+        <ChannelsView />
+      </RequireRole>
     </RequireWorkspace>
   </ProtectedRoute>
 )

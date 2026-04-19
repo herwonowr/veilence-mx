@@ -31,9 +31,44 @@ func (r *DiffRepo) FindByID(ctx context.Context, id uint) (*entity.Diff, error) 
 	return diffToDomain(&m), nil
 }
 
+func (r *DiffRepo) FindByIDAndWorkspace(ctx context.Context, id, workspaceID uint) (*entity.Diff, error) {
+	var m Diff
+	err := r.db.WithContext(ctx).
+		Joins("JOIN releases ON releases.id = diffs.release_id").
+		Joins("JOIN packages ON packages.id = releases.package_id").
+		Where("diffs.id = ? AND packages.workspace_id = ?", id, workspaceID).
+		Select("diffs.*").
+		First(&m).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("diff %w", entity.ErrNotFound)
+		}
+		return nil, fmt.Errorf("finding diff: %w", err)
+	}
+	return diffToDomain(&m), nil
+}
+
 func (r *DiffRepo) FindByReleaseID(ctx context.Context, releaseID uint) ([]entity.Diff, error) {
 	var ms []Diff
 	if err := r.db.WithContext(ctx).Where("release_id = ?", releaseID).Find(&ms).Error; err != nil {
+		return nil, fmt.Errorf("finding diffs by release: %w", err)
+	}
+	result := make([]entity.Diff, len(ms))
+	for i := range ms {
+		result[i] = *diffToDomain(&ms[i])
+	}
+	return result, nil
+}
+
+func (r *DiffRepo) FindByReleaseIDAndWorkspace(ctx context.Context, releaseID, workspaceID uint) ([]entity.Diff, error) {
+	var ms []Diff
+	err := r.db.WithContext(ctx).
+		Joins("JOIN releases ON releases.id = diffs.release_id").
+		Joins("JOIN packages ON packages.id = releases.package_id").
+		Where("diffs.release_id = ? AND packages.workspace_id = ?", releaseID, workspaceID).
+		Select("diffs.*").
+		Find(&ms).Error
+	if err != nil {
 		return nil, fmt.Errorf("finding diffs by release: %w", err)
 	}
 	result := make([]entity.Diff, len(ms))

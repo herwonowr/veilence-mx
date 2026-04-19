@@ -26,6 +26,7 @@ type RefreshTokenRepository interface {
 	Create(ctx context.Context, token *entity.RefreshToken) error
 	Delete(ctx context.Context, id uint) error
 	DeleteByTokenHash(ctx context.Context, tokenHash string) error
+	DeleteByUserID(ctx context.Context, userID uint) error
 }
 
 // APIKeyRepository defines persistence operations for APIKey entities.
@@ -41,6 +42,7 @@ type APIKeyRepository interface {
 // PackageRepository defines persistence operations for Package entities.
 type PackageRepository interface {
 	FindByID(ctx context.Context, id uint) (*entity.Package, error)
+	FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID uint) (*entity.Package, error)
 	FindByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
 	FindActiveByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.Package, error)
 	FindByWorkspaceAndName(ctx context.Context, workspaceID uint, name string, ecosystem entity.Ecosystem) (*entity.Package, error)
@@ -65,7 +67,9 @@ type PackageRepository interface {
 type ReleaseRepository interface {
 	FindByID(ctx context.Context, id uint) (*entity.Release, error)
 	FindByIDWithPackage(ctx context.Context, id uint) (*entity.Release, *entity.Package, error)
+	FindByIDWithPackageAndWorkspace(ctx context.Context, id, workspaceID uint) (*entity.Release, *entity.Package, error)
 	FindByPackageID(ctx context.Context, packageID uint, page, limit int) ([]entity.Release, int64, error)
+	FindByPackageIDAndWorkspace(ctx context.Context, packageID, workspaceID uint, page, limit int) ([]entity.Release, int64, error)
 	FindByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.Release, int64, error)
 	FindByWorkspaceIDWithDetails(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error)
 	FindByPackageIDAll(ctx context.Context, packageID uint) ([]entity.Release, error)
@@ -77,7 +81,9 @@ type ReleaseRepository interface {
 // DiffRepository defines persistence operations for Diff entities.
 type DiffRepository interface {
 	FindByID(ctx context.Context, id uint) (*entity.Diff, error)
+	FindByIDAndWorkspace(ctx context.Context, id, workspaceID uint) (*entity.Diff, error)
 	FindByReleaseID(ctx context.Context, releaseID uint) ([]entity.Diff, error)
+	FindByReleaseIDAndWorkspace(ctx context.Context, releaseID, workspaceID uint) ([]entity.Diff, error)
 	FindFirstByReleaseID(ctx context.Context, releaseID uint) (*entity.Diff, error)
 	FindByReleaseIDs(ctx context.Context, releaseIDs []uint) ([]entity.Diff, error)
 	Create(ctx context.Context, diff *entity.Diff) error
@@ -95,22 +101,23 @@ type AnalysisRepository interface {
 // AlertRepository defines persistence operations for Alert entities.
 type AlertRepository interface {
 	FindByID(ctx context.Context, id uint) (*entity.Alert, error)
+	FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID uint) (*entity.Alert, error)
 	FindByIDWithPackage(ctx context.Context, id, workspaceID uint) (*entity.Alert, *entity.Package, error)
 	FindByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.Alert, int64, error)
 	FindByWorkspaceIDWithPackage(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error)
 	Create(ctx context.Context, alert *entity.Alert) error
 	Update(ctx context.Context, alert *entity.Alert) error
-	UpdateStatus(ctx context.Context, id uint, status entity.AlertStatus) error
+	UpdateStatus(ctx context.Context, id, workspaceID uint, status entity.AlertStatus) error
 	CountByWorkspaceAndStatus(ctx context.Context, workspaceID uint) (map[entity.AlertStatus]int64, error)
 }
 
 // AlertNoteRepository defines persistence operations for AlertNote entities.
 type AlertNoteRepository interface {
-	FindByAlertID(ctx context.Context, alertID uint) ([]entity.AlertNote, error)
-	FindByID(ctx context.Context, id uint) (*entity.AlertNote, error)
+	FindByAlertID(ctx context.Context, alertID, workspaceID uint) ([]entity.AlertNote, error)
+	FindByID(ctx context.Context, id, workspaceID uint) (*entity.AlertNote, error)
 	Create(ctx context.Context, note *entity.AlertNote) error
 	Update(ctx context.Context, note *entity.AlertNote) error
-	Delete(ctx context.Context, id uint) error
+	Delete(ctx context.Context, id, workspaceID uint) error
 }
 
 // SettingRepository defines persistence operations for Setting entities.
@@ -230,6 +237,7 @@ type SessionRepository interface {
 	DeleteExpired(ctx context.Context) (int64, error)
 	CountByUserID(ctx context.Context, userID uint) (int64, error)
 	DeleteOldestByUserID(ctx context.Context, userID uint) error
+	DeleteByUserID(ctx context.Context, userID uint) error
 }
 
 // DashboardRepository defines read-only aggregation queries for the dashboard.

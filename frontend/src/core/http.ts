@@ -15,6 +15,11 @@ interface TokenRefreshResponse {
   refreshToken: string
 }
 
+// FINDING-11: Tokens are stored in localStorage for client-side auth state.
+// This is a UI convenience — the backend enforces authentication and
+// authorization on every endpoint. An XSS attack could steal these tokens,
+// but backend rate limiting, short token TTLs, and refresh rotation mitigate risk.
+// Migration to HttpOnly cookies would require backend changes.
 const TOKEN_KEY = "vmx_access_token"
 const REFRESH_TOKEN_KEY = "vmx_refresh_token"
 const WORKSPACE_ID_KEY = "vmx_current_workspace_id"

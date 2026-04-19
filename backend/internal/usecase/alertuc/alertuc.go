@@ -44,18 +44,15 @@ func (uc *UseCase) GetAlert(ctx context.Context, workspaceID, alertID uint) (*en
 
 // UpdateAlertStatus updates the status of an alert scoped to the given org.
 func (uc *UseCase) UpdateAlertStatus(ctx context.Context, workspaceID, alertID uint, status entity.AlertStatus) (*entity.Alert, error) {
-	alert, err := uc.alerts.FindByID(ctx, alertID)
+	alert, err := uc.alerts.FindByIDAndWorkspaceID(ctx, alertID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, entity.ErrNotFound
 		}
 		return nil, fmt.Errorf("AlertUseCase.UpdateAlertStatus: finding alert: %w", err)
 	}
-	if alert.WorkspaceID != workspaceID {
-		return nil, entity.ErrNotFound
-	}
 
-	if err := uc.alerts.UpdateStatus(ctx, alertID, status); err != nil {
+	if err := uc.alerts.UpdateStatus(ctx, alertID, workspaceID, status); err != nil {
 		return nil, fmt.Errorf("AlertUseCase.UpdateAlertStatus: %w", err)
 	}
 	alert.Status = status

@@ -47,7 +47,6 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 		// Public routes
 		r.Get("/health", h.Health.HealthCheck)
 		r.Get("/ready", h.Health.ReadinessCheck)
-		r.Handle("/metrics", metrics.Handler())
 
 		// Public auth routes (no authentication required, stricter rate limit)
 		r.Route("/auth", func(r chi.Router) {
@@ -68,6 +67,9 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 		// Protected routes (authentication required)
 		r.Group(func(r chi.Router) {
 			r.Use(auth.Middleware(authService))
+
+			// Metrics (requires authentication)
+			r.Handle("/metrics", metrics.Handler())
 
 			// Protected auth routes
 			r.Post("/auth/logout", h.Auth.Logout)

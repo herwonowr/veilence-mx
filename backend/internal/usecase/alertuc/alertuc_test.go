@@ -38,6 +38,16 @@ func (m *mockAlertRepo) FindByID(_ context.Context, id uint) (*entity.Alert, err
 	return m.findByIDResult, nil
 }
 
+func (m *mockAlertRepo) FindByIDAndWorkspaceID(_ context.Context, _ uint, _ uint) (*entity.Alert, error) {
+	if m.findByIDErr != nil {
+		return nil, m.findByIDErr
+	}
+	if m.findByIDResult != nil {
+		return m.findByIDResult, nil
+	}
+	return nil, entity.ErrNotFound
+}
+
 func (m *mockAlertRepo) FindByIDWithPackage(_ context.Context, _, _ uint) (*entity.Alert, *entity.Package, error) {
 	if m.findByIDWithPackageErr != nil {
 		return nil, nil, m.findByIDWithPackageErr
@@ -58,7 +68,7 @@ func (m *mockAlertRepo) FindByWorkspaceIDWithPackage(_ context.Context, _ uint, 
 
 func (m *mockAlertRepo) Create(_ context.Context, _ *entity.Alert) error   { return nil }
 func (m *mockAlertRepo) Update(_ context.Context, _ *entity.Alert) error   { return nil }
-func (m *mockAlertRepo) UpdateStatus(_ context.Context, _ uint, _ entity.AlertStatus) error {
+func (m *mockAlertRepo) UpdateStatus(_ context.Context, _ uint, _ uint, _ entity.AlertStatus) error {
 	return m.updateStatusErr
 }
 func (m *mockAlertRepo) CountByWorkspaceAndStatus(_ context.Context, _ uint) (map[entity.AlertStatus]int64, error) {
@@ -181,8 +191,7 @@ func TestUpdateAlertStatus_AlertNotFound(t *testing.T) {
 }
 
 func TestUpdateAlertStatus_WrongOrg(t *testing.T) {
-	alert := &entity.Alert{ID: 1, WorkspaceID: 10}
-	repo := &mockAlertRepo{findByIDResult: alert}
+	repo := &mockAlertRepo{findByIDErr: entity.ErrNotFound}
 	uc := alertuc.New(repo, &mockAuditLogger{})
 
 	_, err := uc.UpdateAlertStatus(context.Background(), 99, 1, entity.AlertStatusResolved)

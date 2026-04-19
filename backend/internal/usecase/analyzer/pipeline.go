@@ -53,10 +53,22 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
 	var analysisCreated bool
 	var lastErr error
 
+	// Truncate diff content to prevent excessive LLM token usage (Finding 13)
+	const maxDiffSize = 100 * 1024 // 100KB
+	diffContent := diff.DiffContent
+	if len(diffContent) > maxDiffSize {
+		diffContent = diffContent[:maxDiffSize] + "\n... [truncated]"
+		slog.Warn("diff content truncated for analysis",
+			"diff_id", diffID,
+			"original_size", len(diff.DiffContent),
+			"truncated_size", maxDiffSize,
+		)
+	}
+
 	for _, analyzer := range p.analyzers {
 		result, err := analyzer.Analyze(
 			ctx,
-			diff.DiffContent,
+			diffContent,
 			pkg.Name,
 			string(pkg.Ecosystem),
 			prevRelease.Version,

@@ -32,6 +32,20 @@ func (r *AlertRepo) FindByID(ctx context.Context, id uint) (*entity.Alert, error
 	return alertToDomain(&m), nil
 }
 
+func (r *AlertRepo) FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID uint) (*entity.Alert, error) {
+	var m Alert
+	err := r.db.WithContext(ctx).
+		Where("id = ? AND workspace_id = ?", id, workspaceID).
+		First(&m).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("alert %w", entity.ErrNotFound)
+		}
+		return nil, fmt.Errorf("finding alert: %w", err)
+	}
+	return alertToDomain(&m), nil
+}
+
 func (r *AlertRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.Alert, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Alert{}).
@@ -167,10 +181,10 @@ func (r *AlertRepo) FindByWorkspaceIDWithPackage(ctx context.Context, workspaceI
 	return result, total, nil
 }
 
-func (r *AlertRepo) UpdateStatus(ctx context.Context, id uint, status entity.AlertStatus) error {
+func (r *AlertRepo) UpdateStatus(ctx context.Context, id, workspaceID uint, status entity.AlertStatus) error {
 	result := r.db.WithContext(ctx).
 		Model(&Alert{}).
-		Where("id = ?", id).
+		Where("id = ? AND workspace_id = ?", id, workspaceID).
 		Update("status", string(status))
 	if result.Error != nil {
 		return fmt.Errorf("updating alert status: %w", result.Error)

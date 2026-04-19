@@ -31,18 +31,15 @@ func New(notes usecase.AlertNoteRepository, alerts usecase.AlertRepository, user
 // belongs to the given org for tenant isolation.
 func (uc *UseCase) ListByAlert(ctx context.Context, workspaceID, alertID uint) ([]entity.AlertNote, error) {
 	// Verify alert exists and belongs to the org
-	alert, err := uc.alerts.FindByID(ctx, alertID)
+	_, err := uc.alerts.FindByIDAndWorkspaceID(ctx, alertID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, fmt.Errorf("alert %w", entity.ErrNotFound)
 		}
 		return nil, fmt.Errorf("verifying alert ownership: %w", err)
 	}
-	if alert.WorkspaceID != workspaceID {
-		return nil, fmt.Errorf("alert %w", entity.ErrNotFound)
-	}
 
-	notes, err := uc.notes.FindByAlertID(ctx, alertID)
+	notes, err := uc.notes.FindByAlertID(ctx, alertID, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("listing notes for alert %d: %w", alertID, err)
 	}
@@ -62,15 +59,12 @@ func (uc *UseCase) Create(ctx context.Context, workspaceID, alertID, userID uint
 	}
 
 	// Verify alert exists and belongs to the org
-	alert, err := uc.alerts.FindByID(ctx, alertID)
+	_, err := uc.alerts.FindByIDAndWorkspaceID(ctx, alertID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, fmt.Errorf("alert %w", entity.ErrNotFound)
 		}
 		return nil, fmt.Errorf("verifying alert ownership: %w", err)
-	}
-	if alert.WorkspaceID != workspaceID {
-		return nil, fmt.Errorf("alert %w", entity.ErrNotFound)
 	}
 
 	// Resolve user email
@@ -122,19 +116,16 @@ func (uc *UseCase) Update(ctx context.Context, workspaceID, alertID, noteID, use
 	}
 
 	// Verify alert exists and belongs to the org
-	alert, err := uc.alerts.FindByID(ctx, alertID)
+	_, err := uc.alerts.FindByIDAndWorkspaceID(ctx, alertID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, fmt.Errorf("alert %w", entity.ErrNotFound)
 		}
 		return nil, fmt.Errorf("verifying alert ownership: %w", err)
 	}
-	if alert.WorkspaceID != workspaceID {
-		return nil, fmt.Errorf("alert %w", entity.ErrNotFound)
-	}
 
 	// Find the note
-	note, err := uc.notes.FindByID(ctx, noteID)
+	note, err := uc.notes.FindByID(ctx, noteID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, fmt.Errorf("alert note %w", entity.ErrNotFound)
@@ -174,19 +165,16 @@ func (uc *UseCase) Update(ctx context.Context, workspaceID, alertID, noteID, use
 // 5. Calling user is the note's author (owner verification)
 func (uc *UseCase) Delete(ctx context.Context, workspaceID, alertID, noteID, userID uint) error {
 	// Verify alert exists and belongs to the org
-	alert, err := uc.alerts.FindByID(ctx, alertID)
+	_, err := uc.alerts.FindByIDAndWorkspaceID(ctx, alertID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return fmt.Errorf("alert %w", entity.ErrNotFound)
 		}
 		return fmt.Errorf("verifying alert ownership: %w", err)
 	}
-	if alert.WorkspaceID != workspaceID {
-		return fmt.Errorf("alert %w", entity.ErrNotFound)
-	}
 
 	// Find the note
-	note, err := uc.notes.FindByID(ctx, noteID)
+	note, err := uc.notes.FindByID(ctx, noteID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return fmt.Errorf("alert note %w", entity.ErrNotFound)
@@ -209,7 +197,7 @@ func (uc *UseCase) Delete(ctx context.Context, workspaceID, alertID, noteID, use
 		return fmt.Errorf("only the note author can delete: %w", entity.ErrForbidden)
 	}
 
-	if err := uc.notes.Delete(ctx, noteID); err != nil {
+	if err := uc.notes.Delete(ctx, noteID, workspaceID); err != nil {
 		return fmt.Errorf("deleting alert note: %w", err)
 	}
 

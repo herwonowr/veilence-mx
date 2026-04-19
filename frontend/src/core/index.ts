@@ -18,3 +18,4 @@ export { useBreakpoint, isAtLeast, type Breakpoint } from "@/core/hooks/use-brea
 export { useSortParams } from "@/core/hooks/use-sort-params"
 export { useResponsiveColumns, type ColumnBreakpoints } from "@/core/hooks/use-responsive-columns"
 export { useFilterParams } from "@/core/hooks/use-filter-params"
+export { useCurrentWorkspaceRole, hasMinimumRole, getRoleLevel, workspaceRoleKeys, type WorkspaceRole } from "@/core/hooks/use-workspace-role"

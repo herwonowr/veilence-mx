@@ -55,6 +55,13 @@ func (r *RefreshTokenRepo) DeleteByTokenHash(ctx context.Context, tokenHash stri
 	return nil
 }
 
+func (r *RefreshTokenRepo) DeleteByUserID(ctx context.Context, userID uint) error {
+	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&RefreshToken{}).Error; err != nil {
+		return fmt.Errorf("deleting refresh tokens by user: %w", err)
+	}
+	return nil
+}
+
 // --- Converters ---
 
 func refreshTokenToDomain(m *RefreshToken) *entity.RefreshToken {

@@ -45,6 +45,7 @@ import { DataTablePagination } from "@/ui/data/data-table-pagination"
 import { SortableHeader } from "@/ui/data/sortable-header"
 import { useResponsiveColumns, type ColumnBreakpoints } from "@/core/hooks/use-responsive-columns"
 import { useAlerts, useUpdateAlert } from "@/features/alerts/hooks/use-alerts"
+import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core/hooks/use-workspace-role"
 
 const severityVariant = (s: AlertSeverity) => {
   if (s === "critical") return "destructive" as const
@@ -112,6 +113,10 @@ const AlertsContent = () => {
   const total = alertsRes?.meta?.total ?? 0
 
   const updateMutation = useUpdateAlert()
+
+  const { role } = useCurrentWorkspaceRole()
+  /** Viewers cannot acknowledge or resolve alerts */
+  const canTriage = hasMinimumRole(role, "member")
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }))
@@ -207,7 +212,7 @@ const AlertsContent = () => {
         meta: { headerClassName: "w-[1%] whitespace-nowrap text-right", cellClassName: "text-right" },
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
-            {row.original.status === "new" && (
+            {canTriage && row.original.status === "new" && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -217,7 +222,7 @@ const AlertsContent = () => {
                 Acknowledge
               </Button>
             )}
-            {row.original.status !== "resolved" && (
+            {canTriage && row.original.status !== "resolved" && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -242,7 +247,7 @@ const AlertsContent = () => {
         ),
       },
     ],
-    [handleStatusChange]
+    [handleStatusChange, canTriage]
   )
 
   const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize))
@@ -261,7 +266,14 @@ const AlertsContent = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Alerts</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-3xl font-bold">Alerts</h1>
+        {!canTriage && role === "viewer" && (
+          <Badge variant="outline" className="text-muted-foreground">
+            Read-only
+          </Badge>
+        )}
+      </div>
 
       <Card>
         <CardHeader>

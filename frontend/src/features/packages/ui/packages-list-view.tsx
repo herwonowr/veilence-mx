@@ -83,6 +83,7 @@ import {
   useDiscoverPackages,
   useSuggestionCount,
 } from "@/features/packages/hooks/use-packages"
+import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core/hooks/use-workspace-role"
 
 const formatSource = (source: PackageSource): string => {
   switch (source) {
@@ -189,6 +190,10 @@ export const PackagesListView = () => {
   const discoverMutation = useDiscoverPackages()
 
   const { data: suggestionsCount = 0 } = useSuggestionCount()
+
+  const { role } = useCurrentWorkspaceRole()
+  /** Viewers get a read-only view — all mutation buttons are hidden */
+  const canWrite = hasMinimumRole(role, "member")
 
   // Reset to first page when filters or sort change
   useEffect(() => {
@@ -413,6 +418,7 @@ export const PackagesListView = () => {
         enableSorting: false,
         meta: { headerClassName: "w-[1%] whitespace-nowrap text-right", cellClassName: "text-right" },
         cell: ({ row }) => {
+          if (!canWrite) return null
           const pkg = row.original
           if (pkg.status === "blocked") {
             return (
@@ -461,7 +467,7 @@ export const PackagesListView = () => {
         },
       },
     ],
-    [handleRemove, handleBlock, handleUnblock]
+    [handleRemove, handleBlock, handleUnblock, canWrite]
   )
 
   const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize))
@@ -496,67 +502,76 @@ export const PackagesListView = () => {
           </Link>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={handleDiscover} disabled={discoverMutation.isPending}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${discoverMutation.isPending ? "animate-spin" : ""}`} />
-            Discover Packages
-          </Button>
-          <Link href="/packages/import">
-            <Button variant="outline">
-              <Upload className="h-4 w-4 mr-2" />
-              Bulk Import
-            </Button>
-          </Link>
-          <Dialog open={dialogOpen} onOpenChange={(open) => setDialogOpen(open)}>
-            <DialogTrigger
-              render={
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Package
+          {canWrite && (
+            <>
+              <Button variant="outline" onClick={handleDiscover} disabled={discoverMutation.isPending}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${discoverMutation.isPending ? "animate-spin" : ""}`} />
+                Discover Packages
+              </Button>
+              <Link href="/packages/import">
+                <Button variant="outline">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Bulk Import
                 </Button>
-              }
-            />
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Custom Package</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
-                <Field data-invalid={!!createErrors.name}>
-                  <FieldLabel htmlFor="package-name">
-                    Package Name
-                  </FieldLabel>
-                  <Input
-                    id="package-name"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="e.g., requests"
-                  />
-                  {createErrors.name && (
-                    <FieldError>{createErrors.name}</FieldError>
-                  )}
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="package-ecosystem">
-                    Ecosystem
-                  </FieldLabel>
-                  <Select
-                    value={newEcosystem}
-                    onValueChange={(v) => { if (v) setNewEcosystem(v as Ecosystem) }}
-                  >
-                    <SelectTrigger id="package-ecosystem">
-                      <SelectValue>{newEcosystem === "python" ? "Python" : "NPM"}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="python">Python</SelectItem>
-                      <SelectItem value="npm">NPM</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Button onClick={handleCreate} className="w-full" disabled={createMutation.isPending}>
-                  Add Package
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </Link>
+              <Dialog open={dialogOpen} onOpenChange={(open) => setDialogOpen(open)}>
+                <DialogTrigger
+                  render={
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Package
+                    </Button>
+                  }
+                />
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Custom Package</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-4">
+                    <Field data-invalid={!!createErrors.name}>
+                      <FieldLabel htmlFor="package-name">
+                        Package Name
+                      </FieldLabel>
+                      <Input
+                        id="package-name"
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        placeholder="e.g., requests"
+                      />
+                      {createErrors.name && (
+                        <FieldError>{createErrors.name}</FieldError>
+                      )}
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="package-ecosystem">
+                        Ecosystem
+                      </FieldLabel>
+                      <Select
+                        value={newEcosystem}
+                        onValueChange={(v) => { if (v) setNewEcosystem(v as Ecosystem) }}
+                      >
+                        <SelectTrigger id="package-ecosystem">
+                          <SelectValue>{newEcosystem === "python" ? "Python" : "NPM"}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="python">Python</SelectItem>
+                          <SelectItem value="npm">NPM</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Button onClick={handleCreate} className="w-full" disabled={createMutation.isPending}>
+                      Add Package
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
+          {!canWrite && role === "viewer" && (
+            <Badge variant="outline" className="text-muted-foreground">
+              Read-only
+            </Badge>
+          )}
         </div>
       </div>
 

@@ -35,15 +35,12 @@ func (uc *UseCase) ListPackages(ctx context.Context, workspaceID uint, page, lim
 
 // GetPackage returns a single package by ID, scoped to an org.
 func (uc *UseCase) GetPackage(ctx context.Context, workspaceID, pkgID uint) (*entity.Package, error) {
-	pkg, err := uc.repo.FindByID(ctx, pkgID)
+	pkg, err := uc.repo.FindByIDAndWorkspaceID(ctx, pkgID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, entity.ErrNotFound
 		}
 		return nil, fmt.Errorf("PackageUseCase.GetPackage: %w", err)
-	}
-	if pkg.WorkspaceID != workspaceID {
-		return nil, entity.ErrNotFound
 	}
 	return pkg, nil
 }
@@ -122,7 +119,7 @@ func (uc *UseCase) BlockPackage(ctx context.Context, workspaceID, pkgID uint, re
 	}
 
 	// Fetch the updated package to return to the caller
-	pkg, err := uc.repo.FindByID(ctx, pkgID)
+	pkg, err := uc.repo.FindByIDAndWorkspaceID(ctx, pkgID, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("fetching blocked package: %w", err)
 	}
@@ -146,7 +143,7 @@ func (uc *UseCase) UnblockPackage(ctx context.Context, workspaceID, pkgID uint) 
 		return nil, fmt.Errorf("unblocking package: %w", err)
 	}
 
-	pkg, err := uc.repo.FindByID(ctx, pkgID)
+	pkg, err := uc.repo.FindByIDAndWorkspaceID(ctx, pkgID, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("fetching unblocked package: %w", err)
 	}
@@ -161,7 +158,7 @@ func (uc *UseCase) UnblockPackage(ctx context.Context, workspaceID, pkgID uint) 
 // Active or blocked packages can be removed.
 func (uc *UseCase) RemovePackage(ctx context.Context, workspaceID, pkgID uint) error {
 	// Fetch the package first so we can log its name
-	pkg, err := uc.repo.FindByID(ctx, pkgID)
+	pkg, err := uc.repo.FindByIDAndWorkspaceID(ctx, pkgID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return fmt.Errorf("package %w", entity.ErrNotFound)
@@ -191,7 +188,7 @@ func (uc *UseCase) ApprovePackage(ctx context.Context, workspaceID, pkgID uint) 
 		return nil, fmt.Errorf("PackageUseCase.ApprovePackage: %w", err)
 	}
 
-	pkg, err := uc.repo.FindByID(ctx, pkgID)
+	pkg, err := uc.repo.FindByIDAndWorkspaceID(ctx, pkgID, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("PackageUseCase.ApprovePackage: fetching approved package: %w", err)
 	}
@@ -205,7 +202,7 @@ func (uc *UseCase) ApprovePackage(ctx context.Context, workspaceID, pkgID uint) 
 // RejectPackage rejects a suggested package, setting its status to removed.
 func (uc *UseCase) RejectPackage(ctx context.Context, workspaceID, pkgID uint) error {
 	// Fetch the package first so we can log its name
-	pkg, err := uc.repo.FindByID(ctx, pkgID)
+	pkg, err := uc.repo.FindByIDAndWorkspaceID(ctx, pkgID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return fmt.Errorf("package %w", entity.ErrNotFound)

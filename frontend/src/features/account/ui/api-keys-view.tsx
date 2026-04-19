@@ -83,7 +83,7 @@ const roleBadgeVariant = (role: APIKeyRole): "secondary" | "default" | "destruct
 
 export const ApiKeysView = () => {
   const { data: keysRes, isLoading, isError, refetch } = useApiKeys()
-  const currentRole = useCurrentWorkspaceRole()
+  const { role: currentRole } = useCurrentWorkspaceRole()
 
   const apiKeysSkeletonColumns: SkeletonColumn[] = [
     { width: "w-24", header: "Name" },
@@ -126,6 +126,9 @@ export const ApiKeysView = () => {
   const [copied, setCopied] = useState(false)
 
   const createMutation = useCreateApiKey()
+  // FINDING-16: API key deletion is not role-gated in the UI, but the backend
+  // only returns keys belonging to the authenticated user, so users can only
+  // delete their own keys.
   const deleteMutation = useDeleteApiKey()
 
   // Delete confirmation state

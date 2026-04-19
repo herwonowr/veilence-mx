@@ -57,6 +57,34 @@ func (r *ReleaseRepo) FindByPackageID(ctx context.Context, packageID uint, page,
 	return result, total, nil
 }
 
+func (r *ReleaseRepo) FindByPackageIDAndWorkspace(ctx context.Context, packageID, workspaceID uint, page, limit int) ([]entity.Release, int64, error) {
+	var total int64
+	query := r.db.WithContext(ctx).Model(&Release{}).
+		Joins("JOIN packages ON packages.id = releases.package_id").
+		Where("releases.package_id = ? AND packages.workspace_id = ?", packageID, workspaceID)
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("counting releases: %w", err)
+	}
+
+	var ms []Release
+	err := query.
+		Select("releases.*").
+		Order("releases.created_at DESC").
+		Offset((page - 1) * limit).
+		Limit(limit).
+		Find(&ms).Error
+	if err != nil {
+		return nil, 0, fmt.Errorf("listing releases: %w", err)
+	}
+
+	result := make([]entity.Release, len(ms))
+	for i := range ms {
+		result[i] = *releaseToDomain(&ms[i])
+	}
+	return result, total, nil
+}
+
 func (r *ReleaseRepo) Create(ctx context.Context, release *entity.Release) error {
 	m := releaseToModel(release)
 	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
@@ -87,6 +115,31 @@ func (r *ReleaseRepo) FindByIDWithPackage(ctx context.Context, id uint) (*entity
 	return releaseToDomain(&m), packageToDomain(&pkg), nil
 }
 
+func (r *ReleaseRepo) FindByIDWithPackageAndWorkspace(ctx context.Context, id, workspaceID uint) (*entity.Release, *entity.Package, error) {
+	var m Release
+	err := r.db.WithContext(ctx).
+		Joins("JOIN packages ON packages.id = releases.package_id").
+		Where("releases.id = ? AND packages.workspace_id = ?", id, workspaceID).
+		Select("releases.*").
+		First(&m).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, fmt.Errorf("release %w", entity.ErrNotFound)
+		}
+		return nil, nil, fmt.Errorf("finding release: %w", err)
+	}
+
+	var pkg Package
+	if err := r.db.WithContext(ctx).Where("id = ? AND workspace_id = ?", m.PackageID, workspaceID).First(&pkg).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, fmt.Errorf("package %w", entity.ErrNotFound)
+		}
+		return nil, nil, fmt.Errorf("finding release package: %w", err)
+	}
+
+	return releaseToDomain(&m), packageToDomain(&pkg), nil
+}
+
 func (r *ReleaseRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.Release, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Release{}).
@@ -104,7 +157,8 @@ func (r *ReleaseRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, p
 		}
 	}
 	if filters.Search != nil && *filters.Search != "" {
-		query = query.Where("LOWER(packages.name) LIKE LOWER(?)", "%"+*filters.Search+"%")
+		escaped := escapeLikeRepo(*filters.Search)
+		query = query.Where("LOWER(packages.name) LIKE LOWER(?)", "%"+escaped+"%")
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -151,7 +205,8 @@ func (r *ReleaseRepo) FindByWorkspaceIDWithDetails(ctx context.Context, workspac
 		}
 	}
 	if filters.Search != nil && *filters.Search != "" {
-		query = query.Where("LOWER(packages.name) LIKE LOWER(?)", "%"+*filters.Search+"%")
+		escaped := escapeLikeRepo(*filters.Search)
+		query = query.Where("LOWER(packages.name) LIKE LOWER(?)", "%"+escaped+"%")
 	}
 	if filters.LatestPerPackage {
 		// Sub-select latest release per package

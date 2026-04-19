@@ -44,18 +44,16 @@ func New(
 // ListByPackage returns a paginated list of releases for a package, scoped to an org.
 func (uc *UseCase) ListByPackage(ctx context.Context, workspaceID, packageID uint, page, limit int) ([]entity.Release, int64, error) {
 	// Verify package belongs to the requesting org
-	pkg, err := uc.packages.FindByID(ctx, packageID)
+	pkg, err := uc.packages.FindByIDAndWorkspaceID(ctx, packageID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, 0, entity.ErrNotFound
 		}
 		return nil, 0, fmt.Errorf("ReleaseUseCase.ListByPackage: verifying package: %w", err)
 	}
-	if pkg.WorkspaceID != workspaceID {
-		return nil, 0, entity.ErrNotFound
-	}
+	_ = pkg
 
-	releases, total, err := uc.releases.FindByPackageID(ctx, packageID, page, limit)
+	releases, total, err := uc.releases.FindByPackageIDAndWorkspace(ctx, packageID, workspaceID, page, limit)
 	if err != nil {
 		return nil, 0, fmt.Errorf("ReleaseUseCase.ListByPackage: %w", err)
 	}
@@ -64,15 +62,12 @@ func (uc *UseCase) ListByPackage(ctx context.Context, workspaceID, packageID uin
 
 // GetRelease returns a single release with its diff, analysis, and package info.
 func (uc *UseCase) GetRelease(ctx context.Context, workspaceID, releaseID uint) (*entity.ReleaseDetail, error) {
-	release, pkg, err := uc.releases.FindByIDWithPackage(ctx, releaseID)
+	release, pkg, err := uc.releases.FindByIDWithPackageAndWorkspace(ctx, releaseID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, entity.ErrNotFound
 		}
 		return nil, fmt.Errorf("ReleaseUseCase.GetRelease: %w", err)
-	}
-	if pkg.WorkspaceID != workspaceID {
-		return nil, entity.ErrNotFound
 	}
 
 	detail := &entity.ReleaseDetail{
@@ -100,16 +95,14 @@ func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID 
 		return "", "", fmt.Errorf("ReleaseUseCase.ReanalyzeRelease: queue not configured")
 	}
 
-	release, pkg, err := uc.releases.FindByIDWithPackage(ctx, releaseID)
+	release, pkg, err := uc.releases.FindByIDWithPackageAndWorkspace(ctx, releaseID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return "", "", entity.ErrNotFound
 		}
 		return "", "", fmt.Errorf("ReleaseUseCase.ReanalyzeRelease: %w", err)
 	}
-	if pkg.WorkspaceID != workspaceID {
-		return "", "", entity.ErrNotFound
-	}
+	_ = pkg
 
 	diff, err := uc.diffs.FindFirstByReleaseID(ctx, release.ID)
 	if err != nil || diff == nil {
@@ -138,16 +131,14 @@ func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID 
 // GetAnalysisHistory returns the analysis history for a package across all its releases.
 func (uc *UseCase) GetAnalysisHistory(ctx context.Context, workspaceID, packageID uint) ([]entity.AnalysisHistoryEntry, error) {
 	// Verify package belongs to org
-	pkg, err := uc.packages.FindByID(ctx, packageID)
+	pkg, err := uc.packages.FindByIDAndWorkspaceID(ctx, packageID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, entity.ErrNotFound
 		}
 		return nil, fmt.Errorf("ReleaseUseCase.GetAnalysisHistory: verifying package: %w", err)
 	}
-	if pkg.WorkspaceID != workspaceID {
-		return nil, entity.ErrNotFound
-	}
+	_ = pkg
 
 	// Load all releases
 	releases, err := uc.releases.FindByPackageIDAll(ctx, packageID)

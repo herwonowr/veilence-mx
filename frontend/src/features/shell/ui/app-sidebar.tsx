@@ -41,6 +41,7 @@ import {
   DropdownMenuTrigger,
 } from "@/ui/components/dropdown-menu"
 import { useAuth } from "@/core/providers/auth-provider"
+import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core/hooks/use-workspace-role"
 import { useShellDashboardStats } from "@/features/shell/hooks/use-shell-stats"
 import type { LucideIcon } from "lucide-react"
 
@@ -60,6 +61,8 @@ interface NavItem {
   title: string
   href: string
   icon: LucideIcon
+  /** Minimum workspace role required to see this item. Defaults to visible for all. */
+  minRole?: "viewer" | "member" | "admin" | "owner"
 }
 
 const navItems: NavItem[] = [
@@ -72,9 +75,9 @@ const navItems: NavItem[] = [
 ]
 
 const settingsItems: NavItem[] = [
-  { title: "Settings", href: "/settings", icon: Settings },
-  { title: "Channels", href: "/settings/notifications", icon: Bell },
-  { title: "Queue Monitor", href: "/settings/queue", icon: ListOrdered },
+  { title: "Settings", href: "/settings", icon: Settings, minRole: "admin" },
+  { title: "Channels", href: "/settings/notifications", icon: Bell, minRole: "admin" },
+  { title: "Queue Monitor", href: "/settings/queue", icon: ListOrdered, minRole: "admin" },
   { title: "API Keys", href: "/settings/api-keys", icon: Key },
   { title: "Sessions", href: "/settings/sessions", icon: Monitor },
 ]
@@ -87,6 +90,7 @@ export const AppSidebar = ({
 }) => {
   const pathname = usePathname()
   const { user, isAuthenticated, logout } = useAuth()
+  const { role } = useCurrentWorkspaceRole()
   const { setOpenMobile, isMobile } = useSidebar()
 
   // Close mobile sheet on route change
@@ -165,7 +169,9 @@ export const AppSidebar = ({
           <SidebarGroupLabel>Management</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {settingsItems.map((item) => {
+              {settingsItems
+                .filter((item) => !item.minRole || hasMinimumRole(role, item.minRole))
+                .map((item) => {
                 const isActive =
                   item.href === "/settings"
                     ? pathname === "/settings"

@@ -92,6 +92,20 @@ func (m *mockPackageRepo) FindByID(_ context.Context, id uint) (*entity.Package,
 	return pkg, nil
 }
 
+func (m *mockPackageRepo) FindByIDAndWorkspaceID(_ context.Context, id, workspaceID uint) (*entity.Package, error) {
+	if m.findByIDErr != nil {
+		return nil, m.findByIDErr
+	}
+	pkg, ok := m.packages[id]
+	if !ok {
+		return nil, entity.ErrNotFound
+	}
+	if pkg.WorkspaceID != workspaceID {
+		return nil, entity.ErrNotFound
+	}
+	return pkg, nil
+}
+
 func (m *mockPackageRepo) FindByWorkspaceID(_ context.Context, workspaceID uint, page, limit int, _ string, _ entity.PackageFilters) ([]entity.Package, int64, error) {
 	if m.findByWorkspaceIDErr != nil {
 		return nil, 0, m.findByWorkspaceIDErr

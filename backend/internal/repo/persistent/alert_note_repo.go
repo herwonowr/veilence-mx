@@ -21,10 +21,10 @@ func NewAlertNoteRepo(db *gorm.DB) *AlertNoteRepo {
 	return &AlertNoteRepo{db: db}
 }
 
-func (r *AlertNoteRepo) FindByAlertID(ctx context.Context, alertID uint) ([]entity.AlertNote, error) {
+func (r *AlertNoteRepo) FindByAlertID(ctx context.Context, alertID, workspaceID uint) ([]entity.AlertNote, error) {
 	var ms []AlertNote
 	if err := r.db.WithContext(ctx).
-		Where("alert_id = ?", alertID).
+		Where("alert_id = ? AND workspace_id = ?", alertID, workspaceID).
 		Order("created_at DESC").
 		Find(&ms).Error; err != nil {
 		return nil, fmt.Errorf("listing alert notes: %w", err)
@@ -48,9 +48,9 @@ func (r *AlertNoteRepo) Create(ctx context.Context, note *entity.AlertNote) erro
 	return nil
 }
 
-func (r *AlertNoteRepo) FindByID(ctx context.Context, id uint) (*entity.AlertNote, error) {
+func (r *AlertNoteRepo) FindByID(ctx context.Context, id, workspaceID uint) (*entity.AlertNote, error) {
 	var m AlertNote
-	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ? AND workspace_id = ?", id, workspaceID).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("alert note %w", entity.ErrNotFound)
 		}
@@ -72,8 +72,8 @@ func (r *AlertNoteRepo) Update(ctx context.Context, note *entity.AlertNote) erro
 	return nil
 }
 
-func (r *AlertNoteRepo) Delete(ctx context.Context, id uint) error {
-	result := r.db.WithContext(ctx).Delete(&AlertNote{}, id)
+func (r *AlertNoteRepo) Delete(ctx context.Context, id, workspaceID uint) error {
+	result := r.db.WithContext(ctx).Where("id = ? AND workspace_id = ?", id, workspaceID).Delete(&AlertNote{})
 	if result.Error != nil {
 		return fmt.Errorf("deleting alert note: %w", result.Error)
 	}

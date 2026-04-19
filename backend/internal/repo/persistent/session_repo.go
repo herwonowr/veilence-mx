@@ -123,6 +123,13 @@ func (r *SessionRepo) DeleteOldestByUserID(ctx context.Context, userID uint) err
 	return nil
 }
 
+func (r *SessionRepo) DeleteByUserID(ctx context.Context, userID uint) error {
+	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&Session{}).Error; err != nil {
+		return fmt.Errorf("deleting sessions by user: %w", err)
+	}
+	return nil
+}
+
 // --- Converters ---
 
 func sessionToDomain(m *Session) *entity.Session {

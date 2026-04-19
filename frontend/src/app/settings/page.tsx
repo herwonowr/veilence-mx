@@ -1,12 +1,14 @@
 "use client"
 
-import { ProtectedRoute, RequireWorkspace } from "@/features/auth"
+import { ProtectedRoute, RequireWorkspace, RequireRole } from "@/features/auth"
 import { SettingsView } from "@/features/settings"
 
 const SettingsPage = () => (
   <ProtectedRoute>
     <RequireWorkspace feature="settings">
-      <SettingsView />
+      <RequireRole minimumRole="admin">
+        <SettingsView />
+      </RequireRole>
     </RequireWorkspace>
   </ProtectedRoute>
 )

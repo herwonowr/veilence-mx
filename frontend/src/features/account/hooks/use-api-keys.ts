@@ -34,21 +34,12 @@ export const useApiKeys = (
   })
 }
 
-export const useCurrentWorkspaceRole = (): APIKeyRole | null => {
-  const { currentWorkspace } = useAuth()
-
-  const { data } = useQuery({
-    queryKey: apiKeyKeys.currentRole(currentWorkspace?.id ?? 0),
-    queryFn: () => apiGetCurrentMemberRole(currentWorkspace!.id),
-    enabled: !!currentWorkspace,
-  })
-
-  const roleName = data?.data?.role?.toLowerCase()
-  if (roleName === "owner" || roleName === "admin" || roleName === "member" || roleName === "viewer") {
-    return roleName
-  }
-  return null
-}
+/**
+ * useCurrentWorkspaceRole has been moved to core/hooks/use-workspace-role.ts
+ * to allow shared access across features without cross-feature imports.
+ * Re-export here for backward compatibility with existing consumers.
+ */
+export { useCurrentWorkspaceRole } from "@/core/hooks/use-workspace-role"
 
 export const useCreateApiKey = () => {
   const queryClient = useQueryClient()

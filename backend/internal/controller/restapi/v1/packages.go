@@ -362,6 +362,12 @@ func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request)
 			respondAppError(w, Validation("content is required when format is specified"))
 			return
 		}
+		// Limit content size to prevent expensive processing (Finding 10)
+		const maxContentSize = 100 * 1024 // 100KB
+		if len(req.Content) > maxContentSize {
+			respondAppError(w, Validation(fmt.Sprintf("content too large (max %dKB)", maxContentSize/1024)))
+			return
+		}
 		var err error
 		switch req.Format {
 		case "requirements_txt":

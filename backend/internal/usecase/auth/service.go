@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -422,6 +423,8 @@ func (s *Service) generateTokenPair(ctx context.Context, user *entity.User) (*To
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(AccessTokenDuration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "veilence-mx",
+			Subject:   strconv.FormatUint(uint64(user.ID), 10),
+			Audience:  jwt.ClaimStrings{"veilence-mx-api"},
 		},
 	}
 
@@ -636,6 +639,15 @@ func (s *Service) ResetPassword(rawToken, newPassword string) error {
 	// Mark the token as used
 	if err := s.passwordResets.MarkUsed(ctx, stored.ID); err != nil {
 		slog.Error("failed to mark reset token as used", "token_id", stored.ID, "error", err)
+	}
+
+	// Invalidate all existing sessions and refresh tokens for the user
+	// so any stolen tokens are no longer valid after password reset.
+	if err := s.refreshTokens.DeleteByUserID(ctx, stored.UserID); err != nil {
+		slog.Error("failed to invalidate refresh tokens after password reset", "user_id", stored.UserID, "error", err)
+	}
+	if err := s.sessions.DeleteByUserID(ctx, stored.UserID); err != nil {
+		slog.Error("failed to invalidate sessions after password reset", "user_id", stored.UserID, "error", err)
 	}
 
 	slog.Info("password reset successful", "user_id", stored.UserID)

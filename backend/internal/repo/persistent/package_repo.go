@@ -33,6 +33,17 @@ func (r *PackageRepo) FindByID(ctx context.Context, id uint) (*entity.Package, e
 	return packageToDomain(&m), nil
 }
 
+func (r *PackageRepo) FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID uint) (*entity.Package, error) {
+	var m Package
+	if err := r.db.WithContext(ctx).Where("id = ? AND workspace_id = ?", id, workspaceID).First(&m).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("package %w", entity.ErrNotFound)
+		}
+		return nil, fmt.Errorf("finding package: %w", err)
+	}
+	return packageToDomain(&m), nil
+}
+
 func (r *PackageRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Package{}).Where("workspace_id = ?", workspaceID)

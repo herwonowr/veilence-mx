@@ -29,6 +29,16 @@ func (m *mockPackageRepo) FindByID(_ context.Context, _ uint) (*entity.Package, 
 	return m.findByIDResult, nil
 }
 
+func (m *mockPackageRepo) FindByIDAndWorkspaceID(_ context.Context, _ uint, _ uint) (*entity.Package, error) {
+	if m.findByIDErr != nil {
+		return nil, m.findByIDErr
+	}
+	if m.findByIDResult != nil {
+		return m.findByIDResult, nil
+	}
+	return nil, entity.ErrNotFound
+}
+
 // Unused interface methods — satisfy the interface.
 func (m *mockPackageRepo) FindByWorkspaceID(context.Context, uint, int, int, string, entity.PackageFilters) ([]entity.Package, int64, error) {
 	return nil, 0, nil
@@ -97,7 +107,19 @@ func (m *mockReleaseRepo) FindByIDWithPackage(_ context.Context, _ uint) (*entit
 	}
 	return m.findByIDWithPackageRelease, m.findByIDWithPackagePkg, nil
 }
+func (m *mockReleaseRepo) FindByIDWithPackageAndWorkspace(_ context.Context, _ uint, _ uint) (*entity.Release, *entity.Package, error) {
+	if m.findByIDWithPackageErr != nil {
+		return nil, nil, m.findByIDWithPackageErr
+	}
+	return m.findByIDWithPackageRelease, m.findByIDWithPackagePkg, nil
+}
 func (m *mockReleaseRepo) FindByPackageID(_ context.Context, _ uint, _, _ int) ([]entity.Release, int64, error) {
+	if m.findByPackageIDErr != nil {
+		return nil, 0, m.findByPackageIDErr
+	}
+	return m.findByPackageIDResult, m.findByPackageIDTotal, nil
+}
+func (m *mockReleaseRepo) FindByPackageIDAndWorkspace(_ context.Context, _ uint, _ uint, _, _ int) ([]entity.Release, int64, error) {
 	if m.findByPackageIDErr != nil {
 		return nil, 0, m.findByPackageIDErr
 	}
@@ -134,7 +156,13 @@ type mockDiffRepo struct {
 }
 
 func (m *mockDiffRepo) FindByID(context.Context, uint) (*entity.Diff, error) { return nil, nil }
+func (m *mockDiffRepo) FindByIDAndWorkspace(context.Context, uint, uint) (*entity.Diff, error) {
+	return nil, nil
+}
 func (m *mockDiffRepo) FindByReleaseID(context.Context, uint) ([]entity.Diff, error) {
+	return nil, nil
+}
+func (m *mockDiffRepo) FindByReleaseIDAndWorkspace(context.Context, uint, uint) ([]entity.Diff, error) {
 	return nil, nil
 }
 func (m *mockDiffRepo) FindFirstByReleaseID(_ context.Context, _ uint) (*entity.Diff, error) {
@@ -245,7 +273,7 @@ func TestListByPackage_PackageNotFound(t *testing.T) {
 
 func TestListByPackage_WrongOrg(t *testing.T) {
 	uc := releaseuc.New(
-		&mockPackageRepo{findByIDResult: &entity.Package{ID: 5, WorkspaceID: 999}},
+		&mockPackageRepo{findByIDErr: entity.ErrNotFound},
 		&mockReleaseRepo{}, &mockDiffRepo{}, &mockAnalysisRepo{}, nil,
 	)
 
@@ -325,12 +353,9 @@ func TestGetRelease_NotFound(t *testing.T) {
 }
 
 func TestGetRelease_WrongOrg(t *testing.T) {
-	release := &entity.Release{ID: 1}
-	pkg := &entity.Package{ID: 5, WorkspaceID: 999}
-
 	uc := releaseuc.New(
 		&mockPackageRepo{},
-		&mockReleaseRepo{findByIDWithPackageRelease: release, findByIDWithPackagePkg: pkg},
+		&mockReleaseRepo{findByIDWithPackageErr: entity.ErrNotFound},
 		&mockDiffRepo{}, &mockAnalysisRepo{}, nil,
 	)
 
@@ -411,13 +436,11 @@ func TestReanalyzeRelease_NotFound(t *testing.T) {
 }
 
 func TestReanalyzeRelease_WrongOrg(t *testing.T) {
-	release := &entity.Release{ID: 1}
-	pkg := &entity.Package{ID: 5, WorkspaceID: 999}
 	q := &mockQueue{}
 
 	uc := releaseuc.New(
 		&mockPackageRepo{},
-		&mockReleaseRepo{findByIDWithPackageRelease: release, findByIDWithPackagePkg: pkg},
+		&mockReleaseRepo{findByIDWithPackageErr: entity.ErrNotFound},
 		&mockDiffRepo{}, &mockAnalysisRepo{}, q,
 	)
 
@@ -511,7 +534,7 @@ func TestGetAnalysisHistory_PackageNotFound(t *testing.T) {
 
 func TestGetAnalysisHistory_WrongOrg(t *testing.T) {
 	uc := releaseuc.New(
-		&mockPackageRepo{findByIDResult: &entity.Package{ID: 5, WorkspaceID: 999}},
+		&mockPackageRepo{findByIDErr: entity.ErrNotFound},
 		&mockReleaseRepo{}, &mockDiffRepo{}, &mockAnalysisRepo{}, nil,
 	)
 

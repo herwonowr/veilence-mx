@@ -1,12 +1,14 @@
 "use client"
 
-import { ProtectedRoute, RequireWorkspace } from "@/features/auth"
+import { ProtectedRoute, RequireWorkspace, RequireRole } from "@/features/auth"
 import { QueueView } from "@/features/settings"
 
 const QueuePage = () => (
   <ProtectedRoute>
     <RequireWorkspace feature="queue monitor">
-      <QueueView />
+      <RequireRole minimumRole="admin">
+        <QueueView />
+      </RequireRole>
     </RequireWorkspace>
   </ProtectedRoute>
 )
