@@ -112,7 +112,7 @@ export const ForgotPasswordForm = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {serverError && (
-              <Alert variant="destructive">
+              <Alert variant="destructive" className="text-center bg-destructive/10 border-destructive">
                 <AlertDescription>{serverError}</AlertDescription>
               </Alert>
             )}
