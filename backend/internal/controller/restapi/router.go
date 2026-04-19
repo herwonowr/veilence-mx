@@ -8,7 +8,6 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 	v1 "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1"
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/middleware"
-	"github.com/veilence/veilence-mx/backend/pkg/metrics"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
@@ -67,9 +66,6 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 		// Protected routes (authentication required)
 		r.Group(func(r chi.Router) {
 			r.Use(auth.Middleware(authService))
-
-			// Metrics (requires authentication)
-			r.Handle("/metrics", metrics.Handler())
 
 			// Protected auth routes
 			r.Post("/auth/logout", h.Auth.Logout)
