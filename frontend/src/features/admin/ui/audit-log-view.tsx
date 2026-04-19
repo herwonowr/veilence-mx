@@ -273,7 +273,9 @@ export const AuditLogView = () => {
             </div>
           </div>
           {hasActiveFilters && (
-            <FilterChips filters={activeFilters} onClearAll={clearAllFilters} />
+            <div className="mt-3">
+              <FilterChips filters={activeFilters} onClearAll={clearAllFilters} />
+            </div>
           )}
         </CardContent>
       </Card>
