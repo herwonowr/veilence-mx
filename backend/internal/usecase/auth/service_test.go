@@ -233,7 +233,7 @@ func TestRevokeAPIKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// Revoke
-	err = svc.RevokeAPIKey(user.ID, apiKey.ID)
+	err = svc.RevokeAPIKey(user.ID, 1, apiKey.ID)
 	require.NoError(t, err)
 
 	// Should no longer validate
@@ -248,7 +248,7 @@ func TestRevokeAPIKey_NotFound(t *testing.T) {
 	user, err := svc.Register("iris@example.com", "Password123", "Iris", "Pink")
 	require.NoError(t, err)
 
-	err = svc.RevokeAPIKey(user.ID, 99999)
+	err = svc.RevokeAPIKey(user.ID, 1, 99999)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "API key not found")
 }
@@ -265,7 +265,7 @@ func TestListAPIKeys(t *testing.T) {
 	_, _, err = svc.CreateAPIKey(user.ID, 1, "key-2", entity.APIKeyRoleMember, "owner", nil)
 	require.NoError(t, err)
 
-	keys, err := svc.ListAPIKeys(user.ID)
+	keys, err := svc.ListAPIKeys(user.ID, 1)
 	require.NoError(t, err)
 	assert.Len(t, keys, 2)
 }

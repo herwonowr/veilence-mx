@@ -109,7 +109,7 @@ export const SettingsView = () => {
               {validationErrors.monitoring_interval && (
                 <FieldError>{validationErrors.monitoring_interval}</FieldError>
               )}
-              <FieldDescription>Go duration format (e.g., 30m, 1h, 6h)</FieldDescription>
+              <FieldDescription>Duration format (e.g., 30m, 1h, 6h)</FieldDescription>
             </Field>
           </div>
         </CardContent>
@@ -172,7 +172,7 @@ export const SettingsView = () => {
               {validationErrors.discovery_interval && (
                 <FieldError>{validationErrors.discovery_interval}</FieldError>
               )}
-              <FieldDescription>Go duration format (e.g., 12h, 24h, 7d)</FieldDescription>
+              <FieldDescription>Duration format (e.g., 12h, 24h, 7d)</FieldDescription>
             </Field>
           </div>
 

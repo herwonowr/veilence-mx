@@ -46,7 +46,19 @@ func (r *APIKeyRepo) FindActiveByPrefix(ctx context.Context, prefix string) ([]e
 func (r *APIKeyRepo) FindByUserID(ctx context.Context, userID uint) ([]entity.APIKey, error) {
 	var ms []APIKey
 	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&ms).Error; err != nil {
-		return nil, fmt.Errorf("listing api keys: %w", err)
+		return nil, fmt.Errorf("APIKeyRepo.FindByUserID: %w", err)
+	}
+	result := make([]entity.APIKey, len(ms))
+	for i := range ms {
+		result[i] = *apiKeyToDomain(&ms[i])
+	}
+	return result, nil
+}
+
+func (r *APIKeyRepo) FindByUserIDAndWorkspaceID(ctx context.Context, userID, workspaceID uint) ([]entity.APIKey, error) {
+	var ms []APIKey
+	if err := r.db.WithContext(ctx).Where("user_id = ? AND workspace_id = ?", userID, workspaceID).Find(&ms).Error; err != nil {
+		return nil, fmt.Errorf("APIKeyRepo.FindByUserIDAndWorkspaceID: %w", err)
 	}
 	result := make([]entity.APIKey, len(ms))
 	for i := range ms {
@@ -76,7 +88,18 @@ func (r *APIKeyRepo) Update(ctx context.Context, key *entity.APIKey) error {
 func (r *APIKeyRepo) SoftDelete(ctx context.Context, userID, keyID uint) error {
 	result := r.db.WithContext(ctx).Where("id = ? AND user_id = ?", keyID, userID).Delete(&APIKey{})
 	if result.Error != nil {
-		return fmt.Errorf("revoking api key: %w", result.Error)
+		return fmt.Errorf("APIKeyRepo.SoftDelete: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("api key %w", entity.ErrNotFound)
+	}
+	return nil
+}
+
+func (r *APIKeyRepo) SoftDeleteScoped(ctx context.Context, userID, workspaceID, keyID uint) error {
+	result := r.db.WithContext(ctx).Where("id = ? AND user_id = ? AND workspace_id = ?", keyID, userID, workspaceID).Delete(&APIKey{})
+	if result.Error != nil {
+		return fmt.Errorf("APIKeyRepo.SoftDeleteScoped: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("api key %w", entity.ErrNotFound)

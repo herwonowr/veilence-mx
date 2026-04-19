@@ -77,10 +77,6 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 			r.Put("/auth/me", h.Auth.UpdateProfile)
 			r.Post("/auth/change-password", h.Auth.ChangePassword)
 			r.Post("/auth/send-verification", h.Auth.SendVerificationEmail)
-			r.Route("/auth/api-keys", func(r chi.Router) {
-				r.Get("/", h.Auth.ListAPIKeys)
-				r.Delete("/{id}", h.Auth.RevokeAPIKey)
-			})
 
 			// Session management
 			r.Route("/auth/sessions", func(r chi.Router) {
@@ -104,8 +100,12 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 			r.Group(func(r chi.Router) {
 				r.Use(rbac.RequireWorkspace(rbacService))
 
-				// API key creation (requires workspace context for role enforcement)
-				r.With(rbac.RequirePermission(rbacService, "api_keys", "write")).Post("/auth/api-keys", h.Auth.CreateAPIKey)
+				// API keys (require workspace context)
+				r.Route("/auth/api-keys", func(r chi.Router) {
+					r.With(rbac.RequirePermission(rbacService, "api_keys", "read")).Get("/", h.Auth.ListAPIKeys)
+					r.With(rbac.RequirePermission(rbacService, "api_keys", "write")).Post("/", h.Auth.CreateAPIKey)
+					r.With(rbac.RequirePermission(rbacService, "api_keys", "write")).Delete("/{id}", h.Auth.RevokeAPIKey)
+				})
 
 				// Dashboard (read-only, any org member can view)
 				r.Get("/dashboard/stats", h.Dashboard.GetDashboardStats)

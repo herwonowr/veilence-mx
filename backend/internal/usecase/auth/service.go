@@ -523,29 +523,29 @@ func (s *Service) CreateAPIKey(userID uint, workspaceID uint, name string, role 
 	return apiKey, rawKey, nil
 }
 
-// ListAPIKeys returns all active API keys for a user.
-func (s *Service) ListAPIKeys(userID uint) ([]entity.APIKey, error) {
+// ListAPIKeys returns all active API keys for a user in a specific workspace.
+func (s *Service) ListAPIKeys(userID, workspaceID uint) ([]entity.APIKey, error) {
 	ctx := context.Background()
 
-	keys, err := s.apiKeys.FindByUserID(ctx, userID)
+	keys, err := s.apiKeys.FindByUserIDAndWorkspaceID(ctx, userID, workspaceID)
 	if err != nil {
-		return nil, fmt.Errorf("listing API keys: %w", err)
+		return nil, fmt.Errorf("ListAPIKeys: %w", err)
 	}
 	return keys, nil
 }
 
-// RevokeAPIKey soft-deletes an API key if it belongs to the given user.
-func (s *Service) RevokeAPIKey(userID, keyID uint) error {
+// RevokeAPIKey soft-deletes an API key if it belongs to the given user and workspace.
+func (s *Service) RevokeAPIKey(userID, workspaceID, keyID uint) error {
 	ctx := context.Background()
 
-	if err := s.apiKeys.SoftDelete(ctx, userID, keyID); err != nil {
+	if err := s.apiKeys.SoftDeleteScoped(ctx, userID, workspaceID, keyID); err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return ErrAPIKeyNotFound
 		}
-		return fmt.Errorf("revoking API key: %w", err)
+		return fmt.Errorf("RevokeAPIKey: %w", err)
 	}
 
-	slog.Info("API key revoked", "user_id", userID, "key_id", keyID)
+	slog.Info("API key revoked", "user_id", userID, "workspace_id", workspaceID, "key_id", keyID)
 	return nil
 }
 

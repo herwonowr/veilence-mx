@@ -284,7 +284,7 @@ func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	}, nil)
 }
 
-// ListAPIKeys returns all API keys for the authenticated user.
+// ListAPIKeys returns all API keys for the authenticated user in the current workspace.
 func (h *AuthHandlers) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == 0 {
@@ -292,7 +292,13 @@ func (h *AuthHandlers) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keys, err := h.Auth.ListAPIKeys(userID)
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondAppError(w, Validation("workspace context is required to list API keys"))
+		return
+	}
+
+	keys, err := h.Auth.ListAPIKeys(userID, workspaceID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to list API keys")
 		return
@@ -301,11 +307,17 @@ func (h *AuthHandlers) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, response.APIKeysFromEntities(keys), nil)
 }
 
-// RevokeAPIKey deletes an API key belonging to the authenticated user.
+// RevokeAPIKey deletes an API key belonging to the authenticated user in the current workspace.
 func (h *AuthHandlers) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == 0 {
 		respondError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondAppError(w, Validation("workspace context is required to revoke an API key"))
 		return
 	}
 
@@ -315,7 +327,7 @@ func (h *AuthHandlers) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.Auth.RevokeAPIKey(userID, uint(id)); err != nil {
+	if err := h.Auth.RevokeAPIKey(userID, workspaceID, uint(id)); err != nil {
 		if errors.Is(err, auth.ErrAPIKeyNotFound) {
 			respondAppError(w, NotFound("API key"))
 			return

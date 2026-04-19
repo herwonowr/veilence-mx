@@ -34,9 +34,11 @@ type APIKeyRepository interface {
 	FindByID(ctx context.Context, id uint) (*entity.APIKey, error)
 	FindActiveByPrefix(ctx context.Context, prefix string) ([]entity.APIKey, error)
 	FindByUserID(ctx context.Context, userID uint) ([]entity.APIKey, error)
+	FindByUserIDAndWorkspaceID(ctx context.Context, userID, workspaceID uint) ([]entity.APIKey, error)
 	Create(ctx context.Context, key *entity.APIKey) error
 	Update(ctx context.Context, key *entity.APIKey) error
 	SoftDelete(ctx context.Context, userID, keyID uint) error
+	SoftDeleteScoped(ctx context.Context, userID, workspaceID, keyID uint) error
 }
 
 // PackageRepository defines persistence operations for Package entities.
