@@ -38,6 +38,8 @@ const (
 	RefreshTokenDuration = 7 * 24 * time.Hour
 	// PasswordResetDuration is the lifetime of a password reset token.
 	PasswordResetDuration = 1 * time.Hour
+	// PasswordResetCooldown is the minimum interval between password reset requests for the same email.
+	PasswordResetCooldown = 2 * time.Minute
 	// EmailVerificationDuration is the lifetime of an email verification token.
 	EmailVerificationDuration = 24 * time.Hour
 	// SessionDuration is the lifetime of a session.
@@ -75,6 +77,7 @@ type Service struct {
 	sessions           usecase.SessionRepository
 	emailSender        usecase.AuthEmailSender // nil = no email delivery (dev mode)
 	settings           usecase.SettingGetter   // nil = skip setting checks
+	rateLimiter        usecase.RateLimiter     // nil = no rate limiting
 	jwtSecret          []byte                  // primary secret (used for signing)
 	jwtSecretsPrevious [][]byte                // previous secrets (accepted for validation during rotation)
 }
@@ -82,7 +85,8 @@ type Service struct {
 // NewService creates a new auth service with the given repositories and JWT secret.
 // The jwtSecret is the primary signing secret. previousSecrets are optional older
 // secrets that are still accepted for token validation during secret rotation.
-// emailSender and settings may be nil (dev mode: emails skipped, setting checks skipped).
+// emailSender, settings, and rateLimiter may be nil (dev mode: emails skipped,
+// setting checks skipped, rate limiting skipped).
 func NewService(
 	users usecase.UserRepository,
 	refreshTokens usecase.RefreshTokenRepository,
@@ -92,6 +96,7 @@ func NewService(
 	sessions usecase.SessionRepository,
 	emailSender usecase.AuthEmailSender,
 	settings usecase.SettingGetter,
+	rateLimiter usecase.RateLimiter,
 	jwtSecret string,
 	previousSecrets ...string,
 ) *Service {
@@ -110,6 +115,7 @@ func NewService(
 		sessions:           sessions,
 		emailSender:        emailSender,
 		settings:           settings,
+		rateLimiter:        rateLimiter,
 		jwtSecret:          []byte(jwtSecret),
 		jwtSecretsPrevious: prevKeys,
 	}
@@ -567,11 +573,28 @@ func (s *Service) RevokeAPIKey(userID, workspaceID, keyID uint) error {
 	return nil
 }
 
+// ErrPasswordResetCooldown is returned when a password reset is requested too soon.
+var ErrPasswordResetCooldown = errors.New("please wait before requesting another reset email")
+
 // ForgotPassword generates a password reset token for the given email address.
 // The raw token is returned so the caller can send it via email.
 // If the email doesn't exist, returns nil error and empty string (to prevent user enumeration).
 func (s *Service) ForgotPassword(email string) (string, error) {
 	ctx := context.Background()
+
+	// Rate limit: one reset request per email per cooldown period.
+	// Check before user lookup to avoid timing-based enumeration.
+	if s.rateLimiter != nil {
+		key := "password_reset:" + email
+		allowed, err := s.rateLimiter.Allow(ctx, key, PasswordResetCooldown)
+		if err != nil {
+			slog.Error("rate limiter error during password reset", "email", email, "error", err)
+			// Fail open: if Redis is down, allow the request rather than blocking users.
+		} else if !allowed {
+			slog.Info("password reset rate limited", "email", email)
+			return "", ErrPasswordResetCooldown
+		}
+	}
 
 	user, err := s.users.FindByEmail(ctx, email)
 	if err != nil {

@@ -91,7 +91,7 @@ export const apiResetPassword = async (
 ): Promise<ApiResponse<{ message: string }>> =>
   fetchApi<{ message: string }>("/api/auth/reset-password", {
     method: "POST",
-    body: JSON.stringify({ token, password }),
+    body: JSON.stringify({ token, newPassword: password }),
     skipAuth: true,
   })
 
@@ -123,6 +123,15 @@ export const apiCreateApiKey = async (
 
 export const apiGetApiKeys = async (): Promise<ApiResponse<ApiKeyInfo[]>> =>
   fetchApi<ApiKeyInfo[]>("/api/auth/api-keys")
+
+export const apiVerifyEmail = async (
+  token: string
+): Promise<ApiResponse<{ message: string }>> =>
+  fetchApi<{ message: string }>("/api/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+    skipAuth: true,
+  })
 
 export const apiDeleteApiKey = async (
   id: number

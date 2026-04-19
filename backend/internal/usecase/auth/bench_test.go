@@ -50,6 +50,7 @@ func setupBenchService(b *testing.B) (*Service, *gorm.DB) {
 		persistent.NewSessionRepo(db),
 		nil,
 		nil,
+		nil,
 		benchJWTSecret,
 	)
 	return svc, db

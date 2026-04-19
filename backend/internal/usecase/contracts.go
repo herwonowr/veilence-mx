@@ -407,6 +407,14 @@ type RBACRepository interface {
 	WithTransaction(ctx context.Context, fn func(tx RBACRepository) error) error
 }
 
+// RateLimiter defines a simple cooldown-based rate limiter.
+// Implementations live in the outer layer (repo/cache).
+type RateLimiter interface {
+	// Allow checks if the given key is allowed. If allowed, it sets a cooldown
+	// for the specified duration and returns true. If still in cooldown, returns false.
+	Allow(ctx context.Context, key string, cooldown time.Duration) (bool, error)
+}
+
 // DigestRepository defines the persistence operations needed by the digest scheduler.
 type DigestRepository interface {
 	FindEnabledDigestConfigs(ctx context.Context) ([]entity.DigestOrgConfig, error)

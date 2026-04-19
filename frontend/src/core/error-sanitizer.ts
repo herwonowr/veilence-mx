@@ -15,6 +15,7 @@ const ERROR_PATTERNS: ReadonlyArray<{ pattern: RegExp; friendly: string }> = [
   { pattern: /invalid email or password/i, friendly: "Invalid email or password." },
   { pattern: /account.*disabled/i, friendly: "This account has been disabled. Contact your administrator." },
   { pattern: /email.*already/i, friendly: "An account with this email already exists." },
+  { pattern: /invalid or expired reset token/i, friendly: "This reset link is invalid or has expired. Please request a new one." },
   { pattern: /token.*expired/i, friendly: "Your session has expired. Please sign in again." },
   { pattern: /invalid.*token/i, friendly: "Your session is invalid. Please sign in again." },
 

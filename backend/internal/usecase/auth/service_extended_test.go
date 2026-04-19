@@ -391,7 +391,7 @@ func TestValidateAccessToken_WithPreviousSecret(t *testing.T) {
 	sessionRepo := persistent.NewSessionRepo(db)
 
 	// Sign a token with the old secret
-	oldSvc := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, nil, nil, oldSecret)
+	oldSvc := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, nil, nil, nil, oldSecret)
 
 	_, err := oldSvc.Register("rotation@example.com", "Password123", "Rotation", "Test")
 	require.NoError(t, err)
@@ -400,7 +400,7 @@ func TestValidateAccessToken_WithPreviousSecret(t *testing.T) {
 	require.NoError(t, err)
 
 	// New service with new primary secret and old secret as previous
-	newSvc := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, nil, nil, newSecret, oldSecret)
+	newSvc := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, nil, nil, nil, newSecret, oldSecret)
 
 	// Token signed with old secret should still validate via fallback
 	claims, err := newSvc.ValidateAccessToken(tokens.AccessToken)

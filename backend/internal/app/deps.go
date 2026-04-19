@@ -10,10 +10,13 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/redis/go-redis/v9"
+
 	"github.com/veilence/veilence-mx/backend/internal/config"
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi"
 	v1 "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1"
 	"github.com/veilence/veilence-mx/backend/internal/entity"
+	"github.com/veilence/veilence-mx/backend/internal/repo/cache"
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
 	"github.com/veilence/veilence-mx/backend/internal/repo/registry"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
@@ -155,6 +158,14 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	sessionRepo := persistent.NewSessionRepo(db)
 	settingRepo := persistent.NewSettingRepo(db)
 
+	// Redis client for rate limiting (reuses the same Redis instance as the queue)
+	redisOpts, err := redis.ParseURL(cfg.RedisURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse redis URL for rate limiter: %w", err)
+	}
+	redisClient := redis.NewClient(redisOpts)
+	rateLimiter := cache.NewRateLimiter(redisClient)
+
 	var authEmailSender usecase.AuthEmailSender
 	if smtpConfig.IsConfigured() {
 		authEmailSender = mailer.New(mailer.SMTPConfig{
@@ -172,7 +183,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		slog.Info("JWT secret rotation enabled", "previous_secrets_count", len(previousSecrets))
 	}
 
-	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, authEmailSender, settingRepo, cfg.JWTSecret, previousSecrets...)
+	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, authEmailSender, settingRepo, rateLimiter, cfg.JWTSecret, previousSecrets...)
 	auditLogRepo := persistent.NewAuditLogRepo(db)
 	rbacRepo := persistent.NewRBACRepo(db)
 	if err := rbac.SeedPermissions(rbacRepo); err != nil {

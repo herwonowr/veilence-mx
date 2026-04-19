@@ -367,9 +367,14 @@ func (h *AuthHandlers) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	// Email delivery is handled by the auth service layer via SMTP.
 	_, err := h.Auth.ForgotPassword(req.Email)
 	if err != nil {
-		// Log the error but don't reveal it to the client
+		// Log the error but don't reveal it to the client.
+		// Rate-limited and unknown-email cases both get the same 200 response.
+		msg := "if an account with that email exists, a password reset link has been sent"
+		if errors.Is(err, auth.ErrPasswordResetCooldown) {
+			msg = "please wait before requesting another reset email"
+		}
 		respondJSON(w, http.StatusOK, map[string]string{
-			"message": "if an account with that email exists, a password reset link has been sent",
+			"message": msg,
 		}, nil)
 		return
 	}
