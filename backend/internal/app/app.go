@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/joho/godotenv"
 	"github.com/urfave/cli/v2"
 
 	"github.com/veilence/veilence-mx/backend/internal/config"
@@ -16,7 +15,6 @@ var version = "dev"
 // Run creates the CLI application and executes the appropriate subcommand.
 func Run(cfg *config.Config) {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
-	_ = godotenv.Load()
 
 	app := &cli.App{
 		Name:    "veilence-mx",

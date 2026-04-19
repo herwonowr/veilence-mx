@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 // Config holds all application configuration. Loaded once at startup from environment variables.
@@ -56,6 +58,11 @@ type Config struct {
 
 // NewConfig loads configuration from environment variables with sensible defaults for optional fields.
 func NewConfig() (*Config, error) {
+	// Load .env file before reading env vars. Ignore error — file is optional
+	// (env vars may be set directly in production).
+	_ = godotenv.Load()
+
+
 	cfg := &Config{
 		// Required — no defaults
 		DatabaseURL: os.Getenv("DATABASE_URL"),
