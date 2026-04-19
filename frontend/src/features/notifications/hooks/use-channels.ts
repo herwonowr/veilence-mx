@@ -17,31 +17,31 @@ import { sanitizeErrorMessage } from "@/core"
 export const channelKeys = {
   all: ["channels"] as const,
   lists: () => [...channelKeys.all, "list"] as const,
-  list: (orgId: number) => [...channelKeys.lists(), orgId] as const,
+  list: (workspaceId: number) => [...channelKeys.lists(), workspaceId] as const,
 }
 
 export const ruleKeys = {
   all: ["rules"] as const,
   lists: () => [...ruleKeys.all, "list"] as const,
-  list: (orgId: number) => [...ruleKeys.lists(), orgId] as const,
+  list: (workspaceId: number) => [...ruleKeys.lists(), workspaceId] as const,
 }
 
-export const useChannels = (orgId: number | null) => {
+export const useChannels = (workspaceId: number | null) => {
   return useQuery({
-    queryKey: channelKeys.list(orgId ?? 0),
-    queryFn: () => apiListChannels(orgId!),
-    enabled: !!orgId,
+    queryKey: channelKeys.list(workspaceId ?? 0),
+    queryFn: () => apiListChannels(workspaceId!),
+    enabled: !!workspaceId,
     staleTime: 30_000,
   })
 }
 
-export const useCreateChannel = (orgId: number) => {
+export const useCreateChannel = (workspaceId: number) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (data: { name: string; type: string; config: string }) =>
-      apiCreateChannel(orgId, data),
+      apiCreateChannel(workspaceId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: channelKeys.list(orgId) })
+      queryClient.invalidateQueries({ queryKey: channelKeys.list(workspaceId) })
       toast.success("Channel created")
     },
     onError: (err: Error) => {
@@ -50,7 +50,7 @@ export const useCreateChannel = (orgId: number) => {
   })
 }
 
-export const useUpdateChannel = (orgId: number) => {
+export const useUpdateChannel = (workspaceId: number) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({
@@ -61,9 +61,9 @@ export const useUpdateChannel = (orgId: number) => {
       name: string
       config: string
       isActive: boolean
-    }) => apiUpdateChannel(orgId, id, data),
+    }) => apiUpdateChannel(workspaceId, id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: channelKeys.list(orgId) })
+      queryClient.invalidateQueries({ queryKey: channelKeys.list(workspaceId) })
       toast.success("Channel updated")
     },
     onError: (err: Error) => {
@@ -72,12 +72,12 @@ export const useUpdateChannel = (orgId: number) => {
   })
 }
 
-export const useDeleteChannel = (orgId: number) => {
+export const useDeleteChannel = (workspaceId: number) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: number) => apiDeleteChannel(orgId, id),
+    mutationFn: (id: number) => apiDeleteChannel(workspaceId, id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: channelKeys.list(orgId) })
+      queryClient.invalidateQueries({ queryKey: channelKeys.list(workspaceId) })
       toast.success("Channel deleted")
     },
     onError: (err: Error) => {
@@ -86,22 +86,22 @@ export const useDeleteChannel = (orgId: number) => {
   })
 }
 
-export const useRules = (orgId: number | null) => {
+export const useRules = (workspaceId: number | null) => {
   return useQuery({
-    queryKey: ruleKeys.list(orgId ?? 0),
-    queryFn: () => apiListRules(orgId!),
-    enabled: !!orgId,
+    queryKey: ruleKeys.list(workspaceId ?? 0),
+    queryFn: () => apiListRules(workspaceId!),
+    enabled: !!workspaceId,
     staleTime: 30_000,
   })
 }
 
-export const useCreateRule = (orgId: number) => {
+export const useCreateRule = (workspaceId: number) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (data: { channelId: number; severity: string }) =>
-      apiCreateRule(orgId, data),
+      apiCreateRule(workspaceId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ruleKeys.list(orgId) })
+      queryClient.invalidateQueries({ queryKey: ruleKeys.list(workspaceId) })
       toast.success("Rule created")
     },
     onError: (err: Error) => {
@@ -110,12 +110,12 @@ export const useCreateRule = (orgId: number) => {
   })
 }
 
-export const useDeleteRule = (orgId: number) => {
+export const useDeleteRule = (workspaceId: number) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: number) => apiDeleteRule(orgId, id),
+    mutationFn: (id: number) => apiDeleteRule(workspaceId, id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ruleKeys.list(orgId) })
+      queryClient.invalidateQueries({ queryKey: ruleKeys.list(workspaceId) })
       toast.success("Rule deleted")
     },
     onError: (err: Error) => {
@@ -124,9 +124,9 @@ export const useDeleteRule = (orgId: number) => {
   })
 }
 
-export const useTestChannel = (orgId: number) => {
+export const useTestChannel = (workspaceId: number) => {
   return useMutation({
-    mutationFn: (channelId: number) => testNotificationChannel(orgId, channelId),
+    mutationFn: (channelId: number) => testNotificationChannel(workspaceId, channelId),
     onSuccess: () => {
       toast.success("Test notification sent")
     },

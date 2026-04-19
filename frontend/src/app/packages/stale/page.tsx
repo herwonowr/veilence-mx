@@ -1,13 +1,13 @@
 "use client"
 
-import { ProtectedRoute, RequireOrg } from "@/features/auth"
+import { ProtectedRoute, RequireWorkspace } from "@/features/auth"
 import { StalePackagesView } from "@/features/packages"
 
 const StalePackagesPage = () => (
   <ProtectedRoute>
-    <RequireOrg feature="packages">
+    <RequireWorkspace feature="packages">
       <StalePackagesView />
-    </RequireOrg>
+    </RequireWorkspace>
   </ProtectedRoute>
 )
 export default StalePackagesPage

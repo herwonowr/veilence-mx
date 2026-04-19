@@ -1,4 +1,4 @@
-export interface Organization {
+export interface Workspace {
   id: number
   name: string
   slug: string
@@ -9,9 +9,9 @@ export interface Organization {
   updatedAt: string
 }
 
-export interface OrgMember {
+export interface WorkspaceMember {
   id: number
-  orgId: number
+  workspaceId: number
   userId: number
   roleId: number
   role: Role
@@ -23,7 +23,7 @@ export interface OrgMember {
 
 export interface Role {
   id: number
-  orgId: number
+  workspaceId: number
   name: string
   description: string
   isSystem: boolean
@@ -39,7 +39,7 @@ export interface Permission {
 export interface AuditLog {
   id: number
   userId: number
-  orgId: number
+  workspaceId: number
   action: string
   resource: string
   resourceId: number
@@ -50,13 +50,13 @@ export interface AuditLog {
   createdAt: string
 }
 
-export interface CreateOrgRequest {
+export interface CreateWorkspaceRequest {
   name: string
   slug: string
   description?: string
 }
 
-export interface UpdateOrgRequest {
+export interface UpdateWorkspaceRequest {
   name?: string
   description?: string
 }

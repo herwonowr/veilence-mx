@@ -35,18 +35,18 @@ export const apiMarkAllNotificationsRead = async (): Promise<
 > => fetchApi<null>("/api/notifications/read-all", { method: "PUT" })
 
 export const apiListChannels = async (
-  orgId: number
+  workspaceId: number
 ): Promise<ApiResponse<NotificationChannel[]>> =>
   fetchApi<NotificationChannel[]>(
-    `/api/orgs/${orgId}/notification-channels`
+    `/api/workspaces/${workspaceId}/notification-channels`
   )
 
 export const apiCreateChannel = async (
-  orgId: number,
+  workspaceId: number,
   data: { name: string; type: string; config: string }
 ): Promise<ApiResponse<NotificationChannel>> =>
   fetchApi<NotificationChannel>(
-    `/api/orgs/${orgId}/notification-channels`,
+    `/api/workspaces/${workspaceId}/notification-channels`,
     {
       method: "POST",
       body: JSON.stringify(data),
@@ -54,12 +54,12 @@ export const apiCreateChannel = async (
   )
 
 export const apiUpdateChannel = async (
-  orgId: number,
+  workspaceId: number,
   id: number,
   data: { name: string; config: string; isActive: boolean }
 ): Promise<ApiResponse<NotificationChannel>> =>
   fetchApi<NotificationChannel>(
-    `/api/orgs/${orgId}/notification-channels/${id}`,
+    `/api/workspaces/${workspaceId}/notification-channels/${id}`,
     {
       method: "PUT",
       body: JSON.stringify(data),
@@ -67,35 +67,35 @@ export const apiUpdateChannel = async (
   )
 
 export const apiDeleteChannel = async (
-  orgId: number,
+  workspaceId: number,
   id: number
 ): Promise<ApiResponse<null>> =>
-  fetchApi<null>(`/api/orgs/${orgId}/notification-channels/${id}`, {
+  fetchApi<null>(`/api/workspaces/${workspaceId}/notification-channels/${id}`, {
     method: "DELETE",
   })
 
 export const testNotificationChannel = async (
-  orgId: number,
+  workspaceId: number,
   channelId: number
 ): Promise<ApiResponse<{ message: string }>> =>
   fetchApi<{ message: string }>(
-    `/api/orgs/${orgId}/notification-channels/${channelId}/test`,
+    `/api/workspaces/${workspaceId}/notification-channels/${channelId}/test`,
     { method: "POST" }
   )
 
 export const apiListRules = async (
-  orgId: number
+  workspaceId: number
 ): Promise<ApiResponse<NotificationRule[]>> =>
   fetchApi<NotificationRule[]>(
-    `/api/orgs/${orgId}/notification-rules`
+    `/api/workspaces/${workspaceId}/notification-rules`
   )
 
 export const apiCreateRule = async (
-  orgId: number,
+  workspaceId: number,
   data: { channelId: number; severity: string }
 ): Promise<ApiResponse<NotificationRule>> =>
   fetchApi<NotificationRule>(
-    `/api/orgs/${orgId}/notification-rules`,
+    `/api/workspaces/${workspaceId}/notification-rules`,
     {
       method: "POST",
       body: JSON.stringify(data),
@@ -120,9 +120,9 @@ export const apiDeleteBatchNotifications = async (
   })
 
 export const apiDeleteRule = async (
-  orgId: number,
+  workspaceId: number,
   id: number
 ): Promise<ApiResponse<null>> =>
-  fetchApi<null>(`/api/orgs/${orgId}/notification-rules/${id}`, {
+  fetchApi<null>(`/api/workspaces/${workspaceId}/notification-rules/${id}`, {
     method: "DELETE",
   })

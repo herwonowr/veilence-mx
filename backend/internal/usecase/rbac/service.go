@@ -18,22 +18,22 @@ import (
 
 // Common errors returned by the RBAC service.
 var (
-	ErrOrgNotFound        = errors.New("organization not found")
+	ErrWorkspaceNotFound        = errors.New("workspace not found")
 	ErrMemberNotFound     = errors.New("member not found")
 	ErrInvitationNotFound = errors.New("invitation not found")
 	ErrInvitationExpired  = errors.New("invitation has expired")
 	ErrInvitationAccepted = errors.New("invitation already accepted")
-	ErrAlreadyMember      = errors.New("user is already a member of this organization")
-	ErrCannotRemoveOwner  = errors.New("cannot remove the organization owner")
+	ErrAlreadyMember      = errors.New("user is already a member of this workspace")
+	ErrCannotRemoveOwner  = errors.New("cannot remove the workspace owner")
 	ErrCannotChangeOwner  = errors.New("cannot change the owner's role")
 	ErrRoleNotFound       = errors.New("role not found")
 	ErrPermissionDenied   = errors.New("permission denied")
-	ErrSlugTaken            = errors.New("organization slug is already taken")
+	ErrSlugTaken            = errors.New("workspace slug is already taken")
 	ErrInvitationEmailMismatch = errors.New("invitation email does not match accepting user")
 	ErrInvitationRevoked    = errors.New("invitation has been revoked")
 )
 
-// Service provides RBAC and organization management operations.
+// Service provides RBAC and workspace management operations.
 type Service struct {
 	db *gorm.DB
 }
@@ -43,17 +43,17 @@ func NewService(db *gorm.DB) *Service {
 	return &Service{db: db}
 }
 
-// CreateOrganization creates a new organization, seeds default roles, and assigns
+// CreateWorkspace creates a new workspace, seeds default roles, and assigns
 // the creating user as the owner.
-func (s *Service) CreateOrganization(userID uint, name, slug, description string) (*persistent.Organization, error) {
+func (s *Service) CreateWorkspace(userID uint, name, slug, description string) (*persistent.Workspace, error) {
 	// Check slug uniqueness
 	var count int64
-	s.db.Model(&persistent.Organization{}).Where("slug = ?", slug).Count(&count)
+	s.db.Model(&persistent.Workspace{}).Where("slug = ?", slug).Count(&count)
 	if count > 0 {
 		return nil, ErrSlugTaken
 	}
 
-	org := &persistent.Organization{
+	org := &persistent.Workspace{
 		Name:        name,
 		Slug:        slug,
 		Description: description,
@@ -63,7 +63,7 @@ func (s *Service) CreateOrganization(userID uint, name, slug, description string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(org).Error; err != nil {
-			return fmt.Errorf("creating organization: %w", err)
+			return fmt.Errorf("creating workspace: %w", err)
 		}
 
 		// Create default roles
@@ -84,8 +84,8 @@ func (s *Service) CreateOrganization(userID uint, name, slug, description string
 			return errors.New("owner role not created")
 		}
 
-		member := &persistent.OrgMember{
-			OrgID:    org.ID,
+		member := &persistent.WorkspaceMember{
+			WorkspaceID:    org.ID,
 			UserID:   userID,
 			RoleID:   ownerRole.ID,
 			JoinedAt: time.Now(),
@@ -100,13 +100,13 @@ func (s *Service) CreateOrganization(userID uint, name, slug, description string
 		return nil, err
 	}
 
-	slog.Info("organization created", "org_id", org.ID, "slug", slug, "owner_id", userID)
+	slog.Info("workspace created", "workspace_id", org.ID, "slug", slug, "owner_id", userID)
 	return org, nil
 }
 
 // createDefaultRoles creates the four system roles (owner, admin, member, viewer)
-// with their respective permissions for the given organization.
-func (s *Service) createDefaultRoles(tx *gorm.DB, orgID uint) ([]persistent.Role, error) {
+// with their respective permissions for the given workspace.
+func (s *Service) createDefaultRoles(tx *gorm.DB, workspaceID uint) ([]persistent.Role, error) {
 	// Load all system permissions
 	var allPerms []persistent.Permission
 	if err := tx.Find(&allPerms).Error; err != nil {
@@ -134,7 +134,7 @@ func (s *Service) createDefaultRoles(tx *gorm.DB, orgID uint) ([]persistent.Role
 
 	// Admin gets all except org:delete
 	adminKeys := slices.DeleteFunc(slices.Clone(allKeys), func(k string) bool {
-		return k == "org:delete"
+		return k == "workspace:delete"
 	})
 
 	// Member permissions
@@ -145,7 +145,7 @@ func (s *Service) createDefaultRoles(tx *gorm.DB, orgID uint) ([]persistent.Role
 		"settings:read",
 		"members:read",
 		"roles:read",
-		"org:read",
+		"workspace:read",
 		"api_keys:read", "api_keys:write",
 		"notifications:read", "notifications:create", "notifications:update", "notifications:delete",
 	}
@@ -164,8 +164,8 @@ func (s *Service) createDefaultRoles(tx *gorm.DB, orgID uint) ([]persistent.Role
 		Description string
 		PermKeys    []string
 	}{
-		{persistent.RoleOwner, "Full access to the organization", allKeys},
-		{persistent.RoleAdmin, "Administrative access (cannot delete organization)", adminKeys},
+		{persistent.RoleOwner, "Full access to the workspace", allKeys},
+		{persistent.RoleAdmin, "Administrative access (cannot delete workspace)", adminKeys},
 		{persistent.RoleMember, "Standard member with read/write access", memberKeys},
 		{persistent.RoleViewer, "Read-only access", viewerKeys},
 	}
@@ -173,7 +173,7 @@ func (s *Service) createDefaultRoles(tx *gorm.DB, orgID uint) ([]persistent.Role
 	var roles []persistent.Role
 	for _, def := range roleDefinitions {
 		role := persistent.Role{
-			OrgID:       orgID,
+			WorkspaceID:       workspaceID,
 			Name:        def.Name,
 			Description: def.Description,
 			IsSystem:    true,
@@ -188,45 +188,45 @@ func (s *Service) createDefaultRoles(tx *gorm.DB, orgID uint) ([]persistent.Role
 	return roles, nil
 }
 
-// GetUserOrganizations returns all organizations the user is a member of.
-func (s *Service) GetUserOrganizations(userID uint) ([]persistent.Organization, error) {
-	var orgs []persistent.Organization
+// GetUserWorkspaces returns all workspaces the user is a member of.
+func (s *Service) GetUserWorkspaces(userID uint) ([]persistent.Workspace, error) {
+	var orgs []persistent.Workspace
 	err := s.db.
-		Joins("JOIN org_members ON org_members.org_id = organizations.id").
-		Where("org_members.user_id = ? AND organizations.deleted_at IS NULL", userID).
+		Joins("JOIN workspace_members ON workspace_members.workspace_id = workspaces.id").
+		Where("workspace_members.user_id = ? AND workspaces.deleted_at IS NULL", userID).
 		Find(&orgs).Error
 	if err != nil {
-		return nil, fmt.Errorf("listing user organizations: %w", err)
+		return nil, fmt.Errorf("listing user workspaces: %w", err)
 	}
 	return orgs, nil
 }
 
-// GetOrganization returns a single organization by ID.
-func (s *Service) GetOrganization(orgID uint) (*persistent.Organization, error) {
-	var org persistent.Organization
-	if err := s.db.First(&org, orgID).Error; err != nil {
+// GetWorkspace returns a single workspace by ID.
+func (s *Service) GetWorkspace(workspaceID uint) (*persistent.Workspace, error) {
+	var org persistent.Workspace
+	if err := s.db.First(&org, workspaceID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrOrgNotFound
+			return nil, ErrWorkspaceNotFound
 		}
-		return nil, fmt.Errorf("getting organization: %w", err)
+		return nil, fmt.Errorf("getting workspace: %w", err)
 	}
 	return &org, nil
 }
 
-// UpdateOrganization updates the organization's name, slug, and description.
-func (s *Service) UpdateOrganization(orgID uint, name, slug, description string) (*persistent.Organization, error) {
-	var org persistent.Organization
-	if err := s.db.First(&org, orgID).Error; err != nil {
+// UpdateWorkspace updates the workspace's name, slug, and description.
+func (s *Service) UpdateWorkspace(workspaceID uint, name, slug, description string) (*persistent.Workspace, error) {
+	var org persistent.Workspace
+	if err := s.db.First(&org, workspaceID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrOrgNotFound
+			return nil, ErrWorkspaceNotFound
 		}
-		return nil, fmt.Errorf("getting organization: %w", err)
+		return nil, fmt.Errorf("getting workspace: %w", err)
 	}
 
 	// Check slug uniqueness if changed
 	if slug != org.Slug {
 		var count int64
-		s.db.Model(&persistent.Organization{}).Where("slug = ? AND id != ?", slug, orgID).Count(&count)
+		s.db.Model(&persistent.Workspace{}).Where("slug = ? AND id != ?", slug, workspaceID).Count(&count)
 		if count > 0 {
 			return nil, ErrSlugTaken
 		}
@@ -237,46 +237,46 @@ func (s *Service) UpdateOrganization(orgID uint, name, slug, description string)
 	org.Description = description
 
 	if err := s.db.Save(&org).Error; err != nil {
-		return nil, fmt.Errorf("updating organization: %w", err)
+		return nil, fmt.Errorf("updating workspace: %w", err)
 	}
 	return &org, nil
 }
 
-// DeleteOrganization soft-deletes the organization.
-func (s *Service) DeleteOrganization(orgID uint) error {
-	result := s.db.Delete(&persistent.Organization{}, orgID)
+// DeleteWorkspace soft-deletes the workspace.
+func (s *Service) DeleteWorkspace(workspaceID uint) error {
+	result := s.db.Delete(&persistent.Workspace{}, workspaceID)
 	if result.Error != nil {
-		return fmt.Errorf("deleting organization: %w", result.Error)
+		return fmt.Errorf("deleting workspace: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return ErrOrgNotFound
+		return ErrWorkspaceNotFound
 	}
-	slog.Info("organization deleted", "org_id", orgID)
+	slog.Info("workspace deleted", "workspace_id", workspaceID)
 	return nil
 }
 
-// GetOrgMembers returns all members of an organization with their roles and user data.
-func (s *Service) GetOrgMembers(orgID uint) ([]persistent.OrgMember, error) {
-	var members []persistent.OrgMember
+// GetWorkspaceMembers returns all members of a workspace with their roles and user data.
+func (s *Service) GetWorkspaceMembers(workspaceID uint) ([]persistent.WorkspaceMember, error) {
+	var members []persistent.WorkspaceMember
 	err := s.db.
 		Preload("Role").
 		Preload("Role.Permissions").
 		Preload("User").
-		Where("org_id = ?", orgID).
+		Where("workspace_id = ?", workspaceID).
 		Find(&members).Error
 	if err != nil {
-		return nil, fmt.Errorf("listing org members: %w", err)
+		return nil, fmt.Errorf("listing workspace members: %w", err)
 	}
 	return members, nil
 }
 
-// InviteMember creates an invitation for a user to join an organization.
+// InviteMember creates an invitation for a user to join a workspace.
 // Returns the invitation and the raw token (for inclusion in the invitation URL).
 // Only the SHA-256 hash of the token is stored in the database.
-func (s *Service) InviteMember(orgID uint, email string, roleID, invitedBy uint) (*persistent.Invitation, string, error) {
+func (s *Service) InviteMember(workspaceID uint, email string, roleID, invitedBy uint) (*persistent.Invitation, string, error) {
 	// Verify the role exists and belongs to this org
 	var role persistent.Role
-	if err := s.db.Where("id = ? AND org_id = ?", roleID, orgID).First(&role).Error; err != nil {
+	if err := s.db.Where("id = ? AND workspace_id = ?", roleID, workspaceID).First(&role).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, "", ErrRoleNotFound
 		}
@@ -295,7 +295,7 @@ func (s *Service) InviteMember(orgID uint, email string, roleID, invitedBy uint)
 	}
 
 	invitation := &persistent.Invitation{
-		OrgID:     orgID,
+		WorkspaceID:     workspaceID,
 		Email:     email,
 		RoleID:    roleID,
 		TokenHash: hashToken(rawToken),
@@ -307,14 +307,14 @@ func (s *Service) InviteMember(orgID uint, email string, roleID, invitedBy uint)
 		return nil, "", fmt.Errorf("creating invitation: %w", err)
 	}
 
-	slog.Info("invitation created", "org_id", orgID, "email", email, "invited_by", invitedBy)
+	slog.Info("invitation created", "workspace_id", workspaceID, "email", email, "invited_by", invitedBy)
 	return invitation, rawToken, nil
 }
 
 // AcceptInvitation accepts a pending invitation and creates a membership.
 // The userEmail is compared against the invitation email to prevent unauthorized
 // acceptance. If the emails don't match, ErrInvitationEmailMismatch is returned.
-func (s *Service) AcceptInvitation(token string, userID uint, userEmail string) (*persistent.OrgMember, error) {
+func (s *Service) AcceptInvitation(token string, userID uint, userEmail string) (*persistent.WorkspaceMember, error) {
 	var invitation persistent.Invitation
 	if err := s.db.Where("token_hash = ?", hashToken(token)).First(&invitation).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -338,14 +338,14 @@ func (s *Service) AcceptInvitation(token string, userID uint, userEmail string) 
 
 	// Check if user is already a member
 	var existingCount int64
-	s.db.Model(&persistent.OrgMember{}).
-		Where("org_id = ? AND user_id = ?", invitation.OrgID, userID).
+	s.db.Model(&persistent.WorkspaceMember{}).
+		Where("workspace_id = ? AND user_id = ?", invitation.WorkspaceID, userID).
 		Count(&existingCount)
 	if existingCount > 0 {
 		return nil, ErrAlreadyMember
 	}
 
-	var member *persistent.OrgMember
+	var member *persistent.WorkspaceMember
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		now := time.Now()
 		invitation.AcceptedAt = &now
@@ -353,8 +353,8 @@ func (s *Service) AcceptInvitation(token string, userID uint, userEmail string) 
 			return fmt.Errorf("updating invitation: %w", err)
 		}
 
-		member = &persistent.OrgMember{
-			OrgID:    invitation.OrgID,
+		member = &persistent.WorkspaceMember{
+			WorkspaceID:    invitation.WorkspaceID,
 			UserID:   userID,
 			RoleID:   invitation.RoleID,
 			JoinedAt: now,
@@ -369,12 +369,12 @@ func (s *Service) AcceptInvitation(token string, userID uint, userEmail string) 
 		return nil, err
 	}
 
-	slog.Info("invitation accepted", "org_id", invitation.OrgID, "user_id", userID)
+	slog.Info("invitation accepted", "workspace_id", invitation.WorkspaceID, "user_id", userID)
 	return member, nil
 }
 
 // GetInvitationByToken returns invitation details by token. This allows the
-// frontend to show the user what organization they are being invited to before
+// frontend to show the user what workspace they are being invited to before
 // accepting. Does not require authentication.
 func (s *Service) GetInvitationByToken(token string) (*persistent.Invitation, error) {
 	var invitation persistent.Invitation
@@ -389,11 +389,11 @@ func (s *Service) GetInvitationByToken(token string) (*persistent.Invitation, er
 }
 
 // ListPendingInvitations returns all pending (not accepted, not expired)
-// invitations for an organization.
-func (s *Service) ListPendingInvitations(orgID uint) ([]persistent.Invitation, error) {
+// invitations for a workspace.
+func (s *Service) ListPendingInvitations(workspaceID uint) ([]persistent.Invitation, error) {
 	var invitations []persistent.Invitation
 	err := s.db.
-		Where("org_id = ? AND accepted_at IS NULL AND expires_at > ?", orgID, time.Now()).
+		Where("workspace_id = ? AND accepted_at IS NULL AND expires_at > ?", workspaceID, time.Now()).
 		Order("created_at DESC").
 		Find(&invitations).Error
 	if err != nil {
@@ -404,9 +404,9 @@ func (s *Service) ListPendingInvitations(orgID uint) ([]persistent.Invitation, e
 
 // RevokeInvitation deletes a pending invitation by ID and org. Only pending
 // (not accepted) invitations can be revoked.
-func (s *Service) RevokeInvitation(orgID, invitationID uint) error {
+func (s *Service) RevokeInvitation(workspaceID, invitationID uint) error {
 	result := s.db.
-		Where("id = ? AND org_id = ? AND accepted_at IS NULL", invitationID, orgID).
+		Where("id = ? AND workspace_id = ? AND accepted_at IS NULL", invitationID, workspaceID).
 		Delete(&persistent.Invitation{})
 	if result.Error != nil {
 		return fmt.Errorf("revoking invitation: %w", result.Error)
@@ -415,25 +415,25 @@ func (s *Service) RevokeInvitation(orgID, invitationID uint) error {
 		return ErrInvitationNotFound
 	}
 
-	slog.Info("invitation revoked", "invitation_id", invitationID, "org_id", orgID)
+	slog.Info("invitation revoked", "invitation_id", invitationID, "workspace_id", workspaceID)
 	return nil
 }
 
-// RemoveMember removes a user from an organization. The owner cannot be removed.
-func (s *Service) RemoveMember(orgID, userID uint) error {
+// RemoveMember removes a user from a workspace. The owner cannot be removed.
+func (s *Service) RemoveMember(workspaceID, userID uint) error {
 	// Check if user is the owner
-	var org persistent.Organization
-	if err := s.db.First(&org, orgID).Error; err != nil {
+	var org persistent.Workspace
+	if err := s.db.First(&org, workspaceID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrOrgNotFound
+			return ErrWorkspaceNotFound
 		}
-		return fmt.Errorf("getting organization: %w", err)
+		return fmt.Errorf("getting workspace: %w", err)
 	}
 	if org.OwnerID == userID {
 		return ErrCannotRemoveOwner
 	}
 
-	result := s.db.Where("org_id = ? AND user_id = ?", orgID, userID).Delete(&persistent.OrgMember{})
+	result := s.db.Where("workspace_id = ? AND user_id = ?", workspaceID, userID).Delete(&persistent.WorkspaceMember{})
 	if result.Error != nil {
 		return fmt.Errorf("removing member: %w", result.Error)
 	}
@@ -441,20 +441,20 @@ func (s *Service) RemoveMember(orgID, userID uint) error {
 		return ErrMemberNotFound
 	}
 
-	slog.Info("member removed", "org_id", orgID, "user_id", userID)
+	slog.Info("member removed", "workspace_id", workspaceID, "user_id", userID)
 	return nil
 }
 
-// UpdateMemberRole changes a member's role within an organization.
+// UpdateMemberRole changes a member's role within a workspace.
 // The owner's role cannot be changed.
-func (s *Service) UpdateMemberRole(orgID, userID, newRoleID uint) (*persistent.OrgMember, error) {
+func (s *Service) UpdateMemberRole(workspaceID, userID, newRoleID uint) (*persistent.WorkspaceMember, error) {
 	// Check if user is the owner
-	var org persistent.Organization
-	if err := s.db.First(&org, orgID).Error; err != nil {
+	var org persistent.Workspace
+	if err := s.db.First(&org, workspaceID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrOrgNotFound
+			return nil, ErrWorkspaceNotFound
 		}
-		return nil, fmt.Errorf("getting organization: %w", err)
+		return nil, fmt.Errorf("getting workspace: %w", err)
 	}
 	if org.OwnerID == userID {
 		return nil, ErrCannotChangeOwner
@@ -462,7 +462,7 @@ func (s *Service) UpdateMemberRole(orgID, userID, newRoleID uint) (*persistent.O
 
 	// Verify the new role exists and belongs to this org
 	var role persistent.Role
-	if err := s.db.Where("id = ? AND org_id = ?", newRoleID, orgID).First(&role).Error; err != nil {
+	if err := s.db.Where("id = ? AND workspace_id = ?", newRoleID, workspaceID).First(&role).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrRoleNotFound
 		}
@@ -474,8 +474,8 @@ func (s *Service) UpdateMemberRole(orgID, userID, newRoleID uint) (*persistent.O
 		return nil, ErrCannotChangeOwner
 	}
 
-	var member persistent.OrgMember
-	if err := s.db.Where("org_id = ? AND user_id = ?", orgID, userID).First(&member).Error; err != nil {
+	var member persistent.WorkspaceMember
+	if err := s.db.Where("workspace_id = ? AND user_id = ?", workspaceID, userID).First(&member).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrMemberNotFound
 		}
@@ -490,20 +490,20 @@ func (s *Service) UpdateMemberRole(orgID, userID, newRoleID uint) (*persistent.O
 	// Reload with role
 	s.db.Preload("Role").First(&member, member.ID)
 
-	slog.Info("member role updated", "org_id", orgID, "user_id", userID, "new_role_id", newRoleID)
+	slog.Info("member role updated", "workspace_id", workspaceID, "user_id", userID, "new_role_id", newRoleID)
 	return &member, nil
 }
 
-// CheckPermission verifies whether a user has a specific permission within an organization.
+// CheckPermission verifies whether a user has a specific permission within a workspace.
 // Returns nil if permitted, ErrPermissionDenied otherwise.
-func (s *Service) CheckPermission(userID, orgID uint, resource, action string) error {
+func (s *Service) CheckPermission(userID, workspaceID uint, resource, action string) error {
 	var count int64
 	err := s.db.Model(&persistent.Permission{}).
 		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
 		Joins("JOIN roles ON roles.id = role_permissions.role_id").
-		Joins("JOIN org_members ON org_members.role_id = roles.id").
-		Where("org_members.user_id = ? AND org_members.org_id = ? AND permissions.resource = ? AND permissions.action = ?",
-			userID, orgID, resource, action).
+		Joins("JOIN workspace_members ON workspace_members.role_id = roles.id").
+		Where("workspace_members.user_id = ? AND workspace_members.workspace_id = ? AND permissions.resource = ? AND permissions.action = ?",
+			userID, workspaceID, resource, action).
 		Count(&count).Error
 	if err != nil {
 		return fmt.Errorf("checking permission: %w", err)
@@ -514,15 +514,15 @@ func (s *Service) CheckPermission(userID, orgID uint, resource, action string) e
 	return nil
 }
 
-// GetOrgRoles returns all roles for an organization.
-func (s *Service) GetOrgRoles(orgID uint) ([]persistent.Role, error) {
+// GetWorkspaceRoles returns all roles for a workspace.
+func (s *Service) GetWorkspaceRoles(workspaceID uint) ([]persistent.Role, error) {
 	var roles []persistent.Role
 	err := s.db.
 		Preload("Permissions").
-		Where("org_id = ?", orgID).
+		Where("workspace_id = ?", workspaceID).
 		Find(&roles).Error
 	if err != nil {
-		return nil, fmt.Errorf("listing org roles: %w", err)
+		return nil, fmt.Errorf("listing workspace roles: %w", err)
 	}
 	return roles, nil
 }
@@ -536,12 +536,12 @@ func (s *Service) GetAllPermissions() ([]persistent.Permission, error) {
 	return perms, nil
 }
 
-// GetUserMembership returns the user's membership record for an organization.
-func (s *Service) GetUserMembership(userID, orgID uint) (*persistent.OrgMember, error) {
-	var member persistent.OrgMember
+// GetUserMembership returns the user's membership record for a workspace.
+func (s *Service) GetUserMembership(userID, workspaceID uint) (*persistent.WorkspaceMember, error) {
+	var member persistent.WorkspaceMember
 	err := s.db.
 		Preload("Role").
-		Where("user_id = ? AND org_id = ?", userID, orgID).
+		Where("user_id = ? AND workspace_id = ?", userID, workspaceID).
 		First(&member).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

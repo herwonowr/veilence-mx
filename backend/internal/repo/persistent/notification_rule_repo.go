@@ -19,9 +19,9 @@ func NewNotificationRuleRepo(db *gorm.DB) *NotificationRuleRepo {
 	return &NotificationRuleRepo{db: db}
 }
 
-func (r *NotificationRuleRepo) FindByOrgID(ctx context.Context, orgID uint) ([]entity.NotificationRule, error) {
+func (r *NotificationRuleRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.NotificationRule, error) {
 	var ms []NotificationRule
-	if err := r.db.WithContext(ctx).Where("org_id = ?", orgID).Find(&ms).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("workspace_id = ?", workspaceID).Find(&ms).Error; err != nil {
 		return nil, fmt.Errorf("listing notification rules: %w", err)
 	}
 	result := make([]entity.NotificationRule, len(ms))
@@ -31,9 +31,9 @@ func (r *NotificationRuleRepo) FindByOrgID(ctx context.Context, orgID uint) ([]e
 	return result, nil
 }
 
-func (r *NotificationRuleRepo) FindActiveByOrgID(ctx context.Context, orgID uint) ([]entity.NotificationRule, error) {
+func (r *NotificationRuleRepo) FindActiveByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.NotificationRule, error) {
 	var ms []NotificationRule
-	if err := r.db.WithContext(ctx).Where("org_id = ? AND is_active = ?", orgID, true).Find(&ms).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("workspace_id = ? AND is_active = ?", workspaceID, true).Find(&ms).Error; err != nil {
 		return nil, fmt.Errorf("listing active notification rules: %w", err)
 	}
 	result := make([]entity.NotificationRule, len(ms))
@@ -54,8 +54,8 @@ func (r *NotificationRuleRepo) Create(ctx context.Context, rule *entity.Notifica
 	return nil
 }
 
-func (r *NotificationRuleRepo) DeleteByIDAndOrg(ctx context.Context, id, orgID uint) (int64, error) {
-	result := r.db.WithContext(ctx).Where("id = ? AND org_id = ?", id, orgID).Delete(&NotificationRule{})
+func (r *NotificationRuleRepo) DeleteByIDAndWorkspace(ctx context.Context, id, workspaceID uint) (int64, error) {
+	result := r.db.WithContext(ctx).Where("id = ? AND workspace_id = ?", id, workspaceID).Delete(&NotificationRule{})
 	if result.Error != nil {
 		return 0, fmt.Errorf("deleting notification rule: %w", result.Error)
 	}
@@ -67,7 +67,7 @@ func (r *NotificationRuleRepo) DeleteByIDAndOrg(ctx context.Context, id, orgID u
 func notifRuleToDomain(m *NotificationRule) *entity.NotificationRule {
 	return &entity.NotificationRule{
 		ID:        m.ID,
-		OrgID:     m.OrgID,
+		WorkspaceID:     m.WorkspaceID,
 		ChannelID: m.ChannelID,
 		Severity:  m.Severity,
 		IsActive:  m.IsActive,
@@ -79,7 +79,7 @@ func notifRuleToDomain(m *NotificationRule) *entity.NotificationRule {
 func notifRuleToModel(d *entity.NotificationRule) *NotificationRule {
 	return &NotificationRule{
 		ID:        d.ID,
-		OrgID:     d.OrgID,
+		WorkspaceID:     d.WorkspaceID,
 		ChannelID: d.ChannelID,
 		Severity:  d.Severity,
 		IsActive:  d.IsActive,

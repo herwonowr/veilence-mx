@@ -41,23 +41,23 @@ type APIKeyRepository interface {
 // PackageRepository defines persistence operations for Package entities.
 type PackageRepository interface {
 	FindByID(ctx context.Context, id uint) (*entity.Package, error)
-	FindByOrgID(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
-	FindActiveByOrgID(ctx context.Context, orgID uint) ([]entity.Package, error)
-	FindByOrgAndName(ctx context.Context, orgID uint, name string, ecosystem entity.Ecosystem) (*entity.Package, error)
+	FindByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
+	FindActiveByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.Package, error)
+	FindByWorkspaceAndName(ctx context.Context, workspaceID uint, name string, ecosystem entity.Ecosystem) (*entity.Package, error)
 	Create(ctx context.Context, pkg *entity.Package) error
 	Update(ctx context.Context, pkg *entity.Package) error
-	BlockPackage(ctx context.Context, orgID, pkgID uint, reason string) error
-	UnblockPackage(ctx context.Context, orgID, pkgID uint) error
-	RemovePackage(ctx context.Context, orgID, pkgID uint) error
-	CountByOrg(ctx context.Context, orgID uint, ecosystem *entity.Ecosystem) (int64, error)
-	ExistsByOrgAndName(ctx context.Context, orgID uint, name string, ecosystem entity.Ecosystem) (bool, error)
-	FindSuggestionsByOrgID(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
-	ApprovePackage(ctx context.Context, orgID, pkgID uint) error
-	RejectPackage(ctx context.Context, orgID, pkgID uint) error
-	BulkApprovePackages(ctx context.Context, orgID uint, pkgIDs []uint) (int, error)
-	UpdateDownloadCounts(ctx context.Context, orgID uint, updates []entity.PackageDownloadUpdate) error
-	FindStaleByOrgID(ctx context.Context, orgID uint, staleBefore time.Time) ([]entity.Package, error)
-	RemoveStaleByOrgID(ctx context.Context, orgID uint, staleBefore time.Time) (int, error)
+	BlockPackage(ctx context.Context, workspaceID, pkgID uint, reason string) error
+	UnblockPackage(ctx context.Context, workspaceID, pkgID uint) error
+	RemovePackage(ctx context.Context, workspaceID, pkgID uint) error
+	CountByWorkspace(ctx context.Context, workspaceID uint, ecosystem *entity.Ecosystem) (int64, error)
+	ExistsByWorkspaceAndName(ctx context.Context, workspaceID uint, name string, ecosystem entity.Ecosystem) (bool, error)
+	FindSuggestionsByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
+	ApprovePackage(ctx context.Context, workspaceID, pkgID uint) error
+	RejectPackage(ctx context.Context, workspaceID, pkgID uint) error
+	BulkApprovePackages(ctx context.Context, workspaceID uint, pkgIDs []uint) (int, error)
+	UpdateDownloadCounts(ctx context.Context, workspaceID uint, updates []entity.PackageDownloadUpdate) error
+	FindStaleByWorkspaceID(ctx context.Context, workspaceID uint, staleBefore time.Time) ([]entity.Package, error)
+	RemoveStaleByWorkspaceID(ctx context.Context, workspaceID uint, staleBefore time.Time) (int, error)
 }
 
 // ReleaseRepository defines persistence operations for Release entities.
@@ -65,8 +65,8 @@ type ReleaseRepository interface {
 	FindByID(ctx context.Context, id uint) (*entity.Release, error)
 	FindByIDWithPackage(ctx context.Context, id uint) (*entity.Release, *entity.Package, error)
 	FindByPackageID(ctx context.Context, packageID uint, page, limit int) ([]entity.Release, int64, error)
-	FindByOrgID(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.Release, int64, error)
-	FindByOrgIDWithDetails(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error)
+	FindByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.Release, int64, error)
+	FindByWorkspaceIDWithDetails(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error)
 	FindByPackageIDAll(ctx context.Context, packageID uint) ([]entity.Release, error)
 	UpdateStatus(ctx context.Context, id uint, status entity.ReleaseStatus) error
 	Create(ctx context.Context, release *entity.Release) error
@@ -94,13 +94,13 @@ type AnalysisRepository interface {
 // AlertRepository defines persistence operations for Alert entities.
 type AlertRepository interface {
 	FindByID(ctx context.Context, id uint) (*entity.Alert, error)
-	FindByIDWithPackage(ctx context.Context, id, orgID uint) (*entity.Alert, *entity.Package, error)
-	FindByOrgID(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.Alert, int64, error)
-	FindByOrgIDWithPackage(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error)
+	FindByIDWithPackage(ctx context.Context, id, workspaceID uint) (*entity.Alert, *entity.Package, error)
+	FindByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.Alert, int64, error)
+	FindByWorkspaceIDWithPackage(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error)
 	Create(ctx context.Context, alert *entity.Alert) error
 	Update(ctx context.Context, alert *entity.Alert) error
 	UpdateStatus(ctx context.Context, id uint, status entity.AlertStatus) error
-	CountByOrgAndStatus(ctx context.Context, orgID uint) (map[entity.AlertStatus]int64, error)
+	CountByWorkspaceAndStatus(ctx context.Context, workspaceID uint) (map[entity.AlertStatus]int64, error)
 }
 
 // AlertNoteRepository defines persistence operations for AlertNote entities.
@@ -114,39 +114,39 @@ type AlertNoteRepository interface {
 
 // SettingRepository defines persistence operations for Setting entities.
 type SettingRepository interface {
-	FindByOrgID(ctx context.Context, orgID uint) ([]entity.Setting, error)
-	FindByKey(ctx context.Context, orgID uint, key string) (*entity.Setting, error)
+	FindByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.Setting, error)
+	FindByKey(ctx context.Context, workspaceID uint, key string) (*entity.Setting, error)
 	Upsert(ctx context.Context, setting *entity.Setting) error
-	UpsertByOrgAndKey(ctx context.Context, orgID uint, key, value string) error
+	UpsertByWorkspaceAndKey(ctx context.Context, workspaceID uint, key, value string) error
 	FindOrCreateByKey(ctx context.Context, key, defaultValue string) (*entity.Setting, error)
 }
 
-// OrganizationRepository defines persistence operations for Organization entities.
-type OrganizationRepository interface {
-	FindByID(ctx context.Context, id uint) (*entity.Organization, error)
-	FindBySlug(ctx context.Context, slug string) (*entity.Organization, error)
+// WorkspaceRepository defines persistence operations for Workspace entities.
+type WorkspaceRepository interface {
+	FindByID(ctx context.Context, id uint) (*entity.Workspace, error)
+	FindBySlug(ctx context.Context, slug string) (*entity.Workspace, error)
 	CountBySlug(ctx context.Context, slug string, excludeID *uint) (int64, error)
-	Create(ctx context.Context, org *entity.Organization) error
-	Update(ctx context.Context, org *entity.Organization) error
+	Create(ctx context.Context, org *entity.Workspace) error
+	Update(ctx context.Context, org *entity.Workspace) error
 	SoftDelete(ctx context.Context, id uint) error
-	FindByUserID(ctx context.Context, userID uint) ([]entity.Organization, error)
+	FindByUserID(ctx context.Context, userID uint) ([]entity.Workspace, error)
 }
 
-// OrgMemberRepository defines persistence operations for OrgMember entities.
-type OrgMemberRepository interface {
-	FindByOrgID(ctx context.Context, orgID uint) ([]entity.OrgMember, error)
-	FindByUserAndOrg(ctx context.Context, userID, orgID uint) (*entity.OrgMember, error)
-	CountByUserAndOrg(ctx context.Context, userID, orgID uint) (int64, error)
-	Create(ctx context.Context, member *entity.OrgMember) error
-	Update(ctx context.Context, member *entity.OrgMember) error
-	DeleteByUserAndOrg(ctx context.Context, userID, orgID uint) error
+// WorkspaceMemberRepository defines persistence operations for WorkspaceMember entities.
+type WorkspaceMemberRepository interface {
+	FindByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.WorkspaceMember, error)
+	FindByUserAndWorkspace(ctx context.Context, userID, workspaceID uint) (*entity.WorkspaceMember, error)
+	CountByUserAndWorkspace(ctx context.Context, userID, workspaceID uint) (int64, error)
+	Create(ctx context.Context, member *entity.WorkspaceMember) error
+	Update(ctx context.Context, member *entity.WorkspaceMember) error
+	DeleteByUserAndWorkspace(ctx context.Context, userID, workspaceID uint) error
 }
 
 // RoleRepository defines persistence operations for Role entities.
 type RoleRepository interface {
 	FindByID(ctx context.Context, id uint) (*entity.Role, error)
-	FindByIDAndOrg(ctx context.Context, id, orgID uint) (*entity.Role, error)
-	FindByOrgID(ctx context.Context, orgID uint) ([]entity.Role, error)
+	FindByIDAndWorkspace(ctx context.Context, id, workspaceID uint) (*entity.Role, error)
+	FindByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.Role, error)
 	Create(ctx context.Context, role *entity.Role) error
 }
 
@@ -154,7 +154,7 @@ type RoleRepository interface {
 type PermissionRepository interface {
 	FindAll(ctx context.Context) ([]entity.Permission, error)
 	FindOrCreate(ctx context.Context, perm *entity.Permission) error
-	CheckUserPermission(ctx context.Context, userID, orgID uint, resource, action string) (bool, error)
+	CheckUserPermission(ctx context.Context, userID, workspaceID uint, resource, action string) (bool, error)
 }
 
 // InvitationRepository defines persistence operations for Invitation entities.
@@ -167,38 +167,38 @@ type InvitationRepository interface {
 // AuditLogRepository defines persistence operations for AuditLog entities.
 type AuditLogRepository interface {
 	Create(ctx context.Context, entry *entity.AuditLog) error
-	FindByOrgID(ctx context.Context, orgID uint, filters entity.AuditLogFilters, page, limit int) ([]entity.AuditLog, int64, error)
+	FindByWorkspaceID(ctx context.Context, workspaceID uint, filters entity.AuditLogFilters, page, limit int) ([]entity.AuditLog, int64, error)
 	FindByID(ctx context.Context, id uint) (*entity.AuditLog, error)
 }
 
 // NotificationChannelRepository defines persistence operations for NotificationChannel entities.
 type NotificationChannelRepository interface {
 	FindByID(ctx context.Context, id uint) (*entity.NotificationChannel, error)
-	FindByIDAndOrg(ctx context.Context, id, orgID uint) (*entity.NotificationChannel, error)
-	FindByOrgID(ctx context.Context, orgID uint) ([]entity.NotificationChannel, error)
+	FindByIDAndWorkspace(ctx context.Context, id, workspaceID uint) (*entity.NotificationChannel, error)
+	FindByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.NotificationChannel, error)
 	Create(ctx context.Context, channel *entity.NotificationChannel) error
 	Update(ctx context.Context, channel *entity.NotificationChannel) error
-	DeleteByIDAndOrg(ctx context.Context, id, orgID uint) (int64, error)
+	DeleteByIDAndWorkspace(ctx context.Context, id, workspaceID uint) (int64, error)
 }
 
 // NotificationRuleRepository defines persistence operations for NotificationRule entities.
 type NotificationRuleRepository interface {
-	FindByOrgID(ctx context.Context, orgID uint) ([]entity.NotificationRule, error)
-	FindActiveByOrgID(ctx context.Context, orgID uint) ([]entity.NotificationRule, error)
+	FindByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.NotificationRule, error)
+	FindActiveByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.NotificationRule, error)
 	Create(ctx context.Context, rule *entity.NotificationRule) error
-	DeleteByIDAndOrg(ctx context.Context, id, orgID uint) (int64, error)
+	DeleteByIDAndWorkspace(ctx context.Context, id, workspaceID uint) (int64, error)
 }
 
 // NotificationRepository defines persistence operations for Notification entities.
 type NotificationRepository interface {
 	Create(ctx context.Context, notification *entity.Notification) error
-	FindByUserAndOrg(ctx context.Context, orgID, userID uint, onlyUnread bool) ([]entity.Notification, error)
+	FindByUserAndWorkspace(ctx context.Context, workspaceID, userID uint, onlyUnread bool) ([]entity.Notification, error)
 	MarkRead(ctx context.Context, id, userID uint) (int64, error)
-	MarkAllRead(ctx context.Context, orgID, userID uint) (int64, error)
-	CountUnread(ctx context.Context, orgID, userID uint) (int64, error)
-	DeleteByID(ctx context.Context, id, orgID, userID uint) (int64, error)
-	DeleteAll(ctx context.Context, orgID, userID uint) (int64, error)
-	DeleteBatch(ctx context.Context, ids []uint, orgID, userID uint) (int64, error)
+	MarkAllRead(ctx context.Context, workspaceID, userID uint) (int64, error)
+	CountUnread(ctx context.Context, workspaceID, userID uint) (int64, error)
+	DeleteByID(ctx context.Context, id, workspaceID, userID uint) (int64, error)
+	DeleteAll(ctx context.Context, workspaceID, userID uint) (int64, error)
+	DeleteBatch(ctx context.Context, ids []uint, workspaceID, userID uint) (int64, error)
 }
 
 // PasswordResetTokenRepository defines persistence operations for PasswordResetToken entities.
@@ -232,72 +232,72 @@ type SessionRepository interface {
 }
 
 // DashboardRepository defines read-only aggregation queries for the dashboard.
-// All queries are scoped to an organization via orgID.
+// All queries are scoped to a workspace via workspaceID.
 type DashboardRepository interface {
-	GetStats(ctx context.Context, orgID uint) (*entity.DashboardStats, error)
-	GetReleaseActivity(ctx context.Context, orgID uint, from, to time.Time) ([]entity.ReleaseActivityPoint, error)
-	GetClassificationDistribution(ctx context.Context, orgID uint, from, to time.Time) ([]entity.ClassificationCount, error)
-	GetBaselineCount(ctx context.Context, orgID uint, from, to time.Time) (int64, error)
-	GetEcosystemDistribution(ctx context.Context, orgID uint) ([]entity.EcosystemCount, error)
-	GetAlertsBySeverity(ctx context.Context, orgID uint, from, to time.Time) ([]entity.AlertSeverityCount, error)
-	GetReleaseStatusDistribution(ctx context.Context, orgID uint, from, to time.Time) ([]entity.ReleaseStatusCount, error)
-	GetUnanalyzedDiffIDs(ctx context.Context, orgID uint) ([]uint, error)
+	GetStats(ctx context.Context, workspaceID uint) (*entity.DashboardStats, error)
+	GetReleaseActivity(ctx context.Context, workspaceID uint, from, to time.Time) ([]entity.ReleaseActivityPoint, error)
+	GetClassificationDistribution(ctx context.Context, workspaceID uint, from, to time.Time) ([]entity.ClassificationCount, error)
+	GetBaselineCount(ctx context.Context, workspaceID uint, from, to time.Time) (int64, error)
+	GetEcosystemDistribution(ctx context.Context, workspaceID uint) ([]entity.EcosystemCount, error)
+	GetAlertsBySeverity(ctx context.Context, workspaceID uint, from, to time.Time) ([]entity.AlertSeverityCount, error)
+	GetReleaseStatusDistribution(ctx context.Context, workspaceID uint, from, to time.Time) ([]entity.ReleaseStatusCount, error)
+	GetUnanalyzedDiffIDs(ctx context.Context, workspaceID uint) ([]uint, error)
 }
 
 // --- Service Interfaces ---
 
 // PackageService defines the business logic operations for package lifecycle management.
 type PackageService interface {
-	ListPackages(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
-	GetPackage(ctx context.Context, orgID, pkgID uint) (*entity.Package, error)
-	CreatePackage(ctx context.Context, orgID uint, name string, ecosystem entity.Ecosystem) (*entity.Package, error)
-	ImportPackages(ctx context.Context, orgID uint, entries []entity.ImportEntry) (*entity.ImportResult, error)
-	BlockPackage(ctx context.Context, orgID, pkgID uint, reason string) (*entity.Package, error)
-	UnblockPackage(ctx context.Context, orgID, pkgID uint) (*entity.Package, error)
-	RemovePackage(ctx context.Context, orgID, pkgID uint) error
-	ApprovePackage(ctx context.Context, orgID, pkgID uint) (*entity.Package, error)
-	RejectPackage(ctx context.Context, orgID, pkgID uint) error
-	BulkApprovePackages(ctx context.Context, orgID uint, pkgIDs []uint) (int, error)
-	ListSuggestions(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
-	ListStalePackages(ctx context.Context, orgID uint, staleBefore time.Time) ([]entity.Package, error)
-	RemoveStalePackages(ctx context.Context, orgID uint, months int) (int, error)
+	ListPackages(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
+	GetPackage(ctx context.Context, workspaceID, pkgID uint) (*entity.Package, error)
+	CreatePackage(ctx context.Context, workspaceID uint, name string, ecosystem entity.Ecosystem) (*entity.Package, error)
+	ImportPackages(ctx context.Context, workspaceID uint, entries []entity.ImportEntry) (*entity.ImportResult, error)
+	BlockPackage(ctx context.Context, workspaceID, pkgID uint, reason string) (*entity.Package, error)
+	UnblockPackage(ctx context.Context, workspaceID, pkgID uint) (*entity.Package, error)
+	RemovePackage(ctx context.Context, workspaceID, pkgID uint) error
+	ApprovePackage(ctx context.Context, workspaceID, pkgID uint) (*entity.Package, error)
+	RejectPackage(ctx context.Context, workspaceID, pkgID uint) error
+	BulkApprovePackages(ctx context.Context, workspaceID uint, pkgIDs []uint) (int, error)
+	ListSuggestions(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
+	ListStalePackages(ctx context.Context, workspaceID uint, staleBefore time.Time) ([]entity.Package, error)
+	RemoveStalePackages(ctx context.Context, workspaceID uint, months int) (int, error)
 }
 
 // AlertService defines the business logic operations for alerts.
 type AlertService interface {
-	ListAlerts(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error)
-	GetAlert(ctx context.Context, orgID, alertID uint) (*entity.Alert, *entity.Package, error)
-	UpdateAlertStatus(ctx context.Context, orgID, alertID uint, status entity.AlertStatus) (*entity.Alert, error)
+	ListAlerts(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error)
+	GetAlert(ctx context.Context, workspaceID, alertID uint) (*entity.Alert, *entity.Package, error)
+	UpdateAlertStatus(ctx context.Context, workspaceID, alertID uint, status entity.AlertStatus) (*entity.Alert, error)
 }
 
 // AlertNoteService defines the business logic operations for alert notes.
 type AlertNoteService interface {
-	ListByAlert(ctx context.Context, orgID, alertID uint) ([]entity.AlertNote, error)
-	Create(ctx context.Context, orgID, alertID, userID uint, content string) (*entity.AlertNote, error)
-	Update(ctx context.Context, orgID, alertID, noteID, userID uint, content string) (*entity.AlertNote, error)
-	Delete(ctx context.Context, orgID, alertID, noteID, userID uint) error
+	ListByAlert(ctx context.Context, workspaceID, alertID uint) ([]entity.AlertNote, error)
+	Create(ctx context.Context, workspaceID, alertID, userID uint, content string) (*entity.AlertNote, error)
+	Update(ctx context.Context, workspaceID, alertID, noteID, userID uint, content string) (*entity.AlertNote, error)
+	Delete(ctx context.Context, workspaceID, alertID, noteID, userID uint) error
 }
 
 // ReleaseService defines the business logic operations for releases.
 type ReleaseService interface {
-	ListByPackage(ctx context.Context, orgID, packageID uint, page, limit int) ([]entity.Release, int64, error)
-	GetRelease(ctx context.Context, orgID, releaseID uint) (*entity.ReleaseDetail, error)
-	ReanalyzeRelease(ctx context.Context, orgID, releaseID uint) (string, string, error)
-	GetAnalysisHistory(ctx context.Context, orgID, packageID uint) ([]entity.AnalysisHistoryEntry, error)
+	ListByPackage(ctx context.Context, workspaceID, packageID uint, page, limit int) ([]entity.Release, int64, error)
+	GetRelease(ctx context.Context, workspaceID, releaseID uint) (*entity.ReleaseDetail, error)
+	ReanalyzeRelease(ctx context.Context, workspaceID, releaseID uint) (string, string, error)
+	GetAnalysisHistory(ctx context.Context, workspaceID, packageID uint) ([]entity.AnalysisHistoryEntry, error)
 }
 
 // SettingService defines the business logic operations for settings.
 type SettingService interface {
-	GetSettings(ctx context.Context, orgID uint) (map[string]string, error)
-	UpdateSettings(ctx context.Context, orgID uint, settings map[string]string) (map[string]string, error)
+	GetSettings(ctx context.Context, workspaceID uint) (map[string]string, error)
+	UpdateSettings(ctx context.Context, workspaceID uint, settings map[string]string) (map[string]string, error)
 }
 
 // DashboardService defines the business logic operations for the dashboard.
 type DashboardService interface {
-	GetStats(ctx context.Context, orgID uint) (*entity.DashboardStats, error)
-	GetRecentReleases(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error)
-	GetChartData(ctx context.Context, orgID uint, from, to time.Time) (*entity.ChartData, error)
-	ReanalyzeAll(ctx context.Context, orgID uint) (int, error)
+	GetStats(ctx context.Context, workspaceID uint) (*entity.DashboardStats, error)
+	GetRecentReleases(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error)
+	GetChartData(ctx context.Context, workspaceID uint, from, to time.Time) (*entity.ChartData, error)
+	ReanalyzeAll(ctx context.Context, workspaceID uint) (int, error)
 }
 
 // HealthService defines the business logic operations for health checks.
@@ -337,13 +337,13 @@ type AuthEmailSender interface {
 // setting value. Used by the auth service to check settings (e.g. email
 // verification toggle) without depending on the full SettingRepository.
 type SettingGetter interface {
-	GetSettingValue(ctx context.Context, orgID uint, key string) (string, error)
+	GetSettingValue(ctx context.Context, workspaceID uint, key string) (string, error)
 }
 
 // NotificationDispatcher defines the interface for dispatching system notifications.
 // Implementations route notifications to in-app storage and external channels
-// based on the organization's configured notification rules.
+// based on the workspace's configured notification rules.
 type NotificationDispatcher interface {
-	Dispatch(ctx context.Context, orgID uint, severity, title, message string)
-	DispatchEvent(ctx context.Context, orgID uint, evt entity.NotificationEvent)
+	Dispatch(ctx context.Context, workspaceID uint, severity, title, message string)
+	DispatchEvent(ctx context.Context, workspaceID uint, evt entity.NotificationEvent)
 }

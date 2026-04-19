@@ -41,7 +41,7 @@ const (
 // Package represents a monitored package from Python (PyPI) or npm.
 type Package struct {
 	ID                     uint
-	OrgID                  uint
+	WorkspaceID            uint
 	Name                   string
 	Ecosystem              Ecosystem
 	LatestVersion          string

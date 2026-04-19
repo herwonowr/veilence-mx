@@ -6,7 +6,7 @@ import { AuthProvider } from "@/core/providers/auth-provider";
 import { QueryProvider } from "@/core/providers/query-provider";
 import { AppShell } from "@/features/shell";
 import { NotificationBell } from "@/features/notifications";
-import { OrgSelector } from "@/features/admin";
+import { WorkspaceSelector } from "@/features/admin";
 import { Toaster } from "@/ui/feedback/toaster";
 import "./globals.css";
 
@@ -52,7 +52,7 @@ const RootLayout = async ({
             <AuthProvider>
               <AppShell
                 notificationSlot={<NotificationBell />}
-                orgSelectorSlot={<OrgSelector />}
+                workspaceSelectorSlot={<WorkspaceSelector />}
                 sidebarDefaultOpen={sidebarDefaultOpen}
               >
                 {children}

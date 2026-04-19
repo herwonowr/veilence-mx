@@ -34,14 +34,14 @@ const setupMockAuth = () => {
     user: null,
     isAuthenticated: false,
     isLoading: false,
-    currentOrg: null,
-    organizations: [],
+    currentWorkspace: null,
+    workspaces: [],
     login: vi.fn(),
     register: mockRegister,
     logout: vi.fn(),
-    setCurrentOrg: vi.fn(),
+    setCurrentWorkspace: vi.fn(),
     refreshUser: vi.fn(),
-    refreshOrgs: vi.fn(),
+    refreshWorkspaces: vi.fn(),
   })
 }
 
@@ -117,7 +117,7 @@ describe("RegisterForm", () => {
     })
   })
 
-  it("submits successfully and redirects to organizations page", async () => {
+  it("submits successfully and redirects to workspaces page", async () => {
     mockRegister.mockResolvedValue(undefined)
     const user = userEvent.setup()
 
@@ -140,7 +140,7 @@ describe("RegisterForm", () => {
     })
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith("/organizations?create=true")
+      expect(mockPush).toHaveBeenCalledWith("/workspaces?create=true")
     })
   })
 

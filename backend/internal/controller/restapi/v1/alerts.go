@@ -17,7 +17,7 @@ import (
 // ListAlerts returns a paginated list of alerts scoped to the current org.
 // Supports optional query params: severity, status, search.
 func (h *AlertHandlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	page, limit := parsePagination(r)
 	sortOrder := parseSort(r, map[string]string{
@@ -51,7 +51,7 @@ func (h *AlertHandlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
 		filters.Search = &search
 	}
 
-	alerts, total, err := h.AlertSvc.ListAlerts(r.Context(), orgID, page, limit, sortOrder, filters)
+	alerts, total, err := h.AlertSvc.ListAlerts(r.Context(), workspaceID, page, limit, sortOrder, filters)
 	if err != nil {
 		respondAppError(w, Internal("failed to list alerts"))
 		return
@@ -63,7 +63,7 @@ func (h *AlertHandlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
 // GetAlert returns a single alert by ID, scoped to the current org.
 // Returns the alert with associated package info (packageName, packageEcosystem).
 func (h *AlertHandlers) GetAlert(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -71,7 +71,7 @@ func (h *AlertHandlers) GetAlert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	alert, pkg, err := h.AlertSvc.GetAlert(r.Context(), orgID, uint(id))
+	alert, pkg, err := h.AlertSvc.GetAlert(r.Context(), workspaceID, uint(id))
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("alert"))
@@ -91,7 +91,7 @@ type updateAlertRequest struct {
 
 // UpdateAlert updates the status of an alert scoped to the current org.
 func (h *AlertHandlers) UpdateAlert(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -115,7 +115,7 @@ func (h *AlertHandlers) UpdateAlert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	alert, err := h.AlertSvc.UpdateAlertStatus(r.Context(), orgID, uint(id), entity.AlertStatus(req.Status))
+	alert, err := h.AlertSvc.UpdateAlertStatus(r.Context(), workspaceID, uint(id), entity.AlertStatus(req.Status))
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("alert"))
@@ -130,7 +130,7 @@ func (h *AlertHandlers) UpdateAlert(w http.ResponseWriter, r *http.Request) {
 
 // ListAlertNotes returns all notes for a specific alert.
 func (h *AlertHandlers) ListAlertNotes(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	alertID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -138,7 +138,7 @@ func (h *AlertHandlers) ListAlertNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	notes, err := h.Notes.ListByAlert(r.Context(), orgID, uint(alertID))
+	notes, err := h.Notes.ListByAlert(r.Context(), workspaceID, uint(alertID))
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("alert"))
@@ -158,7 +158,7 @@ type createAlertNoteRequest struct {
 
 // CreateAlertNote adds a note/comment to an alert.
 func (h *AlertHandlers) CreateAlertNote(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	userID := rbac.UserIDFromContext(r.Context())
 
 	alertID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
@@ -183,7 +183,7 @@ func (h *AlertHandlers) CreateAlertNote(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	note, err := h.Notes.Create(r.Context(), orgID, uint(alertID), userID, req.Content)
+	note, err := h.Notes.Create(r.Context(), workspaceID, uint(alertID), userID, req.Content)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("alert"))
@@ -206,7 +206,7 @@ type updateAlertNoteRequest struct {
 
 // UpdateAlertNote edits an existing note. Only the note's author may edit.
 func (h *AlertHandlers) UpdateAlertNote(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	userID := rbac.UserIDFromContext(r.Context())
 
 	alertID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
@@ -237,7 +237,7 @@ func (h *AlertHandlers) UpdateAlertNote(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	note, err := h.Notes.Update(r.Context(), orgID, uint(alertID), uint(noteID), userID, req.Content)
+	note, err := h.Notes.Update(r.Context(), workspaceID, uint(alertID), uint(noteID), userID, req.Content)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("alert note"))
@@ -259,7 +259,7 @@ func (h *AlertHandlers) UpdateAlertNote(w http.ResponseWriter, r *http.Request) 
 
 // DeleteAlertNote removes an existing note. Only the note's author may delete.
 func (h *AlertHandlers) DeleteAlertNote(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	userID := rbac.UserIDFromContext(r.Context())
 
 	alertID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
@@ -274,7 +274,7 @@ func (h *AlertHandlers) DeleteAlertNote(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := h.Notes.Delete(r.Context(), orgID, uint(alertID), uint(noteID), userID); err != nil {
+	if err := h.Notes.Delete(r.Context(), workspaceID, uint(alertID), uint(noteID), userID); err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("alert note"))
 			return

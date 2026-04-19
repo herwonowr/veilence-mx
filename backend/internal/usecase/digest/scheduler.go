@@ -32,7 +32,7 @@ type Scheduler struct {
 	nowFunc func() time.Time
 
 	// lastSentAt tracks when each org last received a digest (in-memory).
-	// Key: orgID, Value: time the last digest was sent.
+	// Key: workspaceID, Value: time the last digest was sent.
 	lastSentAt map[uint]time.Time
 }
 
@@ -80,7 +80,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 func (s *Scheduler) tick(ctx context.Context) {
 	// Find all orgs that have digest enabled
 	type orgDigestConfig struct {
-		OrgID      uint
+		WorkspaceID      uint
 		Frequency  string
 		Recipients string
 	}
@@ -97,14 +97,14 @@ func (s *Scheduler) tick(ctx context.Context) {
 	}
 
 	for _, setting := range enabledSettings {
-		orgID := setting.OrgID
+		wsID := setting.WorkspaceID
 
-		// Get frequency and recipients for this org
+		// Get frequency and recipients for this workspace
 		var frequency, recipients string
 		var freqSetting, recipSetting persistent.Setting
 
 		if err := s.db.WithContext(ctx).
-			Where("org_id = ? AND key = ?", orgID, persistent.SettingEmailDigestFrequency).
+			Where("workspace_id = ? AND key = ?", wsID, persistent.SettingEmailDigestFrequency).
 			First(&freqSetting).Error; err != nil {
 			frequency = "daily" // default
 		} else {
@@ -112,7 +112,7 @@ func (s *Scheduler) tick(ctx context.Context) {
 		}
 
 		if err := s.db.WithContext(ctx).
-			Where("org_id = ? AND key = ?", orgID, persistent.SettingEmailDigestRecipients).
+			Where("workspace_id = ? AND key = ?", wsID, persistent.SettingEmailDigestRecipients).
 			First(&recipSetting).Error; err != nil {
 			continue // no recipients configured, skip
 		} else {
@@ -124,7 +124,7 @@ func (s *Scheduler) tick(ctx context.Context) {
 		}
 
 		enabledOrgs = append(enabledOrgs, orgDigestConfig{
-			OrgID:      orgID,
+			WorkspaceID:      wsID,
 			Frequency:  frequency,
 			Recipients: recipients,
 		})
@@ -133,14 +133,14 @@ func (s *Scheduler) tick(ctx context.Context) {
 	now := s.nowFunc()
 
 	for _, org := range enabledOrgs {
-		if !s.isDue(org.OrgID, org.Frequency, now) {
+		if !s.isDue(org.WorkspaceID, org.Frequency, now) {
 			continue
 		}
 
-		digest, err := s.GenerateDigest(ctx, org.OrgID, org.Frequency, now)
+		digest, err := s.GenerateDigest(ctx, org.WorkspaceID, org.Frequency, now)
 		if err != nil {
 			slog.Error("digest: failed to generate",
-				"org_id", org.OrgID,
+				"workspace_id", org.WorkspaceID,
 				"error", err,
 			)
 			continue
@@ -148,16 +148,16 @@ func (s *Scheduler) tick(ctx context.Context) {
 
 		if err := s.sendDigestEmail(org.Recipients, org.Frequency, digest); err != nil {
 			slog.Error("digest: failed to send email",
-				"org_id", org.OrgID,
+				"workspace_id", org.WorkspaceID,
 				"recipients", org.Recipients,
 				"error", err,
 			)
 			continue
 		}
 
-		s.lastSentAt[org.OrgID] = now
+		s.lastSentAt[org.WorkspaceID] = now
 		slog.Info("digest: sent successfully",
-			"org_id", org.OrgID,
+			"workspace_id", org.WorkspaceID,
 			"frequency", org.Frequency,
 			"recipients", org.Recipients,
 		)
@@ -165,8 +165,8 @@ func (s *Scheduler) tick(ctx context.Context) {
 }
 
 // isDue returns true if the org's digest is due to be sent based on frequency.
-func (s *Scheduler) isDue(orgID uint, frequency string, now time.Time) bool {
-	lastSent, ok := s.lastSentAt[orgID]
+func (s *Scheduler) isDue(workspaceID uint, frequency string, now time.Time) bool {
+	lastSent, ok := s.lastSentAt[workspaceID]
 	if !ok {
 		// Never sent — send now
 		return true
@@ -204,7 +204,7 @@ type TopAlert struct {
 }
 
 // GenerateDigest generates the digest content for an org over the given period.
-func (s *Scheduler) GenerateDigest(ctx context.Context, orgID uint, frequency string, now time.Time) (*DigestContent, error) {
+func (s *Scheduler) GenerateDigest(ctx context.Context, workspaceID uint, frequency string, now time.Time) (*DigestContent, error) {
 	var since time.Time
 	var period string
 	switch frequency {
@@ -224,7 +224,7 @@ func (s *Scheduler) GenerateDigest(ctx context.Context, orgID uint, frequency st
 	// Count new alerts in the period
 	if err := s.db.WithContext(ctx).
 		Model(&persistent.Alert{}).
-		Where("org_id = ? AND created_at >= ?", orgID, since).
+		Where("workspace_id = ? AND created_at >= ?", workspaceID, since).
 		Count(&digest.NewAlertsCount).Error; err != nil {
 		return nil, fmt.Errorf("counting new alerts: %w", err)
 	}
@@ -233,7 +233,7 @@ func (s *Scheduler) GenerateDigest(ctx context.Context, orgID uint, frequency st
 	if err := s.db.WithContext(ctx).
 		Model(&persistent.Release{}).
 		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("packages.org_id = ? AND releases.created_at >= ?", orgID, since).
+		Where("packages.workspace_id = ? AND releases.created_at >= ?", workspaceID, since).
 		Distinct("releases.package_id").
 		Count(&digest.PackagesAnalyzed).Error; err != nil {
 		return nil, fmt.Errorf("counting packages analyzed: %w", err)
@@ -251,7 +251,7 @@ func (s *Scheduler) GenerateDigest(ctx context.Context, orgID uint, frequency st
 		Joins("JOIN diffs ON diffs.id = analyses.diff_id").
 		Joins("JOIN releases ON releases.id = diffs.release_id").
 		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("packages.org_id = ? AND analyses.created_at >= ?", orgID, since).
+		Where("packages.workspace_id = ? AND analyses.created_at >= ?", workspaceID, since).
 		Group("analyses.classification").
 		Scan(&classRows).Error; err != nil {
 		return nil, fmt.Errorf("querying classification breakdown: %w", err)
@@ -273,7 +273,7 @@ func (s *Scheduler) GenerateDigest(ctx context.Context, orgID uint, frequency st
 		Model(&persistent.Alert{}).
 		Select("alerts.id, packages.name as package_name, alerts.severity, alerts.message, alerts.created_at").
 		Joins("JOIN packages ON packages.id = alerts.package_id").
-		Where("alerts.org_id = ? AND alerts.created_at >= ?", orgID, since).
+		Where("alerts.workspace_id = ? AND alerts.created_at >= ?", workspaceID, since).
 		Order("CASE alerts.severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END ASC, alerts.created_at DESC").
 		Limit(5).
 		Scan(&topRows).Error; err != nil {

@@ -9,7 +9,7 @@ import (
 // NotificationChannelResponse is the JSON representation of a notification channel.
 type NotificationChannelResponse struct {
 	ID        uint                          `json:"id"`
-	OrgID     uint                          `json:"orgId"`
+	WorkspaceID     uint                          `json:"workspaceId"`
 	Name      string                        `json:"name"`
 	Type      entity.NotificationChannelType `json:"type"`
 	Config    string                        `json:"config"`
@@ -22,7 +22,7 @@ type NotificationChannelResponse struct {
 func NotificationChannelFromEntity(c *entity.NotificationChannel) NotificationChannelResponse {
 	return NotificationChannelResponse{
 		ID:        c.ID,
-		OrgID:     c.OrgID,
+		WorkspaceID:     c.WorkspaceID,
 		Name:      c.Name,
 		Type:      c.Type,
 		Config:    c.Config,
@@ -44,7 +44,7 @@ func NotificationChannelsFromEntities(channels []entity.NotificationChannel) []N
 // NotificationRuleResponse is the JSON representation of a notification rule.
 type NotificationRuleResponse struct {
 	ID        uint      `json:"id"`
-	OrgID     uint      `json:"orgId"`
+	WorkspaceID     uint      `json:"workspaceId"`
 	ChannelID uint      `json:"channelId"`
 	Severity  string    `json:"severity"`
 	IsActive  bool      `json:"isActive"`
@@ -56,7 +56,7 @@ type NotificationRuleResponse struct {
 func NotificationRuleFromEntity(r *entity.NotificationRule) NotificationRuleResponse {
 	return NotificationRuleResponse{
 		ID:        r.ID,
-		OrgID:     r.OrgID,
+		WorkspaceID:     r.WorkspaceID,
 		ChannelID: r.ChannelID,
 		Severity:  r.Severity,
 		IsActive:  r.IsActive,
@@ -77,7 +77,7 @@ func NotificationRulesFromEntities(rules []entity.NotificationRule) []Notificati
 // NotificationResponse is the JSON representation of an in-app notification.
 type NotificationResponse struct {
 	ID            uint      `json:"id"`
-	OrgID         uint      `json:"orgId"`
+	WorkspaceID         uint      `json:"workspaceId"`
 	UserID        uint      `json:"userId"`
 	ChannelID     uint      `json:"channelId"`
 	Severity      string    `json:"severity"`
@@ -95,7 +95,7 @@ type NotificationResponse struct {
 func NotificationFromEntity(n *entity.Notification) NotificationResponse {
 	return NotificationResponse{
 		ID:            n.ID,
-		OrgID:         n.OrgID,
+		WorkspaceID:         n.WorkspaceID,
 		UserID:        n.UserID,
 		ChannelID:     n.ChannelID,
 		Severity:      n.Severity,

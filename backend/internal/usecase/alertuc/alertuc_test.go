@@ -17,9 +17,9 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockAlertRepo struct {
-	findByOrgIDWithPackageResult []entity.AlertWithPackage
-	findByOrgIDWithPackageTotal  int64
-	findByOrgIDWithPackageErr    error
+	findByWorkspaceIDWithPackageResult []entity.AlertWithPackage
+	findByWorkspaceIDWithPackageTotal  int64
+	findByWorkspaceIDWithPackageErr    error
 
 	findByIDWithPackageAlert *entity.Alert
 	findByIDWithPackagePkg   *entity.Package
@@ -45,15 +45,15 @@ func (m *mockAlertRepo) FindByIDWithPackage(_ context.Context, _, _ uint) (*enti
 	return m.findByIDWithPackageAlert, m.findByIDWithPackagePkg, nil
 }
 
-func (m *mockAlertRepo) FindByOrgID(_ context.Context, _ uint, _, _ int, _ string, _ entity.AlertFilters) ([]entity.Alert, int64, error) {
+func (m *mockAlertRepo) FindByWorkspaceID(_ context.Context, _ uint, _, _ int, _ string, _ entity.AlertFilters) ([]entity.Alert, int64, error) {
 	return nil, 0, nil // unused
 }
 
-func (m *mockAlertRepo) FindByOrgIDWithPackage(_ context.Context, _ uint, _, _ int, _ string, _ entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
-	if m.findByOrgIDWithPackageErr != nil {
-		return nil, 0, m.findByOrgIDWithPackageErr
+func (m *mockAlertRepo) FindByWorkspaceIDWithPackage(_ context.Context, _ uint, _, _ int, _ string, _ entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
+	if m.findByWorkspaceIDWithPackageErr != nil {
+		return nil, 0, m.findByWorkspaceIDWithPackageErr
 	}
-	return m.findByOrgIDWithPackageResult, m.findByOrgIDWithPackageTotal, nil
+	return m.findByWorkspaceIDWithPackageResult, m.findByWorkspaceIDWithPackageTotal, nil
 }
 
 func (m *mockAlertRepo) Create(_ context.Context, _ *entity.Alert) error   { return nil }
@@ -61,7 +61,7 @@ func (m *mockAlertRepo) Update(_ context.Context, _ *entity.Alert) error   { ret
 func (m *mockAlertRepo) UpdateStatus(_ context.Context, _ uint, _ entity.AlertStatus) error {
 	return m.updateStatusErr
 }
-func (m *mockAlertRepo) CountByOrgAndStatus(_ context.Context, _ uint) (map[entity.AlertStatus]int64, error) {
+func (m *mockAlertRepo) CountByWorkspaceAndStatus(_ context.Context, _ uint) (map[entity.AlertStatus]int64, error) {
 	return nil, nil
 }
 
@@ -85,12 +85,12 @@ func (m *mockAuditLogger) LogAction(_ context.Context, action, resource string, 
 
 func TestListAlerts_Success(t *testing.T) {
 	alerts := []entity.AlertWithPackage{
-		{Alert: entity.Alert{ID: 1, OrgID: 10}, PackageName: "requests"},
-		{Alert: entity.Alert{ID: 2, OrgID: 10}, PackageName: "flask"},
+		{Alert: entity.Alert{ID: 1, WorkspaceID: 10}, PackageName: "requests"},
+		{Alert: entity.Alert{ID: 2, WorkspaceID: 10}, PackageName: "flask"},
 	}
 	repo := &mockAlertRepo{
-		findByOrgIDWithPackageResult: alerts,
-		findByOrgIDWithPackageTotal:  2,
+		findByWorkspaceIDWithPackageResult: alerts,
+		findByWorkspaceIDWithPackageTotal:  2,
 	}
 	uc := alertuc.New(repo, &mockAuditLogger{})
 
@@ -103,7 +103,7 @@ func TestListAlerts_Success(t *testing.T) {
 
 func TestListAlerts_RepoError(t *testing.T) {
 	repo := &mockAlertRepo{
-		findByOrgIDWithPackageErr: errors.New("db error"),
+		findByWorkspaceIDWithPackageErr: errors.New("db error"),
 	}
 	uc := alertuc.New(repo, &mockAuditLogger{})
 
@@ -117,7 +117,7 @@ func TestListAlerts_RepoError(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGetAlert_Success(t *testing.T) {
-	alert := &entity.Alert{ID: 1, OrgID: 10}
+	alert := &entity.Alert{ID: 1, WorkspaceID: 10}
 	pkg := &entity.Package{ID: 5, Name: "requests"}
 	repo := &mockAlertRepo{
 		findByIDWithPackageAlert: alert,
@@ -159,7 +159,7 @@ func TestGetAlert_RepoError(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestUpdateAlertStatus_Success(t *testing.T) {
-	alert := &entity.Alert{ID: 1, OrgID: 10, Status: entity.AlertStatusNew}
+	alert := &entity.Alert{ID: 1, WorkspaceID: 10, Status: entity.AlertStatusNew}
 	audit := &mockAuditLogger{}
 	repo := &mockAlertRepo{findByIDResult: alert}
 	uc := alertuc.New(repo, audit)
@@ -181,7 +181,7 @@ func TestUpdateAlertStatus_AlertNotFound(t *testing.T) {
 }
 
 func TestUpdateAlertStatus_WrongOrg(t *testing.T) {
-	alert := &entity.Alert{ID: 1, OrgID: 10}
+	alert := &entity.Alert{ID: 1, WorkspaceID: 10}
 	repo := &mockAlertRepo{findByIDResult: alert}
 	uc := alertuc.New(repo, &mockAuditLogger{})
 
@@ -200,7 +200,7 @@ func TestUpdateAlertStatus_FindRepoError(t *testing.T) {
 }
 
 func TestUpdateAlertStatus_UpdateRepoError(t *testing.T) {
-	alert := &entity.Alert{ID: 1, OrgID: 10, Status: entity.AlertStatusNew}
+	alert := &entity.Alert{ID: 1, WorkspaceID: 10, Status: entity.AlertStatusNew}
 	repo := &mockAlertRepo{
 		findByIDResult:  alert,
 		updateStatusErr: errors.New("db error"),

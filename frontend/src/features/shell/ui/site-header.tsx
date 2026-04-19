@@ -23,7 +23,7 @@ const pageTitles: Record<string, string> = {
   "/alerts": "Alerts",
   "/releases": "Releases",
   "/settings": "Settings",
-  "/organizations": "Organizations",
+  "/workspaces": "Workspaces",
   "/account": "Account",
   "/settings/api-keys": "API Keys",
   "/settings/sessions": "Sessions",
@@ -58,7 +58,7 @@ export const SiteHeader = ({ actionSlot }: { actionSlot?: React.ReactNode }) => 
       if (pageTitles[href]) {
         crumbs.push({ label: pageTitles[href], href })
       } else if (isIdSegment(segment)) {
-        // For ID segments like /organizations/123, label as "Detail"
+        // For ID segments like /workspaces/123, label as "Detail"
         const parentLabel = crumbs.length > 0 ? crumbs[crumbs.length - 1].label : ""
         crumbs.push({ label: `${parentLabel} Detail`.trim(), href })
       } else if (segment === "audit") {

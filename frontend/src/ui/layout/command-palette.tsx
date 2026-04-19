@@ -38,7 +38,7 @@ const commandItems: CommandItem[] = [
   { id: "releases", label: "Releases", href: "/releases", icon: Activity, group: "Navigation", keywords: ["versions", "updates"] },
   { id: "alerts", label: "Alerts", href: "/alerts", icon: Bell, group: "Navigation", keywords: ["notifications", "warnings", "threats"] },
   { id: "notifications", label: "Notifications", href: "/notifications", icon: BellDot, group: "Navigation", keywords: ["inbox", "messages", "updates"] },
-  { id: "organizations", label: "Organizations", href: "/organizations", icon: Building2, group: "Navigation", keywords: ["orgs", "teams"] },
+  { id: "workspaces", label: "Workspaces", href: "/workspaces", icon: Building2, group: "Navigation", keywords: ["teams"] },
   // Management
   { id: "settings", label: "Settings", href: "/settings", icon: Settings, group: "Management", keywords: ["preferences", "configuration"] },
   { id: "channels", label: "Channels", href: "/settings/notifications", icon: Bell, group: "Management", keywords: ["notifications", "webhooks", "slack"] },

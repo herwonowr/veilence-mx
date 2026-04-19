@@ -24,7 +24,7 @@ type mockPackageRepo struct {
 
 	// Controls for injecting errors
 	findByIDErr          error
-	findByOrgIDErr       error
+	findByWorkspaceIDErr       error
 	existsByOrgErr       error
 	createErr            error
 	blockErr             error
@@ -47,15 +47,15 @@ type mockPackageRepo struct {
 }
 
 type blockCall struct {
-	orgID, pkgID uint
+	workspaceID, pkgID uint
 	reason       string
 }
-type unblockCall struct{ orgID, pkgID uint }
-type removeCall struct{ orgID, pkgID uint }
-type approveCall struct{ orgID, pkgID uint }
-type rejectCall struct{ orgID, pkgID uint }
+type unblockCall struct{ workspaceID, pkgID uint }
+type removeCall struct{ workspaceID, pkgID uint }
+type approveCall struct{ workspaceID, pkgID uint }
+type rejectCall struct{ workspaceID, pkgID uint }
 type removeStalCall struct {
-	orgID       uint
+	workspaceID uint
 	staleBefore time.Time
 }
 
@@ -67,10 +67,10 @@ func newMockRepo() *mockPackageRepo {
 }
 
 // seedPackage inserts a package into the mock store and returns it.
-func (m *mockPackageRepo) seedPackage(orgID uint, name string, eco entity.Ecosystem, status entity.PackageStatus) *entity.Package {
+func (m *mockPackageRepo) seedPackage(workspaceID uint, name string, eco entity.Ecosystem, status entity.PackageStatus) *entity.Package {
 	pkg := &entity.Package{
 		ID:        m.nextID,
-		OrgID:     orgID,
+		WorkspaceID:     workspaceID,
 		Name:      name,
 		Ecosystem: eco,
 		Status:    status,
@@ -92,13 +92,13 @@ func (m *mockPackageRepo) FindByID(_ context.Context, id uint) (*entity.Package,
 	return pkg, nil
 }
 
-func (m *mockPackageRepo) FindByOrgID(_ context.Context, orgID uint, page, limit int, _ string, _ entity.PackageFilters) ([]entity.Package, int64, error) {
-	if m.findByOrgIDErr != nil {
-		return nil, 0, m.findByOrgIDErr
+func (m *mockPackageRepo) FindByWorkspaceID(_ context.Context, workspaceID uint, page, limit int, _ string, _ entity.PackageFilters) ([]entity.Package, int64, error) {
+	if m.findByWorkspaceIDErr != nil {
+		return nil, 0, m.findByWorkspaceIDErr
 	}
 	var result []entity.Package
 	for _, pkg := range m.packages {
-		if pkg.OrgID == orgID {
+		if pkg.WorkspaceID == workspaceID {
 			result = append(result, *pkg)
 		}
 	}
@@ -114,31 +114,31 @@ func (m *mockPackageRepo) FindByOrgID(_ context.Context, orgID uint, page, limit
 	return result[start:end], int64(len(result)), nil
 }
 
-func (m *mockPackageRepo) FindActiveByOrgID(_ context.Context, orgID uint) ([]entity.Package, error) {
+func (m *mockPackageRepo) FindActiveByWorkspaceID(_ context.Context, workspaceID uint) ([]entity.Package, error) {
 	var result []entity.Package
 	for _, pkg := range m.packages {
-		if pkg.OrgID == orgID && pkg.Status == entity.PackageStatusActive {
+		if pkg.WorkspaceID == workspaceID && pkg.Status == entity.PackageStatusActive {
 			result = append(result, *pkg)
 		}
 	}
 	return result, nil
 }
 
-func (m *mockPackageRepo) FindByOrgAndName(_ context.Context, orgID uint, name string, eco entity.Ecosystem) (*entity.Package, error) {
+func (m *mockPackageRepo) FindByWorkspaceAndName(_ context.Context, workspaceID uint, name string, eco entity.Ecosystem) (*entity.Package, error) {
 	for _, pkg := range m.packages {
-		if pkg.OrgID == orgID && pkg.Name == name && pkg.Ecosystem == eco {
+		if pkg.WorkspaceID == workspaceID && pkg.Name == name && pkg.Ecosystem == eco {
 			return pkg, nil
 		}
 	}
 	return nil, entity.ErrNotFound
 }
 
-func (m *mockPackageRepo) ExistsByOrgAndName(_ context.Context, orgID uint, name string, eco entity.Ecosystem) (bool, error) {
+func (m *mockPackageRepo) ExistsByWorkspaceAndName(_ context.Context, workspaceID uint, name string, eco entity.Ecosystem) (bool, error) {
 	if m.existsByOrgErr != nil {
 		return false, m.existsByOrgErr
 	}
 	for _, pkg := range m.packages {
-		if pkg.OrgID == orgID && pkg.Name == name && pkg.Ecosystem == eco {
+		if pkg.WorkspaceID == workspaceID && pkg.Name == name && pkg.Ecosystem == eco {
 			return true, nil
 		}
 	}
@@ -160,13 +160,13 @@ func (m *mockPackageRepo) Update(_ context.Context, pkg *entity.Package) error {
 	return nil
 }
 
-func (m *mockPackageRepo) BlockPackage(_ context.Context, orgID, pkgID uint, reason string) error {
-	m.blockCalls = append(m.blockCalls, blockCall{orgID, pkgID, reason})
+func (m *mockPackageRepo) BlockPackage(_ context.Context, workspaceID, pkgID uint, reason string) error {
+	m.blockCalls = append(m.blockCalls, blockCall{workspaceID, pkgID, reason})
 	if m.blockErr != nil {
 		return m.blockErr
 	}
 	pkg, ok := m.packages[pkgID]
-	if !ok || pkg.OrgID != orgID {
+	if !ok || pkg.WorkspaceID != workspaceID {
 		return entity.ErrNotFound
 	}
 	pkg.Status = entity.PackageStatusBlocked
@@ -174,13 +174,13 @@ func (m *mockPackageRepo) BlockPackage(_ context.Context, orgID, pkgID uint, rea
 	return nil
 }
 
-func (m *mockPackageRepo) UnblockPackage(_ context.Context, orgID, pkgID uint) error {
-	m.unblockCalls = append(m.unblockCalls, unblockCall{orgID, pkgID})
+func (m *mockPackageRepo) UnblockPackage(_ context.Context, workspaceID, pkgID uint) error {
+	m.unblockCalls = append(m.unblockCalls, unblockCall{workspaceID, pkgID})
 	if m.unblockErr != nil {
 		return m.unblockErr
 	}
 	pkg, ok := m.packages[pkgID]
-	if !ok || pkg.OrgID != orgID {
+	if !ok || pkg.WorkspaceID != workspaceID {
 		return entity.ErrNotFound
 	}
 	pkg.Status = entity.PackageStatusActive
@@ -188,23 +188,23 @@ func (m *mockPackageRepo) UnblockPackage(_ context.Context, orgID, pkgID uint) e
 	return nil
 }
 
-func (m *mockPackageRepo) RemovePackage(_ context.Context, orgID, pkgID uint) error {
-	m.removeCalls = append(m.removeCalls, removeCall{orgID, pkgID})
+func (m *mockPackageRepo) RemovePackage(_ context.Context, workspaceID, pkgID uint) error {
+	m.removeCalls = append(m.removeCalls, removeCall{workspaceID, pkgID})
 	if m.removeErr != nil {
 		return m.removeErr
 	}
 	pkg, ok := m.packages[pkgID]
-	if !ok || pkg.OrgID != orgID {
+	if !ok || pkg.WorkspaceID != workspaceID {
 		return entity.ErrNotFound
 	}
 	pkg.Status = entity.PackageStatusRemoved
 	return nil
 }
 
-func (m *mockPackageRepo) CountByOrg(_ context.Context, orgID uint, eco *entity.Ecosystem) (int64, error) {
+func (m *mockPackageRepo) CountByWorkspace(_ context.Context, workspaceID uint, eco *entity.Ecosystem) (int64, error) {
 	var count int64
 	for _, pkg := range m.packages {
-		if pkg.OrgID == orgID {
+		if pkg.WorkspaceID == workspaceID {
 			if eco == nil || pkg.Ecosystem == *eco {
 				count++
 			}
@@ -213,13 +213,13 @@ func (m *mockPackageRepo) CountByOrg(_ context.Context, orgID uint, eco *entity.
 	return count, nil
 }
 
-func (m *mockPackageRepo) FindSuggestionsByOrgID(_ context.Context, orgID uint, page, limit int, _ string, _ entity.PackageFilters) ([]entity.Package, int64, error) {
+func (m *mockPackageRepo) FindSuggestionsByWorkspaceID(_ context.Context, workspaceID uint, page, limit int, _ string, _ entity.PackageFilters) ([]entity.Package, int64, error) {
 	if m.findSuggestionsErr != nil {
 		return nil, 0, m.findSuggestionsErr
 	}
 	var result []entity.Package
 	for _, pkg := range m.packages {
-		if pkg.OrgID == orgID && pkg.Status == entity.PackageStatusSuggested {
+		if pkg.WorkspaceID == workspaceID && pkg.Status == entity.PackageStatusSuggested {
 			result = append(result, *pkg)
 		}
 	}
@@ -235,40 +235,40 @@ func (m *mockPackageRepo) FindSuggestionsByOrgID(_ context.Context, orgID uint, 
 	return result[start:end], total, nil
 }
 
-func (m *mockPackageRepo) ApprovePackage(_ context.Context, orgID, pkgID uint) error {
-	m.approveCalls = append(m.approveCalls, approveCall{orgID, pkgID})
+func (m *mockPackageRepo) ApprovePackage(_ context.Context, workspaceID, pkgID uint) error {
+	m.approveCalls = append(m.approveCalls, approveCall{workspaceID, pkgID})
 	if m.approveErr != nil {
 		return m.approveErr
 	}
 	pkg, ok := m.packages[pkgID]
-	if !ok || pkg.OrgID != orgID {
+	if !ok || pkg.WorkspaceID != workspaceID {
 		return entity.ErrNotFound
 	}
 	pkg.Status = entity.PackageStatusActive
 	return nil
 }
 
-func (m *mockPackageRepo) RejectPackage(_ context.Context, orgID, pkgID uint) error {
-	m.rejectCalls = append(m.rejectCalls, rejectCall{orgID, pkgID})
+func (m *mockPackageRepo) RejectPackage(_ context.Context, workspaceID, pkgID uint) error {
+	m.rejectCalls = append(m.rejectCalls, rejectCall{workspaceID, pkgID})
 	if m.rejectErr != nil {
 		return m.rejectErr
 	}
 	pkg, ok := m.packages[pkgID]
-	if !ok || pkg.OrgID != orgID {
+	if !ok || pkg.WorkspaceID != workspaceID {
 		return entity.ErrNotFound
 	}
 	pkg.Status = entity.PackageStatusRemoved
 	return nil
 }
 
-func (m *mockPackageRepo) BulkApprovePackages(_ context.Context, orgID uint, pkgIDs []uint) (int, error) {
+func (m *mockPackageRepo) BulkApprovePackages(_ context.Context, workspaceID uint, pkgIDs []uint) (int, error) {
 	if m.bulkApproveErr != nil {
 		return 0, m.bulkApproveErr
 	}
 	count := 0
 	for _, id := range pkgIDs {
 		pkg, ok := m.packages[id]
-		if ok && pkg.OrgID == orgID && pkg.Status == entity.PackageStatusSuggested {
+		if ok && pkg.WorkspaceID == workspaceID && pkg.Status == entity.PackageStatusSuggested {
 			pkg.Status = entity.PackageStatusActive
 			count++
 		}
@@ -280,27 +280,27 @@ func (m *mockPackageRepo) UpdateDownloadCounts(_ context.Context, _ uint, _ []en
 	return nil
 }
 
-func (m *mockPackageRepo) FindStaleByOrgID(_ context.Context, orgID uint, _ time.Time) ([]entity.Package, error) {
+func (m *mockPackageRepo) FindStaleByWorkspaceID(_ context.Context, workspaceID uint, _ time.Time) ([]entity.Package, error) {
 	if m.findStaleErr != nil {
 		return nil, m.findStaleErr
 	}
 	var result []entity.Package
 	for _, pkg := range m.packages {
-		if pkg.OrgID == orgID && pkg.Status == entity.PackageStatusActive {
+		if pkg.WorkspaceID == workspaceID && pkg.Status == entity.PackageStatusActive {
 			result = append(result, *pkg)
 		}
 	}
 	return result, nil
 }
 
-func (m *mockPackageRepo) RemoveStaleByOrgID(_ context.Context, orgID uint, staleBefore time.Time) (int, error) {
-	m.removeStaleCalls = append(m.removeStaleCalls, removeStalCall{orgID, staleBefore})
+func (m *mockPackageRepo) RemoveStaleByWorkspaceID(_ context.Context, workspaceID uint, staleBefore time.Time) (int, error) {
+	m.removeStaleCalls = append(m.removeStaleCalls, removeStalCall{workspaceID, staleBefore})
 	if m.removeStaleErr != nil {
 		return 0, m.removeStaleErr
 	}
 	count := 0
 	for _, pkg := range m.packages {
-		if pkg.OrgID == orgID && pkg.Status == entity.PackageStatusActive && pkg.UpdatedAt.Before(staleBefore) {
+		if pkg.WorkspaceID == workspaceID && pkg.Status == entity.PackageStatusActive && pkg.UpdatedAt.Before(staleBefore) {
 			pkg.Status = entity.PackageStatusRemoved
 			count++
 		}
@@ -355,7 +355,7 @@ func TestListPackages_Success(t *testing.T) {
 
 func TestListPackages_RepoError(t *testing.T) {
 	repo, _, uc := setup()
-	repo.findByOrgIDErr = fmt.Errorf("db error")
+	repo.findByWorkspaceIDErr = fmt.Errorf("db error")
 
 	_, _, err := uc.ListPackages(context.Background(), 1, 1, 20, "", entity.PackageFilters{})
 	require.Error(t, err)
@@ -414,7 +414,7 @@ func TestCreatePackage_Success(t *testing.T) {
 	assert.Equal(t, entity.EcosystemPython, pkg.Ecosystem)
 	assert.Equal(t, entity.PackageSourceManual, pkg.Source)
 	assert.Equal(t, entity.PackageStatusActive, pkg.Status)
-	assert.Equal(t, uint(1), pkg.OrgID)
+	assert.Equal(t, uint(1), pkg.WorkspaceID)
 	assert.NotZero(t, pkg.ID)
 
 	// Verify audit log
@@ -894,7 +894,7 @@ func TestRemoveStalePackages_RepoError(t *testing.T) {
 	assert.Contains(t, err.Error(), "db error")
 }
 
-func TestRemoveStalePackages_OnlyRemovesOrgScoped(t *testing.T) {
+func TestRemoveStalePackages_OnlyRemovesWorkspaceScoped(t *testing.T) {
 	repo, _, uc := setup()
 	// Org 1 stale
 	stale1 := repo.seedPackage(1, "stale-a", entity.EcosystemPython, entity.PackageStatusActive)

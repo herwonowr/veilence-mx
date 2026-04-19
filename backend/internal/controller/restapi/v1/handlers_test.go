@@ -683,7 +683,7 @@ func TestGetAlert(t *testing.T) {
 	db := setupTestDB(t)
 	h := newAlertHandlers(db)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", OrgID: 1}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 1}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -691,7 +691,7 @@ func TestGetAlert(t *testing.T) {
 	db.Create(&diff)
 	analysis := persistent.Analysis{DiffID: diff.ID, Classification: "malicious", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
 	db.Create(&analysis)
-	alert := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, OrgID: 0, Severity: "critical", Status: "new", Message: "Malicious detected"}
+	alert := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: 0, Severity: "critical", Status: "new", Message: "Malicious detected"}
 	db.Create(&alert)
 
 	r := chi.NewRouter()
@@ -737,11 +737,11 @@ func TestGetAlert_InvalidID(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestGetAlert_OrgScoping(t *testing.T) {
+func TestGetAlert_WorkspaceScoping(t *testing.T) {
 	db := setupTestDB(t)
 	h := newAlertHandlers(db)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", OrgID: 5}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 5}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -749,8 +749,8 @@ func TestGetAlert_OrgScoping(t *testing.T) {
 	db.Create(&diff)
 	analysis := persistent.Analysis{DiffID: diff.ID, Classification: "malicious", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
 	db.Create(&analysis)
-	// Alert belongs to org 5 — request context has orgID=0 (default), so it should not be found
-	alert := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, OrgID: 5, Severity: "high", Status: "new", Message: "Other org alert"}
+	// Alert belongs to workspace 5 — request context has workspaceID=0 (default), so it should not be found
+	alert := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: 5, Severity: "high", Status: "new", Message: "Other org alert"}
 	db.Create(&alert)
 
 	r := chi.NewRouter()
@@ -759,7 +759,7 @@ func TestGetAlert_OrgScoping(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/alerts/"+idStr(alert.ID), nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-	// OrgID from context is 0 (no middleware), alert belongs to org 5 → not found
+	// WorkspaceID from context is 0 (no middleware), alert belongs to workspace 5 → not found
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
@@ -1171,8 +1171,8 @@ func TestListAlertNotes(t *testing.T) {
 	db.Create(&alert)
 
 	// Create some notes
-	db.Create(&persistent.AlertNote{AlertID: alert.ID, OrgID: 0, UserID: 1, UserEmail: "user@example.com", Content: "First note"})
-	db.Create(&persistent.AlertNote{AlertID: alert.ID, OrgID: 0, UserID: 2, UserEmail: "other@example.com", Content: "Second note"})
+	db.Create(&persistent.AlertNote{AlertID: alert.ID, WorkspaceID: 0, UserID: 1, UserEmail: "user@example.com", Content: "First note"})
+	db.Create(&persistent.AlertNote{AlertID: alert.ID, WorkspaceID: 0, UserID: 2, UserEmail: "other@example.com", Content: "Second note"})
 
 	r := chi.NewRouter()
 	r.Get("/api/alerts/{id}/notes", h.ListAlertNotes)
@@ -1485,7 +1485,7 @@ func TestReanalyzeRelease_NoQueue(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db) // Queue is nil
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", OrgID: 0}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 0}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -1520,7 +1520,7 @@ func TestReanalyzeRelease_SuccessNoDiff(t *testing.T) {
 	mq := &mockEnqueuer{}
 	h := newPackageHandlersWithQueue(db, mq)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", OrgID: 0}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 0}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -1556,7 +1556,7 @@ func TestReanalyzeRelease_SuccessWithDiff(t *testing.T) {
 	mq := &mockEnqueuer{}
 	h := newPackageHandlersWithQueue(db, mq)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", OrgID: 0}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 0}
 	db.Create(&pkg)
 	rel1 := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel1)
@@ -1591,13 +1591,13 @@ func TestReanalyzeRelease_SuccessWithDiff(t *testing.T) {
 	assert.NotEmpty(t, data["jobId"])
 }
 
-func TestReanalyzeRelease_OrgScoping(t *testing.T) {
+func TestReanalyzeRelease_WorkspaceScoping(t *testing.T) {
 	db := setupTestDB(t)
 	mq := &mockEnqueuer{}
 	h := newPackageHandlersWithQueue(db, mq)
 
-	// Create a release belonging to org 5; request context has orgID=0 (default, no middleware)
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", OrgID: 5}
+	// Create a release belonging to workspace 5; request context has workspaceID=0 (default, no middleware)
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 5}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -1608,7 +1608,7 @@ func TestReanalyzeRelease_OrgScoping(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/releases/"+idStr(rel.ID)+"/reanalyze", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-	// OrgID from context is 0, package belongs to org 5 → not found
+	// WorkspaceID from context is 0, package belongs to workspace 5 → not found
 	assert.Equal(t, http.StatusNotFound, w.Code)
 	assert.Empty(t, mq.calls, "should not enqueue anything for cross-org release")
 }
@@ -1618,7 +1618,7 @@ func TestReanalyzeRelease_EnqueueError(t *testing.T) {
 	mq := &mockEnqueuer{err: fmt.Errorf("redis connection refused")}
 	h := newPackageHandlersWithQueue(db, mq)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", OrgID: 0}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 0}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)

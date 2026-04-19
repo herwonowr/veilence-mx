@@ -68,7 +68,7 @@ const navItems: NavItem[] = [
   { title: "Releases", href: "/releases", icon: Activity },
   { title: "Alerts", href: "/alerts", icon: Bell },
   { title: "Notifications", href: "/notifications", icon: BellDot },
-  { title: "Organizations", href: "/organizations", icon: Building2 },
+  { title: "Workspaces", href: "/workspaces", icon: Building2 },
 ]
 
 const settingsItems: NavItem[] = [
@@ -80,10 +80,10 @@ const settingsItems: NavItem[] = [
 ]
 
 export const AppSidebar = ({
-  orgSelectorSlot,
+  workspaceSelectorSlot,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
-  orgSelectorSlot?: React.ReactNode
+  workspaceSelectorSlot?: React.ReactNode
 }) => {
   const pathname = usePathname()
   const { user, isAuthenticated, logout } = useAuth()
@@ -124,9 +124,9 @@ export const AppSidebar = ({
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        {isAuthenticated && orgSelectorSlot && (
+        {isAuthenticated && workspaceSelectorSlot && (
           <>
-            {orgSelectorSlot}
+            {workspaceSelectorSlot}
           </>
         )}
       </SidebarHeader>

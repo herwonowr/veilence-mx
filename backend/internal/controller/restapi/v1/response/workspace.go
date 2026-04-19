@@ -2,10 +2,10 @@ package response
 
 import "time"
 
-// OrganizationResponse is the JSON representation of an organization.
-// Mapped from persistent.Organization at the handler level because the RBAC
+// WorkspaceResponse is the JSON representation of a workspace.
+// Mapped from persistent.Workspace at the handler level because the RBAC
 // service currently returns persistent types (pre-existing arch compromise).
-type OrganizationResponse struct {
+type WorkspaceResponse struct {
 	ID          uint      `json:"id"`
 	Name        string    `json:"name"`
 	Slug        string    `json:"slug"`

@@ -2,8 +2,8 @@ package entity
 
 import "time"
 
-// Organization represents a tenant organization in the system.
-type Organization struct {
+// Workspace represents a tenant workspace in the system.
+type Workspace struct {
 	ID             uint
 	Name           string
 	Slug           string
@@ -14,10 +14,10 @@ type Organization struct {
 	UpdatedAt      time.Time
 }
 
-// OrgMember represents a user's membership in an organization with a specific role.
-type OrgMember struct {
+// WorkspaceMember represents a user's membership in a workspace with a specific role.
+type WorkspaceMember struct {
 	ID             uint
-	OrgID          uint
+	WorkspaceID    uint
 	UserID         uint
 	RoleID         uint
 	Role           *Role

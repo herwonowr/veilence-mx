@@ -25,8 +25,8 @@ func New(repo usecase.PackageRepository, audit usecase.AuditLogger) *UseCase {
 }
 
 // ListPackages returns a paginated list of packages for an org with optional filters.
-func (uc *UseCase) ListPackages(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
-	packages, total, err := uc.repo.FindByOrgID(ctx, orgID, page, limit, sortClause, filters)
+func (uc *UseCase) ListPackages(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
+	packages, total, err := uc.repo.FindByWorkspaceID(ctx, workspaceID, page, limit, sortClause, filters)
 	if err != nil {
 		return nil, 0, fmt.Errorf("PackageUseCase.ListPackages: %w", err)
 	}
@@ -34,7 +34,7 @@ func (uc *UseCase) ListPackages(ctx context.Context, orgID uint, page, limit int
 }
 
 // GetPackage returns a single package by ID, scoped to an org.
-func (uc *UseCase) GetPackage(ctx context.Context, orgID, pkgID uint) (*entity.Package, error) {
+func (uc *UseCase) GetPackage(ctx context.Context, workspaceID, pkgID uint) (*entity.Package, error) {
 	pkg, err := uc.repo.FindByID(ctx, pkgID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
@@ -42,15 +42,15 @@ func (uc *UseCase) GetPackage(ctx context.Context, orgID, pkgID uint) (*entity.P
 		}
 		return nil, fmt.Errorf("PackageUseCase.GetPackage: %w", err)
 	}
-	if pkg.OrgID != orgID {
+	if pkg.WorkspaceID != workspaceID {
 		return nil, entity.ErrNotFound
 	}
 	return pkg, nil
 }
 
 // CreatePackage adds a new manual package to monitoring within the given org.
-func (uc *UseCase) CreatePackage(ctx context.Context, orgID uint, name string, ecosystem entity.Ecosystem) (*entity.Package, error) {
-	exists, err := uc.repo.ExistsByOrgAndName(ctx, orgID, name, ecosystem)
+func (uc *UseCase) CreatePackage(ctx context.Context, workspaceID uint, name string, ecosystem entity.Ecosystem) (*entity.Package, error) {
+	exists, err := uc.repo.ExistsByWorkspaceAndName(ctx, workspaceID, name, ecosystem)
 	if err != nil {
 		return nil, fmt.Errorf("PackageUseCase.CreatePackage: checking existence: %w", err)
 	}
@@ -59,7 +59,7 @@ func (uc *UseCase) CreatePackage(ctx context.Context, orgID uint, name string, e
 	}
 
 	pkg := &entity.Package{
-		OrgID:     orgID,
+		WorkspaceID:     workspaceID,
 		Name:      name,
 		Ecosystem: ecosystem,
 		Source:    entity.PackageSourceManual,
@@ -77,11 +77,11 @@ func (uc *UseCase) CreatePackage(ctx context.Context, orgID uint, name string, e
 }
 
 // ImportPackages bulk-imports packages into monitoring for the given org.
-func (uc *UseCase) ImportPackages(ctx context.Context, orgID uint, entries []entity.ImportEntry) (*entity.ImportResult, error) {
+func (uc *UseCase) ImportPackages(ctx context.Context, workspaceID uint, entries []entity.ImportEntry) (*entity.ImportResult, error) {
 	result := &entity.ImportResult{}
 
 	for _, entry := range entries {
-		exists, err := uc.repo.ExistsByOrgAndName(ctx, orgID, entry.Name, entry.Ecosystem)
+		exists, err := uc.repo.ExistsByWorkspaceAndName(ctx, workspaceID, entry.Name, entry.Ecosystem)
 		if err != nil {
 			slog.Error("failed to check package existence", "name", entry.Name, "error", err)
 			result.Errors = append(result.Errors, entity.ImportErrorEntry{Name: entry.Name, Error: "failed to check existence"})
@@ -93,7 +93,7 @@ func (uc *UseCase) ImportPackages(ctx context.Context, orgID uint, entries []ent
 		}
 
 		pkg := &entity.Package{
-			OrgID:     orgID,
+			WorkspaceID:     workspaceID,
 			Name:      entry.Name,
 			Ecosystem: entry.Ecosystem,
 			Source:    entity.PackageSourceImported,
@@ -113,8 +113,8 @@ func (uc *UseCase) ImportPackages(ctx context.Context, orgID uint, entries []ent
 
 // BlockPackage sets a package's status to 'blocked' with a reason.
 // Only active packages can be blocked.
-func (uc *UseCase) BlockPackage(ctx context.Context, orgID, pkgID uint, reason string) (*entity.Package, error) {
-	if err := uc.repo.BlockPackage(ctx, orgID, pkgID, reason); err != nil {
+func (uc *UseCase) BlockPackage(ctx context.Context, workspaceID, pkgID uint, reason string) (*entity.Package, error) {
+	if err := uc.repo.BlockPackage(ctx, workspaceID, pkgID, reason); err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, fmt.Errorf("package %w", entity.ErrNotFound)
 		}
@@ -138,8 +138,8 @@ func (uc *UseCase) BlockPackage(ctx context.Context, orgID, pkgID uint, reason s
 
 // UnblockPackage sets a package's status back to 'active'.
 // Only blocked packages can be unblocked.
-func (uc *UseCase) UnblockPackage(ctx context.Context, orgID, pkgID uint) (*entity.Package, error) {
-	if err := uc.repo.UnblockPackage(ctx, orgID, pkgID); err != nil {
+func (uc *UseCase) UnblockPackage(ctx context.Context, workspaceID, pkgID uint) (*entity.Package, error) {
+	if err := uc.repo.UnblockPackage(ctx, workspaceID, pkgID); err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, fmt.Errorf("package %w", entity.ErrNotFound)
 		}
@@ -159,7 +159,7 @@ func (uc *UseCase) UnblockPackage(ctx context.Context, orgID, pkgID uint) (*enti
 
 // RemovePackage sets a package's status to 'removed'.
 // Active or blocked packages can be removed.
-func (uc *UseCase) RemovePackage(ctx context.Context, orgID, pkgID uint) error {
+func (uc *UseCase) RemovePackage(ctx context.Context, workspaceID, pkgID uint) error {
 	// Fetch the package first so we can log its name
 	pkg, err := uc.repo.FindByID(ctx, pkgID)
 	if err != nil {
@@ -169,7 +169,7 @@ func (uc *UseCase) RemovePackage(ctx context.Context, orgID, pkgID uint) error {
 		return fmt.Errorf("fetching package: %w", err)
 	}
 
-	if err := uc.repo.RemovePackage(ctx, orgID, pkgID); err != nil {
+	if err := uc.repo.RemovePackage(ctx, workspaceID, pkgID); err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return fmt.Errorf("package %w", entity.ErrNotFound)
 		}
@@ -183,8 +183,8 @@ func (uc *UseCase) RemovePackage(ctx context.Context, orgID, pkgID uint) error {
 }
 
 // ApprovePackage promotes a suggested package to active monitoring.
-func (uc *UseCase) ApprovePackage(ctx context.Context, orgID, pkgID uint) (*entity.Package, error) {
-	if err := uc.repo.ApprovePackage(ctx, orgID, pkgID); err != nil {
+func (uc *UseCase) ApprovePackage(ctx context.Context, workspaceID, pkgID uint) (*entity.Package, error) {
+	if err := uc.repo.ApprovePackage(ctx, workspaceID, pkgID); err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, fmt.Errorf("package %w", entity.ErrNotFound)
 		}
@@ -203,7 +203,7 @@ func (uc *UseCase) ApprovePackage(ctx context.Context, orgID, pkgID uint) (*enti
 }
 
 // RejectPackage rejects a suggested package, setting its status to removed.
-func (uc *UseCase) RejectPackage(ctx context.Context, orgID, pkgID uint) error {
+func (uc *UseCase) RejectPackage(ctx context.Context, workspaceID, pkgID uint) error {
 	// Fetch the package first so we can log its name
 	pkg, err := uc.repo.FindByID(ctx, pkgID)
 	if err != nil {
@@ -213,7 +213,7 @@ func (uc *UseCase) RejectPackage(ctx context.Context, orgID, pkgID uint) error {
 		return fmt.Errorf("PackageUseCase.RejectPackage: fetching package: %w", err)
 	}
 
-	if err := uc.repo.RejectPackage(ctx, orgID, pkgID); err != nil {
+	if err := uc.repo.RejectPackage(ctx, workspaceID, pkgID); err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return fmt.Errorf("package %w", entity.ErrNotFound)
 		}
@@ -227,8 +227,8 @@ func (uc *UseCase) RejectPackage(ctx context.Context, orgID, pkgID uint) error {
 }
 
 // BulkApprovePackages approves multiple suggested packages at once.
-func (uc *UseCase) BulkApprovePackages(ctx context.Context, orgID uint, pkgIDs []uint) (int, error) {
-	count, err := uc.repo.BulkApprovePackages(ctx, orgID, pkgIDs)
+func (uc *UseCase) BulkApprovePackages(ctx context.Context, workspaceID uint, pkgIDs []uint) (int, error) {
+	count, err := uc.repo.BulkApprovePackages(ctx, workspaceID, pkgIDs)
 	if err != nil {
 		return 0, fmt.Errorf("PackageUseCase.BulkApprovePackages: %w", err)
 	}
@@ -240,8 +240,8 @@ func (uc *UseCase) BulkApprovePackages(ctx context.Context, orgID uint, pkgIDs [
 }
 
 // ListSuggestions returns a paginated list of suggested packages for an org.
-func (uc *UseCase) ListSuggestions(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
-	packages, total, err := uc.repo.FindSuggestionsByOrgID(ctx, orgID, page, limit, sortClause, filters)
+func (uc *UseCase) ListSuggestions(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
+	packages, total, err := uc.repo.FindSuggestionsByWorkspaceID(ctx, workspaceID, page, limit, sortClause, filters)
 	if err != nil {
 		return nil, 0, fmt.Errorf("PackageUseCase.ListSuggestions: %w", err)
 	}
@@ -249,8 +249,8 @@ func (uc *UseCase) ListSuggestions(ctx context.Context, orgID uint, page, limit 
 }
 
 // ListStalePackages returns active packages with no releases since staleBefore.
-func (uc *UseCase) ListStalePackages(ctx context.Context, orgID uint, staleBefore time.Time) ([]entity.Package, error) {
-	packages, err := uc.repo.FindStaleByOrgID(ctx, orgID, staleBefore)
+func (uc *UseCase) ListStalePackages(ctx context.Context, workspaceID uint, staleBefore time.Time) ([]entity.Package, error) {
+	packages, err := uc.repo.FindStaleByWorkspaceID(ctx, workspaceID, staleBefore)
 	if err != nil {
 		return nil, fmt.Errorf("PackageUseCase.ListStalePackages: %w", err)
 	}
@@ -260,13 +260,13 @@ func (uc *UseCase) ListStalePackages(ctx context.Context, orgID uint, staleBefor
 // RemoveStalePackages removes active packages that have had no updates for
 // the given number of months. Returns the number of packages removed.
 // A value of 0 means auto-removal is disabled.
-func (uc *UseCase) RemoveStalePackages(ctx context.Context, orgID uint, months int) (int, error) {
+func (uc *UseCase) RemoveStalePackages(ctx context.Context, workspaceID uint, months int) (int, error) {
 	if months <= 0 {
 		return 0, nil
 	}
 
 	staleBefore := time.Now().AddDate(0, -months, 0)
-	count, err := uc.repo.RemoveStaleByOrgID(ctx, orgID, staleBefore)
+	count, err := uc.repo.RemoveStaleByWorkspaceID(ctx, workspaceID, staleBefore)
 	if err != nil {
 		return 0, fmt.Errorf("PackageUseCase.RemoveStalePackages: %w", err)
 	}

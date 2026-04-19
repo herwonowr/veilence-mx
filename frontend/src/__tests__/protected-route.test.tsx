@@ -41,14 +41,14 @@ describe("ProtectedRoute", () => {
       },
       isAuthenticated: true,
       isLoading: false,
-      currentOrg: null,
-      organizations: [],
+      currentWorkspace: null,
+      workspaces: [],
       login: vi.fn(),
       register: vi.fn(),
       logout: vi.fn(),
-      setCurrentOrg: vi.fn(),
+      setCurrentWorkspace: vi.fn(),
       refreshUser: vi.fn(),
-      refreshOrgs: vi.fn(),
+      refreshWorkspaces: vi.fn(),
     })
 
     render(
@@ -67,14 +67,14 @@ describe("ProtectedRoute", () => {
       user: null,
       isAuthenticated: false,
       isLoading: false,
-      currentOrg: null,
-      organizations: [],
+      currentWorkspace: null,
+      workspaces: [],
       login: vi.fn(),
       register: vi.fn(),
       logout: vi.fn(),
-      setCurrentOrg: vi.fn(),
+      setCurrentWorkspace: vi.fn(),
       refreshUser: vi.fn(),
-      refreshOrgs: vi.fn(),
+      refreshWorkspaces: vi.fn(),
     })
 
     render(
@@ -97,14 +97,14 @@ describe("ProtectedRoute", () => {
       user: null,
       isAuthenticated: false,
       isLoading: false,
-      currentOrg: null,
-      organizations: [],
+      currentWorkspace: null,
+      workspaces: [],
       login: vi.fn(),
       register: vi.fn(),
       logout: vi.fn(),
-      setCurrentOrg: vi.fn(),
+      setCurrentWorkspace: vi.fn(),
       refreshUser: vi.fn(),
-      refreshOrgs: vi.fn(),
+      refreshWorkspaces: vi.fn(),
     })
 
     render(
@@ -122,14 +122,14 @@ describe("ProtectedRoute", () => {
       user: null,
       isAuthenticated: false,
       isLoading: true,
-      currentOrg: null,
-      organizations: [],
+      currentWorkspace: null,
+      workspaces: [],
       login: vi.fn(),
       register: vi.fn(),
       logout: vi.fn(),
-      setCurrentOrg: vi.fn(),
+      setCurrentWorkspace: vi.fn(),
       refreshUser: vi.fn(),
-      refreshOrgs: vi.fn(),
+      refreshWorkspaces: vi.fn(),
     })
 
     const { container } = render(
@@ -154,14 +154,14 @@ describe("ProtectedRoute", () => {
       user: null,
       isAuthenticated: false,
       isLoading: false,
-      currentOrg: null,
-      organizations: [],
+      currentWorkspace: null,
+      workspaces: [],
       login: vi.fn(),
       register: vi.fn(),
       logout: vi.fn(),
-      setCurrentOrg: vi.fn(),
+      setCurrentWorkspace: vi.fn(),
       refreshUser: vi.fn(),
-      refreshOrgs: vi.fn(),
+      refreshWorkspaces: vi.fn(),
     })
 
     render(

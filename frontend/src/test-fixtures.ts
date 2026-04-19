@@ -4,12 +4,12 @@
  * Usage:
  *   import { fixtures } from "@/test-fixtures"
  *   const user = fixtures.user()
- *   const org = fixtures.org({ name: "Custom Org" })
+ *   const workspace = fixtures.workspace({ name: "Custom Workspace" })
  *   const alerts = fixtures.alerts(5) // array of 5 alerts
  */
 
 import type { User, Session } from "@/domains/auth"
-import type { Organization } from "@/domains/admin"
+import type { Workspace } from "@/domains/admin"
 import type { Package, Release } from "@/domains/packages"
 import type { Alert } from "@/domains/alerts"
 import type { DashboardStats, ChartData, RecentRelease } from "@/domains/dashboard"
@@ -34,14 +34,14 @@ export const createUser = (overrides: Partial<User> = {}): User => {
   }
 }
 
-// ─── Organization Fixtures ──────────────────────────────────────
+// ─── Workspace Fixtures ──────────────────────────────────────
 
-export const createOrg = (overrides: Partial<Organization> = {}): Organization => {
+export const createWorkspace = (overrides: Partial<Workspace> = {}): Workspace => {
   return {
     id: 1,
-    name: "Test Org",
-    slug: "test-org",
-    description: "Test organization",
+    name: "Test Workspace",
+    slug: "test-workspace",
+    description: "Test workspace",
     ownerId: 1,
     isActive: true,
     createdAt: "2026-01-01T00:00:00Z",
@@ -184,7 +184,7 @@ export const createChartData = (overrides: Partial<ChartData> = {}): ChartData =
 export const createNotification = (overrides: Partial<Notification> = {}): Notification => {
   return {
     id: 1,
-    orgId: 1,
+    workspaceId: 1,
     userId: 1,
     channelId: 1,
     title: "New Alert",
@@ -212,7 +212,7 @@ export const createNotificationChannel = (
 ): NotificationChannel => {
   return {
     id: 1,
-    orgId: 1,
+    workspaceId: 1,
     name: "Slack #alerts",
     type: "slack",
     config: JSON.stringify({ webhookUrl: "https://hooks.slack.com/test" }),
@@ -277,22 +277,22 @@ export const createAuthState = (overrides: {
   user?: User | null
   isAuthenticated?: boolean
   isLoading?: boolean
-  currentOrg?: Organization | null
-  organizations?: Organization[]
+  currentWorkspace?: Workspace | null
+  workspaces?: Workspace[]
 } = {}) => {
   const user = overrides.user !== undefined ? overrides.user : createUser()
   return {
     user,
     isAuthenticated: overrides.isAuthenticated ?? (user !== null),
     isLoading: overrides.isLoading ?? false,
-    currentOrg: overrides.currentOrg !== undefined ? overrides.currentOrg : createOrg(),
-    organizations: overrides.organizations ?? [createOrg()],
+    currentWorkspace: overrides.currentWorkspace !== undefined ? overrides.currentWorkspace : createWorkspace(),
+    workspaces: overrides.workspaces ?? [createWorkspace()],
     login: vi.fn(),
     register: vi.fn(),
     logout: vi.fn(),
-    setCurrentOrg: vi.fn(),
+    setCurrentWorkspace: vi.fn(),
     refreshUser: vi.fn(),
-    refreshOrgs: vi.fn(),
+    refreshWorkspaces: vi.fn(),
   }
 }
 
@@ -304,8 +304,8 @@ export const createUnauthState = () => {
   return createAuthState({
     user: null,
     isAuthenticated: false,
-    currentOrg: null,
-    organizations: [],
+    currentWorkspace: null,
+    workspaces: [],
   })
 }
 
@@ -336,7 +336,7 @@ export const apiError = (error: string) => {
 
 export const fixtures = {
   user: createUser,
-  org: createOrg,
+  workspace: createWorkspace,
   package: createPackage,
   packages: createPackages,
   release: createRelease,

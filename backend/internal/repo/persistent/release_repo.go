@@ -87,11 +87,11 @@ func (r *ReleaseRepo) FindByIDWithPackage(ctx context.Context, id uint) (*entity
 	return releaseToDomain(&m), packageToDomain(&pkg), nil
 }
 
-func (r *ReleaseRepo) FindByOrgID(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.Release, int64, error) {
+func (r *ReleaseRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.Release, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Release{}).
 		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("packages.org_id = ? AND packages.status = ?", orgID, PackageStatusActive)
+		Where("packages.workspace_id = ? AND packages.status = ?", workspaceID, PackageStatusActive)
 
 	if filters.Ecosystem != nil {
 		query = query.Where("packages.ecosystem = ?", string(*filters.Ecosystem))
@@ -134,11 +134,11 @@ func (r *ReleaseRepo) FindByOrgID(ctx context.Context, orgID uint, page, limit i
 	return result, total, nil
 }
 
-func (r *ReleaseRepo) FindByOrgIDWithDetails(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error) {
+func (r *ReleaseRepo) FindByWorkspaceIDWithDetails(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Release{}).
 		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("packages.org_id = ? AND packages.status = ?", orgID, PackageStatusActive)
+		Where("packages.workspace_id = ? AND packages.status = ?", workspaceID, PackageStatusActive)
 
 	if filters.Ecosystem != nil {
 		query = query.Where("packages.ecosystem = ?", string(*filters.Ecosystem))

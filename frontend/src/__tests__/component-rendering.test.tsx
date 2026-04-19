@@ -22,7 +22,7 @@ vi.mock("@/core/providers/auth-provider", () => ({
     },
     isAuthenticated: true,
     isLoading: false,
-    currentOrg: {
+    currentWorkspace: {
       id: 1,
       name: "Test Org",
       slug: "test-org",
@@ -32,13 +32,13 @@ vi.mock("@/core/providers/auth-provider", () => ({
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     },
-    organizations: [],
+    workspaces: [],
     login: vi.fn(),
     register: vi.fn(),
     logout: vi.fn(),
-    setCurrentOrg: vi.fn(),
+    setCurrentWorkspace: vi.fn(),
     refreshUser: vi.fn(),
-    refreshOrgs: vi.fn(),
+    refreshWorkspaces: vi.fn(),
   })),
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))

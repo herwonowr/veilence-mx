@@ -1,6 +1,6 @@
 "use client"
 
-import { ProtectedRoute, RequireOrg } from "@/features/auth"
+import { ProtectedRoute, RequireWorkspace } from "@/features/auth"
 import { AlertDetailView } from "@/features/alerts"
 
 const AlertDetailPage = ({
@@ -9,9 +9,9 @@ const AlertDetailPage = ({
   params: Promise<{ id: string }>
 }) => (
   <ProtectedRoute>
-    <RequireOrg feature="alert details">
+    <RequireWorkspace feature="alert details">
       <AlertDetailView params={params} />
-    </RequireOrg>
+    </RequireWorkspace>
   </ProtectedRoute>
 )
 export default AlertDetailPage

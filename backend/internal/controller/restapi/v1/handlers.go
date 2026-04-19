@@ -23,7 +23,7 @@ type Handlers struct {
 	Auth          *AuthHandlers
 	Sessions      *SessionHandlers
 	Notifications *NotificationHandlers
-	Org           *OrgHandlers
+	Workspace     *WorkspaceHandlers
 	AuditLogs     *AuditHandlers
 	Packages      *PackageHandlers
 	Alerts        *AlertHandlers
@@ -45,8 +45,8 @@ type NotificationHandlers struct {
 	Audit         *audit.Service
 }
 
-// OrgHandlers handles organization, member, and role management endpoints.
-type OrgHandlers struct {
+// WorkspaceHandlers handles workspace, member, and role management endpoints.
+type WorkspaceHandlers struct {
 	RBAC  *rbac.Service
 	Audit *audit.Service
 }
@@ -125,7 +125,7 @@ func NewHandlers(
 			Notifications: notificationService,
 			Audit:         auditService,
 		},
-		Org: &OrgHandlers{
+		Workspace: &WorkspaceHandlers{
 			RBAC:  rbacService,
 			Audit: auditService,
 		},

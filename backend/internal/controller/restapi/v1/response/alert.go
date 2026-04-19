@@ -9,7 +9,7 @@ import (
 // AlertResponse is the JSON representation of a security alert.
 type AlertResponse struct {
 	ID         uint      `json:"id"`
-	OrgID      uint      `json:"orgId"`
+	WorkspaceID      uint      `json:"workspaceId"`
 	AnalysisID uint      `json:"analysisId"`
 	ReleaseID  uint      `json:"releaseId"`
 	PackageID  uint      `json:"packageId"`
@@ -24,7 +24,7 @@ type AlertResponse struct {
 func AlertFromEntity(a *entity.Alert) AlertResponse {
 	return AlertResponse{
 		ID:         a.ID,
-		OrgID:      a.OrgID,
+		WorkspaceID:      a.WorkspaceID,
 		AnalysisID: a.AnalysisID,
 		ReleaseID:  a.ReleaseID,
 		PackageID:  a.PackageID,
@@ -74,7 +74,7 @@ func AlertDetailFromEntity(a *entity.Alert, pkg *entity.Package) AlertWithPackag
 type AlertNoteResponse struct {
 	ID        uint      `json:"id"`
 	AlertID   uint      `json:"alertId"`
-	OrgID     uint      `json:"orgId"`
+	WorkspaceID     uint      `json:"workspaceId"`
 	UserID    uint      `json:"userId"`
 	UserEmail string    `json:"userEmail"`
 	Content   string    `json:"content"`
@@ -86,7 +86,7 @@ type AlertNoteResponse struct {
 func AlertNoteFromEntity(n *entity.AlertNote) AlertNoteResponse {
 	return AlertNoteResponse{
 		ID:        n.ID,
-		OrgID:     n.OrgID,
+		WorkspaceID:     n.WorkspaceID,
 		AlertID:   n.AlertID,
 		UserID:    n.UserID,
 		UserEmail: n.UserEmail,

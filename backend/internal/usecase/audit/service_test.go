@@ -55,7 +55,7 @@ func TestService_LogAuthEvent(t *testing.T) {
 	assert.Equal(t, "login", logs[0].Action)
 	assert.Equal(t, "auth", logs[0].Resource)
 	assert.Equal(t, uint(42), logs[0].UserID)
-	assert.Equal(t, uint(0), logs[0].OrgID, "auth events should not be org-scoped")
+	assert.Equal(t, uint(0), logs[0].WorkspaceID, "auth events should not be org-scoped")
 }
 
 func TestService_LogAuthEvent_FailedLogin(t *testing.T) {

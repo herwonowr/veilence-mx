@@ -6,7 +6,7 @@ import "time"
 type AuditLog struct {
 	ID             uint
 	UserID         uint
-	OrgID          uint
+	WorkspaceID    uint
 	Action         string
 	Resource       string
 	ResourceID     uint

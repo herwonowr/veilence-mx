@@ -41,7 +41,7 @@ func validatePackageName(name string) error {
 
 // ListPackages returns a paginated list of packages scoped to the current org.
 func (h *PackageHandlers) ListPackages(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	page, limit := parsePagination(r)
 	sortOrder := parseSort(r, map[string]string{
@@ -71,7 +71,7 @@ func (h *PackageHandlers) ListPackages(w http.ResponseWriter, r *http.Request) {
 		filters.Search = &search
 	}
 
-	packages, total, err := h.PkgSvc.ListPackages(r.Context(), orgID, page, limit, sortOrder, filters)
+	packages, total, err := h.PkgSvc.ListPackages(r.Context(), workspaceID, page, limit, sortOrder, filters)
 	if err != nil {
 		respondAppError(w, Internal("failed to list packages"))
 		return
@@ -82,7 +82,7 @@ func (h *PackageHandlers) ListPackages(w http.ResponseWriter, r *http.Request) {
 
 // GetPackage returns a single package scoped to the current org.
 func (h *PackageHandlers) GetPackage(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -90,7 +90,7 @@ func (h *PackageHandlers) GetPackage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pkg, err := h.PkgSvc.GetPackage(r.Context(), orgID, uint(id))
+	pkg, err := h.PkgSvc.GetPackage(r.Context(), workspaceID, uint(id))
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("package"))
@@ -110,7 +110,7 @@ type createPackageRequest struct {
 
 // CreatePackage adds a custom package to monitor within the current org.
 func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	var req createPackageRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -131,7 +131,7 @@ func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	pkg, err := h.PkgSvc.CreatePackage(r.Context(), orgID, req.Name, entity.Ecosystem(req.Ecosystem))
+	pkg, err := h.PkgSvc.CreatePackage(r.Context(), workspaceID, req.Name, entity.Ecosystem(req.Ecosystem))
 	if err != nil {
 		if errors.Is(err, entity.ErrConflict) {
 			respondAppError(w, Conflict("package already monitored"))
@@ -146,7 +146,7 @@ func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) 
 
 // DeletePackage removes a package from monitoring within the current org.
 func (h *PackageHandlers) DeletePackage(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -154,7 +154,7 @@ func (h *PackageHandlers) DeletePackage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := h.PkgSvc.RemovePackage(r.Context(), orgID, uint(id)); err != nil {
+	if err := h.PkgSvc.RemovePackage(r.Context(), workspaceID, uint(id)); err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("package"))
 			return
@@ -173,7 +173,7 @@ type blockPackageRequest struct {
 
 // BlockPackage sets a package's status to 'blocked'.
 func (h *PackageHandlers) BlockPackage(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -189,7 +189,7 @@ func (h *PackageHandlers) BlockPackage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	pkg, err := h.PkgSvc.BlockPackage(r.Context(), orgID, uint(id), req.Reason)
+	pkg, err := h.PkgSvc.BlockPackage(r.Context(), workspaceID, uint(id), req.Reason)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("package"))
@@ -204,7 +204,7 @@ func (h *PackageHandlers) BlockPackage(w http.ResponseWriter, r *http.Request) {
 
 // UnblockPackage sets a package's status back to 'active'.
 func (h *PackageHandlers) UnblockPackage(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -212,7 +212,7 @@ func (h *PackageHandlers) UnblockPackage(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	pkg, err := h.PkgSvc.UnblockPackage(r.Context(), orgID, uint(id))
+	pkg, err := h.PkgSvc.UnblockPackage(r.Context(), workspaceID, uint(id))
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("package"))
@@ -346,7 +346,7 @@ func parseListFormat(content string) ([]importPackageEntry, error) {
 // Supports format-based parsing (requirements_txt, package_json, list) or a legacy
 // pre-parsed packages array.
 func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	var req importPackagesRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -414,7 +414,7 @@ func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request)
 		importEntries = append(importEntries, entity.ImportEntry{Name: e.Name, Ecosystem: entity.Ecosystem(e.Ecosystem)})
 	}
 
-	result, err := h.PkgSvc.ImportPackages(r.Context(), orgID, importEntries)
+	result, err := h.PkgSvc.ImportPackages(r.Context(), workspaceID, importEntries)
 	if err != nil {
 		respondAppError(w, Internal("failed to import packages"))
 		return
@@ -433,7 +433,7 @@ func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request)
 // ListSuggestions returns a paginated list of suggested packages for the current org.
 // GET /api/packages/suggestions
 func (h *PackageHandlers) ListSuggestions(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	page, limit := parsePagination(r)
 	sortOrder := parseSort(r, map[string]string{
@@ -452,7 +452,7 @@ func (h *PackageHandlers) ListSuggestions(w http.ResponseWriter, r *http.Request
 		filters.Search = &search
 	}
 
-	packages, total, err := h.PkgSvc.ListSuggestions(r.Context(), orgID, page, limit, sortOrder, filters)
+	packages, total, err := h.PkgSvc.ListSuggestions(r.Context(), workspaceID, page, limit, sortOrder, filters)
 	if err != nil {
 		respondAppError(w, Internal("failed to list suggestions"))
 		return
@@ -464,7 +464,7 @@ func (h *PackageHandlers) ListSuggestions(w http.ResponseWriter, r *http.Request
 // ApprovePackage promotes a suggested package to active monitoring.
 // POST /api/packages/{id}/approve
 func (h *PackageHandlers) ApprovePackage(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -472,7 +472,7 @@ func (h *PackageHandlers) ApprovePackage(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	pkg, err := h.PkgSvc.ApprovePackage(r.Context(), orgID, uint(id))
+	pkg, err := h.PkgSvc.ApprovePackage(r.Context(), workspaceID, uint(id))
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("package"))
@@ -488,7 +488,7 @@ func (h *PackageHandlers) ApprovePackage(w http.ResponseWriter, r *http.Request)
 // RejectPackage rejects a suggested package.
 // POST /api/packages/{id}/reject
 func (h *PackageHandlers) RejectPackage(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -496,7 +496,7 @@ func (h *PackageHandlers) RejectPackage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := h.PkgSvc.RejectPackage(r.Context(), orgID, uint(id)); err != nil {
+	if err := h.PkgSvc.RejectPackage(r.Context(), workspaceID, uint(id)); err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("package"))
 			return
@@ -517,7 +517,7 @@ type bulkApproveRequest struct {
 // BulkApprovePackages approves multiple suggested packages at once.
 // POST /api/packages/bulk-approve
 func (h *PackageHandlers) BulkApprovePackages(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	var req bulkApproveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -541,7 +541,7 @@ func (h *PackageHandlers) BulkApprovePackages(w http.ResponseWriter, r *http.Req
 			respondAppError(w, Validation("ecosystem must be 'python' or 'npm'"))
 			return
 		}
-		packages, _, err := h.PkgSvc.ListSuggestions(r.Context(), orgID, 1, 10000, "", entity.PackageFilters{})
+		packages, _, err := h.PkgSvc.ListSuggestions(r.Context(), workspaceID, 1, 10000, "", entity.PackageFilters{})
 		if err != nil {
 			respondAppError(w, Internal("failed to list suggestions"))
 			return
@@ -560,7 +560,7 @@ func (h *PackageHandlers) BulkApprovePackages(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	count, err := h.PkgSvc.BulkApprovePackages(r.Context(), orgID, pkgIDs)
+	count, err := h.PkgSvc.BulkApprovePackages(r.Context(), workspaceID, pkgIDs)
 	if err != nil {
 		respondAppError(w, Internal("failed to bulk approve packages"))
 		return
@@ -572,7 +572,7 @@ func (h *PackageHandlers) BulkApprovePackages(w http.ResponseWriter, r *http.Req
 // ListStalePackages returns packages that haven't had a release in a configurable number of months.
 // GET /api/packages/stale
 func (h *PackageHandlers) ListStalePackages(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	months := 6
 	if m := r.URL.Query().Get("months"); m != "" {
@@ -586,7 +586,7 @@ func (h *PackageHandlers) ListStalePackages(w http.ResponseWriter, r *http.Reque
 
 	staleBefore := time.Now().AddDate(0, -months, 0)
 
-	packages, err := h.PkgSvc.ListStalePackages(r.Context(), orgID, staleBefore)
+	packages, err := h.PkgSvc.ListStalePackages(r.Context(), workspaceID, staleBefore)
 	if err != nil {
 		respondAppError(w, Internal("failed to list stale packages"))
 		return

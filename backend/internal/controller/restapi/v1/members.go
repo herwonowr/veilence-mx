@@ -26,12 +26,12 @@ type updateMemberRoleRequest struct {
 	RoleID uint `json:"roleId"`
 }
 
-// flatMember is the flattened response shape for organization members.
+// flatMember is the flattened response shape for workspace members.
 // The frontend expects email, firstName, and lastName at the top level
 // instead of nested under a "user" object.
 type flatMember struct {
 	ID        uint        `json:"id"`
-	OrgID     uint        `json:"orgId"`
+	WorkspaceID     uint        `json:"workspaceId"`
 	UserID    uint        `json:"userId"`
 	RoleID    uint        `json:"roleId"`
 	Role      entity.Role `json:"role"`
@@ -41,15 +41,15 @@ type flatMember struct {
 	LastName  string      `json:"lastName"`
 }
 
-// ListMembers handles GET /api/orgs/{orgId}/members — lists organization members.
-func (h *OrgHandlers) ListMembers(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
-	if orgID == 0 {
-		respondError(w, http.StatusBadRequest, "organization context required")
+// ListMembers handles GET /api/workspaces/{workspaceId}/members — lists workspace members.
+func (h *WorkspaceHandlers) ListMembers(w http.ResponseWriter, r *http.Request) {
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
-	members, err := h.RBAC.GetOrgMembers(orgID)
+	members, err := h.RBAC.GetWorkspaceMembers(workspaceID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to list members")
 		return
@@ -67,7 +67,7 @@ func (h *OrgHandlers) ListMembers(w http.ResponseWriter, r *http.Request) {
 		}
 		role := entity.Role{
 			ID:          m.Role.ID,
-			OrgID:       m.Role.OrgID,
+			WorkspaceID:       m.Role.WorkspaceID,
 			Name:        m.Role.Name,
 			Description: m.Role.Description,
 			IsSystem:    m.Role.IsSystem,
@@ -77,7 +77,7 @@ func (h *OrgHandlers) ListMembers(w http.ResponseWriter, r *http.Request) {
 		}
 		flat[i] = flatMember{
 			ID:        m.ID,
-			OrgID:     m.OrgID,
+			WorkspaceID:     m.WorkspaceID,
 			UserID:    m.UserID,
 			RoleID:    m.RoleID,
 			Role:      role,
@@ -91,12 +91,12 @@ func (h *OrgHandlers) ListMembers(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, flat, nil)
 }
 
-// InviteMember handles POST /api/orgs/{orgId}/invitations — invites a user to the organization.
-func (h *OrgHandlers) InviteMember(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+// InviteMember handles POST /api/workspaces/{workspaceId}/invitations — invites a user to the workspace.
+func (h *WorkspaceHandlers) InviteMember(w http.ResponseWriter, r *http.Request) {
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	userID := rbac.UserIDFromContext(r.Context())
-	if orgID == 0 || userID == 0 {
-		respondError(w, http.StatusBadRequest, "organization and user context required")
+	if workspaceID == 0 || userID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace and user context required")
 		return
 	}
 
@@ -119,10 +119,10 @@ func (h *OrgHandlers) InviteMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	invitation, rawToken, err := h.RBAC.InviteMember(orgID, req.Email, req.RoleID, userID)
+	invitation, rawToken, err := h.RBAC.InviteMember(workspaceID, req.Email, req.RoleID, userID)
 	if err != nil {
 		if errors.Is(err, rbac.ErrRoleNotFound) {
-			respondError(w, http.StatusBadRequest, "role not found in this organization")
+			respondError(w, http.StatusBadRequest, "role not found in this workspace")
 			return
 		}
 		respondError(w, http.StatusInternalServerError, "failed to create invitation")
@@ -135,7 +135,7 @@ func (h *OrgHandlers) InviteMember(w http.ResponseWriter, r *http.Request) {
 	// The token is not stored in the model (only the hash is), so we include it explicitly.
 	respondJSON(w, http.StatusCreated, map[string]any{
 		"id":        invitation.ID,
-		"orgId":     invitation.OrgID,
+		  "workspaceId":     invitation.WorkspaceID,
 		"email":     invitation.Email,
 		"roleId":    invitation.RoleID,
 		"token":     rawToken,
@@ -145,8 +145,8 @@ func (h *OrgHandlers) InviteMember(w http.ResponseWriter, r *http.Request) {
 	}, nil)
 }
 
-// AcceptInvitation handles POST /api/orgs/{orgId}/invitations/{token}/accept — accepts an invitation.
-func (h *OrgHandlers) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
+// AcceptInvitation handles POST /api/workspaces/{workspaceId}/invitations/{token}/accept — accepts an invitation.
+func (h *WorkspaceHandlers) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	if token == "" {
 		respondError(w, http.StatusBadRequest, "invitation token is required")
@@ -180,7 +180,7 @@ func (h *OrgHandlers) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, rbac.ErrAlreadyMember) {
-			respondError(w, http.StatusConflict, "already a member of this organization")
+			respondError(w, http.StatusConflict, "already a member of this workspace")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationEmailMismatch) {
@@ -200,7 +200,7 @@ func (h *OrgHandlers) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
 // so the frontend can display "You've been invited to {org}" before the user accepts.
 // This endpoint is public (no auth required) so unauthenticated users can see the
 // invitation info and then register/log in before accepting.
-func (h *OrgHandlers) GetInvitationInfo(w http.ResponseWriter, r *http.Request) {
+func (h *WorkspaceHandlers) GetInvitationInfo(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	if token == "" {
 		respondError(w, http.StatusBadRequest, "invitation token is required")
@@ -220,23 +220,23 @@ func (h *OrgHandlers) GetInvitationInfo(w http.ResponseWriter, r *http.Request) 
 	// Return limited info — don't expose internal IDs
 	respondJSON(w, http.StatusOK, map[string]any{
 		"email":     invitation.Email,
-		"orgId":     invitation.OrgID,
+		  "workspaceId":     invitation.WorkspaceID,
 		"expiresAt": invitation.ExpiresAt,
 		"accepted":  invitation.AcceptedAt != nil,
 		"expired":   time.Now().After(invitation.ExpiresAt),
 	}, nil)
 }
 
-// ListPendingInvitations handles GET /api/orgs/{orgId}/invitations — lists
-// pending invitations for the organization.
-func (h *OrgHandlers) ListPendingInvitations(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
-	if orgID == 0 {
-		respondError(w, http.StatusBadRequest, "organization context required")
+// ListPendingInvitations handles GET /api/workspaces/{workspaceId}/invitations — lists
+// pending invitations for the workspace.
+func (h *WorkspaceHandlers) ListPendingInvitations(w http.ResponseWriter, r *http.Request) {
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
-	invitations, err := h.RBAC.ListPendingInvitations(orgID)
+	invitations, err := h.RBAC.ListPendingInvitations(workspaceID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to list invitations")
 		return
@@ -245,12 +245,12 @@ func (h *OrgHandlers) ListPendingInvitations(w http.ResponseWriter, r *http.Requ
 	respondJSON(w, http.StatusOK, invitations, nil)
 }
 
-// RevokeInvitation handles DELETE /api/orgs/{orgId}/invitations/{id} — revokes
+// RevokeInvitation handles DELETE /api/workspaces/{workspaceId}/invitations/{id} — revokes
 // a pending invitation.
-func (h *OrgHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
-	if orgID == 0 {
-		respondError(w, http.StatusBadRequest, "organization context required")
+func (h *WorkspaceHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Request) {
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
@@ -261,7 +261,7 @@ func (h *OrgHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.RBAC.RevokeInvitation(orgID, uint(id)); err != nil {
+	if err := h.RBAC.RevokeInvitation(workspaceID, uint(id)); err != nil {
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
 			respondError(w, http.StatusNotFound, "invitation not found or already accepted")
 			return
@@ -275,11 +275,11 @@ func (h *OrgHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]string{"message": "invitation revoked"}, nil)
 }
 
-// RemoveMember handles DELETE /api/orgs/{orgId}/members/{userId} — removes a member.
-func (h *OrgHandlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
-	if orgID == 0 {
-		respondError(w, http.StatusBadRequest, "organization context required")
+// RemoveMember handles DELETE /api/workspaces/{workspaceId}/members/{userId} — removes a member.
+func (h *WorkspaceHandlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
@@ -290,9 +290,9 @@ func (h *OrgHandlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.RBAC.RemoveMember(orgID, uint(targetUserID)); err != nil {
+	if err := h.RBAC.RemoveMember(workspaceID, uint(targetUserID)); err != nil {
 		if errors.Is(err, rbac.ErrCannotRemoveOwner) {
-			respondError(w, http.StatusForbidden, "cannot remove the organization owner")
+			respondError(w, http.StatusForbidden, "cannot remove the workspace owner")
 			return
 		}
 		if errors.Is(err, rbac.ErrMemberNotFound) {
@@ -303,16 +303,16 @@ func (h *OrgHandlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "remove", "member", uint(targetUserID), fmt.Sprintf("removed member (user %d) from organization", targetUserID))
+	h.Audit.LogAction(r.Context(), "remove", "member", uint(targetUserID), fmt.Sprintf("removed member (user %d) from workspace", targetUserID))
 
 	respondJSON(w, http.StatusOK, nil, nil)
 }
 
-// UpdateMemberRole handles PUT /api/orgs/{orgId}/members/{userId}/role — changes a member's role.
-func (h *OrgHandlers) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
-	if orgID == 0 {
-		respondError(w, http.StatusBadRequest, "organization context required")
+// UpdateMemberRole handles PUT /api/workspaces/{workspaceId}/members/{userId}/role — changes a member's role.
+func (h *WorkspaceHandlers) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
@@ -334,7 +334,7 @@ func (h *OrgHandlers) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	member, err := h.RBAC.UpdateMemberRole(orgID, uint(targetUserID), req.RoleID)
+	member, err := h.RBAC.UpdateMemberRole(workspaceID, uint(targetUserID), req.RoleID)
 	if err != nil {
 		if errors.Is(err, rbac.ErrCannotChangeOwner) {
 			respondError(w, http.StatusForbidden, "cannot change the owner's role")
@@ -345,7 +345,7 @@ func (h *OrgHandlers) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, rbac.ErrRoleNotFound) {
-			respondError(w, http.StatusBadRequest, "role not found in this organization")
+			respondError(w, http.StatusBadRequest, "role not found in this workspace")
 			return
 		}
 		respondError(w, http.StatusInternalServerError, "failed to update member role")

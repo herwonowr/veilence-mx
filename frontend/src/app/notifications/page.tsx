@@ -1,13 +1,13 @@
 "use client"
 
-import { ProtectedRoute, RequireOrg } from "@/features/auth"
+import { ProtectedRoute, RequireWorkspace } from "@/features/auth"
 import { NotificationsListView } from "@/features/notifications"
 
 const NotificationsPage = () => (
   <ProtectedRoute>
-    <RequireOrg feature="notifications">
+    <RequireWorkspace feature="notifications">
       <NotificationsListView />
-    </RequireOrg>
+    </RequireWorkspace>
   </ProtectedRoute>
 )
 export default NotificationsPage

@@ -54,7 +54,7 @@ func (r *InvitationRepo) Update(ctx context.Context, invitation *entity.Invitati
 func invitationToDomain(m *Invitation) *entity.Invitation {
 	return &entity.Invitation{
 		ID:         m.ID,
-		OrgID:      m.OrgID,
+		WorkspaceID:      m.WorkspaceID,
 		Email:      m.Email,
 		RoleID:     m.RoleID,
 		TokenHash:  m.TokenHash,
@@ -68,7 +68,7 @@ func invitationToDomain(m *Invitation) *entity.Invitation {
 func invitationToModel(d *entity.Invitation) *Invitation {
 	return &Invitation{
 		ID:         d.ID,
-		OrgID:      d.OrgID,
+		WorkspaceID:      d.WorkspaceID,
 		Email:      d.Email,
 		RoleID:     d.RoleID,
 		TokenHash:  d.TokenHash,

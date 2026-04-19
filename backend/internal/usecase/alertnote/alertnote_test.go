@@ -66,16 +66,16 @@ func (m *mockAlertRepo) FindByID(_ context.Context, _ uint) (*entity.Alert, erro
 func (m *mockAlertRepo) FindByIDWithPackage(context.Context, uint, uint) (*entity.Alert, *entity.Package, error) {
 	return nil, nil, nil
 }
-func (m *mockAlertRepo) FindByOrgID(context.Context, uint, int, int, string, entity.AlertFilters) ([]entity.Alert, int64, error) {
+func (m *mockAlertRepo) FindByWorkspaceID(context.Context, uint, int, int, string, entity.AlertFilters) ([]entity.Alert, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockAlertRepo) FindByOrgIDWithPackage(context.Context, uint, int, int, string, entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
+func (m *mockAlertRepo) FindByWorkspaceIDWithPackage(context.Context, uint, int, int, string, entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockAlertRepo) Create(context.Context, *entity.Alert) error                          { return nil }
 func (m *mockAlertRepo) Update(context.Context, *entity.Alert) error                          { return nil }
 func (m *mockAlertRepo) UpdateStatus(context.Context, uint, entity.AlertStatus) error         { return nil }
-func (m *mockAlertRepo) CountByOrgAndStatus(context.Context, uint) (map[entity.AlertStatus]int64, error) {
+func (m *mockAlertRepo) CountByWorkspaceAndStatus(context.Context, uint) (map[entity.AlertStatus]int64, error) {
 	return nil, nil
 }
 
@@ -104,21 +104,21 @@ func (m *mockUserRepo) Update(context.Context, *entity.User) error              
 // ---------------------------------------------------------------------------
 
 const (
-	orgID   = uint(10)
+	workspaceID = uint(10)
 	alertID = uint(1)
 	noteID  = uint(100)
 	userID  = uint(42)
 )
 
-func orgAlert() *entity.Alert {
-	return &entity.Alert{ID: alertID, OrgID: orgID}
+func wsAlert() *entity.Alert {
+	return &entity.Alert{ID: alertID, WorkspaceID: workspaceID}
 }
 
 func ownedNote() *entity.AlertNote {
 	return &entity.AlertNote{
 		ID:      noteID,
 		AlertID: alertID,
-		OrgID:   orgID,
+		WorkspaceID:   workspaceID,
 		UserID:  userID,
 		Content: "original",
 	}
@@ -132,11 +132,11 @@ func TestListByAlert_Success(t *testing.T) {
 	notes := []entity.AlertNote{{ID: 1}, {ID: 2}}
 	uc := alertnote.New(
 		&mockNoteRepo{findByAlertIDResult: notes},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{},
 	)
 
-	result, err := uc.ListByAlert(context.Background(), orgID, alertID)
+	result, err := uc.ListByAlert(context.Background(), workspaceID, alertID)
 	require.NoError(t, err)
 	assert.Len(t, result, 2)
 }
@@ -148,7 +148,7 @@ func TestListByAlert_AlertNotFound(t *testing.T) {
 		&mockUserRepo{},
 	)
 
-	_, err := uc.ListByAlert(context.Background(), orgID, alertID)
+	_, err := uc.ListByAlert(context.Background(), workspaceID, alertID)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -156,11 +156,11 @@ func TestListByAlert_AlertNotFound(t *testing.T) {
 func TestListByAlert_WrongOrg(t *testing.T) {
 	uc := alertnote.New(
 		&mockNoteRepo{},
-		&mockAlertRepo{findByIDResult: &entity.Alert{ID: alertID, OrgID: 999}},
+		&mockAlertRepo{findByIDResult: &entity.Alert{ID: alertID, WorkspaceID: 999}},
 		&mockUserRepo{},
 	)
 
-	_, err := uc.ListByAlert(context.Background(), orgID, alertID)
+	_, err := uc.ListByAlert(context.Background(), workspaceID, alertID)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -168,11 +168,11 @@ func TestListByAlert_WrongOrg(t *testing.T) {
 func TestListByAlert_RepoError(t *testing.T) {
 	uc := alertnote.New(
 		&mockNoteRepo{findByAlertIDErr: errors.New("db error")},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{},
 	)
 
-	_, err := uc.ListByAlert(context.Background(), orgID, alertID)
+	_, err := uc.ListByAlert(context.Background(), workspaceID, alertID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "listing notes")
 }
@@ -184,23 +184,23 @@ func TestListByAlert_RepoError(t *testing.T) {
 func TestCreate_Success(t *testing.T) {
 	uc := alertnote.New(
 		&mockNoteRepo{},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{findByIDResult: &entity.User{ID: userID, Email: "user@test.com"}},
 	)
 
-	note, err := uc.Create(context.Background(), orgID, alertID, userID, "test content")
+	note, err := uc.Create(context.Background(), workspaceID, alertID, userID, "test content")
 	require.NoError(t, err)
 	assert.Equal(t, "test content", note.Content)
 	assert.Equal(t, "user@test.com", note.UserEmail)
 	assert.Equal(t, alertID, note.AlertID)
-	assert.Equal(t, orgID, note.OrgID)
+	assert.Equal(t, workspaceID, note.WorkspaceID)
 	assert.Equal(t, userID, note.UserID)
 }
 
 func TestCreate_EmptyContent(t *testing.T) {
 	uc := alertnote.New(&mockNoteRepo{}, &mockAlertRepo{}, &mockUserRepo{})
 
-	_, err := uc.Create(context.Background(), orgID, alertID, userID, "")
+	_, err := uc.Create(context.Background(), workspaceID, alertID, userID, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "content is required")
 }
@@ -209,7 +209,7 @@ func TestCreate_ContentTooLong(t *testing.T) {
 	uc := alertnote.New(&mockNoteRepo{}, &mockAlertRepo{}, &mockUserRepo{})
 
 	longContent := strings.Repeat("a", entity.MaxNoteLength+1)
-	_, err := uc.Create(context.Background(), orgID, alertID, userID, longContent)
+	_, err := uc.Create(context.Background(), workspaceID, alertID, userID, longContent)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "at most")
 }
@@ -221,7 +221,7 @@ func TestCreate_AlertNotFound(t *testing.T) {
 		&mockUserRepo{},
 	)
 
-	_, err := uc.Create(context.Background(), orgID, alertID, userID, "test")
+	_, err := uc.Create(context.Background(), workspaceID, alertID, userID, "test")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -229,11 +229,11 @@ func TestCreate_AlertNotFound(t *testing.T) {
 func TestCreate_WrongOrg(t *testing.T) {
 	uc := alertnote.New(
 		&mockNoteRepo{},
-		&mockAlertRepo{findByIDResult: &entity.Alert{ID: alertID, OrgID: 999}},
+		&mockAlertRepo{findByIDResult: &entity.Alert{ID: alertID, WorkspaceID: 999}},
 		&mockUserRepo{},
 	)
 
-	_, err := uc.Create(context.Background(), orgID, alertID, userID, "test")
+	_, err := uc.Create(context.Background(), workspaceID, alertID, userID, "test")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -241,11 +241,11 @@ func TestCreate_WrongOrg(t *testing.T) {
 func TestCreate_UserEmailResolutionFailure_StillCreates(t *testing.T) {
 	uc := alertnote.New(
 		&mockNoteRepo{},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{findByIDErr: errors.New("user not found")},
 	)
 
-	note, err := uc.Create(context.Background(), orgID, alertID, userID, "test")
+	note, err := uc.Create(context.Background(), workspaceID, alertID, userID, "test")
 	require.NoError(t, err)
 	assert.Empty(t, note.UserEmail) // graceful fallback
 	assert.Equal(t, "test", note.Content)
@@ -254,11 +254,11 @@ func TestCreate_UserEmailResolutionFailure_StillCreates(t *testing.T) {
 func TestCreate_RepoError(t *testing.T) {
 	uc := alertnote.New(
 		&mockNoteRepo{createErr: errors.New("db error")},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{findByIDResult: &entity.User{ID: userID, Email: "u@t.com"}},
 	)
 
-	_, err := uc.Create(context.Background(), orgID, alertID, userID, "test")
+	_, err := uc.Create(context.Background(), workspaceID, alertID, userID, "test")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "creating alert note")
 }
@@ -270,11 +270,11 @@ func TestCreate_RepoError(t *testing.T) {
 func TestUpdate_Success(t *testing.T) {
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDResult: ownedNote()},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{},
 	)
 
-	note, err := uc.Update(context.Background(), orgID, alertID, noteID, userID, "updated content")
+	note, err := uc.Update(context.Background(), workspaceID, alertID, noteID, userID, "updated content")
 	require.NoError(t, err)
 	assert.Equal(t, "updated content", note.Content)
 }
@@ -282,7 +282,7 @@ func TestUpdate_Success(t *testing.T) {
 func TestUpdate_EmptyContent(t *testing.T) {
 	uc := alertnote.New(&mockNoteRepo{}, &mockAlertRepo{}, &mockUserRepo{})
 
-	_, err := uc.Update(context.Background(), orgID, alertID, noteID, userID, "")
+	_, err := uc.Update(context.Background(), workspaceID, alertID, noteID, userID, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "content is required")
 }
@@ -291,7 +291,7 @@ func TestUpdate_ContentTooLong(t *testing.T) {
 	uc := alertnote.New(&mockNoteRepo{}, &mockAlertRepo{}, &mockUserRepo{})
 
 	longContent := strings.Repeat("a", entity.MaxNoteLength+1)
-	_, err := uc.Update(context.Background(), orgID, alertID, noteID, userID, longContent)
+	_, err := uc.Update(context.Background(), workspaceID, alertID, noteID, userID, longContent)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "at most")
 }
@@ -303,7 +303,7 @@ func TestUpdate_AlertNotFound(t *testing.T) {
 		&mockUserRepo{},
 	)
 
-	_, err := uc.Update(context.Background(), orgID, alertID, noteID, userID, "test")
+	_, err := uc.Update(context.Background(), workspaceID, alertID, noteID, userID, "test")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -311,26 +311,26 @@ func TestUpdate_AlertNotFound(t *testing.T) {
 func TestUpdate_NoteNotFound(t *testing.T) {
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDErr: entity.ErrNotFound},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{},
 	)
 
-	_, err := uc.Update(context.Background(), orgID, alertID, noteID, userID, "test")
+	_, err := uc.Update(context.Background(), workspaceID, alertID, noteID, userID, "test")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
 
 func TestUpdate_NoteWrongOrg(t *testing.T) {
-	wrongOrgNote := ownedNote()
-	wrongOrgNote.OrgID = 999
+	wrongWsNote := ownedNote()
+	wrongWsNote.WorkspaceID = 999
 
 	uc := alertnote.New(
-		&mockNoteRepo{findByIDResult: wrongOrgNote},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockNoteRepo{findByIDResult: wrongWsNote},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{},
 	)
 
-	_, err := uc.Update(context.Background(), orgID, alertID, noteID, userID, "test")
+	_, err := uc.Update(context.Background(), workspaceID, alertID, noteID, userID, "test")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -341,11 +341,11 @@ func TestUpdate_NoteWrongAlert(t *testing.T) {
 
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDResult: wrongAlertNote},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{},
 	)
 
-	_, err := uc.Update(context.Background(), orgID, alertID, noteID, userID, "test")
+	_, err := uc.Update(context.Background(), workspaceID, alertID, noteID, userID, "test")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -356,11 +356,11 @@ func TestUpdate_NotAuthor(t *testing.T) {
 
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDResult: otherUserNote},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{},
 	)
 
-	_, err := uc.Update(context.Background(), orgID, alertID, noteID, userID, "test")
+	_, err := uc.Update(context.Background(), workspaceID, alertID, noteID, userID, "test")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrForbidden))
 }
@@ -368,11 +368,11 @@ func TestUpdate_NotAuthor(t *testing.T) {
 func TestUpdate_RepoError(t *testing.T) {
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDResult: ownedNote(), updateErr: errors.New("db error")},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{},
 	)
 
-	_, err := uc.Update(context.Background(), orgID, alertID, noteID, userID, "test")
+	_, err := uc.Update(context.Background(), workspaceID, alertID, noteID, userID, "test")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "updating alert note")
 }
@@ -384,11 +384,11 @@ func TestUpdate_RepoError(t *testing.T) {
 func TestDelete_Success(t *testing.T) {
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDResult: ownedNote()},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{},
 	)
 
-	err := uc.Delete(context.Background(), orgID, alertID, noteID, userID)
+	err := uc.Delete(context.Background(), workspaceID, alertID, noteID, userID)
 	require.NoError(t, err)
 }
 
@@ -399,7 +399,7 @@ func TestDelete_AlertNotFound(t *testing.T) {
 		&mockUserRepo{},
 	)
 
-	err := uc.Delete(context.Background(), orgID, alertID, noteID, userID)
+	err := uc.Delete(context.Background(), workspaceID, alertID, noteID, userID)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -407,26 +407,26 @@ func TestDelete_AlertNotFound(t *testing.T) {
 func TestDelete_NoteNotFound(t *testing.T) {
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDErr: entity.ErrNotFound},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{},
 	)
 
-	err := uc.Delete(context.Background(), orgID, alertID, noteID, userID)
+	err := uc.Delete(context.Background(), workspaceID, alertID, noteID, userID)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
 
 func TestDelete_NoteWrongOrg(t *testing.T) {
-	wrongOrgNote := ownedNote()
-	wrongOrgNote.OrgID = 999
+	wrongWsNote := ownedNote()
+	wrongWsNote.WorkspaceID = 999
 
 	uc := alertnote.New(
-		&mockNoteRepo{findByIDResult: wrongOrgNote},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockNoteRepo{findByIDResult: wrongWsNote},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{},
 	)
 
-	err := uc.Delete(context.Background(), orgID, alertID, noteID, userID)
+	err := uc.Delete(context.Background(), workspaceID, alertID, noteID, userID)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -437,11 +437,11 @@ func TestDelete_NoteWrongAlert(t *testing.T) {
 
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDResult: wrongAlertNote},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{},
 	)
 
-	err := uc.Delete(context.Background(), orgID, alertID, noteID, userID)
+	err := uc.Delete(context.Background(), workspaceID, alertID, noteID, userID)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -452,11 +452,11 @@ func TestDelete_NotAuthor(t *testing.T) {
 
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDResult: otherUserNote},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{},
 	)
 
-	err := uc.Delete(context.Background(), orgID, alertID, noteID, userID)
+	err := uc.Delete(context.Background(), workspaceID, alertID, noteID, userID)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrForbidden))
 }
@@ -464,11 +464,11 @@ func TestDelete_NotAuthor(t *testing.T) {
 func TestDelete_RepoError(t *testing.T) {
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDResult: ownedNote(), deleteErr: errors.New("db error")},
-		&mockAlertRepo{findByIDResult: orgAlert()},
+		&mockAlertRepo{findByIDResult: wsAlert()},
 		&mockUserRepo{},
 	)
 
-	err := uc.Delete(context.Background(), orgID, alertID, noteID, userID)
+	err := uc.Delete(context.Background(), workspaceID, alertID, noteID, userID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "deleting alert note")
 }

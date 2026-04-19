@@ -49,7 +49,7 @@ func NewService(db *gorm.DB) *Service {
 // and correlation ID from the request context.
 func (s *Service) LogAction(ctx context.Context, action, resource string, resourceID uint, details string) {
 	userID := auth.UserIDFromContext(ctx)
-	orgID := rbac.OrgIDFromContext(ctx)
+	workspaceID := rbac.WorkspaceIDFromContext(ctx)
 	correlationID := CorrelationIDFromContext(ctx)
 
 	// Extract IP and User-Agent from the request if available
@@ -61,7 +61,7 @@ func (s *Service) LogAction(ctx context.Context, action, resource string, resour
 
 	entry := &persistent.AuditLog{
 		UserID:        userID,
-		OrgID:         orgID,
+		WorkspaceID:         workspaceID,
 		Action:        action,
 		Resource:      resource,
 		ResourceID:    resourceID,
@@ -78,7 +78,7 @@ func (s *Service) LogAction(ctx context.Context, action, resource string, resour
 			"resource", resource,
 			"resource_id", resourceID,
 			"user_id", userID,
-			"org_id", orgID,
+			"workspace_id", workspaceID,
 		)
 		return
 	}
@@ -89,7 +89,7 @@ func (s *Service) LogAction(ctx context.Context, action, resource string, resour
 		"resource", resource,
 		"resource_id", resourceID,
 		"user_id", userID,
-		"org_id", orgID,
+		"workspace_id", workspaceID,
 		"correlation_id", correlationID,
 	)
 }
@@ -109,7 +109,7 @@ func (s *Service) LogAuthEvent(ctx context.Context, action string, userID uint, 
 
 	entry := &persistent.AuditLog{
 		UserID:        userID,
-		OrgID:         0, // Auth events are not org-scoped
+		WorkspaceID:         0, // Auth events are not org-scoped
 		Action:        action,
 		Resource:      "auth",
 		ResourceID:    userID,
@@ -183,10 +183,10 @@ func (ac *AuditContext) LogChange(action string, after map[string]any) {
 	ac.service.LogAction(ac.ctx, action, ac.resource, ac.resourceID, string(detailsJSON))
 }
 
-// ListAuditLogs returns a paginated list of audit logs for an organization
+// ListAuditLogs returns a paginated list of audit logs for a workspace
 // with optional filters.
-func (s *Service) ListAuditLogs(orgID uint, filters AuditLogFilters, page, limit int) ([]persistent.AuditLog, int64, error) {
-	query := s.db.Model(&persistent.AuditLog{}).Where("org_id = ?", orgID)
+func (s *Service) ListAuditLogs(workspaceID uint, filters AuditLogFilters, page, limit int) ([]persistent.AuditLog, int64, error) {
+	query := s.db.Model(&persistent.AuditLog{}).Where("workspace_id = ?", workspaceID)
 
 	if filters.Action != "" {
 		query = query.Where("action = ?", filters.Action)

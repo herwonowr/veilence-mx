@@ -5,35 +5,35 @@ import { useAuth } from "@/core"
 import { Building2 } from "lucide-react"
 import { Button } from "@/ui/components/button"
 
-interface RequireOrgProps {
+interface RequireWorkspaceProps {
   children: React.ReactNode
   feature?: string
 }
 
-export const RequireOrg = ({ children, feature }: RequireOrgProps) => {
-  const { currentOrg, organizations } = useAuth()
+export const RequireWorkspace = ({ children, feature }: RequireWorkspaceProps) => {
+  const { currentWorkspace, workspaces } = useAuth()
   const router = useRouter()
 
-  if (currentOrg) {
+  if (currentWorkspace) {
     return <>{children}</>
   }
 
-  const hasAnyOrg = organizations.length > 0
+  const hasAnyWorkspace = workspaces.length > 0
 
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <Building2 className="h-10 w-10 text-muted-foreground mb-4" />
       <h2 className="text-xl font-semibold mb-2">
-        {hasAnyOrg ? "No organization selected" : "Organization required"}
+        {hasAnyWorkspace ? "No workspace selected" : "Workspace required"}
       </h2>
       <p className="text-muted-foreground mb-6 max-w-sm">
-        {hasAnyOrg
-          ? `Select an organization from the sidebar to view ${feature ?? "this page"}.`
-          : `Create an organization to start viewing ${feature ?? "this page"}.`}
+        {hasAnyWorkspace
+          ? `Select a workspace from the sidebar to view ${feature ?? "this page"}.`
+          : `Create a workspace to start viewing ${feature ?? "this page"}.`}
       </p>
-      {!hasAnyOrg && (
-        <Button onClick={() => router.push("/organizations")}>
-          Create Organization
+      {!hasAnyWorkspace && (
+        <Button onClick={() => router.push("/workspaces")}>
+          Create Workspace
         </Button>
       )}
     </div>

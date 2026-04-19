@@ -1,13 +1,13 @@
 "use client"
 
-import { ProtectedRoute, RequireOrg } from "@/features/auth"
+import { ProtectedRoute, RequireWorkspace } from "@/features/auth"
 import { ApiKeysView } from "@/features/account"
 
 const ApiKeysPage = () => (
   <ProtectedRoute>
-    <RequireOrg feature="API keys">
+    <RequireWorkspace feature="API keys">
       <ApiKeysView />
-    </RequireOrg>
+    </RequireWorkspace>
   </ProtectedRoute>
 )
 export default ApiKeysPage

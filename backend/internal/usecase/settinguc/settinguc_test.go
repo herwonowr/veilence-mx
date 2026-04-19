@@ -19,11 +19,11 @@ import (
 
 // mockSettingRepo is a simple in-memory mock of usecase.SettingRepository.
 type mockSettingRepo struct {
-	// store holds settings keyed by "orgID:key".
+	// store holds settings keyed by "workspaceID:key".
 	store map[string]entity.Setting
 
 	// errors lets tests inject errors for specific methods.
-	findByOrgIDErr    error
+	findByWorkspaceIDErr    error
 	upsertByOrgKeyErr error
 }
 
@@ -31,16 +31,16 @@ func newMockRepo() *mockSettingRepo {
 	return &mockSettingRepo{store: make(map[string]entity.Setting)}
 }
 
-func storeKey(orgID uint, key string) string {
-	return fmt.Sprintf("%d:%s", orgID, key)
+func storeKey(workspaceID uint, key string) string {
+	return fmt.Sprintf("%d:%s", workspaceID, key)
 }
 
-func (m *mockSettingRepo) FindByOrgID(_ context.Context, orgID uint) ([]entity.Setting, error) {
-	if m.findByOrgIDErr != nil {
-		return nil, m.findByOrgIDErr
+func (m *mockSettingRepo) FindByWorkspaceID(_ context.Context, workspaceID uint) ([]entity.Setting, error) {
+	if m.findByWorkspaceIDErr != nil {
+		return nil, m.findByWorkspaceIDErr
 	}
 	var result []entity.Setting
-	prefix := fmt.Sprintf("%d:", orgID)
+	prefix := fmt.Sprintf("%d:", workspaceID)
 	for k, v := range m.store {
 		if len(k) >= len(prefix) && k[:len(prefix)] == prefix {
 			result = append(result, v)
@@ -49,8 +49,8 @@ func (m *mockSettingRepo) FindByOrgID(_ context.Context, orgID uint) ([]entity.S
 	return result, nil
 }
 
-func (m *mockSettingRepo) FindByKey(_ context.Context, orgID uint, key string) (*entity.Setting, error) {
-	s, ok := m.store[storeKey(orgID, key)]
+func (m *mockSettingRepo) FindByKey(_ context.Context, workspaceID uint, key string) (*entity.Setting, error) {
+	s, ok := m.store[storeKey(workspaceID, key)]
 	if !ok {
 		return nil, entity.ErrNotFound
 	}
@@ -58,15 +58,15 @@ func (m *mockSettingRepo) FindByKey(_ context.Context, orgID uint, key string) (
 }
 
 func (m *mockSettingRepo) Upsert(_ context.Context, setting *entity.Setting) error {
-	m.store[storeKey(setting.OrgID, setting.Key)] = *setting
+	m.store[storeKey(setting.WorkspaceID, setting.Key)] = *setting
 	return nil
 }
 
-func (m *mockSettingRepo) UpsertByOrgAndKey(_ context.Context, orgID uint, key, value string) error {
+func (m *mockSettingRepo) UpsertByWorkspaceAndKey(_ context.Context, workspaceID uint, key, value string) error {
 	if m.upsertByOrgKeyErr != nil {
 		return m.upsertByOrgKeyErr
 	}
-	m.store[storeKey(orgID, key)] = entity.Setting{OrgID: orgID, Key: key, Value: value}
+	m.store[storeKey(workspaceID, key)] = entity.Setting{WorkspaceID: workspaceID, Key: key, Value: value}
 	return nil
 }
 
@@ -86,8 +86,8 @@ func (m *mockSettingRepo) FindOrCreateByKey(_ context.Context, key, defaultValue
 
 func TestGetSettings_ReturnsKeyValueMap(t *testing.T) {
 	repo := newMockRepo()
-	repo.store[storeKey(1, "monitoring_interval")] = entity.Setting{OrgID: 1, Key: "monitoring_interval", Value: "5m"}
-	repo.store[storeKey(1, "analyzer_mode")] = entity.Setting{OrgID: 1, Key: "analyzer_mode", Value: "auto"}
+	repo.store[storeKey(1, "monitoring_interval")] = entity.Setting{WorkspaceID: 1, Key: "monitoring_interval", Value: "5m"}
+	repo.store[storeKey(1, "analyzer_mode")] = entity.Setting{WorkspaceID: 1, Key: "analyzer_mode", Value: "auto"}
 
 	uc := settinguc.New(repo)
 	result, err := uc.GetSettings(context.Background(), 1)
@@ -99,7 +99,7 @@ func TestGetSettings_ReturnsKeyValueMap(t *testing.T) {
 
 func TestGetSettings_RepoError(t *testing.T) {
 	repo := newMockRepo()
-	repo.findByOrgIDErr = fmt.Errorf("db connection lost")
+	repo.findByWorkspaceIDErr = fmt.Errorf("db connection lost")
 
 	uc := settinguc.New(repo)
 	_, err := uc.GetSettings(context.Background(), 1)

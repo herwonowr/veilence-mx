@@ -5,8 +5,8 @@ export const invitationSchema = z.object({
   roleId: z.number().positive("Please select a role"),
 })
 
-export const organizationSchema = z.object({
-  name: z.string().min(1, "Organization name is required"),
+export const workspaceSchema = z.object({
+  name: z.string().min(1, "Workspace name is required"),
   slug: z
     .string()
     .min(1, "Slug is required")
@@ -18,4 +18,4 @@ export const organizationSchema = z.object({
 })
 
 export type InvitationFormData = z.infer<typeof invitationSchema>
-export type OrganizationFormData = z.infer<typeof organizationSchema>
+export type WorkspaceFormData = z.infer<typeof workspaceSchema>

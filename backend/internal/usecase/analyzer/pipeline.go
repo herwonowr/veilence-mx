@@ -103,7 +103,7 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
 			}
 
 			alert := persistent.Alert{
-				OrgID:      pkg.OrgID,
+				WorkspaceID:      pkg.WorkspaceID,
 				AnalysisID: analysis.ID,
 				PackageID:  pkg.ID,
 				Severity:   severity,
@@ -127,7 +127,7 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
 						notifSeverity = "critical"
 						notifEventType = entity.NotifEventAlertMalicious
 					}
-					p.notifier.DispatchEvent(ctx, pkg.OrgID, entity.NotificationEvent{
+					p.notifier.DispatchEvent(ctx, pkg.WorkspaceID, entity.NotificationEvent{
 						Severity:      notifSeverity,
 						EventType:     notifEventType,
 						Title:         fmt.Sprintf("%s package detected: %s v%s", strings.ToUpper(result.Classification[:1])+result.Classification[1:], pkg.Name, diff.Release.Version),
@@ -143,7 +143,7 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
 	// If no analysis was created, return error so the job is retried
 	if !analysisCreated {
 		if p.notifier != nil {
-			p.notifier.DispatchEvent(ctx, pkg.OrgID, entity.NotificationEvent{
+			p.notifier.DispatchEvent(ctx, pkg.WorkspaceID, entity.NotificationEvent{
 				Severity:      "high",
 				EventType:     entity.NotifEventAnalysisError,
 				Title:         fmt.Sprintf("Analysis failed: %s v%s", pkg.Name, diff.Release.Version),

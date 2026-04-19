@@ -12,12 +12,12 @@ const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password
 export const AppShell = ({
   children,
   notificationSlot,
-  orgSelectorSlot,
+  workspaceSelectorSlot,
   sidebarDefaultOpen = true,
 }: {
   children: React.ReactNode
   notificationSlot?: React.ReactNode
-  orgSelectorSlot?: React.ReactNode
+  workspaceSelectorSlot?: React.ReactNode
   sidebarDefaultOpen?: boolean
 }) => {
   const pathname = usePathname()
@@ -37,7 +37,7 @@ export const AppShell = ({
   // Authenticated - render full app shell
   return (
     <SidebarProvider defaultOpen={sidebarDefaultOpen}>
-      <AppSidebar orgSelectorSlot={orgSelectorSlot} />
+      <AppSidebar workspaceSelectorSlot={workspaceSelectorSlot} />
       <SidebarInset className="min-w-0 overflow-hidden">
         <SiteHeader actionSlot={notificationSlot} />
         <main id="main-content" className="flex-1 overflow-auto p-4 md:p-6">{children}</main>

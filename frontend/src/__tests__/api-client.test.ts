@@ -49,24 +49,24 @@ describe("api-client", () => {
       expect(api.getStoredRefreshToken()).toBeNull()
     })
 
-    it("stores and retrieves org ID", async () => {
+    it("stores and retrieves workspace ID", async () => {
       const api = await loadApiClient()
 
-      api.storeOrgId(42)
-      expect(api.getStoredOrgId()).toBe(42)
+      api.storeWorkspaceId(42)
+      expect(api.getStoredWorkspaceId()).toBe(42)
 
-      api.clearOrgId()
-      expect(api.getStoredOrgId()).toBeNull()
+      api.clearWorkspaceId()
+      expect(api.getStoredWorkspaceId()).toBeNull()
     })
   })
 
   describe("fetchApi auth headers", () => {
-    it("attaches Authorization and X-Org-ID headers", async () => {
+    it("attaches Authorization and X-Workspace-ID headers", async () => {
       const api = await loadApiClient()
 
       // Store tokens before making the request
       localStorage.setItem("vmx_access_token", "my-token")
-      localStorage.setItem("vmx_current_org_id", "5")
+      localStorage.setItem("vmx_current_workspace_id", "5")
 
       const mockResponse = {
         ok: true,
@@ -83,7 +83,7 @@ describe("api-client", () => {
       expect((options?.headers as Record<string, string>)["Authorization"]).toBe(
         "Bearer my-token"
       )
-      expect((options?.headers as Record<string, string>)["X-Org-ID"]).toBe("5")
+      expect((options?.headers as Record<string, string>)["X-Workspace-ID"]).toBe("5")
     })
 
     it("skips auth headers for login requests", async () => {

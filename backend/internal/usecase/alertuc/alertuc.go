@@ -22,8 +22,8 @@ func New(alerts usecase.AlertRepository, audit usecase.AuditLogger) *UseCase {
 }
 
 // ListAlerts returns a paginated list of alerts with package info for the given org.
-func (uc *UseCase) ListAlerts(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
-	results, total, err := uc.alerts.FindByOrgIDWithPackage(ctx, orgID, page, limit, sortClause, filters)
+func (uc *UseCase) ListAlerts(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
+	results, total, err := uc.alerts.FindByWorkspaceIDWithPackage(ctx, workspaceID, page, limit, sortClause, filters)
 	if err != nil {
 		return nil, 0, fmt.Errorf("AlertUseCase.ListAlerts: %w", err)
 	}
@@ -31,8 +31,8 @@ func (uc *UseCase) ListAlerts(ctx context.Context, orgID uint, page, limit int, 
 }
 
 // GetAlert returns a single alert by ID with package info, scoped to the given org.
-func (uc *UseCase) GetAlert(ctx context.Context, orgID, alertID uint) (*entity.Alert, *entity.Package, error) {
-	alert, pkg, err := uc.alerts.FindByIDWithPackage(ctx, alertID, orgID)
+func (uc *UseCase) GetAlert(ctx context.Context, workspaceID, alertID uint) (*entity.Alert, *entity.Package, error) {
+	alert, pkg, err := uc.alerts.FindByIDWithPackage(ctx, alertID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, nil, entity.ErrNotFound
@@ -43,7 +43,7 @@ func (uc *UseCase) GetAlert(ctx context.Context, orgID, alertID uint) (*entity.A
 }
 
 // UpdateAlertStatus updates the status of an alert scoped to the given org.
-func (uc *UseCase) UpdateAlertStatus(ctx context.Context, orgID, alertID uint, status entity.AlertStatus) (*entity.Alert, error) {
+func (uc *UseCase) UpdateAlertStatus(ctx context.Context, workspaceID, alertID uint, status entity.AlertStatus) (*entity.Alert, error) {
 	alert, err := uc.alerts.FindByID(ctx, alertID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
@@ -51,7 +51,7 @@ func (uc *UseCase) UpdateAlertStatus(ctx context.Context, orgID, alertID uint, s
 		}
 		return nil, fmt.Errorf("AlertUseCase.UpdateAlertStatus: finding alert: %w", err)
 	}
-	if alert.OrgID != orgID {
+	if alert.WorkspaceID != workspaceID {
 		return nil, entity.ErrNotFound
 	}
 

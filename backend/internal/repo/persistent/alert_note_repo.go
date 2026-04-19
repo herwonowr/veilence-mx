@@ -89,7 +89,7 @@ func alertNoteToDomain(m *AlertNote) *entity.AlertNote {
 	return &entity.AlertNote{
 		ID:        m.ID,
 		AlertID:   m.AlertID,
-		OrgID:     m.OrgID,
+		WorkspaceID:     m.WorkspaceID,
 		UserID:    m.UserID,
 		UserEmail: m.UserEmail,
 		Content:   m.Content,
@@ -102,7 +102,7 @@ func alertNoteToModel(d *entity.AlertNote) *AlertNote {
 	return &AlertNote{
 		ID:        d.ID,
 		AlertID:   d.AlertID,
-		OrgID:     d.OrgID,
+		WorkspaceID:     d.WorkspaceID,
 		UserID:    d.UserID,
 		UserEmail: d.UserEmail,
 		Content:   d.Content,

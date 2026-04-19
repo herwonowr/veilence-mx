@@ -29,7 +29,7 @@ type queueStatsResponse struct {
 
 // GetQueueStats returns current queue statistics.
 // NOTE: Queue data is global (Redis-backed, not org-scoped). The endpoint
-// requires org membership via RequireOrg middleware for access control only.
+// requires org membership via RequireWorkspace middleware for access control only.
 func (h *QueueHandlers) GetQueueStats(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
 		respondError(w, http.StatusInternalServerError, "queue not configured")
@@ -59,7 +59,7 @@ func (h *QueueHandlers) GetQueueStats(w http.ResponseWriter, r *http.Request) {
 // GetDeadJobs returns dead-letter jobs for a given queue type.
 // When no type is specified, returns dead jobs from all queue types.
 // NOTE: Queue data is global (Redis-backed, not org-scoped). The endpoint
-// requires org membership via RequireOrg middleware for access control only.
+// requires org membership via RequireWorkspace middleware for access control only.
 //
 // Deprecated: Use GET /api/queue/jobs?status=dead instead. This endpoint
 // is maintained for backward compatibility and will be removed in v1.1.0.
@@ -105,7 +105,7 @@ func (h *QueueHandlers) GetDeadJobs(w http.ResponseWriter, r *http.Request) {
 // RetryDeadJobs re-queues all dead-letter jobs for a given type.
 // When no type is specified, retries dead jobs from all queue types.
 // NOTE: Queue data is global (Redis-backed, not org-scoped). The endpoint
-// requires org membership via RequireOrg middleware for access control only.
+// requires org membership via RequireWorkspace middleware for access control only.
 func (h *QueueHandlers) RetryDeadJobs(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
 		respondError(w, http.StatusInternalServerError, "queue not configured")
@@ -150,7 +150,7 @@ func (h *QueueHandlers) RetryDeadJobs(w http.ResponseWriter, r *http.Request) {
 // Query params: type (required: diff|analyze), status (required: pending|processing|dead),
 // page (default 1), limit (default 20, max 100).
 // NOTE: Queue data is global (Redis-backed, not org-scoped). The endpoint
-// requires org membership via RequireOrg middleware for access control only.
+// requires org membership via RequireWorkspace middleware for access control only.
 func (h *QueueHandlers) GetQueueJobs(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
 		respondError(w, http.StatusInternalServerError, "queue not configured")
@@ -220,7 +220,7 @@ func (h *QueueHandlers) GetQueueJobs(w http.ResponseWriter, r *http.Request) {
 // RetryDeadJob re-queues a single dead-letter job by its ID.
 // The job's type is looked up from its stored data to route to the correct queue.
 // NOTE: Queue data is global (Redis-backed, not org-scoped). The endpoint
-// requires org membership via RequireOrg middleware for access control only.
+// requires org membership via RequireWorkspace middleware for access control only.
 func (h *QueueHandlers) RetryDeadJob(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
 		respondError(w, http.StatusInternalServerError, "queue not configured")

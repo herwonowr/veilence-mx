@@ -74,9 +74,9 @@ export const NotificationPageItem = ({
           isSelected && "bg-primary/5",
         )}
       >
-        {/* Checkbox for multi-select */}
+        {/* Checkbox column — fixed width, always present in select mode */}
         {selectMode && (
-          <div className="flex shrink-0 items-center pt-1">
+          <div className="flex w-5 shrink-0 items-center justify-center self-start pt-2.5">
             <Checkbox
               checked={isSelected}
               onCheckedChange={() => onToggleSelect?.(notification.id)}

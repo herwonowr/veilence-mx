@@ -11,7 +11,7 @@ import (
 
 // GetChartData returns aggregated data for dashboard charts, scoped to the current org.
 func (h *DashboardHandlers) GetChartData(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	// Parse time range from query params
 	now := time.Now()
@@ -36,9 +36,9 @@ func (h *DashboardHandlers) GetChartData(w http.ResponseWriter, r *http.Request)
 		to = now
 	}
 
-	data, err := h.DashboardSvc.GetChartData(r.Context(), orgID, from, to)
+	data, err := h.DashboardSvc.GetChartData(r.Context(), workspaceID, from, to)
 	if err != nil {
-		slog.Error("failed to get chart data", "org_id", orgID, "error", err)
+		slog.Error("failed to get chart data", "workspace_id", workspaceID, "error", err)
 		respondError(w, http.StatusInternalServerError, "failed to get chart data")
 		return
 	}

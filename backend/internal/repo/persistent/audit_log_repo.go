@@ -30,8 +30,8 @@ func (r *AuditLogRepo) Create(ctx context.Context, entry *entity.AuditLog) error
 	return nil
 }
 
-func (r *AuditLogRepo) FindByOrgID(ctx context.Context, orgID uint, filters entity.AuditLogFilters, page, limit int) ([]entity.AuditLog, int64, error) {
-	query := r.db.WithContext(ctx).Model(&AuditLog{}).Where("org_id = ?", orgID)
+func (r *AuditLogRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, filters entity.AuditLogFilters, page, limit int) ([]entity.AuditLog, int64, error) {
+	query := r.db.WithContext(ctx).Model(&AuditLog{}).Where("workspace_id = ?", workspaceID)
 
 	if filters.Action != "" {
 		query = query.Where("action = ?", filters.Action)
@@ -88,7 +88,7 @@ func auditLogToDomain(m *AuditLog) *entity.AuditLog {
 	return &entity.AuditLog{
 		ID:            m.ID,
 		UserID:        m.UserID,
-		OrgID:         m.OrgID,
+		WorkspaceID:         m.WorkspaceID,
 		Action:        m.Action,
 		Resource:      m.Resource,
 		ResourceID:    m.ResourceID,
@@ -104,7 +104,7 @@ func auditLogToModel(d *entity.AuditLog) *AuditLog {
 	return &AuditLog{
 		ID:            d.ID,
 		UserID:        d.UserID,
-		OrgID:         d.OrgID,
+		WorkspaceID:         d.WorkspaceID,
 		Action:        d.Action,
 		Resource:      d.Resource,
 		ResourceID:    d.ResourceID,

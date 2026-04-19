@@ -58,7 +58,7 @@ func TestMarkAllRead_NoUnread(t *testing.T) {
 	assert.Equal(t, int64(0), affected, "no unread to mark")
 }
 
-func TestMarkAllRead_OrgScoped(t *testing.T) {
+func TestMarkAllRead_WorkspaceScoped(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newService(db)
 
@@ -352,7 +352,7 @@ func TestDispatch_UnknownChannelType(t *testing.T) {
 
 	// Create channel with unknown type directly in DB
 	ch := &persistent.NotificationChannel{
-		OrgID:    1,
+		WorkspaceID:    1,
 		Name:     "Unknown Type",
 		Type:     "carrier_pigeon",
 		Config:   "{}",
@@ -362,7 +362,7 @@ func TestDispatch_UnknownChannelType(t *testing.T) {
 
 	// Create rule linked to this channel
 	rule := &persistent.NotificationRule{
-		OrgID:     1,
+		WorkspaceID:     1,
 		ChannelID: ch.ID,
 		Severity:  "low",
 		IsActive:  true,

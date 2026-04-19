@@ -20,9 +20,9 @@ func NewSettingRepo(db *gorm.DB) *SettingRepo {
 	return &SettingRepo{db: db}
 }
 
-func (r *SettingRepo) FindByOrgID(ctx context.Context, orgID uint) ([]entity.Setting, error) {
+func (r *SettingRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.Setting, error) {
 	var ms []Setting
-	if err := r.db.WithContext(ctx).Where("org_id = ?", orgID).Find(&ms).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("workspace_id = ?", workspaceID).Find(&ms).Error; err != nil {
 		return nil, fmt.Errorf("listing settings: %w", err)
 	}
 	result := make([]entity.Setting, len(ms))
@@ -32,9 +32,9 @@ func (r *SettingRepo) FindByOrgID(ctx context.Context, orgID uint) ([]entity.Set
 	return result, nil
 }
 
-func (r *SettingRepo) FindByKey(ctx context.Context, orgID uint, key string) (*entity.Setting, error) {
+func (r *SettingRepo) FindByKey(ctx context.Context, workspaceID uint, key string) (*entity.Setting, error) {
 	var m Setting
-	err := r.db.WithContext(ctx).Where("org_id = ? AND key = ?", orgID, key).First(&m).Error
+	err := r.db.WithContext(ctx).Where("workspace_id = ? AND key = ?", workspaceID, key).First(&m).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("setting %w", entity.ErrNotFound)
@@ -47,7 +47,7 @@ func (r *SettingRepo) FindByKey(ctx context.Context, orgID uint, key string) (*e
 func (r *SettingRepo) Upsert(ctx context.Context, setting *entity.Setting) error {
 	m := settingToModel(setting)
 	result := r.db.WithContext(ctx).
-		Where("org_id = ? AND key = ?", m.OrgID, m.Key).
+		Where("workspace_id = ? AND key = ?", m.WorkspaceID, m.Key).
 		Assign(Setting{Value: m.Value}).
 		FirstOrCreate(m)
 	if result.Error != nil {
@@ -67,10 +67,10 @@ func (r *SettingRepo) FindOrCreateByKey(ctx context.Context, key, defaultValue s
 	return settingToDomain(m), nil
 }
 
-func (r *SettingRepo) UpsertByOrgAndKey(ctx context.Context, orgID uint, key, value string) error {
-	m := &Setting{OrgID: orgID, Key: key, Value: value}
+func (r *SettingRepo) UpsertByWorkspaceAndKey(ctx context.Context, workspaceID uint, key, value string) error {
+	m := &Setting{WorkspaceID: workspaceID, Key: key, Value: value}
 	result := r.db.WithContext(ctx).
-		Where("org_id = ? AND key = ?", orgID, key).
+		Where("workspace_id = ? AND key = ?", workspaceID, key).
 		Assign(Setting{Value: value}).
 		FirstOrCreate(m)
 	if result.Error != nil {
@@ -80,10 +80,10 @@ func (r *SettingRepo) UpsertByOrgAndKey(ctx context.Context, orgID uint, key, va
 }
 
 // GetSettingValue implements usecase.SettingGetter. It returns the value of a
-// single setting by orgID and key. Returns entity.ErrNotFound if the key does
+// single setting by workspaceID and key. Returns entity.ErrNotFound if the key does
 // not exist.
-func (r *SettingRepo) GetSettingValue(ctx context.Context, orgID uint, key string) (string, error) {
-	setting, err := r.FindByKey(ctx, orgID, key)
+func (r *SettingRepo) GetSettingValue(ctx context.Context, workspaceID uint, key string) (string, error) {
+	setting, err := r.FindByKey(ctx, workspaceID, key)
 	if err != nil {
 		return "", err
 	}
@@ -95,7 +95,7 @@ func (r *SettingRepo) GetSettingValue(ctx context.Context, orgID uint, key strin
 func settingToDomain(m *Setting) *entity.Setting {
 	return &entity.Setting{
 		ID:        m.ID,
-		OrgID:     m.OrgID,
+		WorkspaceID:     m.WorkspaceID,
 		Key:       m.Key,
 		Value:     m.Value,
 		CreatedAt: m.CreatedAt,
@@ -106,7 +106,7 @@ func settingToDomain(m *Setting) *entity.Setting {
 func settingToModel(d *entity.Setting) *Setting {
 	return &Setting{
 		ID:        d.ID,
-		OrgID:     d.OrgID,
+		WorkspaceID:     d.WorkspaceID,
 		Key:       d.Key,
 		Value:     d.Value,
 		CreatedAt: d.CreatedAt,

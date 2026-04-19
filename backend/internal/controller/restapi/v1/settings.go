@@ -14,9 +14,9 @@ import (
 
 // GetSettings returns all settings as a key-value map scoped to the current org.
 func (h *SettingsHandlers) GetSettings(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	settings, err := h.SettingSvc.GetSettings(r.Context(), orgID)
+	settings, err := h.SettingSvc.GetSettings(r.Context(), workspaceID)
 	if err != nil {
 		respondAppError(w, Internal("failed to load settings"))
 		return
@@ -27,7 +27,7 @@ func (h *SettingsHandlers) GetSettings(w http.ResponseWriter, r *http.Request) {
 
 // UpdateSettings updates settings from a key-value map scoped to the current org.
 func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	var req map[string]string
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -43,7 +43,7 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	updated, err := h.SettingSvc.UpdateSettings(r.Context(), orgID, req)
+	updated, err := h.SettingSvc.UpdateSettings(r.Context(), workspaceID, req)
 	if err != nil {
 		if errors.Is(err, entity.ErrValidation) {
 			// Strip the trailing ": validation" sentinel from the message.
@@ -68,7 +68,7 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 
 		// If discovery_scan_depth changed, trigger an immediate discovery cycle
 		if _, changed := req[entity.SettingDiscoveryScanDepth]; changed {
-			h.Poller.TriggerDiscovery(orgID)
+			h.Poller.TriggerDiscovery(workspaceID)
 		}
 	}
 
@@ -77,11 +77,11 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 
 // DiscoverPackages triggers an immediate discovery cycle for the current org.
 func (h *SettingsHandlers) DiscoverPackages(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	// Read discovery_scan_depth setting (default 50)
 	scanDepth := 50
-	settings, err := h.SettingSvc.GetSettings(r.Context(), orgID)
+	settings, err := h.SettingSvc.GetSettings(r.Context(), workspaceID)
 	if err == nil {
 		if v, ok := settings[entity.SettingDiscoveryScanDepth]; ok {
 			if n, err := json.Number(v).Int64(); err == nil && n > 0 {
@@ -91,14 +91,14 @@ func (h *SettingsHandlers) DiscoverPackages(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Discover both ecosystems at the same scan depth
-	if err := h.Poller.SyncTopPackages(r.Context(), h.Python, scanDepth, orgID); err != nil {
-		slog.Error("failed to discover Python packages", "org_id", orgID, "error", err)
+	if err := h.Poller.SyncTopPackages(r.Context(), h.Python, scanDepth, workspaceID); err != nil {
+		slog.Error("failed to discover Python packages", "workspace_id", workspaceID, "error", err)
 		respondError(w, http.StatusInternalServerError, "failed to discover Python packages")
 		return
 	}
 
-	if err := h.Poller.SyncTopPackages(r.Context(), h.NPM, scanDepth, orgID); err != nil {
-		slog.Error("failed to discover npm packages", "org_id", orgID, "error", err)
+	if err := h.Poller.SyncTopPackages(r.Context(), h.NPM, scanDepth, workspaceID); err != nil {
+		slog.Error("failed to discover npm packages", "workspace_id", workspaceID, "error", err)
 		respondError(w, http.StatusInternalServerError, "failed to discover npm packages")
 		return
 	}

@@ -2,10 +2,10 @@ package entity
 
 import "time"
 
-// Role represents a named set of permissions within an organization.
+// Role represents a named set of permissions within a workspace.
 type Role struct {
 	ID          uint         `json:"id"`
-	OrgID       uint         `json:"orgId"`
+	WorkspaceID uint         `json:"workspaceId"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
 	IsSystem    bool         `json:"isSystem"`
@@ -44,9 +44,9 @@ var SystemPermissions = []Permission{
 	{Resource: "members", Action: "remove"},
 	{Resource: "roles", Action: "read"},
 	{Resource: "roles", Action: "write"},
-	{Resource: "org", Action: "read"},
-	{Resource: "org", Action: "write"},
-	{Resource: "org", Action: "delete"},
+	{Resource: "workspace", Action: "read"},
+	{Resource: "workspace", Action: "write"},
+	{Resource: "workspace", Action: "delete"},
 	{Resource: "api_keys", Action: "read"},
 	{Resource: "api_keys", Action: "write"},
 	{Resource: "audit", Action: "read"},

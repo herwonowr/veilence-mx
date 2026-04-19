@@ -17,7 +17,7 @@ const (
 // NotificationChannel represents a configured channel for sending notifications.
 type NotificationChannel struct {
 	ID             uint
-	OrgID          uint
+	WorkspaceID    uint
 	Name           string
 	Type           NotificationChannelType
 	Config         string
@@ -29,7 +29,7 @@ type NotificationChannel struct {
 // NotificationRule defines a routing rule that maps severity levels to channels.
 type NotificationRule struct {
 	ID             uint
-	OrgID          uint
+	WorkspaceID    uint
 	ChannelID      uint
 	Severity       string
 	IsActive       bool
@@ -37,10 +37,10 @@ type NotificationRule struct {
 	UpdatedAt      time.Time
 }
 
-// Notification represents an in-app notification sent to a user or org.
+// Notification represents an in-app notification sent to a user or workspace.
 type Notification struct {
 	ID            uint
-	OrgID         uint
+	WorkspaceID   uint
 	UserID        uint
 	ChannelID     uint
 	Severity      string // "critical", "high", "medium", "low"

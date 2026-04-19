@@ -1,27 +1,27 @@
 "use client"
 
 export {
-  useOrganizations,
-  useOrganization,
-  useCreateOrganization,
-  useUpdateOrganization,
-  useDeleteOrganization,
-  useOrgMembers,
-  useOrgRoles,
+  useWorkspaces,
+  useWorkspace,
+  useCreateWorkspace,
+  useUpdateWorkspace,
+  useDeleteWorkspace,
+  useWorkspaceMembers,
+  useWorkspaceRoles,
   usePermissions,
   useInviteMember,
   useRemoveMember,
   useUpdateMemberRole,
   useAuditLogs,
-  orgKeys,
-} from "@/features/admin/hooks/use-organizations"
+  workspaceKeys,
+} from "@/features/admin/hooks/use-workspaces"
 
 export {
   useAdminPackages,
   adminPackageKeys,
 } from "@/features/admin/hooks/use-admin-packages"
 
-export { OrgSelector } from "@/features/admin/ui/org-selector"
-export { OrganizationsListView } from "@/features/admin/ui/organizations-list-view"
-export { OrganizationDetailView } from "@/features/admin/ui/organization-detail-view"
+export { WorkspaceSelector } from "@/features/admin/ui/workspace-selector"
+export { WorkspacesListView } from "@/features/admin/ui/workspaces-list-view"
+export { WorkspaceDetailView } from "@/features/admin/ui/workspace-detail-view"
 export { AuditLogView } from "@/features/admin/ui/audit-log-view"

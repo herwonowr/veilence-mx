@@ -27,14 +27,14 @@ vi.mock("@/lib/api-client", async (importOriginal) => {
     apiRegister: vi.fn(),
     apiLogout: vi.fn(),
     apiGetMe: vi.fn(),
-    apiGetOrgs: vi.fn(),
+    apiGetWorkspaces: vi.fn(),
     getStoredAccessToken: vi.fn(() => null),
     getStoredRefreshToken: vi.fn(() => null),
     storeTokens: vi.fn(),
     clearTokens: vi.fn(),
-    getStoredOrgId: vi.fn(() => null),
-    storeOrgId: vi.fn(),
-    clearOrgId: vi.fn(),
+    getStoredWorkspaceId: vi.fn(() => null),
+    storeWorkspaceId: vi.fn(),
+    clearWorkspaceId: vi.fn(),
   }
 })
 
@@ -50,11 +50,11 @@ const mockUser = {
   updatedAt: "2026-01-01T00:00:00Z",
 }
 
-const mockOrg = {
+const mockWorkspace = {
   id: 1,
-  name: "Test Org",
-  slug: "test-org",
-  description: "Test organization",
+  name: "Test Workspace",
+  slug: "test-workspace",
+  description: "Test workspace",
   ownerId: 1,
   isActive: true,
   createdAt: "2026-01-01T00:00:00Z",
@@ -96,11 +96,11 @@ describe("Inactivity timeout", () => {
       data: mockUser,
       error: null,
     })
-    vi.mocked(apiClient.apiGetOrgs).mockResolvedValue({
-      data: [mockOrg],
+    vi.mocked(apiClient.apiGetWorkspaces).mockResolvedValue({
+      data: [mockWorkspace],
       error: null,
     })
-    vi.mocked(apiClient.getStoredOrgId).mockReturnValue(null)
+    vi.mocked(apiClient.getStoredWorkspaceId).mockReturnValue(null)
 
     renderHook(() => useAuth(), { wrapper: createWrapper() })
 
@@ -141,11 +141,11 @@ describe("Inactivity timeout", () => {
       data: mockUser,
       error: null,
     })
-    vi.mocked(apiClient.apiGetOrgs).mockResolvedValue({
-      data: [mockOrg],
+    vi.mocked(apiClient.apiGetWorkspaces).mockResolvedValue({
+      data: [mockWorkspace],
       error: null,
     })
-    vi.mocked(apiClient.getStoredOrgId).mockReturnValue(null)
+    vi.mocked(apiClient.getStoredWorkspaceId).mockReturnValue(null)
 
     renderHook(() => useAuth(), { wrapper: createWrapper() })
 
@@ -171,15 +171,15 @@ describe("Inactivity timeout", () => {
       data: mockUser,
       error: null,
     })
-    vi.mocked(apiClient.apiGetOrgs).mockResolvedValue({
-      data: [mockOrg],
+    vi.mocked(apiClient.apiGetWorkspaces).mockResolvedValue({
+      data: [mockWorkspace],
       error: null,
     })
     vi.mocked(apiClient.apiLogout).mockResolvedValue({
       data: null,
       error: null,
     })
-    vi.mocked(apiClient.getStoredOrgId).mockReturnValue(null)
+    vi.mocked(apiClient.getStoredWorkspaceId).mockReturnValue(null)
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: createWrapper(),
@@ -207,11 +207,11 @@ describe("Inactivity timeout", () => {
       data: mockUser,
       error: null,
     })
-    vi.mocked(apiClient.apiGetOrgs).mockResolvedValue({
-      data: [mockOrg],
+    vi.mocked(apiClient.apiGetWorkspaces).mockResolvedValue({
+      data: [mockWorkspace],
       error: null,
     })
-    vi.mocked(apiClient.getStoredOrgId).mockReturnValue(null)
+    vi.mocked(apiClient.getStoredWorkspaceId).mockReturnValue(null)
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: createWrapper(),
@@ -248,11 +248,11 @@ describe("Inactivity timeout", () => {
       data: mockUser,
       error: null,
     })
-    vi.mocked(apiClient.apiGetOrgs).mockResolvedValue({
-      data: [mockOrg],
+    vi.mocked(apiClient.apiGetWorkspaces).mockResolvedValue({
+      data: [mockWorkspace],
       error: null,
     })
-    vi.mocked(apiClient.getStoredOrgId).mockReturnValue(null)
+    vi.mocked(apiClient.getStoredWorkspaceId).mockReturnValue(null)
 
     const { unmount } = renderHook(() => useAuth(), {
       wrapper: createWrapper(),

@@ -180,7 +180,7 @@ func (d *Differ) markError(release *persistent.Release, msg string) {
 		"error_message": msg,
 	})
 	if d.notifier != nil && release.Package.ID > 0 {
-		d.notifier.DispatchEvent(context.Background(), release.Package.OrgID, entity.NotificationEvent{
+		d.notifier.DispatchEvent(context.Background(), release.Package.WorkspaceID, entity.NotificationEvent{
 			Severity:      "medium",
 			EventType:     entity.NotifEventDiffError,
 			Title:         fmt.Sprintf("Diff failed: %s v%s", release.Package.Name, release.Version),

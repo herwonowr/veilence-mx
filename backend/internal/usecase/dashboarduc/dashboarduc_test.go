@@ -104,9 +104,9 @@ func (m *mockDashboardRepo) GetUnanalyzedDiffIDs(_ context.Context, _ uint) ([]u
 // ---------------------------------------------------------------------------
 
 type mockReleaseRepo struct {
-	findByOrgIDWithDetailsResult []entity.ReleaseWithDetails
-	findByOrgIDWithDetailsTotal  int64
-	findByOrgIDWithDetailsErr    error
+	findByWorkspaceIDWithDetailsResult []entity.ReleaseWithDetails
+	findByWorkspaceIDWithDetailsTotal  int64
+	findByWorkspaceIDWithDetailsErr    error
 }
 
 func (m *mockReleaseRepo) FindByID(context.Context, uint) (*entity.Release, error) { return nil, nil }
@@ -116,14 +116,14 @@ func (m *mockReleaseRepo) FindByIDWithPackage(context.Context, uint) (*entity.Re
 func (m *mockReleaseRepo) FindByPackageID(context.Context, uint, int, int) ([]entity.Release, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockReleaseRepo) FindByOrgID(context.Context, uint, int, int, string, entity.ReleaseFilters) ([]entity.Release, int64, error) {
+func (m *mockReleaseRepo) FindByWorkspaceID(context.Context, uint, int, int, string, entity.ReleaseFilters) ([]entity.Release, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockReleaseRepo) FindByOrgIDWithDetails(_ context.Context, _ uint, _, _ int, _ string, _ entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error) {
-	if m.findByOrgIDWithDetailsErr != nil {
-		return nil, 0, m.findByOrgIDWithDetailsErr
+func (m *mockReleaseRepo) FindByWorkspaceIDWithDetails(_ context.Context, _ uint, _, _ int, _ string, _ entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error) {
+	if m.findByWorkspaceIDWithDetailsErr != nil {
+		return nil, 0, m.findByWorkspaceIDWithDetailsErr
 	}
-	return m.findByOrgIDWithDetailsResult, m.findByOrgIDWithDetailsTotal, nil
+	return m.findByWorkspaceIDWithDetailsResult, m.findByWorkspaceIDWithDetailsTotal, nil
 }
 func (m *mockReleaseRepo) FindByPackageIDAll(context.Context, uint) ([]entity.Release, error) {
 	return nil, nil
@@ -189,7 +189,7 @@ func (m *mockQueue) Enqueue(_ context.Context, _ string, refID uint) (string, er
 // helpers
 // ---------------------------------------------------------------------------
 
-const orgID = uint(10)
+const workspaceID = uint(10)
 
 var (
 	from = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -212,7 +212,7 @@ func TestGetStats_Success(t *testing.T) {
 	stats := &entity.DashboardStats{TotalPackages: 10, ActiveAlerts: 3}
 	uc := newUC(&mockDashboardRepo{getStatsResult: stats}, nil)
 
-	result, err := uc.GetStats(context.Background(), orgID)
+	result, err := uc.GetStats(context.Background(), workspaceID)
 	require.NoError(t, err)
 	assert.Equal(t, int64(10), result.TotalPackages)
 	assert.Equal(t, int64(3), result.ActiveAlerts)
@@ -221,7 +221,7 @@ func TestGetStats_Success(t *testing.T) {
 func TestGetStats_RepoError(t *testing.T) {
 	uc := newUC(&mockDashboardRepo{getStatsErr: errors.New("db error")}, nil)
 
-	_, err := uc.GetStats(context.Background(), orgID)
+	_, err := uc.GetStats(context.Background(), workspaceID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "DashboardUseCase.GetStats")
 }
@@ -235,22 +235,22 @@ func TestGetRecentReleases_Success(t *testing.T) {
 		{Release: entity.Release{ID: 1}, PackageName: "requests"},
 	}
 	relRepo := &mockReleaseRepo{
-		findByOrgIDWithDetailsResult: releases,
-		findByOrgIDWithDetailsTotal:  1,
+		findByWorkspaceIDWithDetailsResult: releases,
+		findByWorkspaceIDWithDetailsTotal:  1,
 	}
 	uc := dashboarduc.New(&mockDashboardRepo{}, relRepo, &mockDiffRepo{}, &mockAnalysisRepo{}, nil)
 
-	result, total, err := uc.GetRecentReleases(context.Background(), orgID, 1, 20, "", entity.ReleaseFilters{})
+	result, total, err := uc.GetRecentReleases(context.Background(), workspaceID, 1, 20, "", entity.ReleaseFilters{})
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), total)
 	assert.Equal(t, "requests", result[0].PackageName)
 }
 
 func TestGetRecentReleases_RepoError(t *testing.T) {
-	relRepo := &mockReleaseRepo{findByOrgIDWithDetailsErr: errors.New("db error")}
+	relRepo := &mockReleaseRepo{findByWorkspaceIDWithDetailsErr: errors.New("db error")}
 	uc := dashboarduc.New(&mockDashboardRepo{}, relRepo, &mockDiffRepo{}, &mockAnalysisRepo{}, nil)
 
-	_, _, err := uc.GetRecentReleases(context.Background(), orgID, 1, 20, "", entity.ReleaseFilters{})
+	_, _, err := uc.GetRecentReleases(context.Background(), workspaceID, 1, 20, "", entity.ReleaseFilters{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "DashboardUseCase.GetRecentReleases")
 }
@@ -280,7 +280,7 @@ func TestGetChartData_FullSuccess(t *testing.T) {
 	}
 	uc := newUC(dash, nil)
 
-	data, err := uc.GetChartData(context.Background(), orgID, from, to)
+	data, err := uc.GetChartData(context.Background(), workspaceID, from, to)
 	require.NoError(t, err)
 
 	// 3 days in range (Jan 1, 2, 3)
@@ -313,7 +313,7 @@ func TestGetChartData_EmptyResults(t *testing.T) {
 	}
 	uc := newUC(dash, nil)
 
-	data, err := uc.GetChartData(context.Background(), orgID, from, to)
+	data, err := uc.GetChartData(context.Background(), workspaceID, from, to)
 	require.NoError(t, err)
 
 	// Empty classifications/ecosystems/statuses are empty slices (not nil)
@@ -329,7 +329,7 @@ func TestGetChartData_ReleaseActivityError(t *testing.T) {
 	dash := &mockDashboardRepo{releaseActivityErr: errors.New("db error")}
 	uc := newUC(dash, nil)
 
-	_, err := uc.GetChartData(context.Background(), orgID, from, to)
+	_, err := uc.GetChartData(context.Background(), workspaceID, from, to)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "release activity")
 }
@@ -341,7 +341,7 @@ func TestGetChartData_ClassificationDistError(t *testing.T) {
 	}
 	uc := newUC(dash, nil)
 
-	_, err := uc.GetChartData(context.Background(), orgID, from, to)
+	_, err := uc.GetChartData(context.Background(), workspaceID, from, to)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "classification dist")
 }
@@ -354,7 +354,7 @@ func TestGetChartData_BaselineCountError(t *testing.T) {
 	}
 	uc := newUC(dash, nil)
 
-	_, err := uc.GetChartData(context.Background(), orgID, from, to)
+	_, err := uc.GetChartData(context.Background(), workspaceID, from, to)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "baseline count")
 }
@@ -368,7 +368,7 @@ func TestGetChartData_EcosystemDistError(t *testing.T) {
 	}
 	uc := newUC(dash, nil)
 
-	_, err := uc.GetChartData(context.Background(), orgID, from, to)
+	_, err := uc.GetChartData(context.Background(), workspaceID, from, to)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ecosystem dist")
 }
@@ -383,7 +383,7 @@ func TestGetChartData_AlertsBySeverityError(t *testing.T) {
 	}
 	uc := newUC(dash, nil)
 
-	_, err := uc.GetChartData(context.Background(), orgID, from, to)
+	_, err := uc.GetChartData(context.Background(), workspaceID, from, to)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "alerts by severity")
 }
@@ -399,7 +399,7 @@ func TestGetChartData_ReleaseStatusDistError(t *testing.T) {
 	}
 	uc := newUC(dash, nil)
 
-	_, err := uc.GetChartData(context.Background(), orgID, from, to)
+	_, err := uc.GetChartData(context.Background(), workspaceID, from, to)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "release statuses")
 }
@@ -411,7 +411,7 @@ func TestGetChartData_ReleaseStatusDistError(t *testing.T) {
 func TestReanalyzeAll_NilQueue(t *testing.T) {
 	uc := newUC(&mockDashboardRepo{}, nil)
 
-	_, err := uc.ReanalyzeAll(context.Background(), orgID)
+	_, err := uc.ReanalyzeAll(context.Background(), workspaceID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "queue not configured")
 }
@@ -421,7 +421,7 @@ func TestReanalyzeAll_Success(t *testing.T) {
 	q := &mockQueue{}
 	uc := newUC(dash, q)
 
-	count, err := uc.ReanalyzeAll(context.Background(), orgID)
+	count, err := uc.ReanalyzeAll(context.Background(), workspaceID)
 	require.NoError(t, err)
 	assert.Equal(t, 3, count)
 	assert.Equal(t, []uint{1, 2, 3}, q.enqueuedIDs)
@@ -432,7 +432,7 @@ func TestReanalyzeAll_NoDiffs(t *testing.T) {
 	q := &mockQueue{}
 	uc := newUC(dash, q)
 
-	count, err := uc.ReanalyzeAll(context.Background(), orgID)
+	count, err := uc.ReanalyzeAll(context.Background(), workspaceID)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 }
@@ -442,7 +442,7 @@ func TestReanalyzeAll_GetDiffIDsError(t *testing.T) {
 	q := &mockQueue{}
 	uc := newUC(dash, q)
 
-	_, err := uc.ReanalyzeAll(context.Background(), orgID)
+	_, err := uc.ReanalyzeAll(context.Background(), workspaceID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "DashboardUseCase.ReanalyzeAll")
 }
@@ -453,7 +453,7 @@ func TestReanalyzeAll_EnqueueError_ReturnsPartialCount(t *testing.T) {
 	q := &failAfterNQueue{n: 1, callCount: &callCount}
 	uc := dashboarduc.New(&mockDashboardRepo{unanalyzedDiffIDsResult: []uint{1, 2, 3}}, &mockReleaseRepo{}, &mockDiffRepo{}, &mockAnalysisRepo{}, q)
 
-	count, err := uc.ReanalyzeAll(context.Background(), orgID)
+	count, err := uc.ReanalyzeAll(context.Background(), workspaceID)
 	require.Error(t, err)
 	assert.Equal(t, 1, count) // only 1 succeeded before failure
 	assert.Contains(t, err.Error(), "enqueue diff")

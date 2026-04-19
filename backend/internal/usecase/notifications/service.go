@@ -70,12 +70,12 @@ func NewService(
 	}
 }
 
-// CreateChannel creates a new notification channel for an organization.
-func (s *Service) CreateChannel(orgID uint, name string, channelType entity.NotificationChannelType, config string) (*entity.NotificationChannel, error) {
+// CreateChannel creates a new notification channel for a workspace.
+func (s *Service) CreateChannel(workspaceID uint, name string, channelType entity.NotificationChannelType, config string) (*entity.NotificationChannel, error) {
 	ctx := context.Background()
 
 	channel := &entity.NotificationChannel{
-		OrgID:    orgID,
+		WorkspaceID:    workspaceID,
 		Name:     name,
 		Type:     channelType,
 		Config:   config,
@@ -88,18 +88,18 @@ func (s *Service) CreateChannel(orgID uint, name string, channelType entity.Noti
 
 	slog.Info("notification channel created",
 		"channel_id", channel.ID,
-		"org_id", orgID,
+		"workspace_id", workspaceID,
 		"type", channelType,
 		"name", name,
 	)
 	return channel, nil
 }
 
-// ListChannels returns all notification channels for an organization.
-func (s *Service) ListChannels(orgID uint) ([]entity.NotificationChannel, error) {
+// ListChannels returns all notification channels for a workspace.
+func (s *Service) ListChannels(workspaceID uint) ([]entity.NotificationChannel, error) {
 	ctx := context.Background()
 
-	channels, err := s.channels.FindByOrgID(ctx, orgID)
+	channels, err := s.channels.FindByWorkspaceID(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("listing notification channels: %w", err)
 	}
@@ -107,11 +107,11 @@ func (s *Service) ListChannels(orgID uint) ([]entity.NotificationChannel, error)
 }
 
 // UpdateChannel updates an existing notification channel.
-// The orgID parameter ensures the channel belongs to the requesting organization.
-func (s *Service) UpdateChannel(id, orgID uint, name string, config string, isActive bool) (*entity.NotificationChannel, error) {
+// The workspaceID parameter ensures the channel belongs to the requesting workspace.
+func (s *Service) UpdateChannel(id, workspaceID uint, name string, config string, isActive bool) (*entity.NotificationChannel, error) {
 	ctx := context.Background()
 
-	channel, err := s.channels.FindByIDAndOrg(ctx, id, orgID)
+	channel, err := s.channels.FindByIDAndWorkspace(ctx, id, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("finding notification channel: %w", err)
 	}
@@ -124,16 +124,16 @@ func (s *Service) UpdateChannel(id, orgID uint, name string, config string, isAc
 		return nil, fmt.Errorf("updating notification channel: %w", err)
 	}
 
-	slog.Info("notification channel updated", "channel_id", id, "org_id", orgID)
+	slog.Info("notification channel updated", "channel_id", id, "workspace_id", workspaceID)
 	return channel, nil
 }
 
 // DeleteChannel deletes a notification channel by ID.
-// The orgID parameter ensures the channel belongs to the requesting organization.
-func (s *Service) DeleteChannel(id, orgID uint) error {
+// The workspaceID parameter ensures the channel belongs to the requesting workspace.
+func (s *Service) DeleteChannel(id, workspaceID uint) error {
 	ctx := context.Background()
 
-	affected, err := s.channels.DeleteByIDAndOrg(ctx, id, orgID)
+	affected, err := s.channels.DeleteByIDAndWorkspace(ctx, id, workspaceID)
 	if err != nil {
 		return fmt.Errorf("deleting notification channel: %w", err)
 	}
@@ -141,23 +141,23 @@ func (s *Service) DeleteChannel(id, orgID uint) error {
 		return fmt.Errorf("notification channel not found")
 	}
 
-	slog.Info("notification channel deleted", "channel_id", id, "org_id", orgID)
+	slog.Info("notification channel deleted", "channel_id", id, "workspace_id", workspaceID)
 	return nil
 }
 
 // CreateRule creates a new notification routing rule.
-// It verifies the channel belongs to the same organization before creating the rule.
-func (s *Service) CreateRule(orgID, channelID uint, severity string) (*entity.NotificationRule, error) {
+// It verifies the channel belongs to the same workspace before creating the rule.
+func (s *Service) CreateRule(workspaceID, channelID uint, severity string) (*entity.NotificationRule, error) {
 	ctx := context.Background()
 
 	// Verify the channel belongs to the requesting org
-	_, err := s.channels.FindByIDAndOrg(ctx, channelID, orgID)
+	_, err := s.channels.FindByIDAndWorkspace(ctx, channelID, workspaceID)
 	if err != nil {
-		return nil, fmt.Errorf("notification channel not found in this organization")
+		return nil, fmt.Errorf("notification channel not found in this workspace")
 	}
 
 	rule := &entity.NotificationRule{
-		OrgID:     orgID,
+		WorkspaceID:     workspaceID,
 		ChannelID: channelID,
 		Severity:  severity,
 		IsActive:  true,
@@ -169,18 +169,18 @@ func (s *Service) CreateRule(orgID, channelID uint, severity string) (*entity.No
 
 	slog.Info("notification rule created",
 		"rule_id", rule.ID,
-		"org_id", orgID,
+		"workspace_id", workspaceID,
 		"channel_id", channelID,
 		"severity", severity,
 	)
 	return rule, nil
 }
 
-// ListRules returns all notification rules for an organization.
-func (s *Service) ListRules(orgID uint) ([]entity.NotificationRule, error) {
+// ListRules returns all notification rules for a workspace.
+func (s *Service) ListRules(workspaceID uint) ([]entity.NotificationRule, error) {
 	ctx := context.Background()
 
-	rules, err := s.rules.FindByOrgID(ctx, orgID)
+	rules, err := s.rules.FindByWorkspaceID(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("listing notification rules: %w", err)
 	}
@@ -188,11 +188,11 @@ func (s *Service) ListRules(orgID uint) ([]entity.NotificationRule, error) {
 }
 
 // DeleteRule deletes a notification rule by ID.
-// The orgID parameter ensures the rule belongs to the requesting organization.
-func (s *Service) DeleteRule(id, orgID uint) error {
+// The workspaceID parameter ensures the rule belongs to the requesting workspace.
+func (s *Service) DeleteRule(id, workspaceID uint) error {
 	ctx := context.Background()
 
-	affected, err := s.rules.DeleteByIDAndOrg(ctx, id, orgID)
+	affected, err := s.rules.DeleteByIDAndWorkspace(ctx, id, workspaceID)
 	if err != nil {
 		return fmt.Errorf("deleting notification rule: %w", err)
 	}
@@ -200,7 +200,7 @@ func (s *Service) DeleteRule(id, orgID uint) error {
 		return fmt.Errorf("notification rule not found")
 	}
 
-	slog.Info("notification rule deleted", "rule_id", id, "org_id", orgID)
+	slog.Info("notification rule deleted", "rule_id", id, "workspace_id", workspaceID)
 	return nil
 }
 
@@ -213,26 +213,26 @@ var severityOrder = map[string]int{
 }
 
 // Dispatch sends a notification through all matching rules/channels for an
-// organization. It creates in-app notification records and dispatches to
+// workspace. It creates in-app notification records and dispatches to
 // external channels (email, Slack, webhook).
-func (s *Service) Dispatch(ctx context.Context, orgID uint, severity, title, message string) {
-	s.dispatchInternal(ctx, orgID, severity, "", 0, "", title, message)
+func (s *Service) Dispatch(ctx context.Context, workspaceID uint, severity, title, message string) {
+	s.dispatchInternal(ctx, workspaceID, severity, "", 0, "", title, message)
 }
 
 // DispatchEvent sends a notification with full structured event data through
-// all matching rules/channels for an organization.
-func (s *Service) DispatchEvent(ctx context.Context, orgID uint, evt entity.NotificationEvent) {
-	s.dispatchInternal(ctx, orgID, evt.Severity, evt.EventType, evt.ReferenceID, evt.ReferenceType, evt.Title, evt.Message)
+// all matching rules/channels for a workspace.
+func (s *Service) DispatchEvent(ctx context.Context, workspaceID uint, evt entity.NotificationEvent) {
+	s.dispatchInternal(ctx, workspaceID, evt.Severity, evt.EventType, evt.ReferenceID, evt.ReferenceType, evt.Title, evt.Message)
 }
 
 // dispatchInternal is the shared implementation for Dispatch and DispatchEvent.
-func (s *Service) dispatchInternal(ctx context.Context, orgID uint, severity, eventType string, referenceID uint, referenceType, title, message string) {
+func (s *Service) dispatchInternal(ctx context.Context, workspaceID uint, severity, eventType string, referenceID uint, referenceType, title, message string) {
 	// Always create one in-app notification record (ChannelID=0 means in-app,
 	// not tied to any external channel). This ensures the frontend bell icon
 	// always has something to show regardless of whether notification
 	// rules/channels are configured.
 	inAppNotification := &entity.Notification{
-		OrgID:         orgID,
+		WorkspaceID:         workspaceID,
 		UserID:        0, // org-wide
 		ChannelID:     0, // in-app notification, no external channel
 		Severity:      severity,
@@ -245,16 +245,16 @@ func (s *Service) dispatchInternal(ctx context.Context, orgID uint, severity, ev
 	}
 	if err := s.notifications.Create(ctx, inAppNotification); err != nil {
 		slog.Error("failed to create in-app notification record",
-			"org_id", orgID,
+			"workspace_id", workspaceID,
 			"error", err,
 		)
 		// Continue to attempt external dispatch even if in-app record fails
 	}
 
 	// Find all active rules for this org whose severity threshold is met
-	rules, err := s.rules.FindActiveByOrgID(ctx, orgID)
+	rules, err := s.rules.FindActiveByWorkspaceID(ctx, workspaceID)
 	if err != nil {
-		slog.Error("failed to load notification rules", "org_id", orgID, "error", err)
+		slog.Error("failed to load notification rules", "workspace_id", workspaceID, "error", err)
 		return
 	}
 
@@ -775,12 +775,12 @@ func (s *Service) sendWebhook(channel entity.NotificationChannel, title, message
 	)
 }
 
-// ListNotifications returns notifications for a user across all organizations.
+// ListNotifications returns notifications for a user across all workspaces.
 // If onlyUnread is true, only unread notifications are returned.
-func (s *Service) ListNotifications(orgID, userID uint, onlyUnread bool) ([]entity.Notification, error) {
+func (s *Service) ListNotifications(workspaceID, userID uint, onlyUnread bool) ([]entity.Notification, error) {
 	ctx := context.Background()
 
-	notifs, err := s.notifications.FindByUserAndOrg(ctx, orgID, userID, onlyUnread)
+	notifs, err := s.notifications.FindByUserAndWorkspace(ctx, workspaceID, userID, onlyUnread)
 	if err != nil {
 		return nil, fmt.Errorf("listing notifications: %w", err)
 	}
@@ -804,10 +804,10 @@ func (s *Service) MarkRead(id, userID uint) error {
 }
 
 // GetUnreadCount returns the number of unread notifications for a user.
-func (s *Service) GetUnreadCount(orgID, userID uint) (int64, error) {
+func (s *Service) GetUnreadCount(workspaceID, userID uint) (int64, error) {
 	ctx := context.Background()
 
-	count, err := s.notifications.CountUnread(ctx, orgID, userID)
+	count, err := s.notifications.CountUnread(ctx, workspaceID, userID)
 	if err != nil {
 		return 0, fmt.Errorf("counting unread notifications: %w", err)
 	}
@@ -815,11 +815,11 @@ func (s *Service) GetUnreadCount(orgID, userID uint) (int64, error) {
 }
 
 // MarkAllRead marks all unread notifications as read for a user.
-// If orgID is non-zero, only notifications for that org are affected.
-func (s *Service) MarkAllRead(orgID, userID uint) (int64, error) {
+// If workspaceID is non-zero, only notifications for that org are affected.
+func (s *Service) MarkAllRead(workspaceID, userID uint) (int64, error) {
 	ctx := context.Background()
 
-	affected, err := s.notifications.MarkAllRead(ctx, orgID, userID)
+	affected, err := s.notifications.MarkAllRead(ctx, workspaceID, userID)
 	if err != nil {
 		return 0, fmt.Errorf("marking all notifications as read: %w", err)
 	}
@@ -827,8 +827,8 @@ func (s *Service) MarkAllRead(orgID, userID uint) (int64, error) {
 }
 
 // DeleteByID deletes a single notification by ID, scoped to org and user.
-func (s *Service) DeleteByID(ctx context.Context, id, orgID, userID uint) (int64, error) {
-	affected, err := s.notifications.DeleteByID(ctx, id, orgID, userID)
+func (s *Service) DeleteByID(ctx context.Context, id, workspaceID, userID uint) (int64, error) {
+	affected, err := s.notifications.DeleteByID(ctx, id, workspaceID, userID)
 	if err != nil {
 		return 0, fmt.Errorf("deleting notification: %w", err)
 	}
@@ -836,23 +836,23 @@ func (s *Service) DeleteByID(ctx context.Context, id, orgID, userID uint) (int64
 		return 0, fmt.Errorf("notification not found")
 	}
 
-	slog.Info("notification deleted", "notification_id", id, "org_id", orgID, "user_id", userID)
+	slog.Info("notification deleted", "notification_id", id, "workspace_id", workspaceID, "user_id", userID)
 	return affected, nil
 }
 
 // DeleteAll deletes all notifications for a user within an org.
-func (s *Service) DeleteAll(ctx context.Context, orgID, userID uint) (int64, error) {
-	affected, err := s.notifications.DeleteAll(ctx, orgID, userID)
+func (s *Service) DeleteAll(ctx context.Context, workspaceID, userID uint) (int64, error) {
+	affected, err := s.notifications.DeleteAll(ctx, workspaceID, userID)
 	if err != nil {
 		return 0, fmt.Errorf("deleting all notifications: %w", err)
 	}
 
-	slog.Info("all notifications deleted", "org_id", orgID, "user_id", userID, "count", affected)
+	slog.Info("all notifications deleted", "workspace_id", workspaceID, "user_id", userID, "count", affected)
 	return affected, nil
 }
 
 // DeleteBatch deletes multiple notifications by IDs, scoped to org and user.
-func (s *Service) DeleteBatch(ctx context.Context, ids []uint, orgID, userID uint) (int64, error) {
+func (s *Service) DeleteBatch(ctx context.Context, ids []uint, workspaceID, userID uint) (int64, error) {
 	if len(ids) == 0 {
 		return 0, fmt.Errorf("no notification IDs provided")
 	}
@@ -860,23 +860,23 @@ func (s *Service) DeleteBatch(ctx context.Context, ids []uint, orgID, userID uin
 		return 0, fmt.Errorf("batch delete limited to 100 notifications at a time")
 	}
 
-	affected, err := s.notifications.DeleteBatch(ctx, ids, orgID, userID)
+	affected, err := s.notifications.DeleteBatch(ctx, ids, workspaceID, userID)
 	if err != nil {
 		return 0, fmt.Errorf("batch deleting notifications: %w", err)
 	}
 
-	slog.Info("notifications batch deleted", "org_id", orgID, "user_id", userID, "requested", len(ids), "deleted", affected)
+	slog.Info("notifications batch deleted", "workspace_id", workspaceID, "user_id", userID, "requested", len(ids), "deleted", affected)
 	return affected, nil
 }
 
 // TestChannel sends a test notification through a specific channel to verify it works.
 // Returns nil on success, an error describing the failure otherwise.
-func (s *Service) TestChannel(id, orgID uint) error {
+func (s *Service) TestChannel(id, workspaceID uint) error {
 	ctx := context.Background()
 
-	channel, err := s.channels.FindByIDAndOrg(ctx, id, orgID)
+	channel, err := s.channels.FindByIDAndWorkspace(ctx, id, workspaceID)
 	if err != nil {
-		return fmt.Errorf("notification channel not found in this organization")
+		return fmt.Errorf("notification channel not found in this workspace")
 	}
 
 	title := "Veilence-MX Test Notification"
@@ -886,16 +886,16 @@ func (s *Service) TestChannel(id, orgID uint) error {
 
 	slog.Info("test notification dispatched",
 		"channel_id", id,
-		"org_id", orgID,
+		"workspace_id", workspaceID,
 		"type", channel.Type,
 	)
 	return nil
 }
 
 // GetChannel returns a notification channel by ID and org.
-func (s *Service) GetChannel(id, orgID uint) (*entity.NotificationChannel, error) {
+func (s *Service) GetChannel(id, workspaceID uint) (*entity.NotificationChannel, error) {
 	ctx := context.Background()
-	return s.channels.FindByIDAndOrg(ctx, id, orgID)
+	return s.channels.FindByIDAndWorkspace(ctx, id, workspaceID)
 }
 
 // ---------------------------------------------------------------------------

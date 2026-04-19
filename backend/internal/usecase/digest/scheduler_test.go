@@ -58,7 +58,7 @@ func TestGenerateDigest_WithData(t *testing.T) {
 	now := time.Now()
 
 	// Create test data for org 1
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", OrgID: 1}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 1}
 	db.Create(&pkg)
 
 	rel1 := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
@@ -72,9 +72,9 @@ func TestGenerateDigest_WithData(t *testing.T) {
 	analysis := persistent.Analysis{DiffID: diff.ID, Classification: "malicious", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
 	db.Create(&analysis)
 
-	alert1 := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, OrgID: 1, Severity: "critical", Status: "new", Message: "Critical alert"}
+	alert1 := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: 1, Severity: "critical", Status: "new", Message: "Critical alert"}
 	db.Create(&alert1)
-	alert2 := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, OrgID: 1, Severity: "medium", Status: "new", Message: "Medium alert"}
+	alert2 := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: 1, Severity: "medium", Status: "new", Message: "Medium alert"}
 	db.Create(&alert2)
 
 	digest, err := s.GenerateDigest(context.Background(), 1, "daily", now)
@@ -101,15 +101,15 @@ func TestGenerateDigest_WeeklyPeriod(t *testing.T) {
 	assert.Equal(t, "last 7 days", digest.Period)
 }
 
-func TestGenerateDigest_OrgScoping(t *testing.T) {
+func TestGenerateDigest_WorkspaceScoping(t *testing.T) {
 	db := setupTestDB(t)
 	s := newTestScheduler(db)
 	now := time.Now()
 
 	// Create alerts for org 1 and org 2
-	pkg1 := persistent.Package{Name: "requests", Ecosystem: "python", OrgID: 1}
+	pkg1 := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 1}
 	db.Create(&pkg1)
-	pkg2 := persistent.Package{Name: "express", Ecosystem: "npm", OrgID: 2}
+	pkg2 := persistent.Package{Name: "express", Ecosystem: "npm", WorkspaceID: 2}
 	db.Create(&pkg2)
 
 	rel1 := persistent.Release{PackageID: pkg1.ID, Version: "1.0.0", Status: "completed"}
@@ -127,8 +127,8 @@ func TestGenerateDigest_OrgScoping(t *testing.T) {
 	analysis2 := persistent.Analysis{DiffID: diff2.ID, Classification: "benign", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
 	db.Create(&analysis2)
 
-	db.Create(&persistent.Alert{AnalysisID: analysis1.ID, PackageID: pkg1.ID, OrgID: 1, Severity: "critical", Status: "new", Message: "Org 1 alert"})
-	db.Create(&persistent.Alert{AnalysisID: analysis2.ID, PackageID: pkg2.ID, OrgID: 2, Severity: "low", Status: "new", Message: "Org 2 alert"})
+	db.Create(&persistent.Alert{AnalysisID: analysis1.ID, PackageID: pkg1.ID, WorkspaceID: 1, Severity: "critical", Status: "new", Message: "Org 1 alert"})
+	db.Create(&persistent.Alert{AnalysisID: analysis2.ID, PackageID: pkg2.ID, WorkspaceID: 2, Severity: "low", Status: "new", Message: "Org 2 alert"})
 
 	// Digest for org 1 should only see org 1's data
 	digest1, err := s.GenerateDigest(context.Background(), 1, "daily", now)
@@ -147,7 +147,7 @@ func TestGenerateDigest_TopAlertsLimit(t *testing.T) {
 	db := setupTestDB(t)
 	s := newTestScheduler(db)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", OrgID: 1}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 1}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -162,7 +162,7 @@ func TestGenerateDigest_TopAlertsLimit(t *testing.T) {
 		if i < 3 {
 			severity = "critical"
 		}
-		db.Create(&persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, OrgID: 1, Severity: persistent.AlertSeverity(severity), Status: "new", Message: "Alert"})
+		db.Create(&persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: 1, Severity: persistent.AlertSeverity(severity), Status: "new", Message: "Alert"})
 	}
 
 	digest, err := s.GenerateDigest(context.Background(), 1, "daily", time.Now())

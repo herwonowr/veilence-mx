@@ -30,13 +30,13 @@ func (m *mockPackageRepo) FindByID(_ context.Context, _ uint) (*entity.Package, 
 }
 
 // Unused interface methods — satisfy the interface.
-func (m *mockPackageRepo) FindByOrgID(context.Context, uint, int, int, string, entity.PackageFilters) ([]entity.Package, int64, error) {
+func (m *mockPackageRepo) FindByWorkspaceID(context.Context, uint, int, int, string, entity.PackageFilters) ([]entity.Package, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockPackageRepo) FindActiveByOrgID(context.Context, uint) ([]entity.Package, error) {
+func (m *mockPackageRepo) FindActiveByWorkspaceID(context.Context, uint) ([]entity.Package, error) {
 	return nil, nil
 }
-func (m *mockPackageRepo) FindByOrgAndName(context.Context, uint, string, entity.Ecosystem) (*entity.Package, error) {
+func (m *mockPackageRepo) FindByWorkspaceAndName(context.Context, uint, string, entity.Ecosystem) (*entity.Package, error) {
 	return nil, nil
 }
 func (m *mockPackageRepo) Create(context.Context, *entity.Package) error   { return nil }
@@ -44,13 +44,13 @@ func (m *mockPackageRepo) Update(context.Context, *entity.Package) error   { ret
 func (m *mockPackageRepo) BlockPackage(context.Context, uint, uint, string) error { return nil }
 func (m *mockPackageRepo) UnblockPackage(context.Context, uint, uint) error      { return nil }
 func (m *mockPackageRepo) RemovePackage(context.Context, uint, uint) error       { return nil }
-func (m *mockPackageRepo) CountByOrg(context.Context, uint, *entity.Ecosystem) (int64, error) {
+func (m *mockPackageRepo) CountByWorkspace(context.Context, uint, *entity.Ecosystem) (int64, error) {
 	return 0, nil
 }
-func (m *mockPackageRepo) ExistsByOrgAndName(context.Context, uint, string, entity.Ecosystem) (bool, error) {
+func (m *mockPackageRepo) ExistsByWorkspaceAndName(context.Context, uint, string, entity.Ecosystem) (bool, error) {
 	return false, nil
 }
-func (m *mockPackageRepo) FindSuggestionsByOrgID(context.Context, uint, int, int, string, entity.PackageFilters) ([]entity.Package, int64, error) {
+func (m *mockPackageRepo) FindSuggestionsByWorkspaceID(context.Context, uint, int, int, string, entity.PackageFilters) ([]entity.Package, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockPackageRepo) ApprovePackage(context.Context, uint, uint) error          { return nil }
@@ -61,10 +61,10 @@ func (m *mockPackageRepo) BulkApprovePackages(context.Context, uint, []uint) (in
 func (m *mockPackageRepo) UpdateDownloadCounts(context.Context, uint, []entity.PackageDownloadUpdate) error {
 	return nil
 }
-func (m *mockPackageRepo) FindStaleByOrgID(context.Context, uint, time.Time) ([]entity.Package, error) {
+func (m *mockPackageRepo) FindStaleByWorkspaceID(context.Context, uint, time.Time) ([]entity.Package, error) {
 	return nil, nil
 }
-func (m *mockPackageRepo) RemoveStaleByOrgID(context.Context, uint, time.Time) (int, error) {
+func (m *mockPackageRepo) RemoveStaleByWorkspaceID(context.Context, uint, time.Time) (int, error) {
 	return 0, nil
 }
 
@@ -100,10 +100,10 @@ func (m *mockReleaseRepo) FindByPackageID(_ context.Context, _ uint, _, _ int) (
 	}
 	return m.findByPackageIDResult, m.findByPackageIDTotal, nil
 }
-func (m *mockReleaseRepo) FindByOrgID(context.Context, uint, int, int, string, entity.ReleaseFilters) ([]entity.Release, int64, error) {
+func (m *mockReleaseRepo) FindByWorkspaceID(context.Context, uint, int, int, string, entity.ReleaseFilters) ([]entity.Release, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockReleaseRepo) FindByOrgIDWithDetails(context.Context, uint, int, int, string, entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error) {
+func (m *mockReleaseRepo) FindByWorkspaceIDWithDetails(context.Context, uint, int, int, string, entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockReleaseRepo) FindByPackageIDAll(_ context.Context, _ uint) ([]entity.Release, error) {
@@ -203,12 +203,12 @@ func (m *mockQueue) Enqueue(_ context.Context, jobType string, refID uint) (stri
 // helpers
 // ---------------------------------------------------------------------------
 
-const orgID = uint(10)
+const workspaceID = uint(10)
 
 var now = time.Now()
 
 func orgPackage(id uint) *entity.Package {
-	return &entity.Package{ID: id, OrgID: orgID, Name: "requests", Ecosystem: entity.EcosystemPython}
+	return &entity.Package{ID: id, WorkspaceID: workspaceID, Name: "requests", Ecosystem: entity.EcosystemPython}
 }
 
 // ---------------------------------------------------------------------------
@@ -223,7 +223,7 @@ func TestListByPackage_Success(t *testing.T) {
 		&mockDiffRepo{}, &mockAnalysisRepo{}, nil,
 	)
 
-	result, total, err := uc.ListByPackage(context.Background(), orgID, 5, 1, 20)
+	result, total, err := uc.ListByPackage(context.Background(), workspaceID, 5, 1, 20)
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), total)
 	assert.Len(t, result, 2)
@@ -235,18 +235,18 @@ func TestListByPackage_PackageNotFound(t *testing.T) {
 		&mockReleaseRepo{}, &mockDiffRepo{}, &mockAnalysisRepo{}, nil,
 	)
 
-	_, _, err := uc.ListByPackage(context.Background(), orgID, 999, 1, 20)
+	_, _, err := uc.ListByPackage(context.Background(), workspaceID, 999, 1, 20)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
 
 func TestListByPackage_WrongOrg(t *testing.T) {
 	uc := releaseuc.New(
-		&mockPackageRepo{findByIDResult: &entity.Package{ID: 5, OrgID: 999}},
+		&mockPackageRepo{findByIDResult: &entity.Package{ID: 5, WorkspaceID: 999}},
 		&mockReleaseRepo{}, &mockDiffRepo{}, &mockAnalysisRepo{}, nil,
 	)
 
-	_, _, err := uc.ListByPackage(context.Background(), orgID, 5, 1, 20)
+	_, _, err := uc.ListByPackage(context.Background(), workspaceID, 5, 1, 20)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -258,7 +258,7 @@ func TestListByPackage_RepoError(t *testing.T) {
 		&mockDiffRepo{}, &mockAnalysisRepo{}, nil,
 	)
 
-	_, _, err := uc.ListByPackage(context.Background(), orgID, 5, 1, 20)
+	_, _, err := uc.ListByPackage(context.Background(), workspaceID, 5, 1, 20)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ReleaseUseCase.ListByPackage")
 }
@@ -281,7 +281,7 @@ func TestGetRelease_WithDiffAndAnalysis(t *testing.T) {
 		nil,
 	)
 
-	detail, err := uc.GetRelease(context.Background(), orgID, 1)
+	detail, err := uc.GetRelease(context.Background(), workspaceID, 1)
 	require.NoError(t, err)
 	assert.Equal(t, uint(1), detail.Release.ID)
 	assert.NotNil(t, detail.Diff)
@@ -302,7 +302,7 @@ func TestGetRelease_BaselineNoDiff(t *testing.T) {
 		nil,
 	)
 
-	detail, err := uc.GetRelease(context.Background(), orgID, 1)
+	detail, err := uc.GetRelease(context.Background(), workspaceID, 1)
 	require.NoError(t, err)
 	assert.True(t, detail.IsBaseline)
 	assert.Nil(t, detail.Diff)
@@ -316,14 +316,14 @@ func TestGetRelease_NotFound(t *testing.T) {
 		&mockDiffRepo{}, &mockAnalysisRepo{}, nil,
 	)
 
-	_, err := uc.GetRelease(context.Background(), orgID, 999)
+	_, err := uc.GetRelease(context.Background(), workspaceID, 999)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
 
 func TestGetRelease_WrongOrg(t *testing.T) {
 	release := &entity.Release{ID: 1}
-	pkg := &entity.Package{ID: 5, OrgID: 999}
+	pkg := &entity.Package{ID: 5, WorkspaceID: 999}
 
 	uc := releaseuc.New(
 		&mockPackageRepo{},
@@ -331,7 +331,7 @@ func TestGetRelease_WrongOrg(t *testing.T) {
 		&mockDiffRepo{}, &mockAnalysisRepo{}, nil,
 	)
 
-	_, err := uc.GetRelease(context.Background(), orgID, 1)
+	_, err := uc.GetRelease(context.Background(), workspaceID, 1)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -346,7 +346,7 @@ func TestReanalyzeRelease_NilQueue(t *testing.T) {
 		&mockDiffRepo{}, &mockAnalysisRepo{}, nil,
 	)
 
-	_, _, err := uc.ReanalyzeRelease(context.Background(), orgID, 1)
+	_, _, err := uc.ReanalyzeRelease(context.Background(), workspaceID, 1)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "queue not configured")
 }
@@ -364,7 +364,7 @@ func TestReanalyzeRelease_NoDiff_EnqueuesDiffJob(t *testing.T) {
 		q,
 	)
 
-	msg, jobID, err := uc.ReanalyzeRelease(context.Background(), orgID, 1)
+	msg, jobID, err := uc.ReanalyzeRelease(context.Background(), workspaceID, 1)
 	require.NoError(t, err)
 	assert.Contains(t, msg, "diffing")
 	assert.Equal(t, "job-123", jobID)
@@ -386,7 +386,7 @@ func TestReanalyzeRelease_HasDiff_EnqueuesAnalyzeJob(t *testing.T) {
 		q,
 	)
 
-	msg, jobID, err := uc.ReanalyzeRelease(context.Background(), orgID, 1)
+	msg, jobID, err := uc.ReanalyzeRelease(context.Background(), workspaceID, 1)
 	require.NoError(t, err)
 	assert.Contains(t, msg, "analysis")
 	assert.Equal(t, "job-456", jobID)
@@ -402,14 +402,14 @@ func TestReanalyzeRelease_NotFound(t *testing.T) {
 		&mockDiffRepo{}, &mockAnalysisRepo{}, q,
 	)
 
-	_, _, err := uc.ReanalyzeRelease(context.Background(), orgID, 999)
+	_, _, err := uc.ReanalyzeRelease(context.Background(), workspaceID, 999)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
 
 func TestReanalyzeRelease_WrongOrg(t *testing.T) {
 	release := &entity.Release{ID: 1}
-	pkg := &entity.Package{ID: 5, OrgID: 999}
+	pkg := &entity.Package{ID: 5, WorkspaceID: 999}
 	q := &mockQueue{}
 
 	uc := releaseuc.New(
@@ -418,7 +418,7 @@ func TestReanalyzeRelease_WrongOrg(t *testing.T) {
 		&mockDiffRepo{}, &mockAnalysisRepo{}, q,
 	)
 
-	_, _, err := uc.ReanalyzeRelease(context.Background(), orgID, 1)
+	_, _, err := uc.ReanalyzeRelease(context.Background(), workspaceID, 1)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -437,7 +437,7 @@ func TestReanalyzeRelease_EnqueueError(t *testing.T) {
 		q,
 	)
 
-	_, _, err := uc.ReanalyzeRelease(context.Background(), orgID, 1)
+	_, _, err := uc.ReanalyzeRelease(context.Background(), workspaceID, 1)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "enqueue")
 }
@@ -469,7 +469,7 @@ func TestGetAnalysisHistory_Success(t *testing.T) {
 		nil,
 	)
 
-	history, err := uc.GetAnalysisHistory(context.Background(), orgID, 5)
+	history, err := uc.GetAnalysisHistory(context.Background(), workspaceID, 5)
 	require.NoError(t, err)
 	require.Len(t, history, 2)
 
@@ -490,7 +490,7 @@ func TestGetAnalysisHistory_NoReleases(t *testing.T) {
 		&mockDiffRepo{}, &mockAnalysisRepo{}, nil,
 	)
 
-	history, err := uc.GetAnalysisHistory(context.Background(), orgID, 5)
+	history, err := uc.GetAnalysisHistory(context.Background(), workspaceID, 5)
 	require.NoError(t, err)
 	assert.Empty(t, history)
 }
@@ -501,18 +501,18 @@ func TestGetAnalysisHistory_PackageNotFound(t *testing.T) {
 		&mockReleaseRepo{}, &mockDiffRepo{}, &mockAnalysisRepo{}, nil,
 	)
 
-	_, err := uc.GetAnalysisHistory(context.Background(), orgID, 999)
+	_, err := uc.GetAnalysisHistory(context.Background(), workspaceID, 999)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
 
 func TestGetAnalysisHistory_WrongOrg(t *testing.T) {
 	uc := releaseuc.New(
-		&mockPackageRepo{findByIDResult: &entity.Package{ID: 5, OrgID: 999}},
+		&mockPackageRepo{findByIDResult: &entity.Package{ID: 5, WorkspaceID: 999}},
 		&mockReleaseRepo{}, &mockDiffRepo{}, &mockAnalysisRepo{}, nil,
 	)
 
-	_, err := uc.GetAnalysisHistory(context.Background(), orgID, 5)
+	_, err := uc.GetAnalysisHistory(context.Background(), workspaceID, 5)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -527,7 +527,7 @@ func TestGetAnalysisHistory_DiffLoadError(t *testing.T) {
 		&mockAnalysisRepo{}, nil,
 	)
 
-	_, err := uc.GetAnalysisHistory(context.Background(), orgID, 5)
+	_, err := uc.GetAnalysisHistory(context.Background(), workspaceID, 5)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "loading diffs")
 }

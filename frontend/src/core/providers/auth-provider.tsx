@@ -11,7 +11,7 @@ import {
 } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-// Core-local interfaces - auth-provider needs User/Org shapes but core/ cannot import domains/
+// Core-local interfaces - auth-provider needs User/Workspace shapes but core/ cannot import domains/
 // These types are structurally identical to domains/auth and domains/admin equivalents.
 interface User {
   id: number
@@ -25,7 +25,7 @@ interface User {
   updatedAt: string
 }
 
-interface Organization {
+interface Workspace {
   id: number
   name: string
   slug: string
@@ -48,9 +48,9 @@ import {
   getStoredRefreshToken,
   storeTokens,
   clearTokens,
-  getStoredOrgId,
-  storeOrgId,
-  clearOrgId,
+  getStoredWorkspaceId,
+  storeWorkspaceId,
+  clearWorkspaceId,
   fetchApi,
 } from "@/core/http"
 
@@ -69,10 +69,10 @@ interface AuthContextValue {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
-  currentOrg: Organization | null
-  organizations: Organization[]
-  orgsLoading: boolean
-  orgsError: string | null
+  currentWorkspace: Workspace | null
+  workspaces: Workspace[]
+  workspacesLoading: boolean
+  workspacesError: string | null
   login: (email: string, password: string) => Promise<void>
   register: (data: {
     email: string
@@ -81,9 +81,9 @@ interface AuthContextValue {
     lastName: string
   }) => Promise<void>
   logout: () => Promise<void>
-  setCurrentOrg: (org: Organization) => void
+  setCurrentWorkspace: (workspace: Workspace) => void
   refreshUser: () => Promise<void>
-  refreshOrgs: () => Promise<void>
+  refreshWorkspaces: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -100,10 +100,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const queryClient = useQueryClient()
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [currentOrg, setCurrentOrgState] = useState<Organization | null>(null)
-  const [organizations, setOrganizations] = useState<Organization[]>([])
-  const [orgsLoading, setOrgsLoading] = useState(false)
-  const [orgsError, setOrgsError] = useState<string | null>(null)
+  const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace | null>(null)
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([])
+  const [workspacesLoading, setWorkspacesLoading] = useState(false)
+  const [workspacesError, setWorkspacesError] = useState<string | null>(null)
   const isAuthenticated = !!user
 
   const refreshUser = useCallback(async () => {
@@ -116,34 +116,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [])
 
-  const refreshOrgs = useCallback(async () => {
-    setOrgsLoading(true)
-    setOrgsError(null)
+  const refreshWorkspaces = useCallback(async () => {
+    setWorkspacesLoading(true)
+    setWorkspacesError(null)
     try {
-      const { data } = await fetchApi<Organization[]>("/api/orgs")
-      setOrganizations(data ?? [])
+      const { data } = await fetchApi<Workspace[]>("/api/workspaces")
+      setWorkspaces(data ?? [])
 
-      // Try to restore current org from localStorage
-      const storedOrgId = getStoredOrgId()
-      if (storedOrgId && data) {
-        const found = data.find((o) => o.id === storedOrgId)
+      // Try to restore current workspace from localStorage
+      const storedWorkspaceId = getStoredWorkspaceId()
+      if (storedWorkspaceId && data) {
+        const found = data.find((o) => o.id === storedWorkspaceId)
         if (found) {
-          setCurrentOrgState(found)
+          setCurrentWorkspaceState(found)
         } else if (data.length > 0) {
-          setCurrentOrgState(data[0])
-          storeOrgId(data[0].id)
+          setCurrentWorkspaceState(data[0])
+          storeWorkspaceId(data[0].id)
         }
       } else if (data && data.length > 0) {
-        setCurrentOrgState(data[0])
-        storeOrgId(data[0].id)
+        setCurrentWorkspaceState(data[0])
+        storeWorkspaceId(data[0].id)
       }
     } catch (err) {
-      setOrganizations([])
-      const message = sanitizeErrorMessage(err, "Failed to load organizations")
-      setOrgsError(message)
+      setWorkspaces([])
+      const message = sanitizeErrorMessage(err, "Failed to load workspaces")
+      setWorkspacesError(message)
       toast.error(message)
     } finally {
-      setOrgsLoading(false)
+      setWorkspacesLoading(false)
     }
   }, [])
 
@@ -151,7 +151,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const token = getStoredAccessToken()
     if (token) {
-      Promise.all([refreshUser(), refreshOrgs()]).finally(() => {
+      Promise.all([refreshUser(), refreshWorkspaces()]).finally(() => {
         setIsLoading(false)
       })
     } else {
@@ -203,9 +203,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       storeTokens(data.accessToken, data.refreshToken)
       setUser(data.user)
-      await refreshOrgs()
+      await refreshWorkspaces()
     },
-    [refreshOrgs]
+    [refreshWorkspaces]
   )
 
   const register = useCallback(
@@ -225,9 +225,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       storeTokens(data.accessToken, data.refreshToken)
       setUser(data.user)
-      await refreshOrgs()
+      await refreshWorkspaces()
     },
-    [refreshOrgs]
+    [refreshWorkspaces]
   )
 
   const logout = useCallback(async () => {
@@ -243,10 +243,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
     clearTokens()
-    clearOrgId()
+    clearWorkspaceId()
     setUser(null)
-    setCurrentOrgState(null)
-    setOrganizations([])
+    setCurrentWorkspaceState(null)
+    setWorkspaces([])
     // SEC-S3-002: Clear React Query cache to prevent stale data leaking between sessions
     queryClient.clear()
   }, [queryClient])
@@ -318,11 +318,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [logout])
 
-  const setCurrentOrg = useCallback((org: Organization) => {
-    setCurrentOrgState(org)
-    storeOrgId(org.id)
-    // V101-10: Invalidate all React Query caches when switching orgs
-    // so stale org-scoped data is refetched for the new org context
+  const setCurrentWorkspace = useCallback((workspace: Workspace) => {
+    setCurrentWorkspaceState(workspace)
+    storeWorkspaceId(workspace.id)
+    // V101-10: Invalidate all React Query caches when switching workspaces
+    // so stale workspace-scoped data is refetched for the new workspace context
     queryClient.invalidateQueries()
   }, [queryClient])
 
@@ -331,31 +331,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       user,
       isAuthenticated,
       isLoading,
-      currentOrg,
-      organizations,
-      orgsLoading,
-      orgsError,
+      currentWorkspace,
+      workspaces,
+      workspacesLoading,
+      workspacesError,
       login,
       register,
       logout,
-      setCurrentOrg,
+      setCurrentWorkspace,
       refreshUser,
-      refreshOrgs,
+      refreshWorkspaces,
     }),
     [
       user,
       isAuthenticated,
       isLoading,
-      currentOrg,
-      organizations,
-      orgsLoading,
-      orgsError,
+      currentWorkspace,
+      workspaces,
+      workspacesLoading,
+      workspacesError,
       login,
       register,
       logout,
-      setCurrentOrg,
+      setCurrentWorkspace,
       refreshUser,
-      refreshOrgs,
+      refreshWorkspaces,
     ]
   )
 

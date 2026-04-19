@@ -189,7 +189,7 @@ func (s *Service) Login(email, password, ipAddress, userAgent string) (*entity.U
 		return nil, nil, errors.New("invalid email or password")
 	}
 
-	// Check email verification requirement (global setting, orgID=0)
+	// Check email verification requirement (global setting, workspaceID=0)
 	if s.settings != nil && !user.EmailVerified {
 		val, err := s.settings.GetSettingValue(ctx, 0, "require_email_verification")
 		if err != nil {

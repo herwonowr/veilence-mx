@@ -55,55 +55,55 @@ import {
 import { Alert, AlertDescription } from "@/ui/components/alert"
 import Link from "next/link"
 import {
-  useOrganization,
-  useOrgMembers,
-  useOrgRoles,
-  useUpdateOrganization,
-  useDeleteOrganization,
+  useWorkspace,
+  useWorkspaceMembers,
+  useWorkspaceRoles,
+  useUpdateWorkspace,
+  useDeleteWorkspace,
   useInviteMember,
   useRemoveMember,
   useUpdateMemberRole,
-} from "@/features/admin/hooks/use-organizations"
+} from "@/features/admin/hooks/use-workspaces"
 
-export const OrganizationDetailView = () => {
+export const WorkspaceDetailView = () => {
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
   const params = useParams<{ id: string }>()
-  const orgId = parseInt(params.id, 10)
-  const validOrgId = isNaN(orgId) ? 0 : orgId
+  const workspaceId = parseInt(params.id, 10)
+  const validWorkspaceId = isNaN(workspaceId) ? 0 : workspaceId
   const router = useRouter()
-  const { user, refreshOrgs } = useAuth()
+  const { user, refreshWorkspaces } = useAuth()
 
-  const { data: orgRes, isLoading: orgLoading } = useOrganization(validOrgId)
-  const { data: membersRes } = useOrgMembers(validOrgId)
-  const { data: rolesRes } = useOrgRoles(validOrgId)
+  const { data: workspaceRes, isLoading: workspaceLoading } = useWorkspace(validWorkspaceId)
+  const { data: membersRes } = useWorkspaceMembers(validWorkspaceId)
+  const { data: rolesRes } = useWorkspaceRoles(validWorkspaceId)
 
-  const org = orgRes?.data ?? null
+  const workspace = workspaceRes?.data ?? null
   const members = membersRes?.data ?? []
   const roles = rolesRes?.data ?? []
 
-  // SEC-S3-007: Determine current user's permissions in this org
+  // SEC-S3-007: Determine current user's permissions in this workspace
   const currentMember = members.find((m) => m.userId === user?.id)
   const currentPermissions = currentMember?.role?.permissions ?? []
   const hasPermission = (resource: string, action: string) =>
     currentPermissions.some(
       (p) => p.resource === resource && p.action === action
     )
-  const isOrgOwner = org?.ownerId === user?.id
-  const canInvite = isOrgOwner || hasPermission("members", "invite")
-  const canRemove = isOrgOwner || hasPermission("members", "remove")
-  const canUpdateRole = isOrgOwner || hasPermission("members", "update_role")
-  const canUpdateOrg = isOrgOwner
+  const isWorkspaceOwner = workspace?.ownerId === user?.id
+  const canInvite = isWorkspaceOwner || hasPermission("members", "invite")
+  const canRemove = isWorkspaceOwner || hasPermission("members", "remove")
+  const canUpdateRole = isWorkspaceOwner || hasPermission("members", "update_role")
+  const canUpdateWorkspace = isWorkspaceOwner
 
   // Edit form
   const [editName, setEditName] = useState("")
   const [editDescription, setEditDescription] = useState("")
-  const [prevOrgId, setPrevOrgId] = useState<number | null>(null)
+  const [prevWorkspaceId, setPrevWorkspaceId] = useState<number | null>(null)
 
   // React-recommended "store previous props" pattern for syncing derived state
-  if (org && prevOrgId !== org.id) {
-    setPrevOrgId(org.id)
-    setEditName(org.name)
-    setEditDescription(org.description ?? "")
+  if (workspace && prevWorkspaceId !== workspace.id) {
+    setPrevWorkspaceId(workspace.id)
+    setEditName(workspace.name)
+    setEditDescription(workspace.description ?? "")
   }
 
   // Invite form
@@ -119,24 +119,24 @@ export const OrganizationDetailView = () => {
     details: ConfirmDialogDetail[]
   } | null>(null)
 
-  const updateMutation = useUpdateOrganization()
-  const deleteMutation = useDeleteOrganization()
+  const updateMutation = useUpdateWorkspace()
+  const deleteMutation = useDeleteWorkspace()
   const inviteMutation = useInviteMember()
   const removeMutation = useRemoveMember()
   const updateRoleMutation = useUpdateMemberRole()
 
   const handleSave = async () => {
     await updateMutation.mutateAsync({
-      id: validOrgId,
+      id: validWorkspaceId,
       data: { name: editName, description: editDescription },
     })
-    await refreshOrgs()
+    await refreshWorkspaces()
   }
 
   const handleDelete = async () => {
-    await deleteMutation.mutateAsync(validOrgId)
-    await refreshOrgs()
-    router.push("/organizations")
+    await deleteMutation.mutateAsync(validWorkspaceId)
+    await refreshWorkspaces()
+    router.push("/workspaces")
   }
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -145,7 +145,7 @@ export const OrganizationDetailView = () => {
     setInviteError("")
     try {
       await inviteMutation.mutateAsync({
-        orgId: validOrgId,
+        workspaceId: validWorkspaceId,
         data: { email: inviteEmail, roleId: inviteRoleId },
       })
       setInviteDialogOpen(false)
@@ -159,7 +159,7 @@ export const OrganizationDetailView = () => {
   }
 
   const handleRemoveMember = async (userId: number) => {
-    await removeMutation.mutateAsync({ orgId: validOrgId, userId })
+    await removeMutation.mutateAsync({ workspaceId: validWorkspaceId, userId })
     setMemberToRemove(null)
   }
 
@@ -171,27 +171,27 @@ export const OrganizationDetailView = () => {
       details: [
         { label: "Member", value: name },
         ...(email ? [{ label: "Email", value: email }] : []),
-        { label: "Organization", value: org?.name ?? "" },
+        { label: "Workspace", value: workspace?.name ?? "" },
       ],
     })
   }
 
   const handleUpdateRole = (userId: number, roleId: number) => {
-    updateRoleMutation.mutate({ orgId: validOrgId, userId, roleId })
+    updateRoleMutation.mutate({ workspaceId: validWorkspaceId, userId, roleId })
   }
 
-  if (isNaN(orgId)) {
+  if (isNaN(workspaceId)) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <p className="text-lg font-medium text-destructive">Invalid organization ID</p>
-        <Button variant="outline" className="mt-4" onClick={() => router.push("/organizations")}>
-          Back to Organizations
+        <p className="text-lg font-medium text-destructive">Invalid workspace ID</p>
+        <Button variant="outline" className="mt-4" onClick={() => router.push("/workspaces")}>
+          Back to Workspaces
         </Button>
       </div>
     )
   }
 
-  if (orgLoading) {
+  if (workspaceLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
@@ -200,12 +200,12 @@ export const OrganizationDetailView = () => {
     )
   }
 
-  if (!org) {
+  if (!workspace) {
     return (
       <div className="text-center py-12">
-        <h2 className="text-xl font-medium">Organization not found</h2>
-        <Button variant="link" onClick={() => router.push("/organizations")}>
-          Back to Organizations
+        <h2 className="text-xl font-medium">Workspace not found</h2>
+        <Button variant="link" onClick={() => router.push("/workspaces")}>
+          Back to Workspaces
         </Button>
       </div>
     )
@@ -215,19 +215,19 @@ export const OrganizationDetailView = () => {
     <div className="space-y-6">
       <div>
         <Link
-          href="/organizations"
+          href="/workspaces"
           className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Organizations
+          Workspaces
         </Link>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">{org.name}</h1>
-            <p className="text-sm text-muted-foreground font-mono">{org.slug}</p>
+            <h1 className="text-3xl font-bold">{workspace.name}</h1>
+            <p className="text-sm text-muted-foreground font-mono">{workspace.slug}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Link href={`/organizations/${org.id}/audit`}>
+            <Link href={`/workspaces/${workspace.id}/audit`}>
               <Button variant="outline" size="sm">
                 <ScrollText className="mr-2 size-4" />
                 Audit Log
@@ -241,7 +241,7 @@ export const OrganizationDetailView = () => {
         <TabsList>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="roles">Roles</TabsTrigger>
-          {canUpdateOrg && (
+          {canUpdateWorkspace && (
             <TabsTrigger value="settings">Settings</TabsTrigger>
           )}
         </TabsList>
@@ -268,7 +268,7 @@ export const OrganizationDetailView = () => {
                   <DialogHeader>
                     <DialogTitle>Invite Member</DialogTitle>
                     <DialogDescription>
-                      Send an invitation to join this organization.
+                      Send an invitation to join this workspace.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
@@ -411,7 +411,7 @@ export const OrganizationDetailView = () => {
             open={!!memberToRemove}
             onOpenChange={(open) => { if (!open) setMemberToRemove(null) }}
             title="Remove Member?"
-            description={`Are you sure you want to remove ${memberToRemove?.name ?? "this member"} from this organization? They will lose access to all organization resources.`}
+            description={`Are you sure you want to remove ${memberToRemove?.name ?? "this member"} from this workspace? They will lose access to all workspace resources.`}
             details={memberToRemove?.details}
             actionLabel="Remove"
             onConfirm={async () => {
@@ -462,13 +462,13 @@ export const OrganizationDetailView = () => {
         </TabsContent>
 
         {/* Settings Tab - owner only */}
-        {canUpdateOrg && (
+        {canUpdateWorkspace && (
         <TabsContent value="settings" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Organization Settings</CardTitle>
+              <CardTitle>Workspace Settings</CardTitle>
               <CardDescription>
-                Update your organization&apos;s name and description.
+                Update your workspace&apos;s name and description.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -510,16 +510,16 @@ export const OrganizationDetailView = () => {
             <CardHeader>
               <CardTitle className="text-destructive">Danger Zone</CardTitle>
               <CardDescription>
-                Permanently delete this organization and all its data.
+                Permanently delete this workspace and all its data.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <ConfirmDialog
-                title="Delete Organization?"
-                description="Are you sure? This action cannot be undone. All data associated with this organization will be permanently deleted."
+                title="Delete Workspace?"
+                description="Are you sure? This action cannot be undone. All data associated with this workspace will be permanently deleted."
                 details={[
-                  { label: "Organization", value: org.name },
-                  { label: "Slug", value: org.slug },
+                  { label: "Workspace", value: workspace.name },
+                  { label: "Slug", value: workspace.slug },
                   { label: "Members", value: String(members.length) },
                 ]}
                 actionLabel="Delete"
@@ -527,7 +527,7 @@ export const OrganizationDetailView = () => {
               >
                 <Button variant="destructive">
                   <Trash2 className="mr-2 size-4" />
-                  Delete Organization
+                  Delete Workspace
                 </Button>
               </ConfirmDialog>
             </CardContent>
@@ -538,4 +538,3 @@ export const OrganizationDetailView = () => {
     </div>
   )
 }
-

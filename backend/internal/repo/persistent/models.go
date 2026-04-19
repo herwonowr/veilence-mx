@@ -41,7 +41,7 @@ const (
 // Package is the GORM model for monitored packages.
 type Package struct {
 	ID                     uint          `gorm:"primarykey" json:"id"`
-	OrgID                  uint          `gorm:"not null;index" json:"orgId"`
+	WorkspaceID                  uint          `gorm:"not null;index" json:"workspaceId"`
 	Name                   string        `gorm:"not null" json:"name"`
 	Ecosystem              Ecosystem     `gorm:"column:ecosystem;not null;type:varchar(10)" json:"ecosystem"`
 	LatestVersion          string        `gorm:"type:varchar(100)" json:"latestVersion"`
@@ -170,7 +170,7 @@ const (
 // Alert is the GORM model for security alerts.
 type Alert struct {
 	ID         uint          `gorm:"primarykey" json:"id"`
-	OrgID      uint          `gorm:"not null;index" json:"orgId"`
+	WorkspaceID      uint          `gorm:"not null;index" json:"workspaceId"`
 	AnalysisID uint          `gorm:"not null;index" json:"analysisId"`
 	Analysis   Analysis      `gorm:"foreignKey:AnalysisID" json:"-"`
 	ReleaseID  uint          `gorm:"index" json:"releaseId"`
@@ -191,7 +191,7 @@ type AlertNote struct {
 	ID        uint      `gorm:"primarykey" json:"id"`
 	AlertID   uint      `gorm:"not null;index" json:"alertId"`
 	Alert     Alert     `gorm:"foreignKey:AlertID" json:"-"`
-	OrgID     uint      `gorm:"not null;index" json:"orgId"`
+	WorkspaceID uint      `gorm:"not null;index" json:"workspaceId"`
 	UserID    uint      `gorm:"not null;index" json:"userId"`
 	UserEmail string    `gorm:"type:varchar(255)" json:"userEmail"`
 	Content   string    `gorm:"not null;type:text" json:"content"`
@@ -268,10 +268,10 @@ type APIKey struct {
 
 func (APIKey) TableName() string { return "api_keys" }
 
-// --- Organization Models ---
+// --- Workspace Models ---
 
-// Organization is the GORM model for tenant organizations.
-type Organization struct {
+// Workspace is the GORM model for tenant workspaces.
+type Workspace struct {
 	ID          uint           `gorm:"primarykey" json:"id"`
 	Name        string         `gorm:"not null;type:varchar(100)" json:"name"`
 	Slug        string         `gorm:"not null;type:varchar(100)" json:"slug"`
@@ -283,15 +283,15 @@ type Organization struct {
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
-func (Organization) TableName() string { return "organizations" }
+func (Workspace) TableName() string { return "workspaces" }
 
-// --- OrgMember Models ---
+// --- WorkspaceMember Models ---
 
-// OrgMember is the GORM model for organization memberships.
-type OrgMember struct {
+// WorkspaceMember is the GORM model for workspace memberships.
+type WorkspaceMember struct {
 	ID        uint      `gorm:"primarykey" json:"id"`
-	OrgID     uint      `gorm:"not null;uniqueIndex:idx_org_user" json:"orgId"`
-	UserID    uint      `gorm:"not null;uniqueIndex:idx_org_user" json:"userId"`
+	WorkspaceID uint      `gorm:"not null;uniqueIndex:idx_workspace_user" json:"workspaceId"`
+	UserID    uint      `gorm:"not null;uniqueIndex:idx_workspace_user" json:"userId"`
 	RoleID    uint      `gorm:"not null" json:"roleId"`
 	Role      Role      `gorm:"foreignKey:RoleID" json:"role"`
 	User      User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
@@ -300,14 +300,14 @@ type OrgMember struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-func (OrgMember) TableName() string { return "org_members" }
+func (WorkspaceMember) TableName() string { return "workspace_members" }
 
 // --- Role & Permission Models ---
 
 // Role is the GORM model for roles.
 type Role struct {
 	ID          uint         `gorm:"primarykey" json:"id"`
-	OrgID       uint         `gorm:"not null;index" json:"orgId"`
+	WorkspaceID       uint         `gorm:"not null;index" json:"workspaceId"`
 	Name        string       `gorm:"not null;type:varchar(50)" json:"name"`
 	Description string       `gorm:"type:text" json:"description"`
 	IsSystem    bool         `gorm:"not null;default:false" json:"isSystem"`
@@ -350,9 +350,9 @@ var SystemPermissions = []Permission{
 	{Resource: "members", Action: "remove"},
 	{Resource: "roles", Action: "read"},
 	{Resource: "roles", Action: "write"},
-	{Resource: "org", Action: "read"},
-	{Resource: "org", Action: "write"},
-	{Resource: "org", Action: "delete"},
+	{Resource: "workspace", Action: "read"},
+	{Resource: "workspace", Action: "write"},
+	{Resource: "workspace", Action: "delete"},
 	{Resource: "api_keys", Action: "read"},
 	{Resource: "api_keys", Action: "write"},
 	{Resource: "audit", Action: "read"},
@@ -364,10 +364,10 @@ var SystemPermissions = []Permission{
 
 // --- Invitation Models ---
 
-// Invitation is the GORM model for organization invitations.
+// Invitation is the GORM model for workspace invitations.
 type Invitation struct {
 	ID         uint       `gorm:"primarykey" json:"id"`
-	OrgID      uint       `gorm:"not null;index" json:"orgId"`
+	WorkspaceID      uint       `gorm:"not null;index" json:"workspaceId"`
 	Email      string     `gorm:"not null;type:varchar(255)" json:"email"`
 	RoleID     uint       `gorm:"not null" json:"roleId"`
 	TokenHash  string     `gorm:"uniqueIndex;not null;type:varchar(255);column:token_hash" json:"-"`
@@ -385,7 +385,7 @@ func (Invitation) TableName() string { return "invitations" }
 type AuditLog struct {
 	ID            uint      `gorm:"primarykey" json:"id"`
 	UserID        uint      `gorm:"index" json:"userId"`
-	OrgID         uint      `gorm:"index" json:"orgId"`
+	WorkspaceID         uint      `gorm:"index" json:"workspaceId"`
 	Action        string    `gorm:"not null;type:varchar(50)" json:"action"`
 	Resource      string    `gorm:"not null;type:varchar(50)" json:"resource"`
 	ResourceID    uint      `json:"resourceId"`
@@ -403,8 +403,8 @@ func (AuditLog) TableName() string { return "audit_logs" }
 // Setting is the GORM model for system settings.
 type Setting struct {
 	ID        uint      `gorm:"primarykey" json:"id"`
-	OrgID     uint      `gorm:"index;not null;default:0;uniqueIndex:idx_settings_org_key" json:"orgId"`
-	Key       string    `gorm:"not null;type:varchar(100);uniqueIndex:idx_settings_org_key" json:"key"`
+	WorkspaceID uint      `gorm:"index;not null;default:0;uniqueIndex:idx_settings_workspace_key" json:"workspaceId"`
+	Key       string    `gorm:"not null;type:varchar(100);uniqueIndex:idx_settings_workspace_key" json:"key"`
 	Value     string    `gorm:"type:text" json:"value"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -441,7 +441,7 @@ const (
 // NotificationChannel is the GORM model for notification channels.
 type NotificationChannel struct {
 	ID        uint                    `gorm:"primarykey" json:"id"`
-	OrgID     uint                    `gorm:"not null;index" json:"orgId"`
+	WorkspaceID uint                    `gorm:"not null;index" json:"workspaceId"`
 	Name      string                  `gorm:"not null;type:varchar(100)" json:"name"`
 	Type      NotificationChannelType `gorm:"not null;type:varchar(20)" json:"type"`
 	Config    string                  `gorm:"type:text" json:"config"`
@@ -455,7 +455,7 @@ func (NotificationChannel) TableName() string { return "notification_channels" }
 // NotificationRule is the GORM model for notification rules.
 type NotificationRule struct {
 	ID        uint      `gorm:"primarykey" json:"id"`
-	OrgID     uint      `gorm:"not null;index" json:"orgId"`
+	WorkspaceID uint      `gorm:"not null;index" json:"workspaceId"`
 	ChannelID uint      `gorm:"not null;index" json:"channelId"`
 	Severity  string    `gorm:"type:varchar(20)" json:"severity"`
 	IsActive  bool      `gorm:"not null;default:true" json:"isActive"`
@@ -468,7 +468,7 @@ func (NotificationRule) TableName() string { return "notification_rules" }
 // Notification is the GORM model for in-app notifications.
 type Notification struct {
 	ID            uint      `gorm:"primarykey" json:"id"`
-	OrgID         uint      `gorm:"not null;index" json:"orgId"`
+	WorkspaceID         uint      `gorm:"not null;index" json:"workspaceId"`
 	UserID        uint      `gorm:"index" json:"userId"`
 	ChannelID     uint      `gorm:"index" json:"channelId"`
 	Severity      string    `gorm:"not null;type:varchar(20);default:''" json:"severity"`
@@ -530,7 +530,7 @@ var AllModels = []any{
 	&User{}, &RefreshToken{}, &APIKey{},
 	&Package{}, &Release{}, &Diff{}, &Analysis{},
 	&Alert{}, &AlertNote{},
-	&Organization{}, &OrgMember{}, &Role{}, &Permission{},
+	&Workspace{}, &WorkspaceMember{}, &Role{}, &Permission{},
 	&Invitation{}, &AuditLog{},
 	&Setting{},
 	&NotificationChannel{}, &NotificationRule{}, &Notification{},

@@ -24,8 +24,8 @@ func New(settings usecase.SettingRepository) *UseCase {
 }
 
 // GetSettings returns all settings as a key-value map for the given org.
-func (uc *UseCase) GetSettings(ctx context.Context, orgID uint) (map[string]string, error) {
-	settings, err := uc.settings.FindByOrgID(ctx, orgID)
+func (uc *UseCase) GetSettings(ctx context.Context, workspaceID uint) (map[string]string, error) {
+	settings, err := uc.settings.FindByWorkspaceID(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("SettingUseCase.GetSettings: %w", err)
 	}
@@ -46,7 +46,7 @@ func validationError(msg string) error {
 // UpdateSettings updates settings from a key-value map for the given org.
 // Returns the updated settings map.
 // Validation failures are wrapped with entity.ErrValidation.
-func (uc *UseCase) UpdateSettings(ctx context.Context, orgID uint, settings map[string]string) (map[string]string, error) {
+func (uc *UseCase) UpdateSettings(ctx context.Context, workspaceID uint, settings map[string]string) (map[string]string, error) {
 	for key, value := range settings {
 		if !entity.ValidSettingKeys[key] {
 			return nil, validationError(fmt.Sprintf("invalid setting key: %s", key))
@@ -108,13 +108,13 @@ func (uc *UseCase) UpdateSettings(ctx context.Context, orgID uint, settings map[
 			}
 		}
 
-		if err := uc.settings.UpsertByOrgAndKey(ctx, orgID, key, value); err != nil {
+		if err := uc.settings.UpsertByWorkspaceAndKey(ctx, workspaceID, key, value); err != nil {
 			return nil, fmt.Errorf("SettingUseCase.UpdateSettings: upserting %s: %w", key, err)
 		}
 	}
 
 	// Return updated settings
-	return uc.GetSettings(ctx, orgID)
+	return uc.GetSettings(ctx, workspaceID)
 }
 
 // validateDurationRange parses a Go duration string and checks it is between 1m and 168h.

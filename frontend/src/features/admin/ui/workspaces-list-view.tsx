@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/core/providers/auth-provider"
-import { apiCreateOrg } from "@/domains/admin"
-import type { Organization } from "@/domains/admin"
+import { apiCreateWorkspace } from "@/domains/admin"
+import type { Workspace } from "@/domains/admin"
 import { Button } from "@/ui/components/button"
 import { Input } from "@/ui/components/input"
 import { Field, FieldLabel, FieldDescription } from "@/ui/components/field"
@@ -29,16 +29,16 @@ import { EmptyState } from "@/ui/feedback/empty-state"
 import { Building2, Plus, Loader2, Users, Package } from "lucide-react"
 import { Alert, AlertDescription } from "@/ui/components/alert"
 import Link from "next/link"
-import { useOrgMembers } from "@/features/admin/hooks/use-organizations"
+import { useWorkspaceMembers } from "@/features/admin/hooks/use-workspaces"
 import { useAdminPackages } from "@/features/admin/hooks/use-admin-packages"
 
-export const OrganizationsListView = () => {
-  const { organizations, refreshOrgs, setCurrentOrg } = useAuth()
+export const WorkspacesListView = () => {
+  const { workspaces, refreshWorkspaces, setCurrentWorkspace } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const shouldCreateOrg = searchParams.get("create") === "true"
+  const shouldCreateWorkspace = searchParams.get("create") === "true"
 
-  const [dialogOpen, setDialogOpen] = useState(shouldCreateOrg)
+  const [dialogOpen, setDialogOpen] = useState(shouldCreateWorkspace)
   const [name, setName] = useState("")
   const [slug, setSlug] = useState("")
   const [description, setDescription] = useState("")
@@ -46,12 +46,12 @@ export const OrganizationsListView = () => {
   const [error, setError] = useState("")
 
   useEffect(() => {
-    if (shouldCreateOrg) {
+    if (shouldCreateWorkspace) {
       setDialogOpen(true)
       // Clean up the URL so subsequent navigations to ?create=true trigger the effect again
-      router.replace("/organizations", { scroll: false })
+      router.replace("/workspaces", { scroll: false })
     }
-  }, [shouldCreateOrg, router])
+  }, [shouldCreateWorkspace, router])
 
   const generateSlug = useCallback((value: string) => {
     return value
@@ -71,16 +71,16 @@ export const OrganizationsListView = () => {
     setCreating(true)
 
     try {
-      const { data } = await apiCreateOrg({ name, slug, description })
-      setCurrentOrg(data)
-      await refreshOrgs()
+      const { data } = await apiCreateWorkspace({ name, slug, description })
+      setCurrentWorkspace(data)
+      await refreshWorkspaces()
       setDialogOpen(false)
       setName("")
       setSlug("")
       setDescription("")
-      router.push(`/organizations/${data.id}`)
+      router.push(`/workspaces/${data.id}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create organization")
+      setError(err instanceof Error ? err.message : "Failed to create workspace")
     } finally {
       setCreating(false)
     }
@@ -89,22 +89,22 @@ export const OrganizationsListView = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Organizations</h1>
+        <h1 className="text-3xl font-bold">Workspaces</h1>
         <Dialog open={dialogOpen} onOpenChange={(open) => setDialogOpen(open)}>
           <DialogTrigger
             render={
               <Button>
                 <Plus className="mr-2 size-4" />
-                New Organization
+                New Workspace
               </Button>
             }
           />
           <DialogContent className="sm:max-w-md">
             <form onSubmit={handleCreate}>
               <DialogHeader>
-                <DialogTitle>Create Organization</DialogTitle>
+                <DialogTitle>Create Workspace</DialogTitle>
                 <DialogDescription>
-                  Create a new organization to manage packages and team members.
+                  Create a new workspace to manage packages and team members.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -114,32 +114,32 @@ export const OrganizationsListView = () => {
                   </Alert>
                 )}
                 <Field>
-                  <FieldLabel htmlFor="org-name">Name</FieldLabel>
+                  <FieldLabel htmlFor="workspace-name">Name</FieldLabel>
                   <Input
-                    id="org-name"
-                    placeholder="My Organization"
+                    id="workspace-name"
+                    placeholder="My Workspace"
                     value={name}
                     onChange={(e) => handleNameChange(e.target.value)}
                     required
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="org-slug">Slug</FieldLabel>
+                  <FieldLabel htmlFor="workspace-slug">Slug</FieldLabel>
                   <Input
-                    id="org-slug"
-                    placeholder="my-organization"
+                    id="workspace-slug"
+                    placeholder="my-workspace"
                     value={slug}
                     onChange={(e) => setSlug(e.target.value)}
                     required
                   />
                   <FieldDescription>
-                    URL-friendly identifier for your organization
+                    URL-friendly identifier for your workspace
                   </FieldDescription>
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="org-description">Description</FieldLabel>
+                  <FieldLabel htmlFor="workspace-description">Description</FieldLabel>
                   <Input
-                    id="org-description"
+                    id="workspace-description"
                     placeholder="Optional description"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
@@ -159,25 +159,25 @@ export const OrganizationsListView = () => {
         </Dialog>
       </div>
 
-      {organizations.length === 0 ? (
+      {workspaces.length === 0 ? (
         <Card>
           <CardContent>
             <EmptyState
               icon={<Building2 className="h-12 w-12" />}
-              title="No organizations yet"
-              description="Create your first organization to get started."
+              title="No workspaces yet"
+              description="Create your first workspace to get started."
             >
               <Button onClick={() => setDialogOpen(true)}>
                 <Plus className="mr-2 size-4" />
-                Create Organization
+                Create Workspace
               </Button>
             </EmptyState>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {organizations.map((org: Organization) => (
-            <OrgCard key={org.id} org={org} />
+          {workspaces.map((ws: Workspace) => (
+            <WorkspaceCard key={ws.id} workspace={ws} />
           ))}
         </div>
       )}
@@ -185,30 +185,30 @@ export const OrganizationsListView = () => {
   )
 }
 
-const OrgCard = ({ org }: { org: Organization }) => {
-  const { data: membersRes } = useOrgMembers(org.id)
+const WorkspaceCard = ({ workspace }: { workspace: Workspace }) => {
+  const { data: membersRes } = useWorkspaceMembers(workspace.id)
   const { data: packagesRes } = useAdminPackages({ page: 1, limit: 1 })
 
   const memberCount = membersRes?.data?.length ?? null
   const packageCount = packagesRes?.meta?.total ?? null
 
   return (
-    <Link href={`/organizations/${org.id}`}>
+    <Link href={`/workspaces/${workspace.id}`}>
       <Card className="cursor-pointer transition-colors hover:bg-muted/50">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">{org.name}</CardTitle>
-            <Badge variant={org.isActive ? "secondary" : "outline"}>
-              {org.isActive ? "Active" : "Inactive"}
+            <CardTitle className="text-base">{workspace.name}</CardTitle>
+            <Badge variant={workspace.isActive ? "secondary" : "outline"}>
+              {workspace.isActive ? "Active" : "Inactive"}
             </Badge>
           </div>
           <CardDescription className="font-mono text-xs">
-            {org.slug}
+            {workspace.slug}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground line-clamp-2">
-            {org.description || "No description"}
+            {workspace.description || "No description"}
           </p>
           <div className="flex items-center gap-4 mt-3">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -221,11 +221,10 @@ const OrgCard = ({ org }: { org: Organization }) => {
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Created {new Date(org.createdAt).toLocaleDateString()}
+            Created {new Date(workspace.createdAt).toLocaleDateString()}
           </p>
         </CardContent>
       </Card>
     </Link>
   )
 }
-

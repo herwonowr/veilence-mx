@@ -33,9 +33,9 @@ func (r *PackageRepo) FindByID(ctx context.Context, id uint) (*entity.Package, e
 	return packageToDomain(&m), nil
 }
 
-func (r *PackageRepo) FindByOrgID(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
+func (r *PackageRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
 	var total int64
-	query := r.db.WithContext(ctx).Model(&Package{}).Where("org_id = ?", orgID)
+	query := r.db.WithContext(ctx).Model(&Package{}).Where("workspace_id = ?", workspaceID)
 
 	// Apply filters
 	if filters.Status != nil {
@@ -75,10 +75,10 @@ func (r *PackageRepo) FindByOrgID(ctx context.Context, orgID uint, page, limit i
 	return result, total, nil
 }
 
-func (r *PackageRepo) FindActiveByOrgID(ctx context.Context, orgID uint) ([]entity.Package, error) {
+func (r *PackageRepo) FindActiveByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.Package, error) {
 	var ms []Package
 	err := r.db.WithContext(ctx).
-		Where("org_id = ? AND status = ?", orgID, PackageStatusActive).
+		Where("workspace_id = ? AND status = ?", workspaceID, PackageStatusActive).
 		Find(&ms).Error
 	if err != nil {
 		return nil, fmt.Errorf("finding active packages: %w", err)
@@ -91,10 +91,10 @@ func (r *PackageRepo) FindActiveByOrgID(ctx context.Context, orgID uint) ([]enti
 	return result, nil
 }
 
-func (r *PackageRepo) FindByOrgAndName(ctx context.Context, orgID uint, name string, ecosystem entity.Ecosystem) (*entity.Package, error) {
+func (r *PackageRepo) FindByWorkspaceAndName(ctx context.Context, workspaceID uint, name string, ecosystem entity.Ecosystem) (*entity.Package, error) {
 	var m Package
 	err := r.db.WithContext(ctx).
-		Where("org_id = ? AND name = ? AND ecosystem = ?", orgID, name, string(ecosystem)).
+		Where("workspace_id = ? AND name = ? AND ecosystem = ?", workspaceID, name, string(ecosystem)).
 		First(&m).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -125,11 +125,11 @@ func (r *PackageRepo) Update(ctx context.Context, pkg *entity.Package) error {
 	return nil
 }
 
-func (r *PackageRepo) BlockPackage(ctx context.Context, orgID, pkgID uint, reason string) error {
+func (r *PackageRepo) BlockPackage(ctx context.Context, workspaceID, pkgID uint, reason string) error {
 	now := time.Now()
 	result := r.db.WithContext(ctx).
 		Model(&Package{}).
-		Where("id = ? AND org_id = ? AND status = ?", pkgID, orgID, PackageStatusActive).
+		Where("id = ? AND workspace_id = ? AND status = ?", pkgID, workspaceID, PackageStatusActive).
 		Updates(map[string]any{
 			"status":         PackageStatusBlocked,
 			"blocked_at":     now,
@@ -144,10 +144,10 @@ func (r *PackageRepo) BlockPackage(ctx context.Context, orgID, pkgID uint, reaso
 	return nil
 }
 
-func (r *PackageRepo) UnblockPackage(ctx context.Context, orgID, pkgID uint) error {
+func (r *PackageRepo) UnblockPackage(ctx context.Context, workspaceID, pkgID uint) error {
 	result := r.db.WithContext(ctx).
 		Model(&Package{}).
-		Where("id = ? AND org_id = ? AND status = ?", pkgID, orgID, PackageStatusBlocked).
+		Where("id = ? AND workspace_id = ? AND status = ?", pkgID, workspaceID, PackageStatusBlocked).
 		Updates(map[string]any{
 			"status":         PackageStatusActive,
 			"blocked_at":     nil,
@@ -162,10 +162,10 @@ func (r *PackageRepo) UnblockPackage(ctx context.Context, orgID, pkgID uint) err
 	return nil
 }
 
-func (r *PackageRepo) RemovePackage(ctx context.Context, orgID, pkgID uint) error {
+func (r *PackageRepo) RemovePackage(ctx context.Context, workspaceID, pkgID uint) error {
 	result := r.db.WithContext(ctx).
 		Model(&Package{}).
-		Where("id = ? AND org_id = ? AND status IN ?", pkgID, orgID,
+		Where("id = ? AND workspace_id = ? AND status IN ?", pkgID, workspaceID,
 			[]PackageStatus{PackageStatusActive, PackageStatusBlocked}).
 		Update("status", PackageStatusRemoved)
 	if result.Error != nil {
@@ -177,8 +177,8 @@ func (r *PackageRepo) RemovePackage(ctx context.Context, orgID, pkgID uint) erro
 	return nil
 }
 
-func (r *PackageRepo) CountByOrg(ctx context.Context, orgID uint, ecosystem *entity.Ecosystem) (int64, error) {
-	query := r.db.WithContext(ctx).Model(&Package{}).Where("org_id = ? AND status = ?", orgID, PackageStatusActive)
+func (r *PackageRepo) CountByWorkspace(ctx context.Context, workspaceID uint, ecosystem *entity.Ecosystem) (int64, error) {
+	query := r.db.WithContext(ctx).Model(&Package{}).Where("workspace_id = ? AND status = ?", workspaceID, PackageStatusActive)
 	if ecosystem != nil {
 		query = query.Where("ecosystem = ?", string(*ecosystem))
 	}
@@ -189,10 +189,10 @@ func (r *PackageRepo) CountByOrg(ctx context.Context, orgID uint, ecosystem *ent
 	return count, nil
 }
 
-func (r *PackageRepo) ExistsByOrgAndName(ctx context.Context, orgID uint, name string, ecosystem entity.Ecosystem) (bool, error) {
+func (r *PackageRepo) ExistsByWorkspaceAndName(ctx context.Context, workspaceID uint, name string, ecosystem entity.Ecosystem) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&Package{}).
-		Where("org_id = ? AND name = ? AND ecosystem = ?", orgID, name, string(ecosystem)).
+		Where("workspace_id = ? AND name = ? AND ecosystem = ?", workspaceID, name, string(ecosystem)).
 		Count(&count).Error
 	if err != nil {
 		return false, fmt.Errorf("checking package existence: %w", err)
@@ -200,12 +200,12 @@ func (r *PackageRepo) ExistsByOrgAndName(ctx context.Context, orgID uint, name s
 	return count > 0, nil
 }
 
-func (r *PackageRepo) FindSuggestionsByOrgID(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
+func (r *PackageRepo) FindSuggestionsByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Package{}).
-		Where("org_id = ? AND status = ?", orgID, PackageStatusSuggested)
+		Where("workspace_id = ? AND status = ?", workspaceID, PackageStatusSuggested)
 
-	// Apply filters (follow FindByOrgID pattern)
+	// Apply filters (follow FindByWorkspaceID pattern)
 	if filters.Ecosystem != nil {
 		query = query.Where("ecosystem = ?", string(*filters.Ecosystem))
 	}
@@ -239,10 +239,10 @@ func (r *PackageRepo) FindSuggestionsByOrgID(ctx context.Context, orgID uint, pa
 	return result, total, nil
 }
 
-func (r *PackageRepo) ApprovePackage(ctx context.Context, orgID, pkgID uint) error {
+func (r *PackageRepo) ApprovePackage(ctx context.Context, workspaceID, pkgID uint) error {
 	result := r.db.WithContext(ctx).
 		Model(&Package{}).
-		Where("id = ? AND org_id = ? AND status = ?", pkgID, orgID, PackageStatusSuggested).
+		Where("id = ? AND workspace_id = ? AND status = ?", pkgID, workspaceID, PackageStatusSuggested).
 		Update("status", PackageStatusActive)
 	if result.Error != nil {
 		return fmt.Errorf("approving package: %w", result.Error)
@@ -253,10 +253,10 @@ func (r *PackageRepo) ApprovePackage(ctx context.Context, orgID, pkgID uint) err
 	return nil
 }
 
-func (r *PackageRepo) RejectPackage(ctx context.Context, orgID, pkgID uint) error {
+func (r *PackageRepo) RejectPackage(ctx context.Context, workspaceID, pkgID uint) error {
 	result := r.db.WithContext(ctx).
 		Model(&Package{}).
-		Where("id = ? AND org_id = ? AND status = ?", pkgID, orgID, PackageStatusSuggested).
+		Where("id = ? AND workspace_id = ? AND status = ?", pkgID, workspaceID, PackageStatusSuggested).
 		Update("status", PackageStatusRemoved)
 	if result.Error != nil {
 		return fmt.Errorf("rejecting package: %w", result.Error)
@@ -267,13 +267,13 @@ func (r *PackageRepo) RejectPackage(ctx context.Context, orgID, pkgID uint) erro
 	return nil
 }
 
-func (r *PackageRepo) BulkApprovePackages(ctx context.Context, orgID uint, pkgIDs []uint) (int, error) {
+func (r *PackageRepo) BulkApprovePackages(ctx context.Context, workspaceID uint, pkgIDs []uint) (int, error) {
 	if len(pkgIDs) == 0 {
 		return 0, nil
 	}
 	result := r.db.WithContext(ctx).
 		Model(&Package{}).
-		Where("org_id = ? AND id IN ? AND status = ?", orgID, pkgIDs, PackageStatusSuggested).
+		Where("workspace_id = ? AND id IN ? AND status = ?", workspaceID, pkgIDs, PackageStatusSuggested).
 		Update("status", PackageStatusActive)
 	if result.Error != nil {
 		return 0, fmt.Errorf("bulk approving packages: %w", result.Error)
@@ -281,7 +281,7 @@ func (r *PackageRepo) BulkApprovePackages(ctx context.Context, orgID uint, pkgID
 	return int(result.RowsAffected), nil
 }
 
-func (r *PackageRepo) UpdateDownloadCounts(ctx context.Context, orgID uint, updates []entity.PackageDownloadUpdate) error {
+func (r *PackageRepo) UpdateDownloadCounts(ctx context.Context, workspaceID uint, updates []entity.PackageDownloadUpdate) error {
 	if len(updates) == 0 {
 		return nil
 	}
@@ -289,7 +289,7 @@ func (r *PackageRepo) UpdateDownloadCounts(ctx context.Context, orgID uint, upda
 	for _, u := range updates {
 		result := r.db.WithContext(ctx).
 			Model(&Package{}).
-			Where("id = ? AND org_id = ?", u.PackageID, orgID).
+			Where("id = ? AND workspace_id = ?", u.PackageID, workspaceID).
 			Updates(map[string]any{
 				"download_count":            u.DownloadCount,
 				"popularity_score":          u.PopularityScore,
@@ -302,10 +302,10 @@ func (r *PackageRepo) UpdateDownloadCounts(ctx context.Context, orgID uint, upda
 	return nil
 }
 
-func (r *PackageRepo) FindStaleByOrgID(ctx context.Context, orgID uint, staleBefore time.Time) ([]entity.Package, error) {
+func (r *PackageRepo) FindStaleByWorkspaceID(ctx context.Context, workspaceID uint, staleBefore time.Time) ([]entity.Package, error) {
 	var ms []Package
 	err := r.db.WithContext(ctx).
-		Where("org_id = ? AND status = ? AND (download_count_updated_at < ? OR download_count_updated_at IS NULL)", orgID, PackageStatusActive, staleBefore).
+		Where("workspace_id = ? AND status = ? AND (download_count_updated_at < ? OR download_count_updated_at IS NULL)", workspaceID, PackageStatusActive, staleBefore).
 		Find(&ms).Error
 	if err != nil {
 		return nil, fmt.Errorf("finding stale packages: %w", err)
@@ -318,10 +318,10 @@ func (r *PackageRepo) FindStaleByOrgID(ctx context.Context, orgID uint, staleBef
 	return result, nil
 }
 
-func (r *PackageRepo) RemoveStaleByOrgID(ctx context.Context, orgID uint, staleBefore time.Time) (int, error) {
+func (r *PackageRepo) RemoveStaleByWorkspaceID(ctx context.Context, workspaceID uint, staleBefore time.Time) (int, error) {
 	result := r.db.WithContext(ctx).
 		Model(&Package{}).
-		Where("org_id = ? AND status = ? AND updated_at < ?", orgID, PackageStatusActive, staleBefore).
+		Where("workspace_id = ? AND status = ? AND updated_at < ?", workspaceID, PackageStatusActive, staleBefore).
 		Update("status", PackageStatusRemoved)
 	if result.Error != nil {
 		return 0, fmt.Errorf("removing stale packages: %w", result.Error)
@@ -334,7 +334,7 @@ func (r *PackageRepo) RemoveStaleByOrgID(ctx context.Context, orgID uint, staleB
 func packageToDomain(m *Package) *entity.Package {
 	return &entity.Package{
 		ID:                     m.ID,
-		OrgID:                  m.OrgID,
+		WorkspaceID:                  m.WorkspaceID,
 		Name:                   m.Name,
 		Ecosystem:              entity.Ecosystem(m.Ecosystem),
 		LatestVersion:          m.LatestVersion,
@@ -355,7 +355,7 @@ func packageToDomain(m *Package) *entity.Package {
 func packageToModel(d *entity.Package) *Package {
 	return &Package{
 		ID:                     d.ID,
-		OrgID:                  d.OrgID,
+		WorkspaceID:                  d.WorkspaceID,
 		Name:                   d.Name,
 		Ecosystem:              Ecosystem(d.Ecosystem),
 		LatestVersion:          d.LatestVersion,

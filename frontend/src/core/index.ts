@@ -2,7 +2,7 @@
 
 // Infrastructure
 export { config } from "@/core/config"
-export { fetchApi, getStoredAccessToken, getStoredRefreshToken, storeTokens, clearTokens, getStoredOrgId, storeOrgId, clearOrgId, type ApiResponse } from "@/core/http"
+export { fetchApi, getStoredAccessToken, getStoredRefreshToken, storeTokens, clearTokens, getStoredWorkspaceId, storeWorkspaceId, clearWorkspaceId, type ApiResponse } from "@/core/http"
 export { sanitizeErrorMessage } from "@/core/error-sanitizer"
 export { cn } from "@/core/utils"
 

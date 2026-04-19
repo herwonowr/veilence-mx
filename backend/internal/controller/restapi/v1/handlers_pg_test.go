@@ -43,9 +43,9 @@ func TestIntegrationPG_AlertSearch_CaseInsensitive(t *testing.T) {
 	}
 
 	// Create test data with mixed case
-	pkg1 := persistent.Package{Name: "Requests", Ecosystem: "python", OrgID: 0}
+	pkg1 := persistent.Package{Name: "Requests", Ecosystem: "python", WorkspaceID: 0}
 	db.Create(&pkg1)
-	pkg2 := persistent.Package{Name: "EXPRESS", Ecosystem: "npm", OrgID: 0}
+	pkg2 := persistent.Package{Name: "EXPRESS", Ecosystem: "npm", WorkspaceID: 0}
 	db.Create(&pkg2)
 
 	rel1 := persistent.Release{PackageID: pkg1.ID, Version: "1.0.0", Status: "completed"}
@@ -62,8 +62,8 @@ func TestIntegrationPG_AlertSearch_CaseInsensitive(t *testing.T) {
 	analysis2 := persistent.Analysis{DiffID: diff2.ID, Classification: "suspicious", Confidence: 0.8, ModelUsed: "test", AnalyzerType: "copilot"}
 	db.Create(&analysis2)
 
-	db.Create(&persistent.Alert{AnalysisID: analysis1.ID, PackageID: pkg1.ID, OrgID: 0, Severity: "critical", Status: "new", Message: "Malicious code detected"})
-	db.Create(&persistent.Alert{AnalysisID: analysis2.ID, PackageID: pkg2.ID, OrgID: 0, Severity: "medium", Status: "new", Message: "Suspicious behavior found"})
+	db.Create(&persistent.Alert{AnalysisID: analysis1.ID, PackageID: pkg1.ID, WorkspaceID: 0, Severity: "critical", Status: "new", Message: "Malicious code detected"})
+	db.Create(&persistent.Alert{AnalysisID: analysis2.ID, PackageID: pkg2.ID, WorkspaceID: 0, Severity: "medium", Status: "new", Message: "Suspicious behavior found"})
 
 	tests := []struct {
 		name      string
@@ -107,9 +107,9 @@ func TestIntegrationPG_PackageSearch_CaseInsensitive(t *testing.T) {
 		Audit: audit.NewService(db),
 	}
 
-	db.Create(&persistent.Package{Name: "Django", Ecosystem: "python", OrgID: 0})
-	db.Create(&persistent.Package{Name: "FLASK", Ecosystem: "python", OrgID: 0})
-	db.Create(&persistent.Package{Name: "express", Ecosystem: "npm", OrgID: 0})
+	db.Create(&persistent.Package{Name: "Django", Ecosystem: "python", WorkspaceID: 0})
+	db.Create(&persistent.Package{Name: "FLASK", Ecosystem: "python", WorkspaceID: 0})
+	db.Create(&persistent.Package{Name: "express", Ecosystem: "npm", WorkspaceID: 0})
 
 	tests := []struct {
 		name      string
@@ -151,9 +151,9 @@ func TestIntegrationPG_ReleaseSearch_CaseInsensitive(t *testing.T) {
 		Dashboard: persistent.NewDashboardRepo(db),
 	}
 
-	pkg1 := persistent.Package{Name: "Requests", Ecosystem: "python", OrgID: 0}
+	pkg1 := persistent.Package{Name: "Requests", Ecosystem: "python", WorkspaceID: 0}
 	db.Create(&pkg1)
-	pkg2 := persistent.Package{Name: "LODASH", Ecosystem: "npm", OrgID: 0}
+	pkg2 := persistent.Package{Name: "LODASH", Ecosystem: "npm", WorkspaceID: 0}
 	db.Create(&pkg2)
 
 	db.Create(&persistent.Release{PackageID: pkg1.ID, Version: "1.0.0", Status: "completed"})

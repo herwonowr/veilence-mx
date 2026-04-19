@@ -29,14 +29,14 @@ const setupMockAuth = () => {
     user: null,
     isAuthenticated: false,
     isLoading: false,
-    currentOrg: null,
-    organizations: [],
+    currentWorkspace: null,
+    workspaces: [],
     login: mockLogin,
     register: vi.fn(),
     logout: vi.fn(),
-    setCurrentOrg: vi.fn(),
+    setCurrentWorkspace: vi.fn(),
     refreshUser: vi.fn(),
-    refreshOrgs: vi.fn(),
+    refreshWorkspaces: vi.fn(),
   })
 }
 

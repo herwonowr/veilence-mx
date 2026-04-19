@@ -408,7 +408,7 @@ func TestDiscoverPackages_UpdateExistingRank(t *testing.T) {
 	db := setupTestDB(t)
 
 	rank := uint(10)
-	db.Create(&persistent.Package{OrgID: 1, Name: "requests", Ecosystem: "python", Rank: &rank, Source: persistent.PackageSourceDiscovered, Status: persistent.PackageStatusActive})
+	db.Create(&persistent.Package{WorkspaceID: 1, Name: "requests", Ecosystem: "python", Rank: &rank, Source: persistent.PackageSourceDiscovered, Status: persistent.PackageStatusActive})
 
 	mock := &mockRegistry{
 		name:        "python",
@@ -440,7 +440,7 @@ func TestDiscoverPackages_SkipsBlockedPackages(t *testing.T) {
 	now := time.Now()
 	rank := uint(10)
 	db.Create(&persistent.Package{
-		OrgID:         1,
+		WorkspaceID:         1,
 		Name:          "malicious-pkg",
 		Ecosystem:     "python",
 		Rank:          &rank,
@@ -474,7 +474,7 @@ func TestDiscoverPackages_ReAddsRemovedPackages(t *testing.T) {
 
 	rank := uint(5)
 	db.Create(&persistent.Package{
-		OrgID:     1,
+		WorkspaceID:     1,
 		Name:      "requests",
 		Ecosystem: "python",
 		Rank:      &rank,
@@ -526,7 +526,7 @@ func TestDiscoverPackages_AdditiveOnly(t *testing.T) {
 
 	// Pre-existing packages that are NOT in the new top list
 	rank := uint(1)
-	db.Create(&persistent.Package{OrgID: 1, Name: "old-pkg", Ecosystem: "python", Rank: &rank, Source: persistent.PackageSourceDiscovered, Status: persistent.PackageStatusActive})
+	db.Create(&persistent.Package{WorkspaceID: 1, Name: "old-pkg", Ecosystem: "python", Rank: &rank, Source: persistent.PackageSourceDiscovered, Status: persistent.PackageStatusActive})
 
 	mock := &mockRegistry{
 		name:        "python",
@@ -586,7 +586,7 @@ func TestSyncTopPackages_BackwardCompat(t *testing.T) {
 // Settings & Interval Tests
 // ---------------------------------------------------------------------------
 
-func TestGetOrgMonitoringInterval_DefaultFallback(t *testing.T) {
+func TestGetWorkspaceMonitoringInterval_DefaultFallback(t *testing.T) {
 	db := setupTestDB(t)
 
 	p := New(db, nil, nil, Config{
@@ -594,24 +594,24 @@ func TestGetOrgMonitoringInterval_DefaultFallback(t *testing.T) {
 		Concurrency:        1,
 	}, nil, nil)
 
-	interval := p.getOrgMonitoringInterval(1)
+	interval := p.getWorkspaceMonitoringInterval(1)
 	assert.Equal(t, 15*time.Minute, interval)
 }
 
-func TestGetOrgMonitoringInterval_OrgOverride(t *testing.T) {
+func TestGetWorkspaceMonitoringInterval_WorkspaceOverride(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&persistent.Setting{OrgID: 1, Key: persistent.SettingMonitoringInterval, Value: "30m"})
+	db.Create(&persistent.Setting{WorkspaceID: 1, Key: persistent.SettingMonitoringInterval, Value: "30m"})
 
 	p := New(db, nil, nil, Config{
 		MonitoringInterval: 15 * time.Minute,
 		Concurrency:        1,
 	}, nil, nil)
 
-	interval := p.getOrgMonitoringInterval(1)
+	interval := p.getWorkspaceMonitoringInterval(1)
 	assert.Equal(t, 30*time.Minute, interval)
 }
 
-func TestGetOrgDiscoveryInterval_DefaultFallback(t *testing.T) {
+func TestGetWorkspaceDiscoveryInterval_DefaultFallback(t *testing.T) {
 	db := setupTestDB(t)
 
 	p := New(db, nil, nil, Config{
@@ -619,20 +619,20 @@ func TestGetOrgDiscoveryInterval_DefaultFallback(t *testing.T) {
 		Concurrency:       1,
 	}, nil, nil)
 
-	interval := p.getOrgDiscoveryInterval(1)
+	interval := p.getWorkspaceDiscoveryInterval(1)
 	assert.Equal(t, 24*time.Hour, interval)
 }
 
-func TestGetOrgDiscoveryInterval_OrgOverride(t *testing.T) {
+func TestGetWorkspaceDiscoveryInterval_WorkspaceOverride(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&persistent.Setting{OrgID: 1, Key: persistent.SettingDiscoveryInterval, Value: "12h"})
+	db.Create(&persistent.Setting{WorkspaceID: 1, Key: persistent.SettingDiscoveryInterval, Value: "12h"})
 
 	p := New(db, nil, nil, Config{
 		DiscoveryInterval: 24 * time.Hour,
 		Concurrency:       1,
 	}, nil, nil)
 
-	interval := p.getOrgDiscoveryInterval(1)
+	interval := p.getWorkspaceDiscoveryInterval(1)
 	assert.Equal(t, 12*time.Hour, interval)
 }
 
@@ -645,9 +645,9 @@ func TestGetDiscoveryScanDepth_Default(t *testing.T) {
 	assert.Equal(t, 50, depth)
 }
 
-func TestGetDiscoveryScanDepth_OrgOverride(t *testing.T) {
+func TestGetDiscoveryScanDepth_WorkspaceOverride(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&persistent.Setting{OrgID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "200"})
+	db.Create(&persistent.Setting{WorkspaceID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "200"})
 
 	p := New(db, nil, nil, Config{Concurrency: 1}, nil, nil)
 
@@ -657,7 +657,7 @@ func TestGetDiscoveryScanDepth_OrgOverride(t *testing.T) {
 
 func TestGetDiscoveryScanDepth_InvalidValue(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&persistent.Setting{OrgID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "invalid"})
+	db.Create(&persistent.Setting{WorkspaceID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "invalid"})
 
 	p := New(db, nil, nil, Config{Concurrency: 1}, nil, nil)
 
@@ -666,56 +666,56 @@ func TestGetDiscoveryScanDepth_InvalidValue(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Org Due / Polling Timer Tests
+// Workspace Due / Polling Timer Tests
 // ---------------------------------------------------------------------------
 
-func TestIsOrgDue_NeverPolled(t *testing.T) {
+func TestIsWorkspaceDue_NeverPolled(t *testing.T) {
 	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
 	// Never polled — should be immediately due
-	assert.True(t, p.isOrgDue(1, "monitor", 5*time.Minute))
+	assert.True(t, p.isWorkspaceDue(1, "monitor", 5*time.Minute))
 }
 
-func TestIsOrgDue_RecentlyPolled(t *testing.T) {
+func TestIsWorkspaceDue_RecentlyPolled(t *testing.T) {
 	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
-	p.markOrgPolled(1, "monitor")
+	p.markWorkspacePolled(1, "monitor")
 	// Just polled — should NOT be due yet
-	assert.False(t, p.isOrgDue(1, "monitor", 5*time.Minute))
+	assert.False(t, p.isWorkspaceDue(1, "monitor", 5*time.Minute))
 }
 
-func TestIsOrgDue_SeparatePurposes(t *testing.T) {
+func TestIsWorkspaceDue_SeparatePurposes(t *testing.T) {
 	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
-	p.markOrgPolled(1, "monitor")
+	p.markWorkspacePolled(1, "monitor")
 	// Monitor is marked, but discover is never polled — should be due
-	assert.True(t, p.isOrgDue(1, "discover", 5*time.Minute))
-	assert.False(t, p.isOrgDue(1, "monitor", 5*time.Minute))
+	assert.True(t, p.isWorkspaceDue(1, "discover", 5*time.Minute))
+	assert.False(t, p.isWorkspaceDue(1, "monitor", 5*time.Minute))
 }
 
 // ---------------------------------------------------------------------------
 // TriggerDiscovery Tests
 // ---------------------------------------------------------------------------
 
-func TestTriggerDiscovery_MakesOrgDue(t *testing.T) {
+func TestTriggerDiscovery_MakesWorkspaceDue(t *testing.T) {
 	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
-	// Mark org as recently discovered
-	p.markOrgPolled(1, "discover")
-	assert.False(t, p.isOrgDue(1, "discover", 24*time.Hour))
+	// Mark workspace as recently discovered
+	p.markWorkspacePolled(1, "discover")
+	assert.False(t, p.isWorkspaceDue(1, "discover", 24*time.Hour))
 
 	// Trigger discovery resets the timer
 	p.TriggerDiscovery(1)
-	assert.True(t, p.isOrgDue(1, "discover", 24*time.Hour))
+	assert.True(t, p.isWorkspaceDue(1, "discover", 24*time.Hour))
 }
 
 func TestTriggerDiscovery_DoesNotAffectMonitor(t *testing.T) {
 	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
-	p.markOrgPolled(1, "monitor")
-	p.markOrgPolled(1, "discover")
+	p.markWorkspacePolled(1, "monitor")
+	p.markWorkspacePolled(1, "discover")
 
 	p.TriggerDiscovery(1)
 
 	// Monitor should still be "not due"
-	assert.False(t, p.isOrgDue(1, "monitor", 24*time.Hour))
+	assert.False(t, p.isWorkspaceDue(1, "monitor", 24*time.Hour))
 	// Discover should be due after trigger
-	assert.True(t, p.isOrgDue(1, "discover", 24*time.Hour))
+	assert.True(t, p.isWorkspaceDue(1, "discover", 24*time.Hour))
 }
 
 // ---------------------------------------------------------------------------
@@ -733,10 +733,10 @@ func TestRegistryForEcosystem(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Monitor Org Packages Tests
+// Monitor Workspace Packages Tests
 // ---------------------------------------------------------------------------
 
-func TestMonitorOrgPackages_ChecksActivePackages(t *testing.T) {
+func TestMonitorWorkspacePackages_ChecksActivePackages(t *testing.T) {
 	db := setupTestDB(t)
 
 	now := time.Now()
@@ -759,18 +759,18 @@ func TestMonitorOrgPackages_ChecksActivePackages(t *testing.T) {
 
 	p := New(db, pyMock, npmMock, Config{Concurrency: 5}, nil, nil)
 
-	// Active packages — both ecosystems in same org
-	db.Create(&persistent.Package{OrgID: 1, Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
-	db.Create(&persistent.Package{OrgID: 1, Name: "express", Ecosystem: "npm", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
+	// Active packages — both ecosystems in same workspace
+	db.Create(&persistent.Package{WorkspaceID: 1, Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{WorkspaceID: 1, Name: "express", Ecosystem: "npm", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
 
 	// Blocked package — should NOT be loaded
 	blockedAt := time.Now()
-	db.Create(&persistent.Package{OrgID: 1, Name: "blocked-pkg", Ecosystem: "python", Status: persistent.PackageStatusBlocked, Source: persistent.PackageSourceDiscovered, BlockedAt: &blockedAt})
+	db.Create(&persistent.Package{WorkspaceID: 1, Name: "blocked-pkg", Ecosystem: "python", Status: persistent.PackageStatusBlocked, Source: persistent.PackageSourceDiscovered, BlockedAt: &blockedAt})
 
 	// Removed package — should NOT be loaded
-	db.Create(&persistent.Package{OrgID: 1, Name: "removed-pkg", Ecosystem: "python", Status: persistent.PackageStatusRemoved, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{WorkspaceID: 1, Name: "removed-pkg", Ecosystem: "python", Status: persistent.PackageStatusRemoved, Source: persistent.PackageSourceDiscovered})
 
-	checked := p.monitorOrgPackages(context.Background(), 1)
+	checked := p.monitorWorkspacePackages(context.Background(), 1)
 	// Only active packages are checked
 	assert.Equal(t, 2, checked)
 }
@@ -779,7 +779,7 @@ func TestMonitorOrgPackages_ChecksActivePackages(t *testing.T) {
 // Run Monitor Cycle Tests
 // ---------------------------------------------------------------------------
 
-func TestRunMonitorCycle_SkipsNonDueOrgs(t *testing.T) {
+func TestRunMonitorCycle_SkipsNonDueWorkspaces(t *testing.T) {
 	db := setupTestDB(t)
 
 	pyMock := &mockRegistry{
@@ -796,22 +796,22 @@ func TestRunMonitorCycle_SkipsNonDueOrgs(t *testing.T) {
 		Concurrency:        1,
 	}, nil, nil)
 
-	// Create an active package so the org shows up
-	db.Create(&persistent.Package{OrgID: 1, Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
+	// Create an active package so the workspace shows up
+	db.Create(&persistent.Package{WorkspaceID: 1, Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
 
-	// First cycle — org is due (never polled)
+	// First cycle — workspace is due (never polled)
 	p.runMonitorCycle(context.Background())
 
 	var count1 int64
 	db.Model(&persistent.Release{}).Count(&count1)
 	assert.Greater(t, count1, int64(0))
 
-	// Second cycle immediately — org should NOT be due yet
+	// Second cycle immediately — workspace should NOT be due yet
 	p.runMonitorCycle(context.Background())
 
 	var count2 int64
 	db.Model(&persistent.Release{}).Count(&count2)
-	// No additional releases — org was skipped
+	// No additional releases — workspace was skipped
 	assert.Equal(t, count1, count2)
 }
 
@@ -819,7 +819,7 @@ func TestRunMonitorCycle_SkipsNonDueOrgs(t *testing.T) {
 // Run Discovery Cycle Tests
 // ---------------------------------------------------------------------------
 
-func TestRunDiscoveryCycle_DiscoversForDueOrgs(t *testing.T) {
+func TestRunDiscoveryCycle_DiscoversForDueWorkspaces(t *testing.T) {
 	db := setupTestDB(t)
 
 	pyMock := &mockRegistry{
@@ -842,8 +842,8 @@ func TestRunDiscoveryCycle_DiscoversForDueOrgs(t *testing.T) {
 		Concurrency:       1,
 	}, nil, nil)
 
-	// Create a setting so org 1 shows up
-	db.Create(&persistent.Setting{OrgID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "2"})
+	// Create a setting so workspace 1 shows up
+	db.Create(&persistent.Setting{WorkspaceID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "2"})
 
 	p.runDiscoveryCycle(context.Background())
 
@@ -874,7 +874,7 @@ func TestRunDiscoveryCycle_ZeroScanDepth_Skips(t *testing.T) {
 	}, nil, nil)
 
 	// Set scan depth to 0 — should skip discovery
-	db.Create(&persistent.Setting{OrgID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "0"})
+	db.Create(&persistent.Setting{WorkspaceID: 1, Key: persistent.SettingDiscoveryScanDepth, Value: "0"})
 
 	p.runDiscoveryCycle(context.Background())
 
@@ -938,7 +938,7 @@ func TestDiscoverPackages_SuggestedPackagesGetUpdated(t *testing.T) {
 	// Pre-existing suggested package with outdated metrics
 	rank := uint(10)
 	db.Create(&persistent.Package{
-		OrgID:           1,
+		WorkspaceID:           1,
 		Name:            "requests",
 		Ecosystem:       "python",
 		Rank:            &rank,
@@ -985,9 +985,9 @@ func TestDiscoverPackages_SuggestedNotMonitored(t *testing.T) {
 	p := New(db, pyMock, nil, Config{Concurrency: 5}, nil, nil)
 
 	// Suggested package — should NOT be loaded for monitoring
-	db.Create(&persistent.Package{OrgID: 1, Name: "suggested-pkg", Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{WorkspaceID: 1, Name: "suggested-pkg", Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
 
-	checked := p.monitorOrgPackages(context.Background(), 1)
+	checked := p.monitorWorkspacePackages(context.Background(), 1)
 	// Suggested packages are not monitored — only active ones
 	assert.Equal(t, 0, checked)
 
@@ -1004,13 +1004,13 @@ func TestUpsertDiscoveredPackages_MixedStatuses(t *testing.T) {
 	rank1, rank5, rank10 := uint(1), uint(5), uint(10)
 
 	// Active package
-	db.Create(&persistent.Package{OrgID: 1, Name: "active-pkg", Ecosystem: "python", Rank: &rank1, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{WorkspaceID: 1, Name: "active-pkg", Ecosystem: "python", Rank: &rank1, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
 	// Suggested package
-	db.Create(&persistent.Package{OrgID: 1, Name: "suggested-pkg", Ecosystem: "python", Rank: &rank5, Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{WorkspaceID: 1, Name: "suggested-pkg", Ecosystem: "python", Rank: &rank5, Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
 	// Blocked package
-	db.Create(&persistent.Package{OrgID: 1, Name: "blocked-pkg", Ecosystem: "python", Rank: &rank10, Status: persistent.PackageStatusBlocked, Source: persistent.PackageSourceDiscovered, BlockedAt: &now, BlockedReason: "malware"})
+	db.Create(&persistent.Package{WorkspaceID: 1, Name: "blocked-pkg", Ecosystem: "python", Rank: &rank10, Status: persistent.PackageStatusBlocked, Source: persistent.PackageSourceDiscovered, BlockedAt: &now, BlockedReason: "malware"})
 	// Removed package
-	db.Create(&persistent.Package{OrgID: 1, Name: "removed-pkg", Ecosystem: "python", Rank: &rank10, Status: persistent.PackageStatusRemoved, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{WorkspaceID: 1, Name: "removed-pkg", Ecosystem: "python", Rank: &rank10, Status: persistent.PackageStatusRemoved, Source: persistent.PackageSourceDiscovered})
 
 	rankings := []entity.PackageRanking{
 		{Name: "active-pkg", Rank: 2, DownloadCount: 100, PopularityScore: 90.0},
@@ -1052,8 +1052,8 @@ func TestUpsertDiscoveredPackages_DownloadCountBatchUpdate(t *testing.T) {
 	db := setupTestDB(t)
 
 	rank1, rank2 := uint(1), uint(2)
-	db.Create(&persistent.Package{OrgID: 1, Name: "pkg-a", Ecosystem: "python", Rank: &rank1, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered, DownloadCount: 10})
-	db.Create(&persistent.Package{OrgID: 1, Name: "pkg-b", Ecosystem: "python", Rank: &rank2, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered, DownloadCount: 20})
+	db.Create(&persistent.Package{WorkspaceID: 1, Name: "pkg-a", Ecosystem: "python", Rank: &rank1, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered, DownloadCount: 10})
+	db.Create(&persistent.Package{WorkspaceID: 1, Name: "pkg-b", Ecosystem: "python", Rank: &rank2, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered, DownloadCount: 20})
 
 	rankings := []entity.PackageRanking{
 		{Name: "pkg-a", Rank: 1, DownloadCount: 500000, PopularityScore: 95.0},
@@ -1076,15 +1076,15 @@ func TestUpsertDiscoveredPackages_DownloadCountBatchUpdate(t *testing.T) {
 	assert.NotNil(t, pkgB.DownloadCountUpdatedAt)
 }
 
-func TestDiscoverPackages_DiscoveryImmediateForNewOrg(t *testing.T) {
-	// Verifies that orgs with no lastPollAt entry are immediately due
+func TestDiscoverPackages_DiscoveryImmediateForNewWorkspace(t *testing.T) {
+	// Verifies that workspaces with no lastPollAt entry are immediately due
 	p := New(nil, nil, nil, Config{
 		DiscoveryInterval: 24 * time.Hour,
 		Concurrency:       1,
 	}, nil, nil)
 
-	// Org 99 has never been polled
-	assert.True(t, p.isOrgDue(99, "discover", 24*time.Hour))
+	// Workspace 99 has never been polled
+	assert.True(t, p.isWorkspaceDue(99, "discover", 24*time.Hour))
 }
 
 func TestDiscoverPackages_MultiEcosystem(t *testing.T) {
@@ -1110,7 +1110,7 @@ func TestDiscoverPackages_MultiEcosystem(t *testing.T) {
 	p.discoverPackages(context.Background(), npmMock, 1, 1, false)
 
 	var packages []persistent.Package
-	db.Where("org_id = ?", 1).Find(&packages)
+	db.Where("workspace_id = ?", 1).Find(&packages)
 	// Same name but different ecosystems = 2 separate packages
 	assert.Len(t, packages, 2)
 

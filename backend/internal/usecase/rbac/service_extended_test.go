@@ -11,19 +11,19 @@ import (
 )
 
 // =====================================================================
-// GetOrgMembers
+// GetWorkspaceMembers
 // =====================================================================
 
-func TestGetOrgMembers_ReturnsAllMembers(t *testing.T) {
+func TestGetWorkspaceMembers_ReturnsAllMembers(t *testing.T) {
 	db := setupRBACTestDB(t)
 	svc := rbac.NewService(db)
 	owner := createTestUser(t, db, "members-owner@example.com")
 	member := createTestUser(t, db, "members-member@example.com")
 
-	org, err := svc.CreateOrganization(owner.ID, "Members Org", "members-org", "")
+	org, err := svc.CreateWorkspace(owner.ID, "Members Org", "members-org", "")
 	require.NoError(t, err)
 
-	roles, err := svc.GetOrgRoles(org.ID)
+	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
 	var memberRole *persistent.Role
 	for i := range roles {
@@ -39,17 +39,17 @@ func TestGetOrgMembers_ReturnsAllMembers(t *testing.T) {
 	_, err = svc.AcceptInvitation(rawToken, member.ID, member.Email)
 	require.NoError(t, err)
 
-	members, err := svc.GetOrgMembers(org.ID)
+	members, err := svc.GetWorkspaceMembers(org.ID)
 	require.NoError(t, err)
 	assert.Len(t, members, 2, "owner + invited member")
 }
 
-func TestGetOrgMembers_EmptyOrg(t *testing.T) {
+func TestGetWorkspaceMembers_EmptyOrg(t *testing.T) {
 	db := setupRBACTestDB(t)
 	svc := rbac.NewService(db)
 
 	// Query members for a non-existent org — should return empty, not error
-	members, err := svc.GetOrgMembers(99999)
+	members, err := svc.GetWorkspaceMembers(99999)
 	require.NoError(t, err)
 	assert.Empty(t, members)
 }
@@ -63,10 +63,10 @@ func TestGetInvitationByToken_Success(t *testing.T) {
 	svc := rbac.NewService(db)
 	owner := createTestUser(t, db, "invite-token-owner@example.com")
 
-	org, err := svc.CreateOrganization(owner.ID, "Token Org", "token-org", "")
+	org, err := svc.CreateWorkspace(owner.ID, "Token Org", "token-org", "")
 	require.NoError(t, err)
 
-	roles, err := svc.GetOrgRoles(org.ID)
+	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
 	var memberRole *persistent.Role
 	for i := range roles {
@@ -82,7 +82,7 @@ func TestGetInvitationByToken_Success(t *testing.T) {
 
 	invitation, err := svc.GetInvitationByToken(rawToken)
 	require.NoError(t, err)
-	assert.Equal(t, org.ID, invitation.OrgID)
+	assert.Equal(t, org.ID, invitation.WorkspaceID)
 	assert.Equal(t, "invitee-token@example.com", invitation.Email)
 	assert.Nil(t, invitation.AcceptedAt)
 }
@@ -105,10 +105,10 @@ func TestListPendingInvitations_Success(t *testing.T) {
 	svc := rbac.NewService(db)
 	owner := createTestUser(t, db, "pending-owner@example.com")
 
-	org, err := svc.CreateOrganization(owner.ID, "Pending Org", "pending-org", "")
+	org, err := svc.CreateWorkspace(owner.ID, "Pending Org", "pending-org", "")
 	require.NoError(t, err)
 
-	roles, err := svc.GetOrgRoles(org.ID)
+	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
 	var memberRole *persistent.Role
 	for i := range roles {
@@ -136,10 +136,10 @@ func TestListPendingInvitations_ExcludesAccepted(t *testing.T) {
 	owner := createTestUser(t, db, "exclude-owner@example.com")
 	invitee := createTestUser(t, db, "exclude-invitee@example.com")
 
-	org, err := svc.CreateOrganization(owner.ID, "Exclude Org", "exclude-org", "")
+	org, err := svc.CreateWorkspace(owner.ID, "Exclude Org", "exclude-org", "")
 	require.NoError(t, err)
 
-	roles, err := svc.GetOrgRoles(org.ID)
+	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
 	var memberRole *persistent.Role
 	for i := range roles {
@@ -175,10 +175,10 @@ func TestRevokeInvitation_Success(t *testing.T) {
 	svc := rbac.NewService(db)
 	owner := createTestUser(t, db, "revoke-inv-owner@example.com")
 
-	org, err := svc.CreateOrganization(owner.ID, "Revoke Inv Org", "revoke-inv-org", "")
+	org, err := svc.CreateWorkspace(owner.ID, "Revoke Inv Org", "revoke-inv-org", "")
 	require.NoError(t, err)
 
-	roles, err := svc.GetOrgRoles(org.ID)
+	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
 	var memberRole *persistent.Role
 	for i := range roles {
@@ -216,10 +216,10 @@ func TestRevokeInvitation_CannotRevokeAccepted(t *testing.T) {
 	owner := createTestUser(t, db, "revoke-accepted-owner@example.com")
 	invitee := createTestUser(t, db, "revoke-accepted-invitee@example.com")
 
-	org, err := svc.CreateOrganization(owner.ID, "Revoke Accepted Org", "revoke-accepted-org", "")
+	org, err := svc.CreateWorkspace(owner.ID, "Revoke Accepted Org", "revoke-accepted-org", "")
 	require.NoError(t, err)
 
-	roles, err := svc.GetOrgRoles(org.ID)
+	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
 	var memberRole *persistent.Role
 	for i := range roles {
@@ -272,10 +272,10 @@ func TestInviteMember_CannotInviteAsOwner(t *testing.T) {
 	svc := rbac.NewService(db)
 	owner := createTestUser(t, db, "no-owner-invite@example.com")
 
-	org, err := svc.CreateOrganization(owner.ID, "No Owner Inv", "no-owner-inv", "")
+	org, err := svc.CreateWorkspace(owner.ID, "No Owner Inv", "no-owner-inv", "")
 	require.NoError(t, err)
 
-	roles, err := svc.GetOrgRoles(org.ID)
+	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
 	var ownerRole *persistent.Role
 	for i := range roles {
@@ -301,10 +301,10 @@ func TestAcceptInvitation_EmailMismatch(t *testing.T) {
 	owner := createTestUser(t, db, "mismatch-owner@example.com")
 	wrongUser := createTestUser(t, db, "wrong-user@example.com")
 
-	org, err := svc.CreateOrganization(owner.ID, "Mismatch Org", "mismatch-org", "")
+	org, err := svc.CreateWorkspace(owner.ID, "Mismatch Org", "mismatch-org", "")
 	require.NoError(t, err)
 
-	roles, err := svc.GetOrgRoles(org.ID)
+	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
 	var memberRole *persistent.Role
 	for i := range roles {
@@ -334,10 +334,10 @@ func TestAcceptInvitation_Expired(t *testing.T) {
 	owner := createTestUser(t, db, "expired-inv-owner@example.com")
 	invitee := createTestUser(t, db, "expired-inv@example.com")
 
-	org, err := svc.CreateOrganization(owner.ID, "Expired Inv Org", "expired-inv-org", "")
+	org, err := svc.CreateWorkspace(owner.ID, "Expired Inv Org", "expired-inv-org", "")
 	require.NoError(t, err)
 
-	roles, err := svc.GetOrgRoles(org.ID)
+	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
 	var memberRole *persistent.Role
 	for i := range roles {
@@ -360,22 +360,22 @@ func TestAcceptInvitation_Expired(t *testing.T) {
 }
 
 // =====================================================================
-// UpdateOrganization — slug uniqueness on update
+// UpdateWorkspace — slug uniqueness on update
 // =====================================================================
 
-func TestUpdateOrganization_DuplicateSlugOnUpdate(t *testing.T) {
+func TestUpdateWorkspace_DuplicateSlugOnUpdate(t *testing.T) {
 	db := setupRBACTestDB(t)
 	svc := rbac.NewService(db)
 	owner := createTestUser(t, db, "dup-slug-update@example.com")
 
-	org1, err := svc.CreateOrganization(owner.ID, "Org One", "org-one-slug", "")
+	org1, err := svc.CreateWorkspace(owner.ID, "Workspace One", "workspace-one-slug", "")
 	require.NoError(t, err)
 
-	_, err = svc.CreateOrganization(owner.ID, "Org Two", "org-two-slug", "")
+	_, err = svc.CreateWorkspace(owner.ID, "Workspace Two", "org-two-slug", "")
 	require.NoError(t, err)
 
 	// Try to update org1's slug to org2's slug
-	_, err = svc.UpdateOrganization(org1.ID, "Org One Updated", "org-two-slug", "")
+	_, err = svc.UpdateWorkspace(org1.ID, "Org One Updated", "org-two-slug", "")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, rbac.ErrSlugTaken)
 }
@@ -390,10 +390,10 @@ func TestUpdateMemberRole_RoleNotFound(t *testing.T) {
 	owner := createTestUser(t, db, "role-nf-owner@example.com")
 	member := createTestUser(t, db, "role-nf-member@example.com")
 
-	org, err := svc.CreateOrganization(owner.ID, "Role NF Org", "role-nf-org", "")
+	org, err := svc.CreateWorkspace(owner.ID, "Role NF Org", "role-nf-org", "")
 	require.NoError(t, err)
 
-	roles, err := svc.GetOrgRoles(org.ID)
+	roles, err := svc.GetWorkspaceRoles(org.ID)
 	require.NoError(t, err)
 	var memberRole *persistent.Role
 	for i := range roles {
@@ -416,16 +416,16 @@ func TestUpdateMemberRole_RoleNotFound(t *testing.T) {
 }
 
 // =====================================================================
-// DeleteOrganization — not found
+// DeleteWorkspace — not found
 // =====================================================================
 
-func TestDeleteOrganization_NotFound(t *testing.T) {
+func TestDeleteWorkspace_NotFound(t *testing.T) {
 	db := setupRBACTestDB(t)
 	svc := rbac.NewService(db)
 
-	err := svc.DeleteOrganization(99999)
+	err := svc.DeleteWorkspace(99999)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, rbac.ErrOrgNotFound)
+	assert.ErrorIs(t, err, rbac.ErrWorkspaceNotFound)
 }
 
 // =====================================================================
@@ -437,7 +437,7 @@ func TestRemoveMember_NotFound(t *testing.T) {
 	svc := rbac.NewService(db)
 	owner := createTestUser(t, db, "rm-nf-owner@example.com")
 
-	org, err := svc.CreateOrganization(owner.ID, "RM NF Org", "rm-nf-org", "")
+	org, err := svc.CreateWorkspace(owner.ID, "RM NF Org", "rm-nf-org", "")
 	require.NoError(t, err)
 
 	err = svc.RemoveMember(org.ID, 99999)
@@ -454,13 +454,13 @@ func TestGetUserMembership_Success(t *testing.T) {
 	svc := rbac.NewService(db)
 	owner := createTestUser(t, db, "membership-owner@example.com")
 
-	org, err := svc.CreateOrganization(owner.ID, "Membership Org", "membership-org", "")
+	org, err := svc.CreateWorkspace(owner.ID, "Membership Org", "membership-org", "")
 	require.NoError(t, err)
 
 	membership, err := svc.GetUserMembership(owner.ID, org.ID)
 	require.NoError(t, err)
 	assert.Equal(t, owner.ID, membership.UserID)
-	assert.Equal(t, org.ID, membership.OrgID)
+	assert.Equal(t, org.ID, membership.WorkspaceID)
 	assert.NotNil(t, membership.Role)
 	assert.Equal(t, persistent.RoleOwner, membership.Role.Name)
 }
@@ -484,7 +484,7 @@ func TestCheckPermission_NonMember(t *testing.T) {
 	owner := createTestUser(t, db, "nonmember-owner@example.com")
 	outsider := createTestUser(t, db, "outsider@example.com")
 
-	org, err := svc.CreateOrganization(owner.ID, "NonMember Org", "nonmember-org", "")
+	org, err := svc.CreateWorkspace(owner.ID, "NonMember Org", "nonmember-org", "")
 	require.NoError(t, err)
 
 	// Outsider (not a member) should be denied
@@ -501,14 +501,14 @@ func TestInviteMember_RoleFromDifferentOrg(t *testing.T) {
 	svc := rbac.NewService(db)
 	owner := createTestUser(t, db, "cross-org-owner@example.com")
 
-	org1, err := svc.CreateOrganization(owner.ID, "Org A", "cross-org-a", "")
+	org1, err := svc.CreateWorkspace(owner.ID, "Workspace A", "cross-org-a", "")
 	require.NoError(t, err)
 
-	org2, err := svc.CreateOrganization(owner.ID, "Org B", "cross-org-b", "")
+	org2, err := svc.CreateWorkspace(owner.ID, "Workspace B", "cross-org-b", "")
 	require.NoError(t, err)
 
 	// Get a role from org2
-	roles, err := svc.GetOrgRoles(org2.ID)
+	roles, err := svc.GetWorkspaceRoles(org2.ID)
 	require.NoError(t, err)
 	var org2MemberRole *persistent.Role
 	for i := range roles {

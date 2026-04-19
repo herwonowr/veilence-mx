@@ -7,15 +7,15 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
-// ListRoles handles GET /api/orgs/{orgId}/roles — lists roles in the organization.
-func (h *OrgHandlers) ListRoles(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
-	if orgID == 0 {
-		respondError(w, http.StatusBadRequest, "organization context required")
+// ListRoles handles GET /api/workspaces/{workspaceId}/roles — lists workspace roles.
+func (h *WorkspaceHandlers) ListRoles(w http.ResponseWriter, r *http.Request) {
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
-	roles, err := h.RBAC.GetOrgRoles(orgID)
+	roles, err := h.RBAC.GetWorkspaceRoles(workspaceID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to list roles")
 		return
@@ -31,7 +31,7 @@ func (h *OrgHandlers) ListRoles(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		result[i] = response.RoleResponse{
-			ID: role.ID, OrgID: role.OrgID, Name: role.Name, Description: role.Description,
+			ID: role.ID, WorkspaceID: role.WorkspaceID, Name: role.Name, Description: role.Description,
 			IsSystem: role.IsSystem, CreatedAt: role.CreatedAt, UpdatedAt: role.UpdatedAt,
 			Permissions: perms,
 		}
@@ -40,7 +40,7 @@ func (h *OrgHandlers) ListRoles(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListPermissions handles GET /api/permissions — lists all available system permissions.
-func (h *OrgHandlers) ListPermissions(w http.ResponseWriter, r *http.Request) {
+func (h *WorkspaceHandlers) ListPermissions(w http.ResponseWriter, r *http.Request) {
 	perms, err := h.RBAC.GetAllPermissions()
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to list permissions")

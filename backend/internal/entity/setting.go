@@ -3,10 +3,10 @@ package entity
 import "time"
 
 // Setting represents a configurable system setting stored as key-value.
-// OrgID=0 represents a global default setting; org-specific settings override globals.
+// WorkspaceID=0 represents a global default setting; workspace-specific settings override globals.
 type Setting struct {
 	ID             uint
-	OrgID          uint
+	WorkspaceID    uint
 	Key            string
 	Value          string
 	CreatedAt      time.Time

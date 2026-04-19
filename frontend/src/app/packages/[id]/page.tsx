@@ -1,6 +1,6 @@
 "use client"
 
-import { ProtectedRoute, RequireOrg } from "@/features/auth"
+import { ProtectedRoute, RequireWorkspace } from "@/features/auth"
 import { PackageDetailView } from "@/features/packages"
 
 const PackageDetailPage = ({
@@ -9,9 +9,9 @@ const PackageDetailPage = ({
   params: Promise<{ id: string }>
 }) => (
   <ProtectedRoute>
-    <RequireOrg feature="package details">
+    <RequireWorkspace feature="package details">
       <PackageDetailView params={params} />
-    </RequireOrg>
+    </RequireWorkspace>
   </ProtectedRoute>
 )
 export default PackageDetailPage

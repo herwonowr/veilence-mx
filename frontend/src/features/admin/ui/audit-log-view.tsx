@@ -35,7 +35,7 @@ import {
   Filter,
   ScrollText,
 } from "lucide-react"
-import { useAuditLogs } from "@/features/admin/hooks/use-organizations"
+import { useAuditLogs } from "@/features/admin/hooks/use-workspaces"
 import { useDebouncedValue } from "@/core/hooks/use-debounced-value"
 
 const formatDate = (d: Date): string => d.toISOString().split("T")[0]
@@ -49,8 +49,8 @@ const parseValidDate = (value: string | null): Date | undefined => {
 
 export const AuditLogView = () => {
   const params = useParams<{ id: string }>()
-  const orgId = parseInt(params.id, 10)
-  const validOrgId = isNaN(orgId) ? 0 : orgId
+  const workspaceId = parseInt(params.id, 10)
+  const validWorkspaceId = isNaN(workspaceId) ? 0 : workspaceId
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -104,7 +104,7 @@ export const AuditLogView = () => {
     setPage(1)
   }
 
-  const { data: logsRes, isLoading } = useAuditLogs(validOrgId, {
+  const { data: logsRes, isLoading } = useAuditLogs(validWorkspaceId, {
     action: debouncedAction || undefined,
     resource: debouncedResource || undefined,
     from: fromDate ? formatDate(fromDate) : undefined,
@@ -117,12 +117,12 @@ export const AuditLogView = () => {
   const meta = logsRes?.meta ?? null
   const totalPages = meta ? Math.ceil(meta.total / meta.limit) : 1
 
-  if (isNaN(orgId)) {
+  if (isNaN(workspaceId)) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <p className="text-lg font-medium text-destructive">Invalid organization ID</p>
-        <Button variant="outline" className="mt-4" onClick={() => router.push("/organizations")}>
-          Back to Organizations
+        <p className="text-lg font-medium text-destructive">Invalid workspace ID</p>
+        <Button variant="outline" className="mt-4" onClick={() => router.push("/workspaces")}>
+          Back to Workspaces
         </Button>
       </div>
     )
@@ -132,18 +132,18 @@ export const AuditLogView = () => {
     <div className="space-y-6">
       <div>
         <Link
-          href={`/organizations/${orgId}`}
+          href={`/workspaces/${workspaceId}`}
           className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Organization
+          Workspace
         </Link>
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <ScrollText className="size-7" />
           Audit Log
         </h1>
         <p className="text-sm text-muted-foreground">
-          View activity history for this organization
+          View activity history for this workspace
         </p>
       </div>
 
@@ -319,7 +319,7 @@ export const AuditLogView = () => {
                     colSpan={5}
                     icon={<ScrollText className="h-8 w-8" />}
                     title="No audit logs found."
-                    description="Activity history will appear here as actions are performed in this organization."
+                    description="Activity history will appear here as actions are performed in this workspace."
                   />
                   )
                 )}

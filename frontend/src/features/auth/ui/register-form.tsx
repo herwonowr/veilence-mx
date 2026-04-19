@@ -68,7 +68,7 @@ export const RegisterForm = () => {
         firstName: data.firstName,
         lastName: data.lastName,
       })
-      router.push("/organizations?create=true")
+      router.push("/workspaces?create=true")
     } catch (err) {
       if (err instanceof ZodError) {
         const fieldErrors: Record<string, string> = {}

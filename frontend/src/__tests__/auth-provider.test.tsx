@@ -29,14 +29,14 @@ vi.mock("@/lib/api-client", async (importOriginal) => {
     apiRegister: vi.fn(),
     apiLogout: vi.fn(),
     apiGetMe: vi.fn(),
-    apiGetOrgs: vi.fn(),
+    apiGetWorkspaces: vi.fn(),
     getStoredAccessToken: vi.fn(() => null),
     getStoredRefreshToken: vi.fn(() => null),
     storeTokens: vi.fn(),
     clearTokens: vi.fn(),
-    getStoredOrgId: vi.fn(() => null),
-    storeOrgId: vi.fn(),
-    clearOrgId: vi.fn(),
+    getStoredWorkspaceId: vi.fn(() => null),
+    storeWorkspaceId: vi.fn(),
+    clearWorkspaceId: vi.fn(),
   }
 })
 
@@ -52,11 +52,11 @@ const mockUser = {
   updatedAt: "2026-01-01T00:00:00Z",
 }
 
-const mockOrg = {
+const mockWorkspace = {
   id: 1,
-  name: "Test Org",
-  slug: "test-org",
-  description: "Test organization",
+  name: "Test Workspace",
+  slug: "test-workspace",
+  description: "Test workspace",
   ownerId: 1,
   isActive: true,
   createdAt: "2026-01-01T00:00:00Z",
@@ -96,11 +96,11 @@ describe("AuthProvider", () => {
       data: mockUser,
       error: null,
     })
-    vi.mocked(apiClient.apiGetOrgs).mockResolvedValue({
-      data: [mockOrg],
+    vi.mocked(apiClient.apiGetWorkspaces).mockResolvedValue({
+      data: [mockWorkspace],
       error: null,
     })
-    vi.mocked(apiClient.getStoredOrgId).mockReturnValue(null)
+    vi.mocked(apiClient.getStoredWorkspaceId).mockReturnValue(null)
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: createWrapper(),
@@ -112,8 +112,8 @@ describe("AuthProvider", () => {
 
     expect(result.current.isAuthenticated).toBe(true)
     expect(result.current.user).toEqual(mockUser)
-    expect(result.current.organizations).toEqual([mockOrg])
-    expect(result.current.currentOrg).toEqual(mockOrg)
+    expect(result.current.workspaces).toEqual([mockWorkspace])
+    expect(result.current.currentWorkspace).toEqual(mockWorkspace)
   })
 
   it("handles login flow correctly", async () => {
@@ -126,11 +126,11 @@ describe("AuthProvider", () => {
       },
       error: null,
     })
-    vi.mocked(apiClient.apiGetOrgs).mockResolvedValue({
-      data: [mockOrg],
+    vi.mocked(apiClient.apiGetWorkspaces).mockResolvedValue({
+      data: [mockWorkspace],
       error: null,
     })
-    vi.mocked(apiClient.getStoredOrgId).mockReturnValue(null)
+    vi.mocked(apiClient.getStoredWorkspaceId).mockReturnValue(null)
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: createWrapper(),
@@ -165,15 +165,15 @@ describe("AuthProvider", () => {
       data: mockUser,
       error: null,
     })
-    vi.mocked(apiClient.apiGetOrgs).mockResolvedValue({
-      data: [mockOrg],
+    vi.mocked(apiClient.apiGetWorkspaces).mockResolvedValue({
+      data: [mockWorkspace],
       error: null,
     })
     vi.mocked(apiClient.apiLogout).mockResolvedValue({
       data: null,
       error: null,
     })
-    vi.mocked(apiClient.getStoredOrgId).mockReturnValue(null)
+    vi.mocked(apiClient.getStoredWorkspaceId).mockReturnValue(null)
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: createWrapper(),
@@ -190,23 +190,23 @@ describe("AuthProvider", () => {
 
     expect(result.current.isAuthenticated).toBe(false)
     expect(result.current.user).toBeNull()
-    expect(result.current.currentOrg).toBeNull()
-    expect(result.current.organizations).toEqual([])
+    expect(result.current.currentWorkspace).toBeNull()
+    expect(result.current.workspaces).toEqual([])
     expect(apiClient.clearTokens).toHaveBeenCalled()
-    expect(apiClient.clearOrgId).toHaveBeenCalled()
+    expect(apiClient.clearWorkspaceId).toHaveBeenCalled()
   })
 
-  it("sets current org and persists to localStorage", async () => {
+  it("sets current workspace and persists to localStorage", async () => {
     vi.mocked(apiClient.getStoredAccessToken).mockReturnValue("stored-token")
     vi.mocked(apiClient.apiGetMe).mockResolvedValue({
       data: mockUser,
       error: null,
     })
-    vi.mocked(apiClient.apiGetOrgs).mockResolvedValue({
-      data: [mockOrg],
+    vi.mocked(apiClient.apiGetWorkspaces).mockResolvedValue({
+      data: [mockWorkspace],
       error: null,
     })
-    vi.mocked(apiClient.getStoredOrgId).mockReturnValue(null)
+    vi.mocked(apiClient.getStoredWorkspaceId).mockReturnValue(null)
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: createWrapper(),
@@ -216,13 +216,13 @@ describe("AuthProvider", () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    const newOrg = { ...mockOrg, id: 2, name: "New Org", slug: "new-org" }
+    const newWorkspace = { ...mockWorkspace, id: 2, name: "New Workspace", slug: "new-workspace" }
 
     act(() => {
-      result.current.setCurrentOrg(newOrg)
+      result.current.setCurrentWorkspace(newWorkspace)
     })
 
-    expect(result.current.currentOrg).toEqual(newOrg)
-    expect(apiClient.storeOrgId).toHaveBeenCalledWith(2)
+    expect(result.current.currentWorkspace).toEqual(newWorkspace)
+    expect(apiClient.storeWorkspaceId).toHaveBeenCalledWith(2)
   })
 })

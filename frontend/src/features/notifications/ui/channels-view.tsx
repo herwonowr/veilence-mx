@@ -71,22 +71,22 @@ const SEVERITY_COLORS: Record<string, string> = {
 }
 
 export const ChannelsView = () => {
-  const { currentOrg } = useAuth()
-  const orgId = currentOrg?.id ?? null
+  const { currentWorkspace } = useAuth()
+  const workspaceId = currentWorkspace?.id ?? null
 
-  const { data: channelsRes, isLoading: channelsLoading } = useChannels(orgId)
-  const { data: rulesRes, isLoading: rulesLoading } = useRules(orgId)
+  const { data: channelsRes, isLoading: channelsLoading } = useChannels(workspaceId)
+  const { data: rulesRes, isLoading: rulesLoading } = useRules(workspaceId)
 
   const channels = channelsRes?.data ?? []
   const rules = rulesRes?.data ?? []
 
-  if (!orgId) {
+  if (!workspaceId) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">Notification Channels</h1>
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            Select an organization to manage notification channels.
+            Select a workspace to manage notification channels.
           </CardContent>
         </Card>
       </div>
@@ -104,7 +104,7 @@ export const ChannelsView = () => {
 
       {/* Channels Section */}
       <ChannelsSection
-        orgId={orgId}
+        workspaceId={workspaceId}
         channels={channels}
         loading={channelsLoading}
       />
@@ -113,7 +113,7 @@ export const ChannelsView = () => {
 
       {/* Rules Section */}
       <RulesSection
-        orgId={orgId}
+        workspaceId={workspaceId}
         rules={rules}
         channels={channels}
         loading={rulesLoading}
@@ -125,11 +125,11 @@ export const ChannelsView = () => {
 // ─── Channels Section ──────────────────────────────────────────
 
 const ChannelsSection = ({
-  orgId,
+  workspaceId,
   channels,
   loading,
 }: {
-  orgId: number
+  workspaceId: number
   channels: NotificationChannel[]
   loading: boolean
 }) => {
@@ -138,10 +138,10 @@ const ChannelsSection = ({
   const [channelType, setChannelType] = useState<NotificationChannelType | "">("")
   const [channelConfig, setChannelConfig] = useState("")
 
-  const createMutation = useCreateChannel(orgId)
-  const updateMutation = useUpdateChannel(orgId)
-  const deleteMutation = useDeleteChannel(orgId)
-  const testMutation = useTestChannel(orgId)
+  const createMutation = useCreateChannel(workspaceId)
+  const updateMutation = useUpdateChannel(workspaceId)
+  const deleteMutation = useDeleteChannel(workspaceId)
+  const testMutation = useTestChannel(workspaceId)
 
   const handleCreate = () => {
     if (!channelName || !channelType) return
@@ -437,12 +437,12 @@ const ChannelConfigFields = ({
 // ─── Rules Section ──────────────────────────────────────────────
 
 const RulesSection = ({
-  orgId,
+  workspaceId,
   rules,
   channels,
   loading,
 }: {
-  orgId: number
+  workspaceId: number
   rules: Array<{ id: number; channelId: number; severity: string; isActive: boolean; createdAt: string }>
   channels: NotificationChannel[]
   loading: boolean
@@ -451,8 +451,8 @@ const RulesSection = ({
   const [ruleChannel, setRuleChannel] = useState<number | null>(null)
   const [ruleSeverity, setRuleSeverity] = useState("")
 
-  const createMutation = useCreateRule(orgId)
-  const deleteMutation = useDeleteRule(orgId)
+  const createMutation = useCreateRule(workspaceId)
+  const deleteMutation = useDeleteRule(workspaceId)
 
   const handleCreate = () => {
     if (!ruleChannel || !ruleSeverity) return

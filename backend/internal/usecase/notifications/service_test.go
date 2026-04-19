@@ -56,28 +56,28 @@ func newService(db *gorm.DB) *notifications.Service {
 
 // createTestChannel is a convenience helper that creates a channel and fails
 // the test immediately if an error occurs.
-func createTestChannel(t *testing.T, svc *notifications.Service, orgID uint, name string, chanType entity.NotificationChannelType, config string) *entity.NotificationChannel {
+func createTestChannel(t *testing.T, svc *notifications.Service, workspaceID uint, name string, chanType entity.NotificationChannelType, config string) *entity.NotificationChannel {
 	t.Helper()
-	ch, err := svc.CreateChannel(orgID, name, chanType, config)
+	ch, err := svc.CreateChannel(workspaceID, name, chanType, config)
 	require.NoError(t, err)
 	return ch
 }
 
 // createTestRule is a convenience helper that creates a rule and fails
 // the test immediately if an error occurs.
-func createTestRule(t *testing.T, svc *notifications.Service, orgID, channelID uint, severity string) *entity.NotificationRule {
+func createTestRule(t *testing.T, svc *notifications.Service, workspaceID, channelID uint, severity string) *entity.NotificationRule {
 	t.Helper()
-	rule, err := svc.CreateRule(orgID, channelID, severity)
+	rule, err := svc.CreateRule(workspaceID, channelID, severity)
 	require.NoError(t, err)
 	return rule
 }
 
 // seedNotification inserts a Notification directly via GORM for testing query
 // methods without going through Dispatch.
-func seedNotification(t *testing.T, db *gorm.DB, orgID, userID, channelID uint, title, message string, isRead bool) *persistent.Notification {
+func seedNotification(t *testing.T, db *gorm.DB, workspaceID, userID, channelID uint, title, message string, isRead bool) *persistent.Notification {
 	t.Helper()
 	n := &persistent.Notification{
-		OrgID:     orgID,
+		WorkspaceID:     workspaceID,
 		UserID:    userID,
 		ChannelID: channelID,
 		Title:     title,
@@ -100,7 +100,7 @@ func TestCreateChannel_Email(t *testing.T) {
 	ch, err := svc.CreateChannel(1, "Email Alerts", entity.NotificationChannelEmail, `{"to":"ops@example.com"}`)
 	require.NoError(t, err)
 	assert.NotZero(t, ch.ID)
-	assert.Equal(t, uint(1), ch.OrgID)
+	assert.Equal(t, uint(1), ch.WorkspaceID)
 	assert.Equal(t, "Email Alerts", ch.Name)
 	assert.Equal(t, entity.NotificationChannelEmail, ch.Type)
 	assert.Equal(t, `{"to":"ops@example.com"}`, ch.Config)
@@ -148,7 +148,7 @@ func TestListChannels_ReturnsOnlyOwnOrg(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, channels, 2)
 	for _, ch := range channels {
-		assert.Equal(t, uint(1), ch.OrgID)
+		assert.Equal(t, uint(1), ch.WorkspaceID)
 	}
 
 	channels2, err := svc.ListChannels(2)
@@ -237,7 +237,7 @@ func TestCreateRule_Success(t *testing.T) {
 	rule, err := svc.CreateRule(1, ch.ID, "high")
 	require.NoError(t, err)
 	assert.NotZero(t, rule.ID)
-	assert.Equal(t, uint(1), rule.OrgID)
+	assert.Equal(t, uint(1), rule.WorkspaceID)
 	assert.Equal(t, ch.ID, rule.ChannelID)
 	assert.Equal(t, "high", rule.Severity)
 	assert.True(t, rule.IsActive)
@@ -336,7 +336,7 @@ func TestDispatch_MatchesSeverityAtThreshold(t *testing.T) {
 	svc.Dispatch(context.Background(), 1, "high", "Alert", "This is a high alert")
 
 	var count int64
-	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
+	db.Model(&persistent.Notification{}).Where("workspace_id = ?", 1).Count(&count)
 	assert.Equal(t, int64(1), count)
 }
 
@@ -350,7 +350,7 @@ func TestDispatch_MatchesSeverityAboveThreshold(t *testing.T) {
 	svc.Dispatch(context.Background(), 1, "critical", "Critical Issue", "Something terrible happened")
 
 	var count int64
-	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
+	db.Model(&persistent.Notification{}).Where("workspace_id = ?", 1).Count(&count)
 	assert.Equal(t, int64(1), count)
 }
 
@@ -364,12 +364,12 @@ func TestDispatch_SkipsBelowThreshold(t *testing.T) {
 	svc.Dispatch(context.Background(), 1, "low", "Info", "Low priority event")
 
 	var count int64
-	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
+	db.Model(&persistent.Notification{}).Where("workspace_id = ?", 1).Count(&count)
 	assert.Equal(t, int64(1), count, "in-app notification should always be created even when no rule matches severity")
 
 	// Verify it's the in-app notification (ChannelID=0), not an external channel notification
 	var notif persistent.Notification
-	db.Where("org_id = ?", 1).First(&notif)
+	db.Where("workspace_id = ?", 1).First(&notif)
 	assert.Equal(t, uint(0), notif.ChannelID, "in-app notification should have ChannelID=0")
 }
 
@@ -390,7 +390,7 @@ func TestDispatch_MultipleRulesMultipleChannels(t *testing.T) {
 	// In-app notification is always created with ChannelID=0 (1 record).
 	// External dispatch to matching channels happens separately (no additional records).
 	var notifs []persistent.Notification
-	db.Where("org_id = ?", 1).Find(&notifs)
+	db.Where("workspace_id = ?", 1).Find(&notifs)
 	assert.Len(t, notifs, 1, "expected 1 in-app notification record")
 	assert.Equal(t, uint(0), notifs[0].ChannelID, "in-app notification should have ChannelID=0")
 
@@ -412,7 +412,7 @@ func TestDispatch_AllSeverityLevels(t *testing.T) {
 	}
 
 	var count int64
-	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
+	db.Model(&persistent.Notification{}).Where("workspace_id = ?", 1).Count(&count)
 	assert.Equal(t, int64(4), count, "low-threshold rule should fire for all severity levels")
 }
 
@@ -424,11 +424,11 @@ func TestDispatch_NoMatchingRules(t *testing.T) {
 
 	// In-app notification should still be created even with no rules configured
 	var count int64
-	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
+	db.Model(&persistent.Notification{}).Where("workspace_id = ?", 1).Count(&count)
 	assert.Equal(t, int64(1), count, "in-app notification should always be created")
 
 	var notif persistent.Notification
-	db.Where("org_id = ?", 1).First(&notif)
+	db.Where("workspace_id = ?", 1).First(&notif)
 	assert.Equal(t, uint(0), notif.ChannelID, "in-app notification should have ChannelID=0")
 }
 
@@ -446,11 +446,11 @@ func TestDispatch_SkipsDisabledChannel(t *testing.T) {
 
 	// In-app notification is always created, but disabled channel should not get external dispatch
 	var count int64
-	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
+	db.Model(&persistent.Notification{}).Where("workspace_id = ?", 1).Count(&count)
 	assert.Equal(t, int64(1), count, "in-app notification should always be created even when channel is disabled")
 
 	var notif persistent.Notification
-	db.Where("org_id = ?", 1).First(&notif)
+	db.Where("workspace_id = ?", 1).First(&notif)
 	assert.Equal(t, uint(0), notif.ChannelID, "in-app notification should have ChannelID=0")
 }
 
@@ -467,11 +467,11 @@ func TestDispatch_SkipsInactiveRule(t *testing.T) {
 
 	// In-app notification is always created, but inactive rule should not trigger external dispatch
 	var count int64
-	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
+	db.Model(&persistent.Notification{}).Where("workspace_id = ?", 1).Count(&count)
 	assert.Equal(t, int64(1), count, "in-app notification should always be created even when rule is inactive")
 
 	var notif persistent.Notification
-	db.Where("org_id = ?", 1).First(&notif)
+	db.Where("workspace_id = ?", 1).First(&notif)
 	assert.Equal(t, uint(0), notif.ChannelID, "in-app notification should have ChannelID=0")
 }
 
@@ -479,7 +479,7 @@ func TestDispatch_IsolatedByOrg(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newService(db)
 
-	ch1 := createTestChannel(t, svc, 1, "Org1", entity.NotificationChannelEmail, `{}`)
+	ch1 := createTestChannel(t, svc, 1, "Workspace1", entity.NotificationChannelEmail, `{}`)
 	ch2 := createTestChannel(t, svc, 2, "Org2", entity.NotificationChannelEmail, `{}`)
 	createTestRule(t, svc, 1, ch1.ID, "low")
 	createTestRule(t, svc, 2, ch2.ID, "low")
@@ -487,8 +487,8 @@ func TestDispatch_IsolatedByOrg(t *testing.T) {
 	svc.Dispatch(context.Background(), 1, "high", "Org1 Alert", "only org 1")
 
 	var count1, count2 int64
-	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count1)
-	db.Model(&persistent.Notification{}).Where("org_id = ?", 2).Count(&count2)
+	db.Model(&persistent.Notification{}).Where("workspace_id = ?", 1).Count(&count1)
+	db.Model(&persistent.Notification{}).Where("workspace_id = ?", 2).Count(&count2)
 	assert.Equal(t, int64(1), count1)
 	assert.Equal(t, int64(0), count2, "other org should not receive notification")
 }
@@ -503,8 +503,8 @@ func TestDispatch_NotificationFields(t *testing.T) {
 	svc.Dispatch(context.Background(), 1, "critical", "My Title", "My Message Body")
 
 	var notif persistent.Notification
-	require.NoError(t, db.Where("org_id = ?", 1).First(&notif).Error)
-	assert.Equal(t, uint(1), notif.OrgID)
+	require.NoError(t, db.Where("workspace_id = ?", 1).First(&notif).Error)
+	assert.Equal(t, uint(1), notif.WorkspaceID)
 	assert.Equal(t, uint(0), notif.UserID, "Dispatch creates org-wide notifications with user_id=0")
 	assert.Equal(t, uint(0), notif.ChannelID, "in-app notification should have ChannelID=0")
 	assert.Equal(t, "My Title", notif.Title)
@@ -573,7 +573,7 @@ func TestDispatch_WebhookToUnreachableURL(t *testing.T) {
 	svc.Dispatch(context.Background(), 1, "critical", "Unreachable", "The webhook URL is dead")
 
 	var count int64
-	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
+	db.Model(&persistent.Notification{}).Where("workspace_id = ?", 1).Count(&count)
 	assert.Equal(t, int64(1), count, "in-app notification should still be created even when webhook fails")
 }
 
@@ -587,7 +587,7 @@ func TestDispatch_WebhookInvalidConfig(t *testing.T) {
 	svc.Dispatch(context.Background(), 1, "critical", "Bad Config", "Config is not valid JSON")
 
 	var count int64
-	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
+	db.Model(&persistent.Notification{}).Where("workspace_id = ?", 1).Count(&count)
 	assert.Equal(t, int64(1), count)
 }
 
@@ -601,7 +601,7 @@ func TestDispatch_WebhookEmptyURL(t *testing.T) {
 	svc.Dispatch(context.Background(), 1, "critical", "Empty URL", "URL field is empty")
 
 	var count int64
-	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
+	db.Model(&persistent.Notification{}).Where("workspace_id = ?", 1).Count(&count)
 	assert.Equal(t, int64(1), count)
 }
 
@@ -621,7 +621,7 @@ func TestDispatch_WebhookServerError(t *testing.T) {
 	svc.Dispatch(context.Background(), 1, "high", "Server Error", "The hook returned 500")
 
 	var count int64
-	db.Model(&persistent.Notification{}).Where("org_id = ?", 1).Count(&count)
+	db.Model(&persistent.Notification{}).Where("workspace_id = ?", 1).Count(&count)
 	assert.Equal(t, int64(1), count)
 }
 
@@ -691,20 +691,20 @@ func TestListNotifications_FilterByOrg(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newService(db)
 
-	seedNotification(t, db, 1, 0, 1, "Org1", "from org 1", false)
+	seedNotification(t, db, 1, 0, 1, "Workspace1", "from org 1", false)
 	seedNotification(t, db, 2, 0, 1, "Org2", "from org 2", false)
 
 	notifs, err := svc.ListNotifications(1, 42, false)
 	require.NoError(t, err)
 	assert.Len(t, notifs, 1)
-	assert.Equal(t, "Org1", notifs[0].Title)
+	assert.Equal(t, "Workspace1", notifs[0].Title)
 }
 
 func TestListNotifications_ZeroOrgShowsAll(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newService(db)
 
-	seedNotification(t, db, 1, 0, 1, "Org1", "from org 1", false)
+	seedNotification(t, db, 1, 0, 1, "Workspace1", "from org 1", false)
 	seedNotification(t, db, 2, 0, 1, "Org2", "from org 2", false)
 
 	notifs, err := svc.ListNotifications(0, 42, false)
@@ -823,7 +823,7 @@ func TestGetUnreadCount_FilterByOrg(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newService(db)
 
-	seedNotification(t, db, 1, 0, 1, "Org1", "m", false)
+	seedNotification(t, db, 1, 0, 1, "Workspace1", "m", false)
 	seedNotification(t, db, 2, 0, 1, "Org2", "m", false)
 
 	count, err := svc.GetUnreadCount(1, 42)
@@ -835,7 +835,7 @@ func TestGetUnreadCount_ZeroOrgCountsAll(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newService(db)
 
-	seedNotification(t, db, 1, 0, 1, "Org1", "m", false)
+	seedNotification(t, db, 1, 0, 1, "Workspace1", "m", false)
 	seedNotification(t, db, 2, 0, 1, "Org2", "m", false)
 
 	count, err := svc.GetUnreadCount(0, 42)

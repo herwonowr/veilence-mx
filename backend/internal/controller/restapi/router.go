@@ -63,7 +63,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 
 		// Public invitation info (no auth required, so frontend can show
 		// "you've been invited to X" before the user logs in)
-		r.Get("/invitations/{token}", h.Org.GetInvitationInfo)
+		r.Get("/invitations/{token}", h.Workspace.GetInvitationInfo)
 
 		// Protected routes (authentication required)
 		r.Group(func(r chi.Router) {
@@ -97,11 +97,11 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 			r.Delete("/notifications/{id}", h.Notifications.DeleteNotification)
 
 			// Permissions (global, not org-scoped)
-			r.Get("/permissions", h.Org.ListPermissions)
+			r.Get("/permissions", h.Workspace.ListPermissions)
 
-			// Org-scoped flat routes (org ID from X-Org-ID header or org_id query param)
+			// Workspace-scoped flat routes (org ID from X-Workspace-ID header or workspace_id query param)
 			r.Group(func(r chi.Router) {
-				r.Use(rbac.RequireOrg(rbacService))
+				r.Use(rbac.RequireWorkspace(rbacService))
 
 				// Dashboard (read-only, any org member can view)
 				r.Get("/dashboard/stats", h.Dashboard.GetDashboardStats)
@@ -162,7 +162,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 						r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/reanalyze", h.Dashboard.ReanalyzeAll)
 				})
 
-				// Queue monitoring (global data, but requires org membership)
+				// Queue monitoring (global data, but requires workspace membership)
 				r.With(rbac.RequirePermission(rbacService, "settings", "read")).Get("/queue/stats", h.Queue.GetQueueStats)
 				r.With(rbac.RequirePermission(rbacService, "settings", "read")).Get("/queue/jobs", h.Queue.GetQueueJobs)
 				r.With(rbac.RequirePermission(rbacService, "settings", "read")).Get("/queue/dead", h.Queue.GetDeadJobs) // Deprecated: use GET /queue/jobs?status=dead
@@ -170,32 +170,32 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 				r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/queue/dead/{jobId}/retry", h.Queue.RetryDeadJob)
 			})
 
-			// Organization routes
-			r.Route("/orgs", func(r chi.Router) {
-				r.Post("/", h.Org.CreateOrganization)
-				r.Get("/", h.Org.ListOrganizations)
+			// Workspace routes
+			r.Route("/workspaces", func(r chi.Router) {
+				r.Post("/", h.Workspace.CreateWorkspace)
+				r.Get("/", h.Workspace.ListWorkspaces)
 
-				// Invitation acceptance (requires auth but not org membership)
-				r.Post("/{orgId}/invitations/{token}/accept", h.Org.AcceptInvitation)
+				// Invitation acceptance (requires auth but not workspace membership)
+				r.Post("/{workspaceId}/invitations/{token}/accept", h.Workspace.AcceptInvitation)
 
-				// Org-scoped routes (require membership + permissions)
-				r.Route("/{orgId}", func(r chi.Router) {
-					r.Use(rbac.RequireOrg(rbacService))
+				// Workspace-scoped routes (require membership + permissions)
+				r.Route("/{workspaceId}", func(r chi.Router) {
+					r.Use(rbac.RequireWorkspace(rbacService))
 
-					r.With(rbac.RequirePermission(rbacService, "org", "read")).Get("/", h.Org.GetOrganization)
-					r.With(rbac.RequirePermission(rbacService, "org", "write")).Put("/", h.Org.UpdateOrganization)
-					r.With(rbac.RequirePermission(rbacService, "org", "delete")).Delete("/", h.Org.DeleteOrganization)
+					r.With(rbac.RequirePermission(rbacService, "workspace", "read")).Get("/", h.Workspace.GetWorkspace)
+					r.With(rbac.RequirePermission(rbacService, "workspace", "write")).Put("/", h.Workspace.UpdateWorkspace)
+					r.With(rbac.RequirePermission(rbacService, "workspace", "delete")).Delete("/", h.Workspace.DeleteWorkspace)
 
 					// Members
-					r.With(rbac.RequirePermission(rbacService, "members", "read")).Get("/members", h.Org.ListMembers)
-					r.With(rbac.RequirePermission(rbacService, "members", "invite")).Post("/invitations", h.Org.InviteMember)
-					r.With(rbac.RequirePermission(rbacService, "members", "read")).Get("/invitations", h.Org.ListPendingInvitations)
-					r.With(rbac.RequirePermission(rbacService, "members", "invite")).Delete("/invitations/{id}", h.Org.RevokeInvitation)
-					r.With(rbac.RequirePermission(rbacService, "members", "remove")).Delete("/members/{userId}", h.Org.RemoveMember)
-					r.With(rbac.RequirePermission(rbacService, "members", "remove")).Put("/members/{userId}/role", h.Org.UpdateMemberRole)
+					r.With(rbac.RequirePermission(rbacService, "members", "read")).Get("/members", h.Workspace.ListMembers)
+					r.With(rbac.RequirePermission(rbacService, "members", "invite")).Post("/invitations", h.Workspace.InviteMember)
+					r.With(rbac.RequirePermission(rbacService, "members", "read")).Get("/invitations", h.Workspace.ListPendingInvitations)
+					r.With(rbac.RequirePermission(rbacService, "members", "invite")).Delete("/invitations/{id}", h.Workspace.RevokeInvitation)
+					r.With(rbac.RequirePermission(rbacService, "members", "remove")).Delete("/members/{userId}", h.Workspace.RemoveMember)
+					r.With(rbac.RequirePermission(rbacService, "members", "remove")).Put("/members/{userId}/role", h.Workspace.UpdateMemberRole)
 
 					// Roles
-					r.With(rbac.RequirePermission(rbacService, "roles", "read")).Get("/roles", h.Org.ListRoles)
+					r.With(rbac.RequirePermission(rbacService, "roles", "read")).Get("/roles", h.Workspace.ListRoles)
 
 					// Audit logs
 					r.With(rbac.RequirePermission(rbacService, "audit", "read")).Get("/audit-logs", h.AuditLogs.ListAuditLogs)

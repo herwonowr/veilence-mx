@@ -31,9 +31,9 @@ func (r *NotificationChannelRepo) FindByID(ctx context.Context, id uint) (*entit
 	return notifChannelToDomain(&m), nil
 }
 
-func (r *NotificationChannelRepo) FindByIDAndOrg(ctx context.Context, id, orgID uint) (*entity.NotificationChannel, error) {
+func (r *NotificationChannelRepo) FindByIDAndWorkspace(ctx context.Context, id, workspaceID uint) (*entity.NotificationChannel, error) {
 	var m NotificationChannel
-	if err := r.db.WithContext(ctx).Where("id = ? AND org_id = ?", id, orgID).First(&m).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ? AND workspace_id = ?", id, workspaceID).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("notification channel %w", entity.ErrNotFound)
 		}
@@ -42,9 +42,9 @@ func (r *NotificationChannelRepo) FindByIDAndOrg(ctx context.Context, id, orgID 
 	return notifChannelToDomain(&m), nil
 }
 
-func (r *NotificationChannelRepo) FindByOrgID(ctx context.Context, orgID uint) ([]entity.NotificationChannel, error) {
+func (r *NotificationChannelRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.NotificationChannel, error) {
 	var ms []NotificationChannel
-	if err := r.db.WithContext(ctx).Where("org_id = ?", orgID).Find(&ms).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("workspace_id = ?", workspaceID).Find(&ms).Error; err != nil {
 		return nil, fmt.Errorf("listing notification channels: %w", err)
 	}
 	result := make([]entity.NotificationChannel, len(ms))
@@ -74,8 +74,8 @@ func (r *NotificationChannelRepo) Update(ctx context.Context, channel *entity.No
 	return nil
 }
 
-func (r *NotificationChannelRepo) DeleteByIDAndOrg(ctx context.Context, id, orgID uint) (int64, error) {
-	result := r.db.WithContext(ctx).Where("id = ? AND org_id = ?", id, orgID).Delete(&NotificationChannel{})
+func (r *NotificationChannelRepo) DeleteByIDAndWorkspace(ctx context.Context, id, workspaceID uint) (int64, error) {
+	result := r.db.WithContext(ctx).Where("id = ? AND workspace_id = ?", id, workspaceID).Delete(&NotificationChannel{})
 	if result.Error != nil {
 		return 0, fmt.Errorf("deleting notification channel: %w", result.Error)
 	}
@@ -87,7 +87,7 @@ func (r *NotificationChannelRepo) DeleteByIDAndOrg(ctx context.Context, id, orgI
 func notifChannelToDomain(m *NotificationChannel) *entity.NotificationChannel {
 	return &entity.NotificationChannel{
 		ID:        m.ID,
-		OrgID:     m.OrgID,
+		WorkspaceID:     m.WorkspaceID,
 		Name:      m.Name,
 		Type:      entity.NotificationChannelType(m.Type),
 		Config:    m.Config,
@@ -100,7 +100,7 @@ func notifChannelToDomain(m *NotificationChannel) *entity.NotificationChannel {
 func notifChannelToModel(d *entity.NotificationChannel) *NotificationChannel {
 	return &NotificationChannel{
 		ID:        d.ID,
-		OrgID:     d.OrgID,
+		WorkspaceID:     d.WorkspaceID,
 		Name:      d.Name,
 		Type:      NotificationChannelType(d.Type),
 		Config:    d.Config,

@@ -1,5 +1,5 @@
 /**
- * Tests for organization management hooks.
+ * Tests for workspace management hooks.
  */
 
 import { renderHook, waitFor, act } from "@testing-library/react"
@@ -7,13 +7,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { http, HttpResponse } from "msw"
 import { server } from "@/__tests__/msw-server"
 import {
-  useOrganizations,
-  useOrganization,
-  useCreateOrganization,
-  useOrgMembers,
-  useOrgRoles,
+  useWorkspaces,
+  useWorkspace,
+  useCreateWorkspace,
+  useWorkspaceMembers,
+  useWorkspaceRoles,
 } from "@/features/admin"
-import { createOrg } from "@/test-fixtures"
+import { createWorkspace } from "@/test-fixtures"
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -24,14 +24,14 @@ vi.mock("@/core/providers/auth-provider", () => ({
     user: null,
     isAuthenticated: false,
     isLoading: false,
-    currentOrg: null,
-    organizations: [],
+    currentWorkspace: null,
+    workspaces: [],
     login: vi.fn(),
     register: vi.fn(),
     logout: vi.fn(),
-    setCurrentOrg: vi.fn(),
+    setCurrentWorkspace: vi.fn(),
     refreshUser: vi.fn(),
-    refreshOrgs: vi.fn(),
+    refreshWorkspaces: vi.fn(),
   })),
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))
@@ -48,9 +48,9 @@ const createWrapper = () => {
   }
 }
 
-describe("useOrganizations", () => {
-  it("fetches organizations list", async () => {
-    const { result } = renderHook(() => useOrganizations(), {
+describe("useWorkspaces", () => {
+  it("fetches workspaces list", async () => {
+    const { result } = renderHook(() => useWorkspaces(), {
       wrapper: createWrapper(),
     })
 
@@ -62,14 +62,14 @@ describe("useOrganizations", () => {
     expect(result.current.data?.data[0].name).toBe("Test Org")
   })
 
-  it("handles empty organizations", async () => {
+  it("handles empty workspaces", async () => {
     server.use(
-      http.get("http://localhost:8080/api/orgs", () => {
+      http.get("http://localhost:8080/api/workspaces", () => {
         return HttpResponse.json({ data: [], error: null })
       })
     )
 
-    const { result } = renderHook(() => useOrganizations(), {
+    const { result } = renderHook(() => useWorkspaces(), {
       wrapper: createWrapper(),
     })
 
@@ -81,9 +81,9 @@ describe("useOrganizations", () => {
   })
 })
 
-describe("useOrganization", () => {
-  it("fetches single organization", async () => {
-    const { result } = renderHook(() => useOrganization(1), {
+describe("useWorkspace", () => {
+  it("fetches single workspace", async () => {
+    const { result } = renderHook(() => useWorkspace(1), {
       wrapper: createWrapper(),
     })
 
@@ -96,7 +96,7 @@ describe("useOrganization", () => {
   })
 
   it("does not fetch when id is 0", () => {
-    const { result } = renderHook(() => useOrganization(0), {
+    const { result } = renderHook(() => useWorkspace(0), {
       wrapper: createWrapper(),
     })
 
@@ -104,19 +104,19 @@ describe("useOrganization", () => {
   })
 })
 
-describe("useCreateOrganization", () => {
-  it("creates an organization", async () => {
+describe("useCreateWorkspace", () => {
+  it("creates a workspace", async () => {
     server.use(
-      http.post("http://localhost:8080/api/orgs", async ({ request }) => {
+      http.post("http://localhost:8080/api/workspaces", async ({ request }) => {
         const body = (await request.json()) as { name: string; slug: string }
         return HttpResponse.json({
-          data: createOrg({ name: body.name, slug: body.slug }),
+          data: createWorkspace({ name: body.name, slug: body.slug }),
           error: null,
         })
       })
     )
 
-    const { result } = renderHook(() => useCreateOrganization(), {
+    const { result } = renderHook(() => useCreateWorkspace(), {
       wrapper: createWrapper(),
     })
 
@@ -124,7 +124,7 @@ describe("useCreateOrganization", () => {
       result.current.mutate({
         name: "New Org",
         slug: "new-org",
-        description: "A new organization",
+        description: "A new workspace",
       })
     })
 
@@ -135,7 +135,7 @@ describe("useCreateOrganization", () => {
 
   it("handles duplicate slug error", async () => {
     server.use(
-      http.post("http://localhost:8080/api/orgs", () => {
+      http.post("http://localhost:8080/api/workspaces", () => {
         return HttpResponse.json(
           { data: null, error: "Slug already taken" },
           { status: 409 }
@@ -143,7 +143,7 @@ describe("useCreateOrganization", () => {
       })
     )
 
-    const { result } = renderHook(() => useCreateOrganization(), {
+    const { result } = renderHook(() => useCreateWorkspace(), {
       wrapper: createWrapper(),
     })
 
@@ -164,9 +164,9 @@ describe("useCreateOrganization", () => {
   })
 })
 
-describe("useOrgMembers", () => {
+describe("useWorkspaceMembers", () => {
   it("fetches org members", async () => {
-    const { result } = renderHook(() => useOrgMembers(1), {
+    const { result } = renderHook(() => useWorkspaceMembers(1), {
       wrapper: createWrapper(),
     })
 
@@ -179,9 +179,9 @@ describe("useOrgMembers", () => {
   })
 })
 
-describe("useOrgRoles", () => {
+describe("useWorkspaceRoles", () => {
   it("fetches org roles", async () => {
-    const { result } = renderHook(() => useOrgRoles(1), {
+    const { result } = renderHook(() => useWorkspaceRoles(1), {
       wrapper: createWrapper(),
     })
 

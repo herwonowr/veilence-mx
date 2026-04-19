@@ -8,7 +8,7 @@ import "time"
 type AuditLogResponse struct {
 	ID            uint      `json:"id"`
 	UserID        uint      `json:"userId"`
-	OrgID         uint      `json:"orgId"`
+	WorkspaceID         uint      `json:"workspaceId"`
 	Action        string    `json:"action"`
 	Resource      string    `json:"resource"`
 	ResourceID    uint      `json:"resourceId"`

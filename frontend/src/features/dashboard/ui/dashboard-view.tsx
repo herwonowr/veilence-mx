@@ -36,19 +36,19 @@ const classificationVariant = (c?: Classification) => {
   return "secondary" as const
 }
 
-// ─── Onboarding State (no org selected) ─────────────────────
+// ─── Onboarding State (no workspace selected) ─────────────────────
 
 interface OnboardingProps {
-  hasAnyOrg: boolean
+  hasAnyWorkspace: boolean
   user: { firstName?: string; emailVerified?: boolean } | null
 }
 
-const DashboardOnboarding = ({ hasAnyOrg, user }: OnboardingProps) => {
+const DashboardOnboarding = ({ hasAnyWorkspace, user }: OnboardingProps) => {
   const router = useRouter()
 
   const steps = [
     { label: "Create your account", done: true },
-    { label: "Create an organization", done: hasAnyOrg },
+    { label: "Create a workspace", done: hasAnyWorkspace },
     { label: "Add packages to monitor", done: false },
     { label: "Review your first analysis", done: false },
   ]
@@ -61,20 +61,20 @@ const DashboardOnboarding = ({ hasAnyOrg, user }: OnboardingProps) => {
           Welcome to Veilence-MX{user?.firstName ? `, ${user.firstName}` : ""}!
         </h1>
         <p className="text-muted-foreground mb-6 max-w-md">
-          {hasAnyOrg
-            ? "Select an organization from the sidebar to view your supply chain monitoring dashboard."
-            : "Get started by creating your first organization to begin monitoring your software supply chain."}
+          {hasAnyWorkspace
+            ? "Select a workspace from the sidebar to view your supply chain monitoring dashboard."
+            : "Get started by creating your first workspace to begin monitoring your software supply chain."}
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          {!hasAnyOrg && (
-            <Button onClick={() => router.push("/organizations")}>
+          {!hasAnyWorkspace && (
+            <Button onClick={() => router.push("/workspaces")}>
               <Plus className="mr-2 h-4 w-4" />
-              Create Organization
+              Create Workspace
             </Button>
           )}
           <Button variant="outline" onClick={() => router.push("/packages")}>
             <Package className="mr-2 h-4 w-4" />
-            {hasAnyOrg ? "Go to Packages" : "Browse Packages"}
+            {hasAnyWorkspace ? "Go to Packages" : "Browse Packages"}
           </Button>
         </div>
       </div>
@@ -107,7 +107,7 @@ const DashboardOnboarding = ({ hasAnyOrg, user }: OnboardingProps) => {
   )
 }
 
-// ─── Dashboard Data (org selected) ──────────────────────────
+// ─── Dashboard Data (workspace selected) ──────────────────────────
 
 const DashboardData = () => {
   const router = useRouter()
@@ -417,11 +417,11 @@ const DashboardData = () => {
 // ─── Main Dashboard View ────────────────────────────────────
 
 export const DashboardView = () => {
-  const { currentOrg, organizations, user } = useAuth()
-  const hasOrg = !!currentOrg
+  const { currentWorkspace, workspaces, user } = useAuth()
+  const hasWorkspace = !!currentWorkspace
 
-  if (!hasOrg) {
-    return <DashboardOnboarding hasAnyOrg={organizations.length > 0} user={user} />
+  if (!hasWorkspace) {
+    return <DashboardOnboarding hasAnyWorkspace={workspaces.length > 0} user={user} />
   }
 
   return <DashboardData />

@@ -11,11 +11,11 @@ import (
 
 // GetDashboardStats returns overview statistics for the dashboard, scoped to the current org.
 func (h *DashboardHandlers) GetDashboardStats(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	stats, err := h.DashboardSvc.GetStats(r.Context(), orgID)
+	stats, err := h.DashboardSvc.GetStats(r.Context(), workspaceID)
 	if err != nil {
-		slog.Error("failed to get dashboard stats", "org_id", orgID, "error", err)
+		slog.Error("failed to get dashboard stats", "workspace_id", workspaceID, "error", err)
 		respondError(w, http.StatusInternalServerError, "failed to get dashboard stats")
 		return
 	}
@@ -25,7 +25,7 @@ func (h *DashboardHandlers) GetDashboardStats(w http.ResponseWriter, r *http.Req
 
 // GetRecentReleases returns the most recent releases across all packages, scoped to the current org.
 func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	page, limit := parsePagination(r)
 	sortOrder := parseSort(r, map[string]string{
@@ -56,9 +56,9 @@ func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Req
 		filters.Classification = &cls
 	}
 
-	releases, total, err := h.DashboardSvc.GetRecentReleases(r.Context(), orgID, page, limit, sortOrder, filters)
+	releases, total, err := h.DashboardSvc.GetRecentReleases(r.Context(), workspaceID, page, limit, sortOrder, filters)
 	if err != nil {
-		slog.Error("failed to load recent releases", "org_id", orgID, "error", err)
+		slog.Error("failed to load recent releases", "workspace_id", workspaceID, "error", err)
 		respondError(w, http.StatusInternalServerError, "failed to load releases")
 		return
 	}
@@ -68,11 +68,11 @@ func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Req
 
 // ReanalyzeAll re-queues all un-analyzed diffs for analysis, scoped to the current org.
 func (h *DashboardHandlers) ReanalyzeAll(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	queued, err := h.DashboardSvc.ReanalyzeAll(r.Context(), orgID)
+	queued, err := h.DashboardSvc.ReanalyzeAll(r.Context(), workspaceID)
 	if err != nil {
-		slog.Error("failed to reanalyze all", "org_id", orgID, "error", err)
+		slog.Error("failed to reanalyze all", "workspace_id", workspaceID, "error", err)
 		respondError(w, http.StatusInternalServerError, "failed to enqueue analysis jobs")
 		return
 	}

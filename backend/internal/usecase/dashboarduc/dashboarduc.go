@@ -39,8 +39,8 @@ func New(
 }
 
 // GetStats returns the overview statistics for the dashboard.
-func (uc *UseCase) GetStats(ctx context.Context, orgID uint) (*entity.DashboardStats, error) {
-	stats, err := uc.dashboard.GetStats(ctx, orgID)
+func (uc *UseCase) GetStats(ctx context.Context, workspaceID uint) (*entity.DashboardStats, error) {
+	stats, err := uc.dashboard.GetStats(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("DashboardUseCase.GetStats: %w", err)
 	}
@@ -48,8 +48,8 @@ func (uc *UseCase) GetStats(ctx context.Context, orgID uint) (*entity.DashboardS
 }
 
 // GetRecentReleases returns a paginated list of recent releases with package and classification info.
-func (uc *UseCase) GetRecentReleases(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error) {
-	results, total, err := uc.releases.FindByOrgIDWithDetails(ctx, orgID, page, limit, sortClause, filters)
+func (uc *UseCase) GetRecentReleases(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error) {
+	results, total, err := uc.releases.FindByWorkspaceIDWithDetails(ctx, workspaceID, page, limit, sortClause, filters)
 	if err != nil {
 		return nil, 0, fmt.Errorf("DashboardUseCase.GetRecentReleases: %w", err)
 	}
@@ -57,11 +57,11 @@ func (uc *UseCase) GetRecentReleases(ctx context.Context, orgID uint, page, limi
 }
 
 // GetChartData returns all chart data for the dashboard within the given time range.
-func (uc *UseCase) GetChartData(ctx context.Context, orgID uint, from, to time.Time) (*entity.ChartData, error) {
+func (uc *UseCase) GetChartData(ctx context.Context, workspaceID uint, from, to time.Time) (*entity.ChartData, error) {
 	data := &entity.ChartData{}
 
 	// 1. Release activity
-	activityRows, err := uc.dashboard.GetReleaseActivity(ctx, orgID, from, to)
+	activityRows, err := uc.dashboard.GetReleaseActivity(ctx, workspaceID, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("DashboardUseCase.GetChartData: release activity: %w", err)
 	}
@@ -79,11 +79,11 @@ func (uc *UseCase) GetChartData(ctx context.Context, orgID uint, from, to time.T
 	}
 
 	// 2. Classification distribution
-	classRows, err := uc.dashboard.GetClassificationDistribution(ctx, orgID, from, to)
+	classRows, err := uc.dashboard.GetClassificationDistribution(ctx, workspaceID, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("DashboardUseCase.GetChartData: classification dist: %w", err)
 	}
-	baselineCount, err := uc.dashboard.GetBaselineCount(ctx, orgID, from, to)
+	baselineCount, err := uc.dashboard.GetBaselineCount(ctx, workspaceID, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("DashboardUseCase.GetChartData: baseline count: %w", err)
 	}
@@ -104,7 +104,7 @@ func (uc *UseCase) GetChartData(ctx context.Context, orgID uint, from, to time.T
 	}
 
 	// 3. Ecosystem distribution
-	ecoRows, err := uc.dashboard.GetEcosystemDistribution(ctx, orgID)
+	ecoRows, err := uc.dashboard.GetEcosystemDistribution(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("DashboardUseCase.GetChartData: ecosystem dist: %w", err)
 	}
@@ -119,7 +119,7 @@ func (uc *UseCase) GetChartData(ctx context.Context, orgID uint, from, to time.T
 	}
 
 	// 4. Alerts by severity
-	alertRows, err := uc.dashboard.GetAlertsBySeverity(ctx, orgID, from, to)
+	alertRows, err := uc.dashboard.GetAlertsBySeverity(ctx, workspaceID, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("DashboardUseCase.GetChartData: alerts by severity: %w", err)
 	}
@@ -135,7 +135,7 @@ func (uc *UseCase) GetChartData(ctx context.Context, orgID uint, from, to time.T
 	}
 
 	// 5. Release statuses
-	statusRows, err := uc.dashboard.GetReleaseStatusDistribution(ctx, orgID, from, to)
+	statusRows, err := uc.dashboard.GetReleaseStatusDistribution(ctx, workspaceID, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("DashboardUseCase.GetChartData: release statuses: %w", err)
 	}
@@ -153,12 +153,12 @@ func (uc *UseCase) GetChartData(ctx context.Context, orgID uint, from, to time.T
 }
 
 // ReanalyzeAll re-queues all unanalyzed diffs for analysis, scoped to the given org.
-func (uc *UseCase) ReanalyzeAll(ctx context.Context, orgID uint) (int, error) {
+func (uc *UseCase) ReanalyzeAll(ctx context.Context, workspaceID uint) (int, error) {
 	if uc.queue == nil {
 		return 0, fmt.Errorf("DashboardUseCase.ReanalyzeAll: queue not configured")
 	}
 
-	diffIDs, err := uc.dashboard.GetUnanalyzedDiffIDs(ctx, orgID)
+	diffIDs, err := uc.dashboard.GetUnanalyzedDiffIDs(ctx, workspaceID)
 	if err != nil {
 		return 0, fmt.Errorf("DashboardUseCase.ReanalyzeAll: %w", err)
 	}

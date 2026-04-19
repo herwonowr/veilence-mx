@@ -114,7 +114,7 @@ func TestValidatePassword_ExactMaxLength(t *testing.T) {
 
 func TestValidateSlug_Valid(t *testing.T) {
 	validSlugs := []string{
-		"my-org",
+		"my-workspace",
 		"test123",
 		"a-b-c",
 		"company-name-2024",

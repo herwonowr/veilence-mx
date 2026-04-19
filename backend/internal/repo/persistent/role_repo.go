@@ -31,11 +31,11 @@ func (r *RoleRepo) FindByID(ctx context.Context, id uint) (*entity.Role, error) 
 	return roleToDomain(&m), nil
 }
 
-func (r *RoleRepo) FindByIDAndOrg(ctx context.Context, id, orgID uint) (*entity.Role, error) {
+func (r *RoleRepo) FindByIDAndWorkspace(ctx context.Context, id, workspaceID uint) (*entity.Role, error) {
 	var m Role
 	err := r.db.WithContext(ctx).
 		Preload("Permissions").
-		Where("id = ? AND org_id = ?", id, orgID).
+		Where("id = ? AND workspace_id = ?", id, workspaceID).
 		First(&m).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -46,11 +46,11 @@ func (r *RoleRepo) FindByIDAndOrg(ctx context.Context, id, orgID uint) (*entity.
 	return roleToDomain(&m), nil
 }
 
-func (r *RoleRepo) FindByOrgID(ctx context.Context, orgID uint) ([]entity.Role, error) {
+func (r *RoleRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.Role, error) {
 	var ms []Role
 	err := r.db.WithContext(ctx).
 		Preload("Permissions").
-		Where("org_id = ?", orgID).
+		Where("workspace_id = ?", workspaceID).
 		Find(&ms).Error
 	if err != nil {
 		return nil, fmt.Errorf("listing roles: %w", err)
@@ -78,7 +78,7 @@ func (r *RoleRepo) Create(ctx context.Context, role *entity.Role) error {
 func roleToDomain(m *Role) *entity.Role {
 	d := &entity.Role{
 		ID:          m.ID,
-		OrgID:       m.OrgID,
+		WorkspaceID:       m.WorkspaceID,
 		Name:        m.Name,
 		Description: m.Description,
 		IsSystem:    m.IsSystem,
@@ -101,7 +101,7 @@ func roleToDomain(m *Role) *entity.Role {
 func roleToModel(d *entity.Role) *Role {
 	m := &Role{
 		ID:          d.ID,
-		OrgID:       d.OrgID,
+		WorkspaceID:       d.WorkspaceID,
 		Name:        d.Name,
 		Description: d.Description,
 		IsSystem:    d.IsSystem,

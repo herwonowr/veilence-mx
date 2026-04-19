@@ -23,29 +23,29 @@ import {
 
 const SEARCH_THRESHOLD = 5
 
-export const OrgSelector = () => {
-  const { currentOrg, organizations, orgsLoading, orgsError, setCurrentOrg, refreshOrgs } = useAuth()
+export const WorkspaceSelector = () => {
+  const { currentWorkspace, workspaces, workspacesLoading, workspacesError, setCurrentWorkspace, refreshWorkspaces } = useAuth()
   const router = useRouter()
   const [search, setSearch] = useState("")
 
-  const hasOrgs = organizations.length > 0
-  const showSearch = organizations.length > SEARCH_THRESHOLD
+  const hasWorkspaces = workspaces.length > 0
+  const showSearch = workspaces.length > SEARCH_THRESHOLD
 
-  const filteredOrgs = useMemo(() => {
-    if (!search) return organizations
+  const filteredWorkspaces = useMemo(() => {
+    if (!search) return workspaces
     const q = search.toLowerCase()
-    return organizations.filter(
-      (org) => org.name.toLowerCase().includes(q) || org.slug.toLowerCase().includes(q)
+    return workspaces.filter(
+      (ws) => ws.name.toLowerCase().includes(q) || ws.slug.toLowerCase().includes(q)
     )
-  }, [organizations, search])
+  }, [workspaces, search])
 
   // Reset search when dropdown closes
   const handleOpenChange = (open: boolean) => {
     if (!open) setSearch("")
   }
 
-  // ─── No orgs: pulsing CTA trigger ───
-  const noOrgsIdle = !orgsLoading && !orgsError && !hasOrgs
+  // ─── No workspaces: pulsing CTA trigger ───
+  const noWorkspacesIdle = !workspacesLoading && !workspacesError && !hasWorkspaces
 
   return (
     <SidebarMenu>
@@ -55,31 +55,31 @@ export const OrgSelector = () => {
             render={
               <SidebarMenuButton
                 className={`w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground h-auto ${
-                  noOrgsIdle ? "animate-pulse border border-dashed border-green-500/60" : ""
+                  noWorkspacesIdle ? "animate-pulse border border-dashed border-green-500/60" : ""
                 }`}
-                tooltip="Organization"
-                aria-label={`Current organization: ${currentOrg?.name ?? "None selected"}`}
+                tooltip="Workspace"
+                aria-label={`Current workspace: ${currentWorkspace?.name ?? "None selected"}`}
               />
             }
           >
-            {orgsLoading ? (
+            {workspacesLoading ? (
               <Loader2 className="size-4 animate-spin" />
-            ) : noOrgsIdle ? (
+            ) : noWorkspacesIdle ? (
               <Plus className="size-4 text-green-500" />
             ) : (
               <Building2 className="size-4" />
             )}
             <div className="flex flex-1 flex-col text-left text-sm leading-tight">
               <span className="truncate font-medium">
-                {orgsLoading
+                {workspacesLoading
                   ? "Loading..."
-                  : noOrgsIdle
-                    ? "Create Organization"
-                    : currentOrg?.name ?? "Select Organization"}
+                  : noWorkspacesIdle
+                    ? "Create Workspace"
+                    : currentWorkspace?.name ?? "Select Workspace"}
               </span>
-              {currentOrg?.slug && !orgsLoading && (
+              {currentWorkspace?.slug && !workspacesLoading && (
                 <span className="truncate text-xs text-muted-foreground">
-                  {currentOrg.slug}
+                  {currentWorkspace.slug}
                 </span>
               )}
             </div>
@@ -91,33 +91,33 @@ export const OrgSelector = () => {
             side="bottom"
             sideOffset={4}
           >
-            {/* Search input (only when >5 orgs) */}
+            {/* Search input (only when >5 workspaces) */}
             {showSearch && (
               <div className="px-1.5 pb-1.5 pt-0.5">
                 <Input
-                  placeholder="Search organizations..."
+                  placeholder="Search workspaces..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="h-7 text-xs"
-                  aria-label="Filter organizations"
+                  aria-label="Filter workspaces"
                   autoFocus
                 />
               </div>
             )}
 
             <DropdownMenuGroup>
-              <DropdownMenuLabel>Organizations</DropdownMenuLabel>
+              <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
 
               {/* Error state */}
-              {orgsError && (
+              {workspacesError && (
                 <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-destructive">
                   <AlertCircle className="size-3 shrink-0" />
-                  <span className="truncate">{orgsError}</span>
+                  <span className="truncate">{workspacesError}</span>
                   <Button
                     variant="link"
                     size="xs"
                     className="ml-auto shrink-0 text-xs"
-                    onClick={() => refreshOrgs()}
+                    onClick={() => refreshWorkspaces()}
                   >
                     Retry
                   </Button>
@@ -125,41 +125,41 @@ export const OrgSelector = () => {
               )}
 
               {/* Loading state */}
-              {orgsLoading && (
+              {workspacesLoading && (
                 <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
                   <Loader2 className="size-3 animate-spin" />
-                  Loading organizations...
+                  Loading workspaces...
                 </div>
               )}
 
-              {/* Org list with radio-style checkmarks */}
-              {!orgsLoading && !orgsError && filteredOrgs.map((org) => (
+              {/* Workspace list with radio-style checkmarks */}
+              {!workspacesLoading && !workspacesError && filteredWorkspaces.map((ws) => (
                 <DropdownMenuItem
-                  key={org.id}
+                  key={ws.id}
                   onClick={() => {
-                    setCurrentOrg(org)
+                    setCurrentWorkspace(ws)
                     router.refresh()
                   }}
                 >
                   <Building2 className="mr-2 size-4 shrink-0" />
-                  <span className="truncate">{org.name}</span>
-                  {currentOrg?.id === org.id && (
+                  <span className="truncate">{ws.name}</span>
+                  {currentWorkspace?.id === ws.id && (
                     <Check className="ml-auto size-4 shrink-0 text-muted-foreground" />
                   )}
                 </DropdownMenuItem>
               ))}
 
               {/* Search yielded no results */}
-              {!orgsLoading && !orgsError && hasOrgs && filteredOrgs.length === 0 && (
+              {!workspacesLoading && !workspacesError && hasWorkspaces && filteredWorkspaces.length === 0 && (
                 <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                  No organizations match &ldquo;{search}&rdquo;
+                  No workspaces match &ldquo;{search}&rdquo;
                 </div>
               )}
 
-              {/* Empty state (no orgs at all) */}
-              {noOrgsIdle && (
+              {/* Empty state (no workspaces at all) */}
+              {noWorkspacesIdle && (
                 <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                  No organizations yet
+                  No workspaces yet
                 </div>
               )}
             </DropdownMenuGroup>
@@ -168,16 +168,16 @@ export const OrgSelector = () => {
 
             {/* Action links */}
             <DropdownMenuItem
-              onClick={() => router.push("/organizations?create=true")}
+              onClick={() => router.push("/workspaces?create=true")}
             >
               <Plus className="mr-2 size-4" />
-              Create Organization
+              Create Workspace
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => router.push("/organizations")}
+              onClick={() => router.push("/workspaces")}
             >
               <Settings className="mr-2 size-4" />
-              Manage Organizations
+              Manage Workspaces
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

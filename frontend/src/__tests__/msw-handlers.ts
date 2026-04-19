@@ -20,7 +20,7 @@ import {
   createSession,
   createQueueStats,
   createUser,
-  createOrg,
+  createWorkspace,
 } from "@/test-fixtures"
 
 const API_BASE = "http://localhost:8080"
@@ -208,30 +208,30 @@ export const handlers = [
     })
   }),
 
-  // ── Organizations ─────────────────────────────────────────
-  http.get(`${API_BASE}/api/orgs`, () => {
+  // ── Workspaces ─────────────────────────────────────────
+  http.get(`${API_BASE}/api/workspaces`, () => {
     return HttpResponse.json({
-      data: [createOrg()],
+      data: [createWorkspace()],
       error: null,
     })
   }),
 
-  http.get(`${API_BASE}/api/orgs/:id`, ({ params }) => {
+  http.get(`${API_BASE}/api/workspaces/:id`, ({ params }) => {
     return HttpResponse.json({
-      data: createOrg({ id: Number(params.id) }),
+      data: createWorkspace({ id: Number(params.id) }),
       error: null,
     })
   }),
 
-  http.get(`${API_BASE}/api/orgs/:id/members`, () => {
+  http.get(`${API_BASE}/api/workspaces/:id/members`, () => {
     return HttpResponse.json({
       data: [
         {
           id: 1,
-          orgId: 1,
+          workspaceId: 1,
           userId: 1,
           roleId: 1,
-          role: { id: 1, orgId: 1, name: "owner", description: "Organization owner", isSystem: true },
+          role: { id: 1, workspaceId: 1, name: "owner", description: "Workspace owner", isSystem: true },
           joinedAt: "2026-01-01T00:00:00Z",
           email: "test@example.com",
           firstName: "Test",
@@ -242,13 +242,13 @@ export const handlers = [
     })
   }),
 
-  http.get(`${API_BASE}/api/orgs/:id/roles`, () => {
+  http.get(`${API_BASE}/api/workspaces/:id/roles`, () => {
     return HttpResponse.json({
       data: [
-        { id: 1, orgId: 1, name: "owner", description: "Organization owner", isSystem: true },
-        { id: 2, orgId: 1, name: "admin", description: "Administrator", isSystem: true },
-        { id: 3, orgId: 1, name: "member", description: "Member", isSystem: true },
-        { id: 4, orgId: 1, name: "viewer", description: "Viewer", isSystem: true },
+        { id: 1, workspaceId: 1, name: "owner", description: "Workspace owner", isSystem: true },
+        { id: 2, workspaceId: 1, name: "admin", description: "Administrator", isSystem: true },
+        { id: 3, workspaceId: 1, name: "member", description: "Member", isSystem: true },
+        { id: 4, workspaceId: 1, name: "viewer", description: "Viewer", isSystem: true },
       ],
       error: null,
     })
@@ -275,14 +275,14 @@ export const handlers = [
   }),
 
   // ── Notification Channels ─────────────────────────────────
-  http.get(`${API_BASE}/api/orgs/:orgId/notification-channels`, () => {
+  http.get(`${API_BASE}/api/workspaces/:workspaceId/notification-channels`, () => {
     return HttpResponse.json({
       data: [createNotificationChannel()],
       error: null,
     })
   }),
 
-  http.post(`${API_BASE}/api/orgs/:orgId/notification-channels`, async ({ request }) => {
+  http.post(`${API_BASE}/api/workspaces/:workspaceId/notification-channels`, async ({ request }) => {
     const body = (await request.json()) as { name: string; type: string; config: string }
     return HttpResponse.json(
       {
@@ -297,7 +297,7 @@ export const handlers = [
     )
   }),
 
-  http.delete(`${API_BASE}/api/orgs/:orgId/notification-channels/:id`, () => {
+  http.delete(`${API_BASE}/api/workspaces/:workspaceId/notification-channels/:id`, () => {
     return HttpResponse.json({ data: null, error: null })
   }),
 

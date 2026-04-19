@@ -24,7 +24,7 @@ const (
 // Alert represents a security alert generated from an analysis.
 type Alert struct {
 	ID             uint
-	OrgID          uint
+	WorkspaceID    uint
 	AnalysisID     uint
 	ReleaseID      uint
 	PackageID      uint
@@ -39,7 +39,7 @@ type Alert struct {
 type AlertNote struct {
 	ID             uint
 	AlertID        uint
-	OrgID          uint
+	WorkspaceID    uint
 	UserID         uint
 	UserEmail      string
 	Content        string

@@ -41,15 +41,15 @@ type batchDeleteNotificationsRequest struct {
 	IDs []uint `json:"ids"`
 }
 
-// ListNotificationChannels handles GET /api/orgs/{orgId}/notification-channels.
+// ListNotificationChannels handles GET /api/workspaces/{workspaceId}/notification-channels.
 func (h *NotificationHandlers) ListNotificationChannels(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
-	if orgID == 0 {
-		respondError(w, http.StatusBadRequest, "organization context required")
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
-	channels, err := h.Notifications.ListChannels(orgID)
+	channels, err := h.Notifications.ListChannels(workspaceID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to list notification channels")
 		return
@@ -58,11 +58,11 @@ func (h *NotificationHandlers) ListNotificationChannels(w http.ResponseWriter, r
 	respondJSON(w, http.StatusOK, response.NotificationChannelsFromEntities(channels), nil)
 }
 
-// CreateNotificationChannel handles POST /api/orgs/{orgId}/notification-channels.
+// CreateNotificationChannel handles POST /api/workspaces/{workspaceId}/notification-channels.
 func (h *NotificationHandlers) CreateNotificationChannel(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
-	if orgID == 0 {
-		respondError(w, http.StatusBadRequest, "organization context required")
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
@@ -97,7 +97,7 @@ func (h *NotificationHandlers) CreateNotificationChannel(w http.ResponseWriter, 
 		return
 	}
 
-	channel, err := h.Notifications.CreateChannel(orgID, req.Name, req.Type, req.Config)
+	channel, err := h.Notifications.CreateChannel(workspaceID, req.Name, req.Type, req.Config)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to create notification channel")
 		return
@@ -108,11 +108,11 @@ func (h *NotificationHandlers) CreateNotificationChannel(w http.ResponseWriter, 
 	respondJSON(w, http.StatusCreated, response.NotificationChannelFromEntity(channel), nil)
 }
 
-// UpdateNotificationChannel handles PUT /api/orgs/{orgId}/notification-channels/{id}.
+// UpdateNotificationChannel handles PUT /api/workspaces/{workspaceId}/notification-channels/{id}.
 func (h *NotificationHandlers) UpdateNotificationChannel(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
-	if orgID == 0 {
-		respondError(w, http.StatusBadRequest, "organization context required")
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
@@ -140,7 +140,7 @@ func (h *NotificationHandlers) UpdateNotificationChannel(w http.ResponseWriter, 
 
 	// SSRF protection: fetch the existing channel to know its type, then validate
 	// the new config's URLs before persisting.
-	existingChannel, err := h.Notifications.GetChannel(uint(id), orgID)
+	existingChannel, err := h.Notifications.GetChannel(uint(id), workspaceID)
 	if err != nil {
 		respondError(w, http.StatusNotFound, "notification channel not found")
 		return
@@ -150,7 +150,7 @@ func (h *NotificationHandlers) UpdateNotificationChannel(w http.ResponseWriter, 
 		return
 	}
 
-	channel, err := h.Notifications.UpdateChannel(uint(id), orgID, req.Name, req.Config, req.IsActive)
+	channel, err := h.Notifications.UpdateChannel(uint(id), workspaceID, req.Name, req.Config, req.IsActive)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to update notification channel")
 		return
@@ -161,11 +161,11 @@ func (h *NotificationHandlers) UpdateNotificationChannel(w http.ResponseWriter, 
 	respondJSON(w, http.StatusOK, response.NotificationChannelFromEntity(channel), nil)
 }
 
-// DeleteNotificationChannel handles DELETE /api/orgs/{orgId}/notification-channels/{id}.
+// DeleteNotificationChannel handles DELETE /api/workspaces/{workspaceId}/notification-channels/{id}.
 func (h *NotificationHandlers) DeleteNotificationChannel(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
-	if orgID == 0 {
-		respondError(w, http.StatusBadRequest, "organization context required")
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
@@ -176,7 +176,7 @@ func (h *NotificationHandlers) DeleteNotificationChannel(w http.ResponseWriter, 
 		return
 	}
 
-	if err := h.Notifications.DeleteChannel(uint(id), orgID); err != nil {
+	if err := h.Notifications.DeleteChannel(uint(id), workspaceID); err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to delete notification channel")
 		return
 	}
@@ -186,15 +186,15 @@ func (h *NotificationHandlers) DeleteNotificationChannel(w http.ResponseWriter, 
 	respondJSON(w, http.StatusOK, nil, nil)
 }
 
-// ListNotificationRules handles GET /api/orgs/{orgId}/notification-rules.
+// ListNotificationRules handles GET /api/workspaces/{workspaceId}/notification-rules.
 func (h *NotificationHandlers) ListNotificationRules(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
-	if orgID == 0 {
-		respondError(w, http.StatusBadRequest, "organization context required")
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
-	rules, err := h.Notifications.ListRules(orgID)
+	rules, err := h.Notifications.ListRules(workspaceID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to list notification rules")
 		return
@@ -203,11 +203,11 @@ func (h *NotificationHandlers) ListNotificationRules(w http.ResponseWriter, r *h
 	respondJSON(w, http.StatusOK, response.NotificationRulesFromEntities(rules), nil)
 }
 
-// CreateNotificationRule handles POST /api/orgs/{orgId}/notification-rules.
+// CreateNotificationRule handles POST /api/workspaces/{workspaceId}/notification-rules.
 func (h *NotificationHandlers) CreateNotificationRule(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
-	if orgID == 0 {
-		respondError(w, http.StatusBadRequest, "organization context required")
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
@@ -230,7 +230,7 @@ func (h *NotificationHandlers) CreateNotificationRule(w http.ResponseWriter, r *
 		return
 	}
 
-	rule, err := h.Notifications.CreateRule(orgID, req.ChannelID, req.Severity)
+	rule, err := h.Notifications.CreateRule(workspaceID, req.ChannelID, req.Severity)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to create notification rule")
 		return
@@ -241,11 +241,11 @@ func (h *NotificationHandlers) CreateNotificationRule(w http.ResponseWriter, r *
 	respondJSON(w, http.StatusCreated, response.NotificationRuleFromEntity(rule), nil)
 }
 
-// DeleteNotificationRule handles DELETE /api/orgs/{orgId}/notification-rules/{id}.
+// DeleteNotificationRule handles DELETE /api/workspaces/{workspaceId}/notification-rules/{id}.
 func (h *NotificationHandlers) DeleteNotificationRule(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
-	if orgID == 0 {
-		respondError(w, http.StatusBadRequest, "organization context required")
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
@@ -256,7 +256,7 @@ func (h *NotificationHandlers) DeleteNotificationRule(w http.ResponseWriter, r *
 		return
 	}
 
-	if err := h.Notifications.DeleteRule(uint(id), orgID); err != nil {
+	if err := h.Notifications.DeleteRule(uint(id), workspaceID); err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to delete notification rule")
 		return
 	}
@@ -267,7 +267,7 @@ func (h *NotificationHandlers) DeleteNotificationRule(w http.ResponseWriter, r *
 }
 
 // ListUserNotifications handles GET /api/notifications — lists the current
-// user's notifications across all organizations.
+// user's notifications across all workspaces.
 func (h *NotificationHandlers) ListUserNotifications(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == 0 {
@@ -329,7 +329,7 @@ func (h *NotificationHandlers) MarkNotificationRead(w http.ResponseWriter, r *ht
 }
 
 // MarkAllNotificationsRead handles PUT /api/notifications/read-all — marks all
-// unread notifications as read for the current user across all organizations.
+// unread notifications as read for the current user across all workspaces.
 func (h *NotificationHandlers) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == 0 {
@@ -346,12 +346,12 @@ func (h *NotificationHandlers) MarkAllNotificationsRead(w http.ResponseWriter, r
 	respondJSON(w, http.StatusOK, map[string]int64{"updated": affected}, nil)
 }
 
-// TestNotificationChannel handles POST /api/orgs/{orgId}/notification-channels/{id}/test.
+// TestNotificationChannel handles POST /api/workspaces/{workspaceId}/notification-channels/{id}/test.
 // Sends a test payload to verify the channel works.
 func (h *NotificationHandlers) TestNotificationChannel(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
-	if orgID == 0 {
-		respondError(w, http.StatusBadRequest, "organization context required")
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
@@ -362,7 +362,7 @@ func (h *NotificationHandlers) TestNotificationChannel(w http.ResponseWriter, r 
 		return
 	}
 
-	if err := h.Notifications.TestChannel(uint(id), orgID); err != nil {
+	if err := h.Notifications.TestChannel(uint(id), workspaceID); err != nil {
 		respondError(w, http.StatusNotFound, err.Error())
 		return
 	}
@@ -388,7 +388,7 @@ func (h *NotificationHandlers) DeleteNotification(w http.ResponseWriter, r *http
 		return
 	}
 
-	// Use orgID=0 to scope across all orgs for the user
+	// Use workspaceID=0 to scope across all workspaces for the user
 	if _, err := h.Notifications.DeleteByID(r.Context(), uint(id), 0, userID); err != nil {
 		respondError(w, http.StatusNotFound, "notification not found")
 		return

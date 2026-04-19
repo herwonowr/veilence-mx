@@ -10,12 +10,12 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
-// ListAuditLogs handles GET /api/orgs/{orgId}/audit-logs — returns a paginated
-// list of audit logs for an organization with optional filters.
+// ListAuditLogs handles GET /api/workspaces/{workspaceId}/audit-logs — returns a paginated
+// list of audit logs for a workspace with optional filters.
 func (h *AuditHandlers) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
-	orgID := rbac.OrgIDFromContext(r.Context())
-	if orgID == 0 {
-		respondError(w, http.StatusBadRequest, "organization context required")
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
@@ -45,7 +45,7 @@ func (h *AuditHandlers) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	logs, total, err := h.Audit.ListAuditLogs(orgID, filters, page, limit)
+	logs, total, err := h.Audit.ListAuditLogs(workspaceID, filters, page, limit)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to list audit logs")
 		return
@@ -54,7 +54,7 @@ func (h *AuditHandlers) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
 	result := make([]response.AuditLogResponse, len(logs))
 	for i, l := range logs {
 		result[i] = response.AuditLogResponse{
-			ID: l.ID, UserID: l.UserID, OrgID: l.OrgID,
+			ID: l.ID, UserID: l.UserID, WorkspaceID: l.WorkspaceID,
 			Action: l.Action, Resource: l.Resource, ResourceID: l.ResourceID,
 			Details: l.Details, IPAddress: l.IPAddress, UserAgent: l.UserAgent,
 			CorrelationID: l.CorrelationID, CreatedAt: l.CreatedAt,

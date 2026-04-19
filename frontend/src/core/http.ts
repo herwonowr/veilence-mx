@@ -17,7 +17,7 @@ interface TokenRefreshResponse {
 
 const TOKEN_KEY = "vmx_access_token"
 const REFRESH_TOKEN_KEY = "vmx_refresh_token"
-const ORG_ID_KEY = "vmx_current_org_id"
+const WORKSPACE_ID_KEY = "vmx_current_workspace_id"
 
 export const getStoredAccessToken = (): string | null => {
   if (typeof window === "undefined") return null
@@ -39,20 +39,20 @@ export const clearTokens = () => {
   localStorage.removeItem(REFRESH_TOKEN_KEY)
 }
 
-export const getStoredOrgId = (): number | null => {
+export const getStoredWorkspaceId = (): number | null => {
   if (typeof window === "undefined") return null
-  const v = localStorage.getItem(ORG_ID_KEY)
+  const v = localStorage.getItem(WORKSPACE_ID_KEY)
   if (!v) return null
   const n = parseInt(v, 10)
   return isNaN(n) ? null : n
 }
 
-export const storeOrgId = (orgId: number) => {
-  localStorage.setItem(ORG_ID_KEY, String(orgId))
+export const storeWorkspaceId = (workspaceId: number) => {
+  localStorage.setItem(WORKSPACE_ID_KEY, String(workspaceId))
 }
 
-export const clearOrgId = () => {
-  localStorage.removeItem(ORG_ID_KEY)
+export const clearWorkspaceId = () => {
+  localStorage.removeItem(WORKSPACE_ID_KEY)
 }
 
 // SEC-S4-002: Read CSRF token from cookie set by backend CSRF middleware
@@ -119,9 +119,9 @@ export const fetchApi = async <T>(
       headers["Authorization"] = `Bearer ${token}`
     }
 
-    const orgId = getStoredOrgId()
-    if (orgId) {
-      headers["X-Org-ID"] = String(orgId)
+    const workspaceId = getStoredWorkspaceId()
+    if (workspaceId) {
+      headers["X-Workspace-ID"] = String(workspaceId)
     }
   }
 
@@ -156,7 +156,7 @@ export const fetchApi = async <T>(
     } else {
       // Token refresh failed - session is expired
       clearTokens()
-      clearOrgId()
+      clearWorkspaceId()
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("auth:session-expired"))
       }

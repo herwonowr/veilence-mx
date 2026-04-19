@@ -27,10 +27,10 @@ var AllModels = []any{
 	&persistent.Analysis{},
 	&persistent.Alert{},
 	&persistent.Setting{},
-	&persistent.Organization{},
+	&persistent.Workspace{},
 	&persistent.Role{},
 	&persistent.Permission{},
-	&persistent.OrgMember{},
+	&persistent.WorkspaceMember{},
 	&persistent.Invitation{},
 	&persistent.AuditLog{},
 	&persistent.NotificationChannel{},
@@ -102,11 +102,11 @@ func TruncateAllPostgres(t *testing.T, db *gorm.DB) {
 
 	tables := []string{
 		"alert_notes", "notifications", "notification_rules", "notification_channels",
-		"audit_logs", "invitations", "org_members", "permissions", "roles",
+		"audit_logs", "invitations", "workspace_members", "permissions", "roles",
 		"alerts", "analyses", "diffs", "releases", "packages",
 		"sessions", "email_verification_tokens", "password_reset_tokens",
 		"api_keys", "refresh_tokens", "settings",
-		"organizations", "users",
+		"workspaces", "users",
 	}
 	for _, table := range tables {
 		db.Exec(fmt.Sprintf("TRUNCATE TABLE %s CASCADE", table))

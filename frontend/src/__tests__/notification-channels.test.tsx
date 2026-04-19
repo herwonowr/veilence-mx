@@ -22,14 +22,14 @@ vi.mock("@/core/providers/auth-provider", () => ({
     user: null,
     isAuthenticated: false,
     isLoading: false,
-    currentOrg: null,
-    organizations: [],
+    currentWorkspace: null,
+    workspaces: [],
     login: vi.fn(),
     register: vi.fn(),
     logout: vi.fn(),
-    setCurrentOrg: vi.fn(),
+    setCurrentWorkspace: vi.fn(),
     refreshUser: vi.fn(),
-    refreshOrgs: vi.fn(),
+    refreshWorkspaces: vi.fn(),
   })),
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))
@@ -61,7 +61,7 @@ describe("useChannels", () => {
     expect(result.current.data?.data[0].type).toBe("slack")
   })
 
-  it("does not fetch when orgId is null", () => {
+  it("does not fetch when workspaceId is null", () => {
     const { result } = renderHook(() => useChannels(null), {
       wrapper: createWrapper(),
     })
@@ -71,7 +71,7 @@ describe("useChannels", () => {
 
   it("handles empty channels list", async () => {
     server.use(
-      http.get("http://localhost:8080/api/orgs/:orgId/notification-channels", () => {
+      http.get("http://localhost:8080/api/workspaces/:workspaceId/notification-channels", () => {
         return HttpResponse.json({ data: [], error: null })
       })
     )
@@ -109,7 +109,7 @@ describe("useCreateChannel", () => {
 
   it("creates a webhook channel", async () => {
     server.use(
-      http.post("http://localhost:8080/api/orgs/:orgId/notification-channels", async ({ request }) => {
+      http.post("http://localhost:8080/api/workspaces/:workspaceId/notification-channels", async ({ request }) => {
         const body = (await request.json()) as { name: string; type: string; config: string }
         return HttpResponse.json(
           {
@@ -144,7 +144,7 @@ describe("useCreateChannel", () => {
 
   it("creates an email channel", async () => {
     server.use(
-      http.post("http://localhost:8080/api/orgs/:orgId/notification-channels", async ({ request }) => {
+      http.post("http://localhost:8080/api/workspaces/:workspaceId/notification-channels", async ({ request }) => {
         const body = (await request.json()) as { name: string; type: string; config: string }
         return HttpResponse.json(
           {
@@ -179,7 +179,7 @@ describe("useCreateChannel", () => {
 
   it("handles creation error", async () => {
     server.use(
-      http.post("http://localhost:8080/api/orgs/:orgId/notification-channels", () => {
+      http.post("http://localhost:8080/api/workspaces/:workspaceId/notification-channels", () => {
         return HttpResponse.json(
           { data: null, error: "Invalid configuration" },
           { status: 400 }
@@ -226,7 +226,7 @@ describe("useDeleteChannel", () => {
 
   it("handles delete error", async () => {
     server.use(
-      http.delete("http://localhost:8080/api/orgs/:orgId/notification-channels/:id", () => {
+      http.delete("http://localhost:8080/api/workspaces/:workspaceId/notification-channels/:id", () => {
         return HttpResponse.json(
           { data: null, error: "Not found" },
           { status: 404 }

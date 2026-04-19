@@ -1,13 +1,13 @@
 "use client"
 
-import { ProtectedRoute, RequireOrg } from "@/features/auth"
+import { ProtectedRoute, RequireWorkspace } from "@/features/auth"
 import { PackageSuggestionsView } from "@/features/packages"
 
 const SuggestionsPage = () => (
   <ProtectedRoute>
-    <RequireOrg feature="packages">
+    <RequireWorkspace feature="packages">
       <PackageSuggestionsView />
-    </RequireOrg>
+    </RequireWorkspace>
   </ProtectedRoute>
 )
 export default SuggestionsPage

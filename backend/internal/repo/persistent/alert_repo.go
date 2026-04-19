@@ -32,10 +32,10 @@ func (r *AlertRepo) FindByID(ctx context.Context, id uint) (*entity.Alert, error
 	return alertToDomain(&m), nil
 }
 
-func (r *AlertRepo) FindByOrgID(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.Alert, int64, error) {
+func (r *AlertRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.Alert, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Alert{}).
-		Where("alerts.org_id = ?", orgID)
+		Where("alerts.workspace_id = ?", workspaceID)
 
 	// Only JOIN packages when we need to search
 	needsJoin := filters.Search != nil && *filters.Search != ""
@@ -91,10 +91,10 @@ func (r *AlertRepo) Create(ctx context.Context, alert *entity.Alert) error {
 	return nil
 }
 
-func (r *AlertRepo) FindByIDWithPackage(ctx context.Context, id, orgID uint) (*entity.Alert, *entity.Package, error) {
+func (r *AlertRepo) FindByIDWithPackage(ctx context.Context, id, workspaceID uint) (*entity.Alert, *entity.Package, error) {
 	var m Alert
 	err := r.db.WithContext(ctx).
-		Where("id = ? AND org_id = ?", id, orgID).
+		Where("id = ? AND workspace_id = ?", id, workspaceID).
 		First(&m).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -114,11 +114,11 @@ func (r *AlertRepo) FindByIDWithPackage(ctx context.Context, id, orgID uint) (*e
 	return alertToDomain(&m), packageToDomain(&pkg), nil
 }
 
-func (r *AlertRepo) FindByOrgIDWithPackage(ctx context.Context, orgID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
+func (r *AlertRepo) FindByWorkspaceIDWithPackage(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Alert{}).
 		Joins("JOIN packages ON packages.id = alerts.package_id").
-		Where("alerts.org_id = ?", orgID)
+		Where("alerts.workspace_id = ?", workspaceID)
 
 	if filters.Search != nil && *filters.Search != "" {
 		escapedSearch := escapeLikeRepo(*filters.Search)
@@ -190,7 +190,7 @@ func (r *AlertRepo) Update(ctx context.Context, alert *entity.Alert) error {
 	return nil
 }
 
-func (r *AlertRepo) CountByOrgAndStatus(ctx context.Context, orgID uint) (map[entity.AlertStatus]int64, error) {
+func (r *AlertRepo) CountByWorkspaceAndStatus(ctx context.Context, workspaceID uint) (map[entity.AlertStatus]int64, error) {
 	type statusCount struct {
 		Status string
 		Count  int64
@@ -199,7 +199,7 @@ func (r *AlertRepo) CountByOrgAndStatus(ctx context.Context, orgID uint) (map[en
 	err := r.db.WithContext(ctx).
 		Model(&Alert{}).
 		Select("status, count(*) as count").
-		Where("org_id = ?", orgID).
+		Where("workspace_id = ?", workspaceID).
 		Group("status").
 		Find(&results).Error
 	if err != nil {
@@ -218,7 +218,7 @@ func (r *AlertRepo) CountByOrgAndStatus(ctx context.Context, orgID uint) (map[en
 func alertToDomain(m *Alert) *entity.Alert {
 	return &entity.Alert{
 		ID:         m.ID,
-		OrgID:      m.OrgID,
+		WorkspaceID:      m.WorkspaceID,
 		AnalysisID: m.AnalysisID,
 		ReleaseID:  m.ReleaseID,
 		PackageID:  m.PackageID,
@@ -233,7 +233,7 @@ func alertToDomain(m *Alert) *entity.Alert {
 func alertToModel(d *entity.Alert) *Alert {
 	return &Alert{
 		ID:         d.ID,
-		OrgID:      d.OrgID,
+		WorkspaceID:      d.WorkspaceID,
 		AnalysisID: d.AnalysisID,
 		ReleaseID:  d.ReleaseID,
 		PackageID:  d.PackageID,

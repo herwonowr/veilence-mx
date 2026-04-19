@@ -9,22 +9,22 @@ import (
 type contextKey string
 
 const (
-	// ctxOrgID is the context key for the current organization ID.
-	ctxOrgID contextKey = "org_id"
+	// ctxWorkspaceID is the context key for the current workspace ID.
+	ctxWorkspaceID contextKey = "workspace_id"
 
-	// ctxMemberRole is the context key for the user's role in the current org.
+	// ctxMemberRole is the context key for the user's role in the current workspace.
 	ctxMemberRole contextKey = "member_role"
 )
 
-// WithOrgID returns a new context with the organization ID set.
-func WithOrgID(ctx context.Context, orgID uint) context.Context {
-	return context.WithValue(ctx, ctxOrgID, orgID)
+// WithWorkspaceID returns a new context with the workspace ID set.
+func WithWorkspaceID(ctx context.Context, workspaceID uint) context.Context {
+	return context.WithValue(ctx, ctxWorkspaceID, workspaceID)
 }
 
-// OrgIDFromContext extracts the organization ID from the request context.
+// WorkspaceIDFromContext extracts the workspace ID from the request context.
 // Returns 0 if not set.
-func OrgIDFromContext(ctx context.Context) uint {
-	id, _ := ctx.Value(ctxOrgID).(uint)
+func WorkspaceIDFromContext(ctx context.Context) uint {
+	id, _ := ctx.Value(ctxWorkspaceID).(uint)
 	return id
 }
 

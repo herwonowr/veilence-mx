@@ -29,11 +29,11 @@ func (r *NotificationRepo) Create(ctx context.Context, notification *entity.Noti
 	return nil
 }
 
-func (r *NotificationRepo) FindByUserAndOrg(ctx context.Context, orgID, userID uint, onlyUnread bool) ([]entity.Notification, error) {
+func (r *NotificationRepo) FindByUserAndWorkspace(ctx context.Context, workspaceID, userID uint, onlyUnread bool) ([]entity.Notification, error) {
 	query := r.db.WithContext(ctx).Model(&Notification{})
 
-	if orgID != 0 {
-		query = query.Where("org_id = ?", orgID)
+	if workspaceID != 0 {
+		query = query.Where("workspace_id = ?", workspaceID)
 	}
 
 	// Show org-wide (user_id=0) and user-specific notifications
@@ -68,13 +68,13 @@ func (r *NotificationRepo) MarkRead(ctx context.Context, id, userID uint) (int64
 	return result.RowsAffected, nil
 }
 
-func (r *NotificationRepo) CountUnread(ctx context.Context, orgID, userID uint) (int64, error) {
+func (r *NotificationRepo) CountUnread(ctx context.Context, workspaceID, userID uint) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&Notification{}).
 		Where("is_read = ?", false).
 		Where("user_id = ? OR user_id = 0", userID)
 
-	if orgID != 0 {
-		query = query.Where("org_id = ?", orgID)
+	if workspaceID != 0 {
+		query = query.Where("workspace_id = ?", workspaceID)
 	}
 
 	var count int64
@@ -84,13 +84,13 @@ func (r *NotificationRepo) CountUnread(ctx context.Context, orgID, userID uint) 
 	return count, nil
 }
 
-func (r *NotificationRepo) MarkAllRead(ctx context.Context, orgID, userID uint) (int64, error) {
+func (r *NotificationRepo) MarkAllRead(ctx context.Context, workspaceID, userID uint) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&Notification{}).
 		Where("is_read = ?", false).
 		Where("user_id = ? OR user_id = 0", userID)
 
-	if orgID != 0 {
-		query = query.Where("org_id = ?", orgID)
+	if workspaceID != 0 {
+		query = query.Where("workspace_id = ?", workspaceID)
 	}
 
 	result := query.Update("is_read", true)
@@ -100,11 +100,11 @@ func (r *NotificationRepo) MarkAllRead(ctx context.Context, orgID, userID uint) 
 	return result.RowsAffected, nil
 }
 
-func (r *NotificationRepo) DeleteByID(ctx context.Context, id, orgID, userID uint) (int64, error) {
+func (r *NotificationRepo) DeleteByID(ctx context.Context, id, workspaceID, userID uint) (int64, error) {
 	query := r.db.WithContext(ctx).Where("id = ? AND (user_id = ? OR user_id = 0)", id, userID)
 
-	if orgID != 0 {
-		query = query.Where("org_id = ?", orgID)
+	if workspaceID != 0 {
+		query = query.Where("workspace_id = ?", workspaceID)
 	}
 
 	result := query.Delete(&Notification{})
@@ -114,11 +114,11 @@ func (r *NotificationRepo) DeleteByID(ctx context.Context, id, orgID, userID uin
 	return result.RowsAffected, nil
 }
 
-func (r *NotificationRepo) DeleteAll(ctx context.Context, orgID, userID uint) (int64, error) {
+func (r *NotificationRepo) DeleteAll(ctx context.Context, workspaceID, userID uint) (int64, error) {
 	query := r.db.WithContext(ctx).Where("user_id = ? OR user_id = 0", userID)
 
-	if orgID != 0 {
-		query = query.Where("org_id = ?", orgID)
+	if workspaceID != 0 {
+		query = query.Where("workspace_id = ?", workspaceID)
 	}
 
 	result := query.Delete(&Notification{})
@@ -128,15 +128,15 @@ func (r *NotificationRepo) DeleteAll(ctx context.Context, orgID, userID uint) (i
 	return result.RowsAffected, nil
 }
 
-func (r *NotificationRepo) DeleteBatch(ctx context.Context, ids []uint, orgID, userID uint) (int64, error) {
+func (r *NotificationRepo) DeleteBatch(ctx context.Context, ids []uint, workspaceID, userID uint) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
 
 	query := r.db.WithContext(ctx).Where("id IN ? AND (user_id = ? OR user_id = 0)", ids, userID)
 
-	if orgID != 0 {
-		query = query.Where("org_id = ?", orgID)
+	if workspaceID != 0 {
+		query = query.Where("workspace_id = ?", workspaceID)
 	}
 
 	result := query.Delete(&Notification{})
@@ -151,7 +151,7 @@ func (r *NotificationRepo) DeleteBatch(ctx context.Context, ids []uint, orgID, u
 func notifToDomain(m *Notification) *entity.Notification {
 	return &entity.Notification{
 		ID:            m.ID,
-		OrgID:         m.OrgID,
+		WorkspaceID:         m.WorkspaceID,
 		UserID:        m.UserID,
 		ChannelID:     m.ChannelID,
 		Severity:      m.Severity,
@@ -169,7 +169,7 @@ func notifToDomain(m *Notification) *entity.Notification {
 func notifToModel(d *entity.Notification) *Notification {
 	return &Notification{
 		ID:            d.ID,
-		OrgID:         d.OrgID,
+		WorkspaceID:         d.WorkspaceID,
 		UserID:        d.UserID,
 		ChannelID:     d.ChannelID,
 		Severity:      d.Severity,
