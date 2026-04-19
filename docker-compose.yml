@@ -43,8 +43,8 @@ services:
       - "8080:8080"
     environment:
       DATABASE_URL: postgres://veilence:veilence_dev@postgres:5432/veilence_mx?sslmode=disable
-      REDIS_URL: redis://redis:6379
-      PORT: "8080"
+      REDIS_URL: redis://redis:6379/0
+      SERVER_PORT: "8080"
       JWT_SECRET: dev-jwt-secret-change-in-production
       APP_ENV: development
       FRONTEND_URL: http://localhost:3000
@@ -55,6 +55,12 @@ services:
         condition: service_healthy
     networks:
       - veilence-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
 
   frontend:
@@ -71,6 +77,12 @@ services:
         condition: service_healthy
     networks:
       - veilence-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
 volumes:
