@@ -58,6 +58,9 @@ func (m *mockPackageRepo) RejectPackage(context.Context, uint, uint) error      
 func (m *mockPackageRepo) BulkApprovePackages(context.Context, uint, []uint) (int, error) {
 	return 0, nil
 }
+func (m *mockPackageRepo) BulkApproveAllSuggestions(context.Context, uint) (int, error) {
+	return 0, nil
+}
 func (m *mockPackageRepo) UpdateDownloadCounts(context.Context, uint, []entity.PackageDownloadUpdate) error {
 	return nil
 }

@@ -21,12 +21,24 @@ import (
 )
 
 func TestCLIClient_Type(t *testing.T) {
-	client := analyzer.NewCLIClient(analyzer.CLIClientConfig{})
+	client := analyzer.NewCLIClient(analyzer.CLIClientConfig{
+		BaseURL:      "http://localhost",
+		Model:        "test-model",
+		MaxDiffLen:   1000,
+		RateInterval: time.Second,
+	})
+	defer client.Close()
 	assert.Equal(t, "copilot", client.Type())
 }
 
 func TestCLIClient_Defaults(t *testing.T) {
-	client := analyzer.NewCLIClient(analyzer.CLIClientConfig{})
+	client := analyzer.NewCLIClient(analyzer.CLIClientConfig{
+		BaseURL:      "http://localhost",
+		Model:        "test-model",
+		MaxDiffLen:   1000,
+		RateInterval: time.Second,
+	})
+	defer client.Close()
 	assert.NotNil(t, client)
 	assert.Equal(t, "copilot", client.Type())
 }
@@ -62,6 +74,8 @@ func TestCLIClient_Analyze_Success(t *testing.T) {
 
 	client := analyzer.NewCLIClient(analyzer.CLIClientConfig{
 		BaseURL:      srv.URL,
+		Model:        "claude-opus-4.6",
+		MaxDiffLen:   50000,
 		RateInterval: 1 * time.Millisecond,
 	})
 

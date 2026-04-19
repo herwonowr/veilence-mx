@@ -276,6 +276,20 @@ func (m *mockPackageRepo) BulkApprovePackages(_ context.Context, workspaceID uin
 	return count, nil
 }
 
+func (m *mockPackageRepo) BulkApproveAllSuggestions(_ context.Context, workspaceID uint) (int, error) {
+	if m.bulkApproveErr != nil {
+		return 0, m.bulkApproveErr
+	}
+	count := 0
+	for _, pkg := range m.packages {
+		if pkg.WorkspaceID == workspaceID && pkg.Status == entity.PackageStatusSuggested {
+			pkg.Status = entity.PackageStatusActive
+			count++
+		}
+	}
+	return count, nil
+}
+
 func (m *mockPackageRepo) UpdateDownloadCounts(_ context.Context, _ uint, _ []entity.PackageDownloadUpdate) error {
 	return nil
 }
