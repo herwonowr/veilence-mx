@@ -251,7 +251,7 @@ export const useBulkApprovePackages = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (params: { packageIds: number[] } | { ecosystem: string }) =>
+    mutationFn: (params: { packageIds: number[] } | { ecosystem: string } | { approveAll: true }) =>
       bulkApprovePackages(params),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: packageKeys.all })

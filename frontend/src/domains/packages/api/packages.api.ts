@@ -114,7 +114,7 @@ export const rejectPackage = async (id: number): Promise<ApiResponse<null>> =>
   fetchApi<null>(`/api/packages/${id}/reject`, { method: "POST" })
 
 export const bulkApprovePackages = async (
-  params: { packageIds: number[] } | { ecosystem: string }
+  params: { packageIds: number[] } | { ecosystem: string } | { approveAll: true }
 ): Promise<ApiResponse<{ approved: number }>> =>
   fetchApi<{ approved: number }>("/api/packages/bulk-approve", {
     method: "POST",

@@ -239,6 +239,19 @@ func (uc *UseCase) BulkApprovePackages(ctx context.Context, workspaceID uint, pk
 	return count, nil
 }
 
+// BulkApproveAllSuggestions approves all pending suggestions for a workspace.
+func (uc *UseCase) BulkApproveAllSuggestions(ctx context.Context, workspaceID uint) (int, error) {
+	count, err := uc.repo.BulkApproveAllSuggestions(ctx, workspaceID)
+	if err != nil {
+		return 0, fmt.Errorf("PackageUseCase.BulkApproveAllSuggestions: %w", err)
+	}
+
+	uc.audit.LogAction(ctx, "bulk_approve_all", "package", 0,
+		fmt.Sprintf("bulk approved all %d suggested packages", count))
+
+	return count, nil
+}
+
 // ListSuggestions returns a paginated list of suggested packages for an org.
 func (uc *UseCase) ListSuggestions(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
 	packages, total, err := uc.repo.FindSuggestionsByWorkspaceID(ctx, workspaceID, page, limit, sortClause, filters)

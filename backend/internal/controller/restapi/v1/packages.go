@@ -512,6 +512,7 @@ func (h *PackageHandlers) RejectPackage(w http.ResponseWriter, r *http.Request) 
 type bulkApproveRequest struct {
 	PackageIDs []uint `json:"packageIds"`
 	Ecosystem  string `json:"ecosystem"`
+	ApproveAll bool   `json:"approveAll"`
 }
 
 // BulkApprovePackages approves multiple suggested packages at once.
@@ -522,6 +523,17 @@ func (h *PackageHandlers) BulkApprovePackages(w http.ResponseWriter, r *http.Req
 	var req bulkApproveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondAppError(w, BadRequest("invalid request body"))
+		return
+	}
+
+	// Approve ALL pending suggestions for this workspace (no IDs needed).
+	if req.ApproveAll {
+		count, err := h.PkgSvc.BulkApproveAllSuggestions(r.Context(), workspaceID)
+		if err != nil {
+			respondAppError(w, Internal("failed to bulk approve packages"))
+			return
+		}
+		respondJSON(w, http.StatusOK, map[string]int{"approved": count}, nil)
 		return
 	}
 

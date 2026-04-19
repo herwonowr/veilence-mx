@@ -281,6 +281,18 @@ func (r *PackageRepo) BulkApprovePackages(ctx context.Context, workspaceID uint,
 	return int(result.RowsAffected), nil
 }
 
+// BulkApproveAllSuggestions approves all suggested packages for a workspace in a single query.
+func (r *PackageRepo) BulkApproveAllSuggestions(ctx context.Context, workspaceID uint) (int, error) {
+	result := r.db.WithContext(ctx).
+		Model(&Package{}).
+		Where("workspace_id = ? AND status = ?", workspaceID, PackageStatusSuggested).
+		Update("status", PackageStatusActive)
+	if result.Error != nil {
+		return 0, fmt.Errorf("bulk approving all suggestions: %w", result.Error)
+	}
+	return int(result.RowsAffected), nil
+}
+
 func (r *PackageRepo) UpdateDownloadCounts(ctx context.Context, workspaceID uint, updates []entity.PackageDownloadUpdate) error {
 	if len(updates) == 0 {
 		return nil

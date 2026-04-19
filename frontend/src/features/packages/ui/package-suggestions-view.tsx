@@ -145,13 +145,12 @@ export const PackageSuggestionsView = () => {
   const confirmBulkApprove = useCallback(() => {
     if (!bulkAction) return
     if (bulkAction === "all") {
-      const ids = suggestions.map((s) => s.id)
-      if (ids.length > 0) bulkApproveMutation.mutate({ packageIds: ids })
+      bulkApproveMutation.mutate({ approveAll: true })
     } else {
       bulkApproveMutation.mutate({ ecosystem: bulkAction })
     }
     setBulkAction(null)
-  }, [bulkAction, suggestions, bulkApproveMutation])
+  }, [bulkAction, bulkApproveMutation])
 
   const bulkActionLabel = useMemo(() => {
     if (bulkAction === "all") return "all pending suggestions"

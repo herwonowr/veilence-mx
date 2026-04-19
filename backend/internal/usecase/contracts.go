@@ -55,6 +55,7 @@ type PackageRepository interface {
 	ApprovePackage(ctx context.Context, workspaceID, pkgID uint) error
 	RejectPackage(ctx context.Context, workspaceID, pkgID uint) error
 	BulkApprovePackages(ctx context.Context, workspaceID uint, pkgIDs []uint) (int, error)
+	BulkApproveAllSuggestions(ctx context.Context, workspaceID uint) (int, error)
 	UpdateDownloadCounts(ctx context.Context, workspaceID uint, updates []entity.PackageDownloadUpdate) error
 	FindStaleByWorkspaceID(ctx context.Context, workspaceID uint, staleBefore time.Time) ([]entity.Package, error)
 	RemoveStaleByWorkspaceID(ctx context.Context, workspaceID uint, staleBefore time.Time) (int, error)
@@ -258,6 +259,7 @@ type PackageService interface {
 	ApprovePackage(ctx context.Context, workspaceID, pkgID uint) (*entity.Package, error)
 	RejectPackage(ctx context.Context, workspaceID, pkgID uint) error
 	BulkApprovePackages(ctx context.Context, workspaceID uint, pkgIDs []uint) (int, error)
+	BulkApproveAllSuggestions(ctx context.Context, workspaceID uint) (int, error)
 	ListSuggestions(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
 	ListStalePackages(ctx context.Context, workspaceID uint, staleBefore time.Time) ([]entity.Package, error)
 	RemoveStalePackages(ctx context.Context, workspaceID uint, months int) (int, error)
