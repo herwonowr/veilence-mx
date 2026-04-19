@@ -17,9 +17,9 @@ import {
   Monitor,
   Search,
 } from "lucide-react"
-import { cn } from "@/core/utils"
+import { cn } from "@/core"
 import { Kbd } from "@/ui/components/kbd"
-import { useAuth } from "@/core/providers/auth-provider"
+import { useAuth } from "@/core"
 import type { LucideIcon } from "lucide-react"
 
 interface CommandItem {

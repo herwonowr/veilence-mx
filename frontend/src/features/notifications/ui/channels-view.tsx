@@ -1,20 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/ui/components/card"
-import { Button } from "@/ui/components/button"
-import { Input } from "@/ui/components/input"
-import { Field, FieldLabel } from "@/ui/components/field"
-import { Badge } from "@/ui/components/badge"
-import { Switch } from "@/ui/components/switch"
-import { Separator } from "@/ui/components/separator"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Input, Field, FieldLabel, Badge, Switch, Separator, ConfirmDialog, EmptyState } from "@/ui"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/ui/components/select"
+} from "@/ui"
 import {
   Dialog,
   DialogContent,
@@ -23,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/ui/components/dialog"
+} from "@/ui"
 import {
   Plus,
   Trash2,
@@ -34,9 +28,7 @@ import {
   Route,
   Zap,
 } from "lucide-react"
-import { ConfirmDialog } from "@/ui/feedback/confirm-dialog"
-import { EmptyState } from "@/ui/feedback/empty-state"
-import { useAuth } from "@/core/providers/auth-provider"
+import { useAuth } from "@/core"
 import {
   useChannels,
   useCreateChannel,

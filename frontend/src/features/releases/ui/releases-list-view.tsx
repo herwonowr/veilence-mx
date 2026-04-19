@@ -2,12 +2,9 @@
 
 import { useEffect, useState, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedValue } from "@/core/hooks/use-debounced-value"
-import { useSortParams } from "@/core/hooks/use-sort-params"
-import { useFilterParams } from "@/core/hooks/use-filter-params"
+import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, type ColumnBreakpoints } from "@/core"
 import Link from "next/link"
-import { Card, CardContent, CardHeader } from "@/ui/components/card"
-import { Badge } from "@/ui/components/badge"
+import { Card, CardContent, CardHeader, Badge, TableSkeleton, TableError, TableEmptyState, Button, Label, FilterChips, SearchInput, DataTablePagination, SortableHeader, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
   Table,
   TableBody,
@@ -15,24 +12,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/ui/components/table"
+} from "@/ui"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/ui/components/select"
+} from "@/ui"
 import type { RecentRelease } from "@/domains/releases"
 import type { Classification, Ecosystem, ReleaseStatus } from "@/domains/common"
-import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
-import { TableError } from "@/ui/feedback/table-error"
-import { TableEmptyState } from "@/ui/feedback/empty-state"
 import { CheckCircle, Activity } from "lucide-react"
-import { Button } from "@/ui/components/button"
-import { Label } from "@/ui/components/label"
-import { FilterChips, type ActiveFilter } from "@/ui/data/filter-chips"
-import { SearchInput } from "@/ui/form/search-input"
 import { formatEcosystem } from "@/domains/common"
 import {
   useReactTable,
@@ -41,9 +31,6 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table"
-import { DataTablePagination } from "@/ui/data/data-table-pagination"
-import { SortableHeader } from "@/ui/data/sortable-header"
-import { useResponsiveColumns, type ColumnBreakpoints } from "@/core/hooks/use-responsive-columns"
 import { useRecentReleases } from "@/features/releases/hooks/use-releases"
 
 const classificationVariant = (c: Classification) => {

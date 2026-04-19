@@ -2,7 +2,7 @@
 
 import { Separator as SeparatorPrimitive } from "@base-ui/react/separator"
 
-import { cn } from "@/core/utils"
+import { cn } from "@/core"
 
 const Separator = ({
   className,

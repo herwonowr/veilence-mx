@@ -12,20 +12,14 @@ import {
   Trash2,
   ListChecks,
 } from "lucide-react"
-import { Button } from "@/ui/components/button"
-import { Card, CardContent, CardHeader } from "@/ui/components/card"
+import { Button, Card, CardContent, CardHeader, Label, Skeleton, EmptyState, FilterChips, Checkbox } from "@/ui"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/ui/components/select"
-import { Label } from "@/ui/components/label"
-import { Skeleton } from "@/ui/components/skeleton"
-import { EmptyState } from "@/ui/feedback/empty-state"
-import { FilterChips } from "@/ui/data/filter-chips"
-import { Checkbox } from "@/ui/components/checkbox"
+} from "@/ui"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,7 +29,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/ui/components/alert-dialog"
+} from "@/ui"
 import { NotificationPageItem } from "@/features/notifications/ui/notification-page-item"
 import { useNotificationsPage } from "@/features/notifications/hooks/use-notifications-page"
 

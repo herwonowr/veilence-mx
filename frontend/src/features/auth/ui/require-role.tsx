@@ -1,8 +1,7 @@
 "use client"
 
-import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core/hooks/use-workspace-role"
-import type { WorkspaceRole } from "@/core/hooks/use-workspace-role"
-import { Skeleton } from "@/ui/components/skeleton"
+import { useCurrentWorkspaceRole, hasMinimumRole, type WorkspaceRole } from "@/core"
+import { Skeleton } from "@/ui"
 import { ShieldX } from "lucide-react"
 
 /**

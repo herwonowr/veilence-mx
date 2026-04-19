@@ -5,7 +5,7 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { ForgotPasswordForm } from "@/features/auth"
-import * as apiClient from "@/core/http"
+import * as apiClient from "@/core"
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({

@@ -2,15 +2,8 @@
 
 import { useState, useCallback, useMemo } from "react"
 import Link from "next/link"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/ui/components/card"
-import { Button } from "@/ui/components/button"
-import { Badge } from "@/ui/components/badge"
-import { Textarea } from "@/ui/components/textarea"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Badge, Textarea, Checkbox, Progress, Alert, AlertDescription, ScrollArea } from "@/ui"
 import { ArrowLeft, Upload, FileText, Loader2, AlertCircle, CheckCircle2, CloudUpload } from "lucide-react"
-import { Checkbox } from "@/ui/components/checkbox"
-import { Progress } from "@/ui/components/progress"
-import { Alert, AlertDescription } from "@/ui/components/alert"
-import { ScrollArea } from "@/ui/components/scroll-area"
 import { useBulkImportPackages, usePackages } from "@/features/packages/hooks/use-packages"
 
 type ImportFormat = "requirements_txt" | "package_json" | "list"

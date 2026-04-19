@@ -1,20 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/ui/components/card"
-import { Button, buttonVariants } from "@/ui/components/button"
-import { Textarea } from "@/ui/components/textarea"
-import { Skeleton } from "@/ui/components/skeleton"
+import { Card, CardContent, CardHeader, CardTitle, Button, buttonVariants, Textarea, Skeleton, ConfirmDialog } from "@/ui"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/ui/components/dropdown-menu"
-import { ConfirmDialog } from "@/ui/feedback/confirm-dialog"
+} from "@/ui"
 import { MessageSquare, Send, Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
-import { useAuth } from "@/core/providers/auth-provider"
+import { useAuth } from "@/core"
 import {
   useAlertNotes,
   useCreateAlertNote,

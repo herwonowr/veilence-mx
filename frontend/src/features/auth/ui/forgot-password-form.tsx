@@ -5,18 +5,15 @@ import Link from "next/link"
 import { apiForgotPassword } from "@/domains/auth"
 import { passwordResetSchema } from "@/domains/auth"
 import { sanitizeErrorMessage } from "@/core"
-import { Button } from "@/ui/components/button"
-import { Input } from "@/ui/components/input"
-import { Field, FieldLabel, FieldError } from "@/ui/components/field"
+import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/components/card"
+} from "@/ui"
 import { Shield, Loader2, ArrowLeft, CheckCircle2 } from "lucide-react"
-import { Alert, AlertDescription } from "@/ui/components/alert"
 import { ZodError } from "zod"
 
 export const ForgotPasswordForm = () => {

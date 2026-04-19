@@ -2,8 +2,8 @@
 
 import type { KeyboardEvent, MouseEvent } from "react"
 import { Check, Trash2 } from "lucide-react"
-import { Badge } from "@/ui/components/badge"
-import { cn } from "@/core/utils"
+import { Badge } from "@/ui"
+import { cn } from "@/core"
 import type { Notification } from "@/domains/notifications"
 import {
   classifySeverity,

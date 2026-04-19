@@ -2,10 +2,9 @@
 
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/core/providers/auth-provider"
+import { useAuth } from "@/core"
 import { Building2, ChevronsUpDown, Plus, Settings, AlertCircle, Loader2, Check } from "lucide-react"
-import { Button } from "@/ui/components/button"
-import { Input } from "@/ui/components/input"
+import { Button, Input } from "@/ui"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,12 +13,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/ui/components/dropdown-menu"
+} from "@/ui"
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/ui/components/sidebar"
+} from "@/ui"
 
 const SEARCH_THRESHOLD = 5
 

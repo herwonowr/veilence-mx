@@ -2,17 +2,15 @@
 
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useAuth } from "@/core/providers/auth-provider"
-import { Button } from "@/ui/components/button"
-import { Input } from "@/ui/components/input"
-import { Field, FieldLabel } from "@/ui/components/field"
+import { useAuth } from "@/core"
+import { Button, Input, Field, FieldLabel, Tabs, TabsContent, TabsList, TabsTrigger, Badge, Skeleton, ConfirmDialog, Alert, AlertDescription, type ConfirmDialogDetail } from "@/ui"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/components/card"
+} from "@/ui"
 import {
   Dialog,
   DialogContent,
@@ -21,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/ui/components/dialog"
+} from "@/ui"
 import {
   Table,
   TableBody,
@@ -29,18 +27,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/ui/components/table"
+} from "@/ui"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/ui/components/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs"
-import { Badge } from "@/ui/components/badge"
-import { Skeleton } from "@/ui/components/skeleton"
-import { ConfirmDialog, type ConfirmDialogDetail } from "@/ui/feedback/confirm-dialog"
+} from "@/ui"
 import {
   ArrowLeft,
   Loader2,
@@ -52,7 +46,6 @@ import {
   KeyRound,
   ScrollText,
 } from "lucide-react"
-import { Alert, AlertDescription } from "@/ui/components/alert"
 import Link from "next/link"
 import {
   useWorkspace,

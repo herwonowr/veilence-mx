@@ -37,7 +37,7 @@ export const useApiKeys = (
  * to allow shared access across features without cross-feature imports.
  * Re-export here for backward compatibility with existing consumers.
  */
-export { useCurrentWorkspaceRole } from "@/core/hooks/use-workspace-role"
+export { useCurrentWorkspaceRole } from "@/core"
 
 export const useCreateApiKey = () => {
   const queryClient = useQueryClient()

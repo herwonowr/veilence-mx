@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/core"
 import { Building2 } from "lucide-react"
-import { Button } from "@/ui/components/button"
+import { Button } from "@/ui"
 
 interface RequireWorkspaceProps {
   children: React.ReactNode

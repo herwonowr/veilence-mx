@@ -2,7 +2,7 @@
  * SEC-S4-10: Tests for error message sanitization utility.
  */
 
-import { sanitizeErrorMessage } from "@/core/error-sanitizer"
+import { sanitizeErrorMessage } from "@/core"
 
 describe("sanitizeErrorMessage", () => {
   describe("auth errors", () => {

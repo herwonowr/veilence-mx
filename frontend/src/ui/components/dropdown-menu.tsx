@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 
-import { cn } from "@/core/utils"
+import { cn } from "@/core"
 import { ChevronRightIcon, CheckIcon } from "lucide-react"
 
 const DropdownMenu = ({ ...props }: MenuPrimitive.Root.Props) => {

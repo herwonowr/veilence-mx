@@ -1,14 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@/ui/components/button"
+import { Button, TableSkeleton, TableError, TableEmptyState, ConfirmDialog, Badge, type SkeletonColumn, type ConfirmDialogDetail } from "@/ui"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/components/card"
+} from "@/ui"
 import {
   Table,
   TableBody,
@@ -16,13 +16,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/ui/components/table"
-import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
-import { TableError } from "@/ui/feedback/table-error"
-import { TableEmptyState } from "@/ui/feedback/empty-state"
-import { ConfirmDialog, type ConfirmDialogDetail } from "@/ui/feedback/confirm-dialog"
+} from "@/ui"
 import { Monitor, Trash2, ShieldCheck } from "lucide-react"
-import { Badge } from "@/ui/components/badge"
 import { useSessions, useRevokeSession } from "@/features/account/hooks/use-sessions"
 
 const parseUserAgent = (ua: string): string => {

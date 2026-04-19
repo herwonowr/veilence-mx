@@ -2,23 +2,20 @@
 
 import { useState, useCallback, useEffect, forwardRef, useImperativeHandle, useRef, useMemo } from "react"
 import { useSearchParams } from "next/navigation"
-import { useFilterParams } from "@/core/hooks/use-filter-params"
+import { useFilterParams } from "@/core"
 import {
   useReactTable,
   getCoreRowModel,
   type PaginationState,
 } from "@tanstack/react-table"
-import { Card, CardContent, CardHeader } from "@/ui/components/card"
-import { Button } from "@/ui/components/button"
-import { Badge } from "@/ui/components/badge"
+import { Card, CardContent, CardHeader, Button, Badge, Tabs, TabsList, TabsTrigger, TabsContent, DataTablePagination, TableSkeleton, TableError, EmptyState, Label } from "@/ui"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/ui/components/select"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/ui/components/tabs"
+} from "@/ui"
 import {
   Table,
   TableBody,
@@ -26,11 +23,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/ui/components/table"
-import { DataTablePagination } from "@/ui/data/data-table-pagination"
-import { TableSkeleton } from "@/ui/feedback/table-skeleton"
-import { TableError } from "@/ui/feedback/table-error"
-import { EmptyState } from "@/ui/feedback/empty-state"
+} from "@/ui"
 import {
   RotateCcw,
   Loader2,
@@ -40,7 +33,6 @@ import {
   RefreshCw,
 } from "lucide-react"
 import { toast } from "sonner"
-import { Label } from "@/ui/components/label"
 import type { QueueJob, QueueJobStatus, QueueJobType, QueueStats } from "@/domains/queue"
 import { useQueueJobs, useRetryDeadJobs, useRetryDeadJob } from "@/features/settings/hooks/use-queue"
 import { QueueJobDetailDialog } from "@/features/settings/ui/queue-job-detail-dialog"

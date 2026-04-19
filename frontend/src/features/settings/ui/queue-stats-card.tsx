@@ -1,12 +1,11 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/ui/components/card"
-import { Button } from "@/ui/components/button"
+import { Card, CardContent, CardHeader, CardTitle, Button } from "@/ui"
 import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
-} from "@/ui/components/tooltip"
+} from "@/ui"
 import {
   Clock,
   Activity,

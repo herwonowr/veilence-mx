@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@/core/utils"
+import { cn } from "@/core"
 import { TableRow, TableCell } from "@/ui/components/table"
 
 interface EmptyStateProps {

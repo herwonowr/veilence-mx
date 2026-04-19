@@ -13,5 +13,5 @@ export {
   hasMinimumRole,
   getRoleLevel,
   workspaceRoleKeys,
-} from "@/core/hooks/use-workspace-role"
-export type { WorkspaceRole } from "@/core/hooks/use-workspace-role"
+  type WorkspaceRole,
+} from "@/core"

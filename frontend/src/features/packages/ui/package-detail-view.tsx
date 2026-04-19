@@ -4,8 +4,7 @@ import { use } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { notFound } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/ui/components/card"
-import { Badge } from "@/ui/components/badge"
+import { Card, CardContent, CardHeader, CardTitle, Badge, Skeleton, DetailError } from "@/ui"
 import {
   Table,
   TableBody,
@@ -13,10 +12,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/ui/components/table"
-import { Skeleton } from "@/ui/components/skeleton"
+} from "@/ui"
 import { ArrowLeft, Activity, Package as PackageIcon, Ban, Info } from "lucide-react"
-import { DetailError } from "@/ui/feedback/detail-error"
 import { formatEcosystem } from "@/domains/common"
 import { formatPopularity, formatFreshness } from "@/domains/packages"
 import { usePackage, usePackageReleases, useAnalysisHistory } from "@/features/packages/hooks/use-packages"

@@ -32,16 +32,15 @@ import {
   SidebarMenuButton,
   SidebarRail,
   useSidebar,
-} from "@/ui/components/sidebar"
+} from "@/ui"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/ui/components/dropdown-menu"
-import { useAuth } from "@/core/providers/auth-provider"
-import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core/hooks/use-workspace-role"
+} from "@/ui"
+import { useAuth, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 import { useShellDashboardStats } from "@/features/shell/hooks/use-shell-stats"
 import type { LucideIcon } from "lucide-react"
 

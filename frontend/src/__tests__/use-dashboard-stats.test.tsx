@@ -11,7 +11,7 @@
 
 import { renderHook, waitFor, act } from "@testing-library/react"
 import { useState, useEffect, useCallback } from "react"
-import * as apiClient from "@/core/http"
+import * as apiClient from "@/core"
 import type { DashboardStats } from "@/domains/dashboard"
 import type { ApiResponse } from "@/domains/common"
 

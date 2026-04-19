@@ -1,16 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { useAuth } from "@/core/providers/auth-provider"
+import { useAuth } from "@/core"
 import {
   profileSchema,
   passwordChangeSchema,
 } from "@/domains/auth"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/components/card"
-import { Button } from "@/ui/components/button"
-import { Badge } from "@/ui/components/badge"
-import { Input } from "@/ui/components/input"
-import { Field, FieldLabel, FieldError } from "@/ui/components/field"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Badge, Input, Field, FieldLabel, FieldError, Label } from "@/ui"
 import {
   Save,
   Loader2,
@@ -23,7 +19,6 @@ import {
   Monitor,
   ArrowRight,
 } from "lucide-react"
-import { Label } from "@/ui/components/label"
 import Link from "next/link"
 import {
   useUpdateProfile,

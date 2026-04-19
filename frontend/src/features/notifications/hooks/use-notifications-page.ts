@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { useFilterParams } from "@/core/hooks/use-filter-params"
+import { useFilterParams } from "@/core"
 import {
   useNotifications,
   useUnreadCount,
@@ -17,7 +17,7 @@ import {
   EVENT_TYPE_LABELS,
 } from "@/features/notifications/ui/notification-helpers"
 import type { SeverityLevel } from "@/features/notifications/ui/notification-helpers"
-import type { ActiveFilter } from "@/ui/data/filter-chips"
+import type { ActiveFilter } from "@/ui"
 
 type PaginationState = {
   pageIndex: number

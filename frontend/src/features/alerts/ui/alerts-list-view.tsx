@@ -2,21 +2,15 @@
 
 import { Suspense, useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedValue } from "@/core/hooks/use-debounced-value"
-import { useSortParams } from "@/core/hooks/use-sort-params"
-import { useFilterParams } from "@/core/hooks/use-filter-params"
-import { Card, CardContent, CardHeader } from "@/ui/components/card"
-import { Badge } from "@/ui/components/badge"
-import { Button } from "@/ui/components/button"
-import { SearchInput } from "@/ui/form/search-input"
-import { Label } from "@/ui/components/label"
+import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, useCurrentWorkspaceRole, hasMinimumRole, type ColumnBreakpoints } from "@/core"
+import { Card, CardContent, CardHeader, Badge, Button, SearchInput, Label, TableSkeleton, TableError, TableEmptyState, FilterChips, DataTablePagination, SortableHeader, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/ui/components/select"
+} from "@/ui"
 import {
   Table,
   TableBody,
@@ -24,15 +18,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/ui/components/table"
+} from "@/ui"
 import type { Alert } from "@/domains/alerts"
 import type { AlertSeverity, AlertStatus } from "@/domains/common"
 import Link from "next/link"
 import { Bell, ShieldCheck } from "lucide-react"
-import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
-import { TableError } from "@/ui/feedback/table-error"
-import { TableEmptyState } from "@/ui/feedback/empty-state"
-import { FilterChips, type ActiveFilter } from "@/ui/data/filter-chips"
 import {
   useReactTable,
   getCoreRowModel,
@@ -41,11 +31,7 @@ import {
   type PaginationState,
 } from "@tanstack/react-table"
 import "@/ui/data/table.types"
-import { DataTablePagination } from "@/ui/data/data-table-pagination"
-import { SortableHeader } from "@/ui/data/sortable-header"
-import { useResponsiveColumns, type ColumnBreakpoints } from "@/core/hooks/use-responsive-columns"
 import { useAlerts, useUpdateAlert } from "@/features/alerts/hooks/use-alerts"
-import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core/hooks/use-workspace-role"
 
 const severityVariant = (s: AlertSeverity) => {
   if (s === "critical") return "destructive" as const

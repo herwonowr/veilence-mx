@@ -4,8 +4,8 @@
 
 import { renderHook, act, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { AuthProvider, useAuth } from "@/core/providers/auth-provider"
-import * as apiClient from "@/core/http"
+import { AuthProvider, useAuth } from "@/core"
+import * as apiClient from "@/core"
 
 // Mock sonner toast
 const mockToastWarning = vi.fn(() => "toast-id-1")

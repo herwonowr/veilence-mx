@@ -2,7 +2,7 @@
 
 import { type Column } from "@tanstack/react-table"
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react"
-import { cn } from "@/core/utils"
+import { cn } from "@/core"
 
 interface SortableHeaderProps<TData, TValue> {
   column: Column<TData, TValue>

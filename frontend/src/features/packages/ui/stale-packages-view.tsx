@@ -2,8 +2,7 @@
 
 import { useState, useMemo } from "react"
 import Link from "next/link"
-import { Card, CardContent, CardHeader, CardTitle } from "@/ui/components/card"
-import { Badge } from "@/ui/components/badge"
+import { Card, CardContent, CardHeader, CardTitle, Badge, TableSkeleton, TableError, TableEmptyState, Label, type SkeletonColumn } from "@/ui"
 import {
   Table,
   TableBody,
@@ -11,28 +10,24 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/ui/components/table"
+} from "@/ui"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/ui/components/select"
-import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
-import { TableError } from "@/ui/feedback/table-error"
-import { TableEmptyState } from "@/ui/feedback/empty-state"
+} from "@/ui"
 import { formatEcosystem } from "@/domains/common"
 import { formatPopularity } from "@/domains/packages"
 import type { StalePackage } from "@/domains/packages"
 import { ArrowLeft, Clock } from "lucide-react"
-import { Label } from "@/ui/components/label"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/ui/components/tooltip"
+} from "@/ui"
 import {
   useReactTable,
   getCoreRowModel,

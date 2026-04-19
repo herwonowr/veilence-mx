@@ -4,7 +4,7 @@
  */
 
 import { render, screen, within } from "@/test-utils"
-import { Skeleton } from "@/ui/components/skeleton"
+import { Skeleton } from "@/ui"
 
 // Mock auth-context to provide authenticated state
 vi.mock("@/core/providers/auth-provider", () => ({

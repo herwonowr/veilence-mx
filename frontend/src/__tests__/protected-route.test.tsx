@@ -1,6 +1,6 @@
 import { render, screen } from "@/test-utils"
 import { ProtectedRoute } from "@/features/auth"
-import { useAuth } from "@/core/providers/auth-provider"
+import { useAuth } from "@/core"
 
 const mockPush = vi.fn()
 const mockPathname = vi.fn(() => "/dashboard")

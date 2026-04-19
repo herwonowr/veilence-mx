@@ -2,19 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useAuth } from "@/core/providers/auth-provider"
+import { useAuth } from "@/core"
 import { apiCreateWorkspace } from "@/domains/admin"
 import type { Workspace } from "@/domains/admin"
-import { Button } from "@/ui/components/button"
-import { Input } from "@/ui/components/input"
-import { Field, FieldLabel, FieldDescription } from "@/ui/components/field"
+import { Button, Input, Field, FieldLabel, FieldDescription, Badge, EmptyState, Alert, AlertDescription } from "@/ui"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/components/card"
+} from "@/ui"
 import {
   Dialog,
   DialogContent,
@@ -23,11 +21,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/ui/components/dialog"
-import { Badge } from "@/ui/components/badge"
-import { EmptyState } from "@/ui/feedback/empty-state"
+} from "@/ui"
 import { Building2, Plus, Loader2, Users, Package } from "lucide-react"
-import { Alert, AlertDescription } from "@/ui/components/alert"
 import Link from "next/link"
 import { useWorkspaceMembers } from "@/features/admin/hooks/use-workspaces"
 import { useAdminPackages } from "@/features/admin/hooks/use-admin-packages"

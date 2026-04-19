@@ -2,14 +2,8 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedValue } from "@/core/hooks/use-debounced-value"
-import { useSortParams } from "@/core/hooks/use-sort-params"
-import { useFilterParams } from "@/core/hooks/use-filter-params"
-import { Button } from "@/ui/components/button"
-import { Badge } from "@/ui/components/badge"
-import { Input } from "@/ui/components/input"
-import { Textarea } from "@/ui/components/textarea"
-import { Card, CardContent, CardHeader } from "@/ui/components/card"
+import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, useCurrentWorkspaceRole, hasMinimumRole, type ColumnBreakpoints } from "@/core"
+import { Button, Badge, Input, Textarea, Card, CardContent, CardHeader, TableSkeleton, TableError, TableEmptyState, FilterChips, SearchInput, Field, FieldLabel, FieldError, Label, DataTablePagination, SortableHeader, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
   Table,
   TableBody,
@@ -17,14 +11,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/ui/components/table"
+} from "@/ui"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/ui/components/dialog"
+} from "@/ui"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,25 +28,18 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/ui/components/alert-dialog"
+} from "@/ui"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/ui/components/select"
+} from "@/ui"
 import type { Package, PackageSource, PackageStatus } from "@/domains/packages"
 import type { Ecosystem } from "@/domains/common"
 import { formatPopularity, formatFreshness, popularityLabel } from "@/domains/packages"
 import { Plus, Trash2, RefreshCw, Upload, Ban, ShieldCheck, Radar } from "lucide-react"
-import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
-import { TableError } from "@/ui/feedback/table-error"
-import { TableEmptyState } from "@/ui/feedback/empty-state"
-import { FilterChips, type ActiveFilter } from "@/ui/data/filter-chips"
-import { SearchInput } from "@/ui/form/search-input"
-import { Field, FieldLabel, FieldError } from "@/ui/components/field"
-import { Label } from "@/ui/components/label"
 import { formatEcosystem } from "@/domains/common"
 import Link from "next/link"
 import {
@@ -68,10 +55,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/ui/components/tooltip"
-import { DataTablePagination } from "@/ui/data/data-table-pagination"
-import { SortableHeader } from "@/ui/data/sortable-header"
-import { useResponsiveColumns, type ColumnBreakpoints } from "@/core/hooks/use-responsive-columns"
+} from "@/ui"
 import { packageSchema } from "@/domains/packages"
 import { ZodError } from "zod"
 import {
@@ -83,7 +67,6 @@ import {
   useDiscoverPackages,
   useSuggestionCount,
 } from "@/features/packages/hooks/use-packages"
-import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core/hooks/use-workspace-role"
 
 const formatSource = (source: PackageSource): string => {
   switch (source) {

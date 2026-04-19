@@ -2,13 +2,9 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
-import { useDebouncedValue } from "@/core/hooks/use-debounced-value"
-import { useSortParams } from "@/core/hooks/use-sort-params"
-import { useFilterParams } from "@/core/hooks/use-filter-params"
+import { useDebouncedValue, useSortParams, useFilterParams } from "@/core"
 import Link from "next/link"
-import { Card, CardContent, CardHeader } from "@/ui/components/card"
-import { Button } from "@/ui/components/button"
-import { Badge } from "@/ui/components/badge"
+import { Card, CardContent, CardHeader, Button, Badge, TableSkeleton, TableError, TableEmptyState, DataTablePagination, SearchInput, SortableHeader, Label, type SkeletonColumn } from "@/ui"
 import {
   Table,
   TableBody,
@@ -16,7 +12,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/ui/components/table"
+} from "@/ui"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,32 +22,25 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/ui/components/alert-dialog"
-import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
-import { TableError } from "@/ui/feedback/table-error"
-import { TableEmptyState } from "@/ui/feedback/empty-state"
-import { DataTablePagination } from "@/ui/data/data-table-pagination"
-import { SearchInput } from "@/ui/form/search-input"
+} from "@/ui"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/ui/components/select"
+} from "@/ui"
 import { formatEcosystem } from "@/domains/common"
 import type { Ecosystem } from "@/domains/common"
 import { formatPopularity } from "@/domains/packages"
 import type { Package } from "@/domains/packages"
-import { SortableHeader } from "@/ui/data/sortable-header"
 import { ArrowLeft, Check, X, CheckCheck, Radar, HelpCircle } from "lucide-react"
-import { Label } from "@/ui/components/label"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/ui/components/tooltip"
+} from "@/ui"
 import {
   useReactTable,
   getCoreRowModel,

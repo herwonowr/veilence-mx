@@ -1,8 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { Card, CardContent } from "@/ui/components/card"
-import { Button } from "@/ui/components/button"
+import { Card, CardContent, Button } from "@/ui"
 import { RefreshCw, Loader2, Play, RotateCcw } from "lucide-react"
 import { useQueueStats, useRetryDeadJobs, queueKeys } from "@/features/settings/hooks/use-queue"
 import { useReanalyzeAll } from "@/features/settings/hooks/use-settings"

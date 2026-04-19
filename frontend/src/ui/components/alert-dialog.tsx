@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 
-import { cn } from "@/core/utils"
+import { cn } from "@/core"
 import { Button } from "@/ui/components/button"
 
 /**

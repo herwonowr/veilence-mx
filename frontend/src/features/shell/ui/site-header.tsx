@@ -10,12 +10,8 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/ui/components/breadcrumb"
-import { Separator } from "@/ui/components/separator"
-import { Button } from "@/ui/components/button"
-import { SidebarTrigger } from "@/ui/components/sidebar"
-import { ThemeToggle } from "@/ui/layout/theme-toggle"
-import { Kbd } from "@/ui/components/kbd"
+} from "@/ui"
+import { Separator, Button, SidebarTrigger, ThemeToggle, Kbd } from "@/ui"
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",

@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ThemeProvider } from "@/core/providers/theme-provider";
-import { AuthProvider } from "@/core/providers/auth-provider";
-import { QueryProvider } from "@/core/providers/query-provider";
+import { ThemeProvider, AuthProvider, QueryProvider } from "@/core";
 import { AppShell } from "@/features/shell";
 import { NotificationBell } from "@/features/notifications";
 import { WorkspaceSelector } from "@/features/admin";
-import { Toaster } from "@/ui/feedback/toaster";
+import { Toaster } from "@/ui";
 import "./globals.css";
 
 const geistSans = Geist({

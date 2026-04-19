@@ -4,7 +4,7 @@ import * as React from "react"
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 
-import { cn } from "@/core/utils"
+import { cn } from "@/core"
 import { ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
 
 const Breadcrumb = ({ className, ...props }: React.ComponentProps<"nav">) => {

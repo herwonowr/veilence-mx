@@ -1,6 +1,5 @@
 import Link from "next/link"
-import { Button } from "@/ui/components/button"
-import { Card, CardContent } from "@/ui/components/card"
+import { Button, Card, CardContent } from "@/ui"
 import { FileQuestion } from "lucide-react"
 
 const NotFound = () => {

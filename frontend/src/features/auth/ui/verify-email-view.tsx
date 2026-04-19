@@ -4,14 +4,14 @@ import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { apiVerifyEmail } from "@/domains/auth"
-import { Button } from "@/ui/components/button"
+import { Button } from "@/ui"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/components/card"
+} from "@/ui"
 import { Loader2, CheckCircle2, XCircle, ArrowLeft } from "lucide-react"
 
 type VerifyState = "loading" | "success" | "error" | "no-token"

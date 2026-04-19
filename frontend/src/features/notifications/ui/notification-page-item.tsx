@@ -2,10 +2,8 @@
 
 import Link from "next/link"
 import { CheckCheck, Circle, Trash2 } from "lucide-react"
-import { Badge } from "@/ui/components/badge"
-import { Button } from "@/ui/components/button"
-import { Checkbox } from "@/ui/components/checkbox"
-import { cn } from "@/core/utils"
+import { Badge, Button, Checkbox } from "@/ui"
+import { cn } from "@/core"
 import type { Notification } from "@/domains/notifications"
 import {
   classifySeverity,

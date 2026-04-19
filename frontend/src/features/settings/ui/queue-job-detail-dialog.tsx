@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Badge } from "@/ui/components/badge"
-import { Button } from "@/ui/components/button"
+import { Badge, Button } from "@/ui"
 import {
   Dialog,
   DialogContent,
@@ -10,7 +9,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/ui/components/dialog"
+} from "@/ui"
 import {
   Sheet,
   SheetContent,
@@ -18,7 +17,7 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
-} from "@/ui/components/sheet"
+} from "@/ui"
 import { Loader2 } from "lucide-react"
 import { useIsMobile } from "@/core"
 import type { QueueJob } from "@/domains/queue"

@@ -5,7 +5,7 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { RegisterForm } from "@/features/auth"
-import { useAuth } from "@/core/providers/auth-provider"
+import { useAuth } from "@/core"
 
 const mockPush = vi.fn()
 

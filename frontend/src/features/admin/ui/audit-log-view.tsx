@@ -3,17 +3,15 @@
 import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { useFilterParams } from "@/core/hooks/use-filter-params"
-import { Button, buttonVariants } from "@/ui/components/button"
-import { cn } from "@/core/utils"
-import { Input } from "@/ui/components/input"
-import { Label } from "@/ui/components/label"
+import { useFilterParams, useDebouncedValue } from "@/core"
+import { Button, buttonVariants, Input, Label, Badge, Skeleton, TableEmptyState, FilterChips, Calendar, Popover, PopoverContent, PopoverTrigger, type ActiveFilter } from "@/ui"
+import { cn } from "@/core"
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@/ui/components/card"
+} from "@/ui"
 import {
   Table,
   TableBody,
@@ -21,13 +19,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/ui/components/table"
-import { Badge } from "@/ui/components/badge"
-import { Skeleton } from "@/ui/components/skeleton"
-import { TableEmptyState } from "@/ui/feedback/empty-state"
-import { FilterChips, type ActiveFilter } from "@/ui/data/filter-chips"
-import { Calendar } from "@/ui/components/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/ui/components/popover"
+} from "@/ui"
 import {
   ArrowLeft,
   CalendarIcon,
@@ -37,7 +29,6 @@ import {
   ScrollText,
 } from "lucide-react"
 import { useAuditLogs } from "@/features/admin/hooks/use-workspaces"
-import { useDebouncedValue } from "@/core/hooks/use-debounced-value"
 
 const formatStartOfDay = (d: Date): string => {
   const yyyy = d.getFullYear()

@@ -3,16 +3,14 @@
 import { useState } from "react"
 import type { APIKeyRole } from "@/domains/account"
 import { API_KEY_ROLE_HIERARCHY } from "@/domains/account"
-import { Button, buttonVariants } from "@/ui/components/button"
-import { Input } from "@/ui/components/input"
-import { Field, FieldLabel, FieldDescription } from "@/ui/components/field"
+import { Button, buttonVariants, Input, Field, FieldLabel, FieldDescription, Badge, Calendar, Popover, PopoverContent, PopoverTrigger, TableSkeleton, TableError, TableEmptyState, ConfirmDialog, RadioGroup, RadioGroupItem, Alert, AlertDescription, type SkeletonColumn, type ConfirmDialogDetail } from "@/ui"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/components/card"
+} from "@/ui"
 import {
   Dialog,
   DialogContent,
@@ -21,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/ui/components/dialog"
+} from "@/ui"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +29,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/ui/components/alert-dialog"
+} from "@/ui"
 import {
   Table,
   TableBody,
@@ -39,26 +37,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/ui/components/table"
-import { Badge } from "@/ui/components/badge"
-import { Calendar } from "@/ui/components/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/ui/components/popover"
+} from "@/ui"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/ui/components/select"
-import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
-import { TableError } from "@/ui/feedback/table-error"
-import { TableEmptyState } from "@/ui/feedback/empty-state"
-import { ConfirmDialog, type ConfirmDialogDetail } from "@/ui/feedback/confirm-dialog"
+} from "@/ui"
 import { Key, Plus, Trash2, Copy, Check, Loader2, CalendarIcon } from "lucide-react"
-import { RadioGroup, RadioGroupItem } from "@/ui/components/radio-group"
-import { Alert, AlertDescription } from "@/ui/components/alert"
 import { useApiKeys, useCreateApiKey, useDeleteApiKey, useCurrentWorkspaceRole } from "@/features/account/hooks/use-api-keys"
-import { cn } from "@/core/utils"
+import { cn } from "@/core"
 
 const ROLE_OPTIONS: { value: APIKeyRole; label: string; description: string }[] = [
   { value: "admin", label: "Admin", description: "Administrative access (cannot delete workspace)" },

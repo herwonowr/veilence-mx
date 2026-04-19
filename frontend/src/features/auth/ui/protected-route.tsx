@@ -3,7 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/core"
-import { Skeleton } from "@/ui/components/skeleton"
+import { Skeleton } from "@/ui"
 
 const emptySubscribe = () => () => {}
 const getClientSnapshot = () => true

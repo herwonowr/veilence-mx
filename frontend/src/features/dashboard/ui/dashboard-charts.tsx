@@ -2,8 +2,7 @@
 
 import { useState } from "react"
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Label, Pie, PieChart, XAxis, YAxis } from "recharts"
-import { Card, CardContent, CardHeader, CardTitle } from "@/ui/components/card"
-import { EmptyState } from "@/ui/feedback/empty-state"
+import { Card, CardContent, CardHeader, CardTitle, EmptyState, Calendar, Popover, PopoverContent, PopoverTrigger, Button, buttonVariants } from "@/ui"
 import { BarChart3, PieChart as PieChartIcon, TrendingUp } from "lucide-react"
 import {
   type ChartConfig,
@@ -12,19 +11,16 @@ import {
   ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
-} from "@/ui/components/chart"
+} from "@/ui"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/ui/components/select"
-import { Calendar } from "@/ui/components/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/ui/components/popover"
-import { Button, buttonVariants } from "@/ui/components/button"
+} from "@/ui"
 import { RotateCcw, CalendarIcon } from "lucide-react"
-import { cn } from "@/core/utils"
+import { cn } from "@/core"
 import type { ChartData } from "@/domains/dashboard"
 
 const classificationConfig = {

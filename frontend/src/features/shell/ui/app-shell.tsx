@@ -1,11 +1,10 @@
 "use client"
 
 import { usePathname } from "next/navigation"
-import { SidebarInset, SidebarProvider } from "@/ui/components/sidebar"
-import { useAuth } from "@/core/providers/auth-provider"
+import { SidebarInset, SidebarProvider, CommandPalette } from "@/ui"
+import { useAuth } from "@/core"
 import { SiteHeader } from "@/features/shell/ui/site-header"
 import { AppSidebar } from "@/features/shell/ui/app-sidebar"
-import { CommandPalette } from "@/ui/layout/command-palette"
 
 const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password"]
 

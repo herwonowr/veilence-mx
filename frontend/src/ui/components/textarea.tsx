@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { cn } from "@/core/utils"
+import { cn } from "@/core"
 
 const Textarea = ({ className, ...props }: React.ComponentProps<"textarea">) => {
   return (

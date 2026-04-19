@@ -3,10 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useLocalStorage } from "@/core"
-import { Card, CardContent, CardHeader, CardTitle } from "@/ui/components/card"
-import { Badge } from "@/ui/components/badge"
-import { Button } from "@/ui/components/button"
+import { useLocalStorage, useAuth } from "@/core"
+import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Skeleton, TableSkeleton, TableError, Alert, AlertDescription, Input, Label, Switch, TableEmptyState, type SkeletonColumn } from "@/ui"
 import {
   Table,
   TableBody,
@@ -14,20 +12,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/ui/components/table"
+} from "@/ui"
 import type { Classification } from "@/domains/common"
-import { Skeleton } from "@/ui/components/skeleton"
-import { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton"
-import { TableError } from "@/ui/feedback/table-error"
 import { Package, Activity, AlertTriangle, Shield, Clock, CheckCircle, RefreshCw, Building2, Plus, BookOpen, CircleCheck, Circle } from "lucide-react"
-import { Alert, AlertDescription } from "@/ui/components/alert"
-import { Input } from "@/ui/components/input"
-import { Label } from "@/ui/components/label"
-import { Switch } from "@/ui/components/switch"
 import { DashboardCharts } from "@/features/dashboard/ui/dashboard-charts"
-import { TableEmptyState } from "@/ui/feedback/empty-state"
 import { formatEcosystem } from "@/domains/common"
-import { useAuth } from "@/core/providers/auth-provider"
 import { useDashboardStats, useRecentReleases, useChartData, useDashboardStalePackages, useDashboardSettings } from "@/features/dashboard/hooks/use-dashboard"
 
 const classificationVariant = (c?: Classification) => {

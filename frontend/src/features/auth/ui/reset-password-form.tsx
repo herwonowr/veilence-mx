@@ -5,18 +5,15 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { apiResetPassword } from "@/domains/auth"
 import { newPasswordSchema } from "@/domains/auth"
-import { Button } from "@/ui/components/button"
-import { Input } from "@/ui/components/input"
-import { Field, FieldLabel, FieldError } from "@/ui/components/field"
+import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/components/card"
+} from "@/ui"
 import { Shield, Loader2, ArrowLeft, AlertTriangle } from "lucide-react"
-import { Alert, AlertDescription } from "@/ui/components/alert"
 import { ZodError } from "zod"
 import { toast } from "sonner"
 

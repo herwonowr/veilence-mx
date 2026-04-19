@@ -3,21 +3,17 @@
 import { Suspense, useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { useAuth } from "@/core/providers/auth-provider"
+import { useAuth, sanitizeErrorMessage } from "@/core"
 import { loginSchema, apiSendVerificationEmailByEmail } from "@/domains/auth"
-import { sanitizeErrorMessage } from "@/core"
-import { Button } from "@/ui/components/button"
-import { Input } from "@/ui/components/input"
-import { Field, FieldLabel, FieldError } from "@/ui/components/field"
+import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/components/card"
+} from "@/ui"
 import { Shield, Loader2, Eye, EyeOff, MailCheck } from "lucide-react"
-import { Alert, AlertDescription } from "@/ui/components/alert"
 import { ZodError } from "zod"
 
 // SEC-S4-10: Login throttling constants

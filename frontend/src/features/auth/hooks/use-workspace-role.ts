@@ -10,4 +10,4 @@ export {
   getRoleLevel,
   workspaceRoleKeys,
   type WorkspaceRole,
-} from "@/core/hooks/use-workspace-role"
+} from "@/core"

@@ -4,19 +4,16 @@ import { useCallback, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Bell, CheckCheck } from "lucide-react"
-import { Button, buttonVariants } from "@/ui/components/button"
-import { Skeleton } from "@/ui/components/skeleton"
+import { Button, buttonVariants, Skeleton, Badge, ScrollArea } from "@/ui"
 import {
   Popover,
   PopoverContent,
   PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
-} from "@/ui/components/popover"
-import { Badge } from "@/ui/components/badge"
-import { cn } from "@/core/utils"
-import { ScrollArea } from "@/ui/components/scroll-area"
-import { useAuth } from "@/core/providers/auth-provider"
+} from "@/ui"
+import { cn } from "@/core"
+import { useAuth } from "@/core"
 import type { Notification } from "@/domains/notifications"
 import {
   useUnreadCount,

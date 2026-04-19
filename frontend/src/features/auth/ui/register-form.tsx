@@ -3,20 +3,17 @@
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { useAuth } from "@/core/providers/auth-provider"
+import { useAuth } from "@/core"
 import { registerSchema } from "@/domains/auth"
-import { Button } from "@/ui/components/button"
-import { Input } from "@/ui/components/input"
-import { Field, FieldLabel, FieldError } from "@/ui/components/field"
+import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/components/card"
+} from "@/ui"
 import { Shield, Loader2, Eye, EyeOff, MailCheck } from "lucide-react"
-import { Alert, AlertDescription } from "@/ui/components/alert"
 import { ZodError } from "zod"
 
 export const RegisterForm = () => {

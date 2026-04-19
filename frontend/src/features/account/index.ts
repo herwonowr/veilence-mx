@@ -11,7 +11,7 @@ export {
  * useCurrentWorkspaceRole has been moved to features/auth for shared access.
  * Re-export here for backward compatibility.
  */
-export { useCurrentWorkspaceRole } from "@/core/hooks/use-workspace-role"
+export { useCurrentWorkspaceRole } from "@/core"
 
 export {
   useUpdateProfile,
