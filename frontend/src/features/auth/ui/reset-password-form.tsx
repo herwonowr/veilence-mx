@@ -29,9 +29,10 @@ const ResetPasswordFormInner = () => {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [serverError, setServerError] = useState("")
+  const [tokenInvalid, setTokenInvalid] = useState(!token)
   const [loading, setLoading] = useState(false)
 
-  if (!token) {
+  if (tokenInvalid) {
     return (
       <div className="w-full max-w-sm px-4">
         <Card>
@@ -74,7 +75,7 @@ const ResetPasswordFormInner = () => {
     try {
       const data = newPasswordSchema.parse({ password, confirmPassword })
       setLoading(true)
-      await apiResetPassword(token, data.password)
+      await apiResetPassword(token!, data.password)
       toast.success("Password reset successfully. You can now sign in.")
       router.push("/login")
     } catch (err) {
@@ -88,11 +89,14 @@ const ResetPasswordFormInner = () => {
         }
         setErrors(fieldErrors)
       } else {
-        setServerError(
-          err instanceof Error
-            ? err.message
-            : "Failed to reset password. The link may have expired."
-        )
+        const message = err instanceof Error
+          ? err.message
+          : "Failed to reset password. The link may have expired."
+        if (/reset link|expired|invalid.*token/i.test(message)) {
+          setTokenInvalid(true)
+        } else {
+          setServerError(message)
+        }
       }
     } finally {
       setLoading(false)
