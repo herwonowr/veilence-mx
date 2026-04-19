@@ -242,6 +242,13 @@ export const handlers = [
     })
   }),
 
+  http.get(`${API_BASE}/api/workspaces/:id/members/me/role`, () => {
+    return HttpResponse.json({
+      data: { role: "owner" },
+      error: null,
+    })
+  }),
+
   http.get(`${API_BASE}/api/workspaces/:id/roles`, () => {
     return HttpResponse.json({
       data: [

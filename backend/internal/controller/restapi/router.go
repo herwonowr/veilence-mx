@@ -191,6 +191,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 					r.With(rbac.RequirePermission(rbacService, "workspace", "delete")).Delete("/", h.Workspace.DeleteWorkspace)
 
 					// Members
+					r.Get("/members/me/role", h.Workspace.GetCurrentMemberRole) // No extra permission — any workspace member can read their own role
 					r.With(rbac.RequirePermission(rbacService, "members", "read")).Get("/members", h.Workspace.ListMembers)
 					r.With(rbac.RequirePermission(rbacService, "members", "invite")).Post("/invitations", h.Workspace.InviteMember)
 					r.With(rbac.RequirePermission(rbacService, "members", "read")).Get("/invitations", h.Workspace.ListPendingInvitations)

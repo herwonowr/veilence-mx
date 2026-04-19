@@ -303,6 +303,18 @@ func (h *WorkspaceHandlers) RemoveMember(w http.ResponseWriter, r *http.Request)
 	respondJSON(w, http.StatusOK, nil, nil)
 }
 
+// GetCurrentMemberRole handles GET /api/workspaces/{workspaceId}/members/me/role — returns the
+// authenticated user's role in the current workspace. The role is already resolved by the
+// RequireWorkspace middleware and stored in the request context.
+func (h *WorkspaceHandlers) GetCurrentMemberRole(w http.ResponseWriter, r *http.Request) {
+	role := rbac.MemberRoleFromContext(r.Context())
+	if role == "" {
+		respondError(w, http.StatusForbidden, "workspace membership required")
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]string{"role": role}, nil)
+}
+
 // UpdateMemberRole handles PUT /api/workspaces/{workspaceId}/members/{userId}/role — changes a member's role.
 func (h *WorkspaceHandlers) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
