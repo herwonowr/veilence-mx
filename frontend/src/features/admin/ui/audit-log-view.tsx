@@ -39,7 +39,19 @@ import {
 import { useAuditLogs } from "@/features/admin/hooks/use-workspaces"
 import { useDebouncedValue } from "@/core/hooks/use-debounced-value"
 
-const formatDate = (d: Date): string => d.toISOString().split("T")[0]
+const formatStartOfDay = (d: Date): string => {
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, "0")
+  const dd = String(d.getDate()).padStart(2, "0")
+  return `${yyyy}-${mm}-${dd}T00:00:00Z`
+}
+
+const formatEndOfDay = (d: Date): string => {
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, "0")
+  const dd = String(d.getDate()).padStart(2, "0")
+  return `${yyyy}-${mm}-${dd}T23:59:59Z`
+}
 
 const parseValidDate = (value: string | null): Date | undefined => {
   if (!value) return undefined
@@ -78,8 +90,8 @@ export const AuditLogView = () => {
     useMemo(() => ({
       action: debouncedAction,
       resource: debouncedResource,
-      from: fromDate ? formatDate(fromDate) : "",
-      to: toDate ? formatDate(toDate) : "",
+      from: fromDate ? formatStartOfDay(fromDate) : "",
+      to: toDate ? formatEndOfDay(toDate) : "",
     }), [debouncedAction, debouncedResource, fromDate, toDate]),
   )
 
@@ -123,8 +135,8 @@ export const AuditLogView = () => {
   const { data: logsRes, isLoading } = useAuditLogs(validWorkspaceId, {
     action: debouncedAction || undefined,
     resource: debouncedResource || undefined,
-    from: fromDate ? formatDate(fromDate) : undefined,
-    to: toDate ? formatDate(toDate) : undefined,
+    from_date: fromDate ? formatStartOfDay(fromDate) : undefined,
+    to_date: toDate ? formatEndOfDay(toDate) : undefined,
     page,
     limit,
   })
