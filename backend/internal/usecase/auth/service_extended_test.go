@@ -276,10 +276,10 @@ func TestValidateAPIKey_ExpiredKey(t *testing.T) {
 
 	// Create key with expiry in the past
 	past := time.Now().Add(-24 * time.Hour)
-	_, rawKey, err := svc.CreateAPIKey(user.ID, "expired-key", entity.APIKeyScopeRead, &past)
+	_, rawKey, err := svc.CreateAPIKey(user.ID, 1, "expired-key", entity.APIKeyRoleViewer, "owner", &past)
 	require.NoError(t, err)
 
-	_, _, _, err = svc.ValidateAPIKey(rawKey)
+	_, _, _, _, err = svc.ValidateAPIKey(rawKey)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "API key expired")
 }
@@ -291,13 +291,13 @@ func TestValidateAPIKey_DeactivatedUser(t *testing.T) {
 	user, err := svc.Register("deact-api@example.com", "Password123", "Deact", "API")
 	require.NoError(t, err)
 
-	_, rawKey, err := svc.CreateAPIKey(user.ID, "deact-key", entity.APIKeyScopeAdmin, nil)
+	_, rawKey, err := svc.CreateAPIKey(user.ID, 1, "deact-key", entity.APIKeyRoleAdmin, "owner", nil)
 	require.NoError(t, err)
 
 	// Deactivate the user
 	db.Model(&persistent.User{}).Where("id = ?", user.ID).Update("is_active", false)
 
-	_, _, _, err = svc.ValidateAPIKey(rawKey)
+	_, _, _, _, err = svc.ValidateAPIKey(rawKey)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "account is deactivated")
 }
@@ -306,7 +306,7 @@ func TestValidateAPIKey_ShortKey(t *testing.T) {
 	db := setupAuthTestDB(t)
 	svc := newAuthService(db)
 
-	_, _, _, err := svc.ValidateAPIKey("short")
+	_, _, _, _, err := svc.ValidateAPIKey("short")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid API key format")
 }
@@ -318,12 +318,12 @@ func TestValidateAPIKey_UpdatesLastUsedAt(t *testing.T) {
 	user, err := svc.Register("lastused@example.com", "Password123", "Last", "Used")
 	require.NoError(t, err)
 
-	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, "track-key", entity.APIKeyScopeRead, nil)
+	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, 1, "track-key", entity.APIKeyRoleViewer, "owner", nil)
 	require.NoError(t, err)
 	assert.Nil(t, apiKey.LastUsedAt)
 
 	// Validate the key (should update last_used_at)
-	_, _, _, err = svc.ValidateAPIKey(rawKey)
+	_, _, _, _, err = svc.ValidateAPIKey(rawKey)
 	require.NoError(t, err)
 
 	// Verify last_used_at was set

@@ -7,6 +7,8 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 )
 
 // RequireWorkspace returns a Chi middleware that extracts the workspace ID from
@@ -25,6 +27,37 @@ func RequireWorkspace(svc *Service) func(http.Handler) http.Handler {
 				return
 			}
 
+			// For API key auth, the workspace and role come from the key itself
+			if auth.AuthMethodFromContext(r.Context()) == auth.AuthMethodAPIKey {
+				apiKeyWsID := auth.APIKeyWorkspaceIDFromContext(r.Context())
+				apiKeyRole := auth.APIKeyRoleFromContext(r.Context())
+
+				if apiKeyWsID == 0 {
+					http.Error(w, `{"data":null,"error":"API key is not bound to a workspace"}`, http.StatusForbidden)
+					return
+				}
+
+				// If a workspace ID was provided explicitly, it must match the API key's workspace
+				wsIDStr := cmp.Or(
+					chi.URLParam(r, "workspaceId"),
+					r.Header.Get("X-Workspace-ID"),
+					r.URL.Query().Get("workspace_id"),
+				)
+				if wsIDStr != "" {
+					requestedWsID, err := strconv.ParseUint(wsIDStr, 10, 64)
+					if err == nil && uint(requestedWsID) != apiKeyWsID {
+						http.Error(w, `{"data":null,"error":"API key is not authorized for this workspace"}`, http.StatusForbidden)
+						return
+					}
+				}
+
+				ctx := WithWorkspaceID(r.Context(), apiKeyWsID)
+				ctx = WithMemberRole(ctx, string(apiKeyRole))
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+
+			// JWT auth: workspace ID from URL, header, or query param
 			wsIDStr := cmp.Or(
 				chi.URLParam(r, "workspaceId"),
 				r.Header.Get("X-Workspace-ID"),
@@ -58,6 +91,10 @@ func RequireWorkspace(svc *Service) func(http.Handler) http.Handler {
 // RequirePermission returns a Chi middleware that checks if the current user
 // has the specified permission (resource:action) in the current workspace.
 //
+// For JWT auth: delegates to the RBAC service to check the user's workspace role permissions.
+// For API key auth: checks if the API key's assigned role has the required permission
+// by looking up the role's permissions in the database.
+//
 // This middleware must be used after RequireWorkspace, which sets the workspace ID and
 // user context. Returns 403 if the user lacks the required permission.
 func RequirePermission(svc *Service, resource, action string) func(http.Handler) http.Handler {
@@ -68,6 +105,25 @@ func RequirePermission(svc *Service, resource, action string) func(http.Handler)
 
 			if userID == 0 || workspaceID == 0 {
 				http.Error(w, `{"data":null,"error":"authentication and workspace context required"}`, http.StatusUnauthorized)
+				return
+			}
+
+			// For API key auth, check permission against the key's role rather
+			// than the user's actual workspace membership role.
+			if auth.AuthMethodFromContext(r.Context()) == auth.AuthMethodAPIKey {
+				apiKeyRole := string(auth.APIKeyRoleFromContext(r.Context()))
+				if err := svc.CheckRolePermission(workspaceID, apiKeyRole, resource, action); err != nil {
+					slog.Debug("API key permission denied",
+						"user_id", userID,
+						"workspace_id", workspaceID,
+						"api_key_role", apiKeyRole,
+						"resource", resource,
+						"action", action,
+					)
+					http.Error(w, `{"data":null,"error":"insufficient permissions"}`, http.StatusForbidden)
+					return
+				}
+				next.ServeHTTP(w, r)
 				return
 			}
 

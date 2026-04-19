@@ -199,7 +199,7 @@ func TestCreateAndValidateAPIKey(t *testing.T) {
 	user, err := svc.Register("grace@example.com", "Password123", "Grace", "Blue")
 	require.NoError(t, err)
 
-	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, "test-key", entity.APIKeyScopeRead, nil)
+	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, 1, "test-key", entity.APIKeyRoleViewer, "owner", nil)
 	require.NoError(t, err)
 	assert.NotZero(t, apiKey.ID)
 	assert.Equal(t, "test-key", apiKey.Name)
@@ -207,7 +207,7 @@ func TestCreateAndValidateAPIKey(t *testing.T) {
 	assert.True(t, apiKey.IsActive)
 
 	// Validate the raw key
-	userID, email, _, err := svc.ValidateAPIKey(rawKey)
+	userID, email, _, _, err := svc.ValidateAPIKey(rawKey)
 	require.NoError(t, err)
 	assert.Equal(t, user.ID, userID)
 	assert.Equal(t, "grace@example.com", email)
@@ -217,7 +217,7 @@ func TestValidateAPIKey_InvalidKey(t *testing.T) {
 	db := setupAuthTestDB(t)
 	svc := newAuthService(db)
 
-	_, _, _, err := svc.ValidateAPIKey("vmx_invalid_key_that_does_not_exist")
+	_, _, _, _, err := svc.ValidateAPIKey("vmx_invalid_key_that_does_not_exist")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid API key")
 }
@@ -229,7 +229,7 @@ func TestRevokeAPIKey(t *testing.T) {
 	user, err := svc.Register("henry@example.com", "Password123", "Henry", "Red")
 	require.NoError(t, err)
 
-	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, "to-revoke", entity.APIKeyScopeRead, nil)
+	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, 1, "to-revoke", entity.APIKeyRoleViewer, "owner", nil)
 	require.NoError(t, err)
 
 	// Revoke
@@ -237,7 +237,7 @@ func TestRevokeAPIKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// Should no longer validate
-	_, _, _, err = svc.ValidateAPIKey(rawKey)
+	_, _, _, _, err = svc.ValidateAPIKey(rawKey)
 	require.Error(t, err)
 }
 
@@ -260,9 +260,9 @@ func TestListAPIKeys(t *testing.T) {
 	user, err := svc.Register("jack@example.com", "Password123", "Jack", "Orange")
 	require.NoError(t, err)
 
-	_, _, err = svc.CreateAPIKey(user.ID, "key-1", entity.APIKeyScopeRead, nil)
+	_, _, err = svc.CreateAPIKey(user.ID, 1, "key-1", entity.APIKeyRoleViewer, "owner", nil)
 	require.NoError(t, err)
-	_, _, err = svc.CreateAPIKey(user.ID, "key-2", entity.APIKeyScopeWrite, nil)
+	_, _, err = svc.CreateAPIKey(user.ID, 1, "key-2", entity.APIKeyRoleMember, "owner", nil)
 	require.NoError(t, err)
 
 	keys, err := svc.ListAPIKeys(user.ID)
@@ -278,7 +278,7 @@ func TestCreateAPIKey_WithExpiry(t *testing.T) {
 	require.NoError(t, err)
 
 	future := time.Now().Add(24 * time.Hour)
-	apiKey, _, err := svc.CreateAPIKey(user.ID, "expiring-key", entity.APIKeyScopeRead, &future)
+	apiKey, _, err := svc.CreateAPIKey(user.ID, 1, "expiring-key", entity.APIKeyRoleViewer, "owner", &future)
 	require.NoError(t, err)
 	assert.NotNil(t, apiKey.ExpiresAt)
 }
@@ -330,14 +330,14 @@ func BenchmarkValidateAPIKey(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	_, rawKey, err := svc.CreateAPIKey(user.ID, "bench-key", entity.APIKeyScopeRead, nil)
+	_, rawKey, err := svc.CreateAPIKey(user.ID, 1, "bench-key", entity.APIKeyRoleViewer, "owner", nil)
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		uid, email, _, err := svc.ValidateAPIKey(rawKey)
+		uid, email, _, _, err := svc.ValidateAPIKey(rawKey)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -402,80 +402,47 @@ func TestLogout(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- API Key Scoping (S4-8) ---
+// --- API Key Role Validation ---
 
-func TestAPIKeyScope_Validation(t *testing.T) {
+func TestAPIKeyRole_Validation(t *testing.T) {
 	tests := []struct {
 		name    string
-		scope   string
+		role    string
 		isValid bool
 	}{
-		{"read scope", "read", true},
-		{"write scope", "write", true},
-		{"admin scope", "admin", true},
-		{"empty scope", "", false},
-		{"invalid scope", "superadmin", false},
-		{"uppercase READ", "READ", false},
-		{"mixed case", "Read", false},
+		{"viewer role", "viewer", true},
+		{"member role", "member", true},
+		{"admin role", "admin", true},
+		{"empty role", "", false},
+		{"owner role not allowed", "owner", false},
+		{"invalid role", "superadmin", false},
+		{"uppercase VIEWER", "VIEWER", false},
+		{"mixed case", "Viewer", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.isValid, entity.IsValidAPIKeyScope(tt.scope))
+			assert.Equal(t, tt.isValid, entity.IsValidAPIKeyRole(tt.role))
 		})
 	}
 }
 
-func TestAPIKeyScope_ScopeAllows(t *testing.T) {
+func TestCreateAPIKey_WithRole(t *testing.T) {
 	tests := []struct {
-		name    string
-		scope   entity.APIKeyScope
-		method  string
-		allowed bool
+		name        string
+		role        entity.APIKeyRole
+		userRole    string
+		expectRole  entity.APIKeyRole
+		expectError bool
 	}{
-		// read scope
-		{"read allows GET", entity.APIKeyScopeRead, "GET", true},
-		{"read allows HEAD", entity.APIKeyScopeRead, "HEAD", true},
-		{"read allows OPTIONS", entity.APIKeyScopeRead, "OPTIONS", true},
-		{"read denies POST", entity.APIKeyScopeRead, "POST", false},
-		{"read denies PUT", entity.APIKeyScopeRead, "PUT", false},
-		{"read denies PATCH", entity.APIKeyScopeRead, "PATCH", false},
-		{"read denies DELETE", entity.APIKeyScopeRead, "DELETE", false},
-		// write scope
-		{"write allows GET", entity.APIKeyScopeWrite, "GET", true},
-		{"write allows POST", entity.APIKeyScopeWrite, "POST", true},
-		{"write allows PUT", entity.APIKeyScopeWrite, "PUT", true},
-		{"write allows PATCH", entity.APIKeyScopeWrite, "PATCH", true},
-		{"write allows HEAD", entity.APIKeyScopeWrite, "HEAD", true},
-		{"write allows OPTIONS", entity.APIKeyScopeWrite, "OPTIONS", true},
-		{"write denies DELETE", entity.APIKeyScopeWrite, "DELETE", false},
-		// admin scope
-		{"admin allows GET", entity.APIKeyScopeAdmin, "GET", true},
-		{"admin allows POST", entity.APIKeyScopeAdmin, "POST", true},
-		{"admin allows DELETE", entity.APIKeyScopeAdmin, "DELETE", true},
-		// invalid scope
-		{"invalid scope denies GET", entity.APIKeyScope("invalid"), "GET", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.allowed, tt.scope.ScopeAllows(tt.method))
-		})
-	}
-}
-
-func TestCreateAPIKey_WithScope(t *testing.T) {
-	tests := []struct {
-		name          string
-		scope         entity.APIKeyScope
-		expectScope   entity.APIKeyScope
-		expectError   bool
-	}{
-		{"read scope", entity.APIKeyScopeRead, entity.APIKeyScopeRead, false},
-		{"write scope", entity.APIKeyScopeWrite, entity.APIKeyScopeWrite, false},
-		{"admin scope", entity.APIKeyScopeAdmin, entity.APIKeyScopeAdmin, false},
-		{"empty defaults to read", "", entity.APIKeyScopeRead, false},
-		{"invalid scope", entity.APIKeyScope("superadmin"), "", true},
+		{"viewer role", entity.APIKeyRoleViewer, "owner", entity.APIKeyRoleViewer, false},
+		{"member role", entity.APIKeyRoleMember, "owner", entity.APIKeyRoleMember, false},
+		{"admin role", entity.APIKeyRoleAdmin, "owner", entity.APIKeyRoleAdmin, false},
+		{"empty defaults to viewer", "", "owner", entity.APIKeyRoleViewer, false},
+		{"invalid role", entity.APIKeyRole("superadmin"), "owner", "", true},
+		{"member cannot create admin key", entity.APIKeyRoleAdmin, "member", "", true},
+		{"viewer cannot create member key", entity.APIKeyRoleMember, "viewer", "", true},
+		{"admin can create member key", entity.APIKeyRoleMember, "admin", entity.APIKeyRoleMember, false},
 	}
 
 	for _, tt := range tests {
@@ -483,35 +450,36 @@ func TestCreateAPIKey_WithScope(t *testing.T) {
 			db := setupAuthTestDB(t)
 			svc := newAuthService(db)
 
-			user, err := svc.Register("scope-test@example.com", "Password123", "Scope", "Test")
+			user, err := svc.Register("role-test@example.com", "Password123", "Role", "Test")
 			require.NoError(t, err)
 
-			apiKey, _, err := svc.CreateAPIKey(user.ID, "test-key", tt.scope, nil)
+			apiKey, _, err := svc.CreateAPIKey(user.ID, 1, "test-key", tt.role, tt.userRole, nil)
 			if tt.expectError {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tt.expectScope, apiKey.Scope)
+			assert.Equal(t, tt.expectRole, apiKey.Role)
 		})
 	}
 }
 
-func TestValidateAPIKey_ReturnsScope(t *testing.T) {
+func TestValidateAPIKey_ReturnsRole(t *testing.T) {
 	db := setupAuthTestDB(t)
 	svc := newAuthService(db)
 
-	user, err := svc.Register("scope-val@example.com", "Password123", "Scope", "Val")
+	user, err := svc.Register("role-val@example.com", "Password123", "Role", "Val")
 	require.NoError(t, err)
 
-	_, rawKey, err := svc.CreateAPIKey(user.ID, "write-key", entity.APIKeyScopeWrite, nil)
+	_, rawKey, err := svc.CreateAPIKey(user.ID, 1, "member-key", entity.APIKeyRoleMember, "owner", nil)
 	require.NoError(t, err)
 
-	userID, email, scope, err := svc.ValidateAPIKey(rawKey)
+	userID, email, role, wsID, err := svc.ValidateAPIKey(rawKey)
 	require.NoError(t, err)
 	assert.Equal(t, user.ID, userID)
-	assert.Equal(t, "scope-val@example.com", email)
-	assert.Equal(t, entity.APIKeyScopeWrite, scope)
+	assert.Equal(t, "role-val@example.com", email)
+	assert.Equal(t, entity.APIKeyRoleMember, role)
+	assert.Equal(t, uint(1), wsID)
 }
 
 // --- Session Management (S4-9) ---

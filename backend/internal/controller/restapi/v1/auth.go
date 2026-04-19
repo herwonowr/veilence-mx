@@ -16,6 +16,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
 
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 )
 
@@ -46,7 +47,7 @@ type logoutRequest struct {
 // createAPIKeyRequest is the request body for creating an API key.
 type createAPIKeyRequest struct {
 	Name      string `json:"name"`
-	Scope     string `json:"scope,omitempty"`
+	Role      string `json:"role,omitempty"`
 	ExpiresAt string `json:"expiresAt,omitempty"`
 }
 
@@ -204,10 +205,24 @@ func (h *AuthHandlers) GetMe(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateAPIKey creates a new API key for the authenticated user.
+// Requires workspace context (X-Workspace-ID header or workspace_id query param).
+// The API key's role cannot exceed the user's own workspace role.
 func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == 0 {
 		respondError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondAppError(w, Validation("workspace context is required to create an API key"))
+		return
+	}
+
+	userRole := rbac.MemberRoleFromContext(r.Context())
+	if userRole == "" {
+		respondError(w, http.StatusForbidden, "workspace membership required")
 		return
 	}
 
@@ -227,13 +242,13 @@ func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate scope (default to "read" if not specified)
-	scope := entity.APIKeyScope(strings.TrimSpace(req.Scope))
-	if scope == "" {
-		scope = entity.APIKeyScopeRead
+	// Validate role (default to "viewer" if not specified)
+	role := entity.APIKeyRole(strings.TrimSpace(req.Role))
+	if role == "" {
+		role = entity.APIKeyRoleViewer
 	}
-	if !entity.IsValidAPIKeyScope(string(scope)) {
-		respondAppError(w, Validation("scope must be one of: read, write, admin"))
+	if !entity.IsValidAPIKeyRole(string(role)) {
+		respondAppError(w, Validation("role must be one of: viewer, member, admin"))
 		return
 	}
 
@@ -251,13 +266,17 @@ func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		expiresAt = &t
 	}
 
-	apiKey, rawKey, err := h.Auth.CreateAPIKey(userID, req.Name, scope, expiresAt)
+	apiKey, rawKey, err := h.Auth.CreateAPIKey(userID, workspaceID, req.Name, role, userRole, expiresAt)
 	if err != nil {
+		if errors.Is(err, auth.ErrRoleExceedsUserRole) {
+			respondError(w, http.StatusForbidden, "cannot create API key with role higher than your workspace role")
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "failed to create API key")
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "create", "api_key", apiKey.ID, fmt.Sprintf("created API key %q with scope %q", req.Name, scope))
+	h.Audit.LogAction(r.Context(), "create", "api_key", apiKey.ID, fmt.Sprintf("created API key %q with role %q", req.Name, role))
 
 	respondJSON(w, http.StatusCreated, response.APIKeyCreatedResponse{
 		APIKey: response.APIKeyFromEntity(apiKey),

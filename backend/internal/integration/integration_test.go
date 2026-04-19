@@ -529,10 +529,30 @@ func TestIntegration_APIKeyFlow(t *testing.T) {
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
 	accessToken := result["data"].(map[string]any)["accessToken"].(string)
 
-	// Create API key
-	keyBody := map[string]string{"name": "test-key", "scope": "read"}
-	resp, result = ts.jsonRequestWithCSRF(t, "POST", "/api/auth/api-keys", keyBody, accessToken)
-	assert.Equal(t, http.StatusCreated, resp.StatusCode)
+	// Create a workspace (required for API key creation)
+	wsBody := map[string]string{"name": "Test Workspace", "slug": "test-ws-apikey"}
+	resp, result = ts.jsonRequestWithCSRF(t, "POST", "/api/workspaces", wsBody, accessToken)
+	require.Equal(t, http.StatusCreated, resp.StatusCode)
+	wsID := result["data"].(map[string]any)["id"].(float64)
+
+	// Create API key (with workspace context via X-Workspace-ID header)
+	keyBody := map[string]string{"name": "test-key", "role": "viewer"}
+	csrfToken, cookies := ts.getCSRFToken(t)
+	body, _ := json.Marshal(keyBody)
+	req, err := http.NewRequest("POST", ts.server.URL+"/api/auth/api-keys", bytes.NewReader(body))
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Workspace-ID", fmt.Sprintf("%.0f", wsID))
+	req.Header.Set("X-CSRF-Token", csrfToken)
+	req.Header.Set("Origin", "http://localhost:3000")
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	apiResp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	result = parseResponse(t, apiResp)
+	assert.Equal(t, http.StatusCreated, apiResp.StatusCode)
 	keyData := result["data"].(map[string]any)
 	rawKey := keyData["key"].(string)
 	assert.NotEmpty(t, rawKey)
@@ -548,8 +568,8 @@ func TestIntegration_APIKeyFlow(t *testing.T) {
 
 	// Access a protected endpoint using the API key (instead of Bearer token)
 	// The auth middleware should accept the X-API-Key header
-	csrfToken, cookies := ts.getCSRFToken(t)
-	req, err := http.NewRequest("GET", ts.server.URL+"/api/auth/me", nil)
+	csrfToken, cookies = ts.getCSRFToken(t)
+	req, err = http.NewRequest("GET", ts.server.URL+"/api/auth/me", nil)
 	require.NoError(t, err)
 	req.Header.Set("X-API-Key", rawKey)
 	req.Header.Set("X-CSRF-Token", csrfToken)
@@ -557,7 +577,7 @@ func TestIntegration_APIKeyFlow(t *testing.T) {
 	for _, c := range cookies {
 		req.AddCookie(c)
 	}
-	apiResp, err := http.DefaultClient.Do(req)
+	apiResp, err = http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	apiResult := parseResponse(t, apiResp)
 	assert.Equal(t, http.StatusOK, apiResp.StatusCode)

@@ -24,7 +24,8 @@ var (
 	ErrResetTokenInvalid         = errors.New("invalid or expired reset token")
 	ErrResetTokenUsed            = errors.New("reset token already used")
 	ErrVerificationInvalid       = errors.New("invalid or expired verification token")
-	ErrInsufficientScope         = errors.New("API key scope insufficient for this operation")
+	ErrInsufficientRole          = errors.New("API key role insufficient for this operation")
+	ErrRoleExceedsUserRole       = errors.New("cannot create API key with role higher than your workspace role")
 	ErrSessionNotFound           = errors.New("session not found")
 	ErrEmailVerificationRequired = errors.New("email_verification_required")
 )
@@ -363,13 +364,13 @@ func (s *Service) GetUserByEmail(email string) (*entity.User, error) {
 	return user, nil
 }
 
-// ValidateAPIKey validates an API key string and returns the associated user ID, email, and scope.
+// ValidateAPIKey validates an API key string and returns the associated user ID, email, role, and workspace ID.
 // It also updates the last_used_at timestamp for the key.
-func (s *Service) ValidateAPIKey(rawKey string) (uint, string, entity.APIKeyScope, error) {
+func (s *Service) ValidateAPIKey(rawKey string) (uint, string, entity.APIKeyRole, uint, error) {
 	ctx := context.Background()
 
 	if len(rawKey) < 10 {
-		return 0, "", "", errors.New("invalid API key format")
+		return 0, "", "", 0, errors.New("invalid API key format")
 	}
 
 	// Prefix-based O(1) lookup: the DB has a partial index on key_prefix
@@ -378,14 +379,14 @@ func (s *Service) ValidateAPIKey(rawKey string) (uint, string, entity.APIKeyScop
 	prefix := rawKey[:10]
 	keys, err := s.apiKeys.FindActiveByPrefix(ctx, prefix)
 	if err != nil {
-		return 0, "", "", fmt.Errorf("finding api keys: %w", err)
+		return 0, "", "", 0, fmt.Errorf("finding api keys: %w", err)
 	}
 
 	for _, key := range keys {
 		if checkAPIKeyHash(rawKey, key.KeyHash) {
 			// Check expiration
 			if key.ExpiresAt != nil && time.Now().After(*key.ExpiresAt) {
-				return 0, "", "", errors.New("API key expired")
+				return 0, "", "", 0, errors.New("API key expired")
 			}
 
 			// Update last used
@@ -396,18 +397,18 @@ func (s *Service) ValidateAPIKey(rawKey string) (uint, string, entity.APIKeyScop
 			// Get user email
 			user, err := s.users.FindByID(ctx, key.UserID)
 			if err != nil {
-				return 0, "", "", fmt.Errorf("finding API key user: %w", err)
+				return 0, "", "", 0, fmt.Errorf("finding API key user: %w", err)
 			}
 
 			if !user.IsActive {
-				return 0, "", "", errors.New("account is deactivated")
+				return 0, "", "", 0, errors.New("account is deactivated")
 			}
 
-			return key.UserID, user.Email, key.Scope, nil
+			return key.UserID, user.Email, key.Role, key.WorkspaceID, nil
 		}
 	}
 
-	return 0, "", "", errors.New("invalid API key")
+	return 0, "", "", 0, errors.New("invalid API key")
 }
 
 // generateTokenPair creates a new access/refresh token pair for the given user.
@@ -474,18 +475,25 @@ func checkAPIKeyHash(rawKey, hash string) bool {
 	return err == nil
 }
 
-// CreateAPIKey generates a new API key for the given user with the specified scope.
+// CreateAPIKey generates a new API key for the given user with the specified role within a workspace.
+// The userRole parameter is the requesting user's current role in the workspace.
+// The requested API key role must not exceed the user's own workspace role.
 // The raw key is returned only once and cannot be retrieved again.
-func (s *Service) CreateAPIKey(userID uint, name string, scope entity.APIKeyScope, expiresAt *time.Time) (*entity.APIKey, string, error) {
+func (s *Service) CreateAPIKey(userID uint, workspaceID uint, name string, role entity.APIKeyRole, userRole string, expiresAt *time.Time) (*entity.APIKey, string, error) {
 	ctx := context.Background()
 
-	// Default to read scope if not specified
-	if scope == "" {
-		scope = entity.APIKeyScopeRead
+	// Default to viewer role if not specified
+	if role == "" {
+		role = entity.APIKeyRoleViewer
 	}
 
-	if !entity.IsValidAPIKeyScope(string(scope)) {
-		return nil, "", fmt.Errorf("invalid API key scope: %s", scope)
+	if !entity.IsValidAPIKeyRole(string(role)) {
+		return nil, "", fmt.Errorf("invalid API key role: %s", role)
+	}
+
+	// Enforce max role: user cannot create an API key with a role higher than their own
+	if entity.RoleLevel(string(role)) > entity.RoleLevel(userRole) {
+		return nil, "", ErrRoleExceedsUserRole
 	}
 
 	rawKey, err := generateAPIKeyRaw()
@@ -494,20 +502,21 @@ func (s *Service) CreateAPIKey(userID uint, name string, scope entity.APIKeyScop
 	}
 
 	apiKey := &entity.APIKey{
-		UserID:    userID,
-		Name:      name,
-		KeyHash:   hashAPIKey(rawKey),
-		KeyPrefix: rawKey[:10],
-		Scope:     scope,
-		IsActive:  true,
-		ExpiresAt: expiresAt,
+		UserID:      userID,
+		WorkspaceID: workspaceID,
+		Name:        name,
+		KeyHash:     hashAPIKey(rawKey),
+		KeyPrefix:   rawKey[:10],
+		Role:        role,
+		IsActive:    true,
+		ExpiresAt:   expiresAt,
 	}
 
 	if err := s.apiKeys.Create(ctx, apiKey); err != nil {
 		return nil, "", fmt.Errorf("creating API key: %w", err)
 	}
 
-	slog.Info("API key created", "user_id", userID, "key_name", name, "key_id", apiKey.ID, "scope", scope)
+	slog.Info("API key created", "user_id", userID, "workspace_id", workspaceID, "key_name", name, "key_id", apiKey.ID, "role", role)
 	return apiKey, rawKey, nil
 }
 

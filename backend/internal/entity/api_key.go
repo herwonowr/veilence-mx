@@ -2,24 +2,26 @@ package entity
 
 import "time"
 
-// APIKeyScope defines the permission level for an API key.
-type APIKeyScope string
+// APIKeyRole defines the RBAC role assigned to an API key.
+// Uses the same role constants as workspace roles (owner, admin, member, viewer).
+type APIKeyRole string
 
 const (
-	// APIKeyScopeRead allows read-only access (GET requests).
-	APIKeyScopeRead APIKeyScope = "read"
-	// APIKeyScopeWrite allows read and write access (GET, POST, PUT, PATCH requests).
-	APIKeyScopeWrite APIKeyScope = "write"
-	// APIKeyScopeAdmin allows full access including admin-level operations.
-	APIKeyScopeAdmin APIKeyScope = "admin"
+	// APIKeyRoleViewer allows read-only access.
+	APIKeyRoleViewer APIKeyRole = "viewer"
+	// APIKeyRoleMember allows standard read/write access.
+	APIKeyRoleMember APIKeyRole = "member"
+	// APIKeyRoleAdmin allows administrative access.
+	APIKeyRoleAdmin APIKeyRole = "admin"
 )
 
-// ValidAPIKeyScopes is the set of valid API key scopes.
-var ValidAPIKeyScopes = []APIKeyScope{APIKeyScopeRead, APIKeyScopeWrite, APIKeyScopeAdmin}
+// ValidAPIKeyRoles is the set of valid API key roles.
+// Note: "owner" is intentionally excluded — API keys cannot have owner-level access.
+var ValidAPIKeyRoles = []APIKeyRole{APIKeyRoleViewer, APIKeyRoleMember, APIKeyRoleAdmin}
 
-// IsValidAPIKeyScope returns true if the given scope string is a valid API key scope.
-func IsValidAPIKeyScope(s string) bool {
-	for _, v := range ValidAPIKeyScopes {
+// IsValidAPIKeyRole returns true if the given role string is a valid API key role.
+func IsValidAPIKeyRole(s string) bool {
+	for _, v := range ValidAPIKeyRoles {
 		if string(v) == s {
 			return true
 		}
@@ -27,33 +29,32 @@ func IsValidAPIKeyScope(s string) bool {
 	return false
 }
 
-// ScopeAllows returns true if the scope grants access for the given HTTP method.
-// read: GET, HEAD, OPTIONS
-// write: read + POST, PUT, PATCH (but not DELETE on critical resources)
-// admin: all methods
-func (s APIKeyScope) ScopeAllows(method string) bool {
-	switch s {
-	case APIKeyScopeAdmin:
-		return true
-	case APIKeyScopeWrite:
-		return method != "DELETE"
-	case APIKeyScopeRead:
-		return method == "GET" || method == "HEAD" || method == "OPTIONS"
-	default:
-		return false
-	}
+// RoleHierarchy maps role names to numeric levels for comparison.
+// Higher number = more privileged.
+var RoleHierarchy = map[string]int{
+	"viewer": 1,
+	"member": 2,
+	"admin":  3,
+	"owner":  4,
+}
+
+// RoleLevel returns the numeric privilege level for a role name.
+// Returns 0 for unknown roles.
+func RoleLevel(role string) int {
+	return RoleHierarchy[role]
 }
 
 // APIKey represents a long-lived API key for programmatic access.
 type APIKey struct {
-	ID             uint
-	UserID         uint
-	Name           string
-	KeyHash        string
-	KeyPrefix      string
-	Scope          APIKeyScope
-	LastUsedAt     *time.Time
-	ExpiresAt      *time.Time
-	IsActive       bool
-	CreatedAt      time.Time
+	ID          uint
+	UserID      uint
+	WorkspaceID uint
+	Name        string
+	KeyHash     string
+	KeyPrefix   string
+	Role        APIKeyRole
+	LastUsedAt  *time.Time
+	ExpiresAt   *time.Time
+	IsActive    bool
+	CreatedAt   time.Time
 }

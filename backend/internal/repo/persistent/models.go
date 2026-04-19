@@ -253,17 +253,18 @@ func (RefreshToken) TableName() string { return "refresh_tokens" }
 
 // APIKey is the GORM model for API keys.
 type APIKey struct {
-	ID         uint           `gorm:"primarykey" json:"id"`
-	UserID     uint           `gorm:"not null;index" json:"userId"`
-	Name       string         `gorm:"not null;type:varchar(100)" json:"name"`
-	KeyHash    string         `gorm:"uniqueIndex;not null;type:varchar(255)" json:"-"`
-	KeyPrefix  string         `gorm:"not null;type:varchar(10)" json:"keyPrefix"`
-	Scope      string         `gorm:"not null;type:varchar(20);default:'read'" json:"scope"`
-	LastUsedAt *time.Time     `json:"lastUsedAt,omitempty"`
-	ExpiresAt  *time.Time     `json:"expiresAt,omitempty"`
-	IsActive   bool           `gorm:"not null;default:true" json:"isActive"`
-	CreatedAt  time.Time      `json:"createdAt"`
-	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+	ID          uint           `gorm:"primarykey" json:"id"`
+	UserID      uint           `gorm:"not null;index" json:"userId"`
+	WorkspaceID uint           `gorm:"not null;index;default:0" json:"workspaceId"`
+	Name        string         `gorm:"not null;type:varchar(100)" json:"name"`
+	KeyHash     string         `gorm:"uniqueIndex;not null;type:varchar(255)" json:"-"`
+	KeyPrefix   string         `gorm:"not null;type:varchar(10)" json:"keyPrefix"`
+	Role        string         `gorm:"not null;type:varchar(20);default:'viewer'" json:"role"`
+	LastUsedAt  *time.Time     `json:"lastUsedAt,omitempty"`
+	ExpiresAt   *time.Time     `json:"expiresAt,omitempty"`
+	IsActive    bool           `gorm:"not null;default:true" json:"isActive"`
+	CreatedAt   time.Time      `json:"createdAt"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (APIKey) TableName() string { return "api_keys" }

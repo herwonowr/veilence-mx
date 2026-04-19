@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import type { APIKeyScope } from "@/domains/account"
+import type { APIKeyRole } from "@/domains/account"
+import { API_KEY_ROLE_HIERARCHY } from "@/domains/account"
 import { Button, buttonVariants } from "@/ui/components/button"
 import { Input } from "@/ui/components/input"
 import { Field, FieldLabel, FieldDescription } from "@/ui/components/field"
@@ -21,6 +22,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/ui/components/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/ui/components/alert-dialog"
 import {
   Table,
   TableBody,
@@ -46,32 +57,38 @@ import { ConfirmDialog, type ConfirmDialogDetail } from "@/ui/feedback/confirm-d
 import { Key, Plus, Trash2, Copy, Check, Loader2, CalendarIcon } from "lucide-react"
 import { RadioGroup, RadioGroupItem } from "@/ui/components/radio-group"
 import { Alert, AlertDescription } from "@/ui/components/alert"
-import { useApiKeys, useCreateApiKey, useDeleteApiKey } from "@/features/account/hooks/use-api-keys"
+import { useApiKeys, useCreateApiKey, useDeleteApiKey, useCurrentWorkspaceRole } from "@/features/account/hooks/use-api-keys"
 import { cn } from "@/core/utils"
 
-const SCOPE_OPTIONS: { value: APIKeyScope; label: string; description: string }[] = [
-  { value: "read", label: "Read Only", description: "Can only read data (GET requests)" },
-  { value: "write", label: "Read/Write", description: "Can read and write, but not delete" },
-  { value: "admin", label: "Admin", description: "Full access to all operations" },
+const ROLE_OPTIONS: { value: APIKeyRole; label: string; description: string }[] = [
+  { value: "admin", label: "Admin", description: "Administrative access (cannot delete workspace)" },
+  { value: "member", label: "Member", description: "Can read and write data" },
+  { value: "viewer", label: "Viewer", description: "Read-only access" },
 ]
 
-const scopeBadgeVariant = (scope: APIKeyScope): "secondary" | "default" | "destructive" => {
-  switch (scope) {
-    case "read":
-      return "secondary"
-    case "write":
-      return "default"
+const ELEVATED_ROLES: APIKeyRole[] = ["admin"]
+
+const roleBadgeVariant = (role: APIKeyRole): "secondary" | "default" | "destructive" | "outline" => {
+  switch (role) {
+    case "owner":
+      return "destructive"
     case "admin":
       return "destructive"
+    case "member":
+      return "default"
+    case "viewer":
+      return "secondary"
   }
 }
 
 export const ApiKeysView = () => {
   const { data: keysRes, isLoading, isError, refetch } = useApiKeys()
+  const currentRole = useCurrentWorkspaceRole()
+
   const apiKeysSkeletonColumns: SkeletonColumn[] = [
     { width: "w-24", header: "Name" },
     { width: "w-20", header: "Key Prefix" },
-    { width: "w-12", header: "Scope" },
+    { width: "w-12", header: "Role" },
     { width: "w-12", header: "Status" },
     { width: "w-20", header: "Last Used" },
     { width: "w-20", header: "Expires" },
@@ -81,15 +98,27 @@ export const ApiKeysView = () => {
 
   const keys = keysRes?.data ?? []
 
+  // Filter role options based on current user's workspace role
+  const availableRoles = currentRole
+    ? ROLE_OPTIONS.filter((option) => {
+        const currentIndex = API_KEY_ROLE_HIERARCHY.indexOf(currentRole)
+        const optionIndex = API_KEY_ROLE_HIERARCHY.indexOf(option.value)
+        return optionIndex >= currentIndex
+      })
+    : ROLE_OPTIONS.filter((option) => option.value === "viewer")
+
   // Create form
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [keyName, setKeyName] = useState("")
-  const [keyScope, setKeyScope] = useState<APIKeyScope>("read")
+  const [keyRole, setKeyRole] = useState<APIKeyRole>("viewer")
   const [expiresAt, setExpiresAt] = useState<Date | undefined>(undefined)
   const [selectedHour, setSelectedHour] = useState(23)
   const [selectedMinute, setSelectedMinute] = useState(55)
   const [dateOpen, setDateOpen] = useState(false)
   const [createError, setCreateError] = useState("")
+
+  // Elevated role warning dialog
+  const [pendingRole, setPendingRole] = useState<APIKeyRole | null>(null)
 
   // Show key dialog
   const [showKeyDialogOpen, setShowKeyDialogOpen] = useState(false)
@@ -105,20 +134,39 @@ export const ApiKeysView = () => {
     details: ConfirmDialogDetail[]
   } | null>(null)
 
+  const handleRoleSelect = (role: APIKeyRole) => {
+    if (ELEVATED_ROLES.includes(role)) {
+      setPendingRole(role)
+    } else {
+      setKeyRole(role)
+    }
+  }
+
+  const handleConfirmElevatedRole = () => {
+    if (pendingRole) {
+      setKeyRole(pendingRole)
+      setPendingRole(null)
+    }
+  }
+
+  const handleCancelElevatedRole = () => {
+    setPendingRole(null)
+  }
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreateError("")
     try {
       const { data } = await createMutation.mutateAsync({
         name: keyName,
-        scope: keyScope,
+        role: keyRole,
         expiresAt: expiresAt ? expiresAt.toISOString() : undefined,
       })
       setNewKeyValue(data.key)
       setCreateDialogOpen(false)
       setShowKeyDialogOpen(true)
       setKeyName("")
-      setKeyScope("read")
+      setKeyRole("viewer")
       setExpiresAt(undefined)
       setSelectedHour(23)
       setSelectedMinute(55)
@@ -178,13 +226,13 @@ export const ApiKeysView = () => {
                   />
                 </Field>
                 <Field>
-                  <FieldLabel>Scope</FieldLabel>
-                  <RadioGroup value={keyScope} onValueChange={(v) => setKeyScope(v as APIKeyScope)} className="space-y-2">
-                    {SCOPE_OPTIONS.map((option) => (
+                  <FieldLabel>Role</FieldLabel>
+                  <RadioGroup value={keyRole} onValueChange={(v) => handleRoleSelect(v as APIKeyRole)} className="space-y-2">
+                    {availableRoles.map((option) => (
                       <label
                         key={option.value}
                         className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors ${
-                          keyScope === option.value
+                          keyRole === option.value
                             ? "border-primary bg-primary/5"
                             : "border-border hover:bg-muted/50"
                         }`}
@@ -196,7 +244,7 @@ export const ApiKeysView = () => {
                             {option.description}
                           </p>
                         </div>
-                        <Badge variant={scopeBadgeVariant(option.value)}>
+                        <Badge variant={roleBadgeVariant(option.value)}>
                           {option.value}
                         </Badge>
                       </label>
@@ -328,6 +376,22 @@ export const ApiKeysView = () => {
         </Dialog>
       </div>
 
+      {/* Elevated role warning dialog */}
+      <AlertDialog open={!!pendingRole} onOpenChange={(open) => { if (!open) handleCancelElevatedRole() }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Elevated Privileges</AlertDialogTitle>
+            <AlertDialogDescription>
+              This API key will have <span className="font-semibold capitalize">{pendingRole}</span> access to your workspace. Only use for trusted integrations.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelElevatedRole}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmElevatedRole}>Continue</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Show key dialog */}
       <Dialog open={showKeyDialogOpen} onOpenChange={(open) => setShowKeyDialogOpen(open)}>
         <DialogContent className="sm:max-w-lg">
@@ -383,7 +447,7 @@ export const ApiKeysView = () => {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Key Prefix</TableHead>
-                  <TableHead>Scope</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="hidden lg:table-cell">Last Used</TableHead>
                   <TableHead className="hidden md:table-cell">Expires</TableHead>
@@ -401,8 +465,8 @@ export const ApiKeysView = () => {
                       {key.keyPrefix}...
                     </TableCell>
                     <TableCell>
-                      <Badge variant={scopeBadgeVariant(key.scope ?? "admin")}>
-                        {key.scope ?? "admin"}
+                      <Badge variant={roleBadgeVariant(key.role ?? "member")}>
+                        {key.role ?? "member"}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -435,7 +499,7 @@ export const ApiKeysView = () => {
                             details: [
                               { label: "Name", value: key.name },
                               { label: "Key Prefix", value: `${key.keyPrefix}...` },
-                              { label: "Scope", value: key.scope ?? "admin" },
+                              { label: "Role", value: key.role ?? "member" },
                               { label: "Created", value: new Date(key.createdAt).toLocaleDateString() },
                             ],
                           })
@@ -483,4 +547,3 @@ export const ApiKeysView = () => {
     </div>
   )
 }
-

@@ -39,30 +39,32 @@ func UserFromEntity(u *entity.User) UserResponse {
 // APIKeyResponse is the JSON representation of an API key.
 // Replaces direct serialization of entity.APIKey.
 type APIKeyResponse struct {
-	ID         uint              `json:"id"`
-	UserID     uint              `json:"userId"`
-	Name       string            `json:"name"`
-	KeyPrefix  string            `json:"keyPrefix"`
-	Scope      entity.APIKeyScope `json:"scope"`
-	LastUsedAt *time.Time        `json:"lastUsedAt,omitempty"`
-	ExpiresAt  *time.Time        `json:"expiresAt,omitempty"`
-	IsActive   bool              `json:"isActive"`
-	CreatedAt  time.Time         `json:"createdAt"`
+	ID          uint              `json:"id"`
+	UserID      uint              `json:"userId"`
+	WorkspaceID uint              `json:"workspaceId"`
+	Name        string            `json:"name"`
+	KeyPrefix   string            `json:"keyPrefix"`
+	Role        entity.APIKeyRole `json:"role"`
+	LastUsedAt  *time.Time        `json:"lastUsedAt,omitempty"`
+	ExpiresAt   *time.Time        `json:"expiresAt,omitempty"`
+	IsActive    bool              `json:"isActive"`
+	CreatedAt   time.Time         `json:"createdAt"`
 }
 
 // APIKeyFromEntity maps a domain APIKey to a response DTO.
 // KeyHash is intentionally excluded.
 func APIKeyFromEntity(k *entity.APIKey) APIKeyResponse {
 	return APIKeyResponse{
-		ID:         k.ID,
-		UserID:     k.UserID,
-		Name:       k.Name,
-		KeyPrefix:  k.KeyPrefix,
-		Scope:      k.Scope,
-		LastUsedAt: k.LastUsedAt,
-		ExpiresAt:  k.ExpiresAt,
-		IsActive:   k.IsActive,
-		CreatedAt:  k.CreatedAt,
+		ID:          k.ID,
+		UserID:      k.UserID,
+		WorkspaceID: k.WorkspaceID,
+		Name:        k.Name,
+		KeyPrefix:   k.KeyPrefix,
+		Role:        k.Role,
+		LastUsedAt:  k.LastUsedAt,
+		ExpiresAt:   k.ExpiresAt,
+		IsActive:    k.IsActive,
+		CreatedAt:   k.CreatedAt,
 	}
 }
 

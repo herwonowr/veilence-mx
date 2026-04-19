@@ -19,8 +19,10 @@ const (
 	contextKeyEmail contextKey = "email"
 	// contextKeyAuthMethod is the context key for the authentication method used.
 	contextKeyAuthMethod contextKey = "auth_method"
-	// contextKeyAPIKeyScope is the context key for the API key scope (only set for API key auth).
-	contextKeyAPIKeyScope contextKey = "api_key_scope"
+	// contextKeyAPIKeyRole is the context key for the API key role (only set for API key auth).
+	contextKeyAPIKeyRole contextKey = "api_key_role"
+	// contextKeyAPIKeyWorkspaceID is the context key for the API key's workspace ID (only set for API key auth).
+	contextKeyAPIKeyWorkspaceID contextKey = "api_key_workspace_id"
 
 	// AuthMethodJWT indicates authentication via JWT Bearer token.
 	AuthMethodJWT = "jwt"
@@ -47,7 +49,8 @@ func respondAuthError(w http.ResponseWriter, status int, msg string) {
 // Middleware returns a Chi middleware that authenticates requests via
 // Bearer JWT tokens or X-API-Key headers. On success, it sets user_id
 // and email in the request context. For API key auth, it also sets the
-// scope and checks that the key has sufficient scope for the HTTP method.
+// role and workspace ID so that downstream RBAC middleware can enforce
+// permissions based on the API key's assigned role.
 func Middleware(svc *Service) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -71,24 +74,18 @@ func Middleware(svc *Service) func(http.Handler) http.Handler {
 
 			// Try X-API-Key header
 			if apiKey := r.Header.Get("X-API-Key"); apiKey != "" {
-				userID, email, scope, err := svc.ValidateAPIKey(apiKey)
+				userID, email, role, workspaceID, err := svc.ValidateAPIKey(apiKey)
 				if err != nil {
 					slog.Debug("invalid API key", "error", err)
 					respondAuthError(w, http.StatusUnauthorized, "invalid or expired API key")
 					return
 				}
 
-				// Check scope against HTTP method
-				if !scope.ScopeAllows(r.Method) {
-					slog.Debug("API key scope insufficient", "scope", scope, "method", r.Method)
-					respondAuthError(w, http.StatusForbidden, "API key scope insufficient for this operation")
-					return
-				}
-
 				ctx := context.WithValue(r.Context(), contextKeyUserID, userID)
 				ctx = context.WithValue(ctx, contextKeyEmail, email)
 				ctx = context.WithValue(ctx, contextKeyAuthMethod, AuthMethodAPIKey)
-				ctx = context.WithValue(ctx, contextKeyAPIKeyScope, scope)
+				ctx = context.WithValue(ctx, contextKeyAPIKeyRole, role)
+				ctx = context.WithValue(ctx, contextKeyAPIKeyWorkspaceID, workspaceID)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
@@ -125,11 +122,20 @@ func AuthMethodFromContext(ctx context.Context) string {
 	return ""
 }
 
-// APIKeyScopeFromContext extracts the API key scope from the request context.
+// APIKeyRoleFromContext extracts the API key role from the request context.
 // Returns empty string if the request was not authenticated via API key.
-func APIKeyScopeFromContext(ctx context.Context) entity.APIKeyScope {
-	if v, ok := ctx.Value(contextKeyAPIKeyScope).(entity.APIKeyScope); ok {
+func APIKeyRoleFromContext(ctx context.Context) entity.APIKeyRole {
+	if v, ok := ctx.Value(contextKeyAPIKeyRole).(entity.APIKeyRole); ok {
 		return v
 	}
 	return ""
+}
+
+// APIKeyWorkspaceIDFromContext extracts the API key's workspace ID from the request context.
+// Returns 0 if the request was not authenticated via API key.
+func APIKeyWorkspaceIDFromContext(ctx context.Context) uint {
+	if v, ok := ctx.Value(contextKeyAPIKeyWorkspaceID).(uint); ok {
+		return v
+	}
+	return 0
 }

@@ -514,6 +514,27 @@ func (s *Service) CheckPermission(userID, workspaceID uint, resource, action str
 	return nil
 }
 
+// CheckRolePermission verifies whether a given role name has a specific permission
+// within a workspace. This is used for API key auth where the key has an assigned
+// role rather than a user membership.
+// Returns nil if permitted, ErrPermissionDenied otherwise.
+func (s *Service) CheckRolePermission(workspaceID uint, roleName, resource, action string) error {
+	var count int64
+	err := s.db.Model(&persistent.Permission{}).
+		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
+		Joins("JOIN roles ON roles.id = role_permissions.role_id").
+		Where("roles.workspace_id = ? AND roles.name = ? AND permissions.resource = ? AND permissions.action = ?",
+			workspaceID, roleName, resource, action).
+		Count(&count).Error
+	if err != nil {
+		return fmt.Errorf("checking role permission: %w", err)
+	}
+	if count == 0 {
+		return ErrPermissionDenied
+	}
+	return nil
+}
+
 // GetWorkspaceRoles returns all roles for a workspace.
 func (s *Service) GetWorkspaceRoles(workspaceID uint) ([]persistent.Role, error) {
 	var roles []persistent.Role

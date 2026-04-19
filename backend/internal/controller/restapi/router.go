@@ -76,7 +76,6 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 			r.Post("/auth/change-password", h.Auth.ChangePassword)
 			r.Post("/auth/send-verification", h.Auth.SendVerificationEmail)
 			r.Route("/auth/api-keys", func(r chi.Router) {
-				r.Post("/", h.Auth.CreateAPIKey)
 				r.Get("/", h.Auth.ListAPIKeys)
 				r.Delete("/{id}", h.Auth.RevokeAPIKey)
 			})
@@ -102,6 +101,9 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 			// Workspace-scoped flat routes (org ID from X-Workspace-ID header or workspace_id query param)
 			r.Group(func(r chi.Router) {
 				r.Use(rbac.RequireWorkspace(rbacService))
+
+				// API key creation (requires workspace context for role enforcement)
+				r.With(rbac.RequirePermission(rbacService, "api_keys", "write")).Post("/auth/api-keys", h.Auth.CreateAPIKey)
 
 				// Dashboard (read-only, any org member can view)
 				r.Get("/dashboard/stats", h.Dashboard.GetDashboardStats)

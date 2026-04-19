@@ -4,6 +4,7 @@ export {
   useApiKeys,
   useCreateApiKey,
   useDeleteApiKey,
+  useCurrentWorkspaceRole,
   apiKeyKeys,
 } from "@/features/account/hooks/use-api-keys"
 

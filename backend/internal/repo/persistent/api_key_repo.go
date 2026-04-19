@@ -88,30 +88,32 @@ func (r *APIKeyRepo) SoftDelete(ctx context.Context, userID, keyID uint) error {
 
 func apiKeyToDomain(m *APIKey) *entity.APIKey {
 	return &entity.APIKey{
-		ID:         m.ID,
-		UserID:     m.UserID,
-		Name:       m.Name,
-		KeyHash:    m.KeyHash,
-		KeyPrefix:  m.KeyPrefix,
-		Scope:      entity.APIKeyScope(m.Scope),
-		LastUsedAt: m.LastUsedAt,
-		ExpiresAt:  m.ExpiresAt,
-		IsActive:   m.IsActive,
-		CreatedAt:  m.CreatedAt,
+		ID:          m.ID,
+		UserID:      m.UserID,
+		WorkspaceID: m.WorkspaceID,
+		Name:        m.Name,
+		KeyHash:     m.KeyHash,
+		KeyPrefix:   m.KeyPrefix,
+		Role:        entity.APIKeyRole(m.Role),
+		LastUsedAt:  m.LastUsedAt,
+		ExpiresAt:   m.ExpiresAt,
+		IsActive:    m.IsActive,
+		CreatedAt:   m.CreatedAt,
 	}
 }
 
 func apiKeyToModel(d *entity.APIKey) *APIKey {
 	return &APIKey{
-		ID:         d.ID,
-		UserID:     d.UserID,
-		Name:       d.Name,
-		KeyHash:    d.KeyHash,
-		KeyPrefix:  d.KeyPrefix,
-		Scope:      string(d.Scope),
-		LastUsedAt: d.LastUsedAt,
-		ExpiresAt:  d.ExpiresAt,
-		IsActive:   d.IsActive,
-		CreatedAt:  d.CreatedAt,
+		ID:          d.ID,
+		UserID:      d.UserID,
+		WorkspaceID: d.WorkspaceID,
+		Name:        d.Name,
+		KeyHash:     d.KeyHash,
+		KeyPrefix:   d.KeyPrefix,
+		Role:        string(d.Role),
+		LastUsedAt:  d.LastUsedAt,
+		ExpiresAt:   d.ExpiresAt,
+		IsActive:    d.IsActive,
+		CreatedAt:   d.CreatedAt,
 	}
 }

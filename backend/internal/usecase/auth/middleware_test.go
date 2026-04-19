@@ -100,7 +100,7 @@ func TestMiddleware_ValidAPIKey(t *testing.T) {
 	user, err := svc.Register("mw-apikey@example.com", "Password123", "MW", "APIKey")
 	require.NoError(t, err)
 
-	_, rawKey, err := svc.CreateAPIKey(user.ID, "test-key", entity.APIKeyScopeRead, nil)
+	_, rawKey, err := svc.CreateAPIKey(user.ID, 1, "test-key", entity.APIKeyRoleViewer, "owner", nil)
 	require.NoError(t, err)
 
 	handler := auth.Middleware(svc)(dummyHandler())

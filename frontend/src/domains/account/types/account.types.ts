@@ -1,11 +1,14 @@
-export type APIKeyScope = "read" | "write" | "admin"
+export type APIKeyRole = "owner" | "admin" | "member" | "viewer"
+
+export const API_KEY_ROLE_HIERARCHY: APIKeyRole[] = ["owner", "admin", "member", "viewer"]
 
 export interface ApiKeyInfo {
   id: number
   userId: number
+  workspaceId: number
   name: string
   keyPrefix: string
-  scope: APIKeyScope
+  role: APIKeyRole
   lastUsedAt: string | null
   expiresAt: string | null
   isActive: boolean
@@ -14,7 +17,7 @@ export interface ApiKeyInfo {
 
 export interface CreateApiKeyRequest {
   name: string
-  scope?: APIKeyScope
+  role?: APIKeyRole
   expiresAt?: string
 }
 
