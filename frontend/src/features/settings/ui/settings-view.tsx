@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/
 import { Button } from "@/ui/components/button"
 import { Input } from "@/ui/components/input"
 import { Field, FieldLabel, FieldDescription, FieldError } from "@/ui/components/field"
-import { Save, RefreshCw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangle, ShieldCheck, Loader2, Cpu } from "lucide-react"
+import { Save, RefreshCw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangle, ShieldCheck, Loader2 } from "lucide-react"
 import { Checkbox } from "@/ui/components/checkbox"
 import { Label } from "@/ui/components/label"
 import { RadioGroup, RadioGroupItem } from "@/ui/components/radio-group"
@@ -269,27 +269,19 @@ export const SettingsView = () => {
         </CardContent>
       </Card>
 
-      {/* Analyzer & Security side by side */}
+      {/* Analysis & Security side by side */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card className="flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Cpu className="size-5" />
-              Analyzer
+              <Activity className="size-5" />
+              Analysis
             </CardTitle>
             <CardDescription>
-              LLM backend and diff analysis configuration.
+              Diff analysis configuration.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <Field>
-              <FieldLabel>Analyzer Backend</FieldLabel>
-              <Input
-                value="copilot-api → GitHub Copilot → Claude Sonnet 4.6"
-                disabled
-                className="bg-muted"
-              />
-            </Field>
             <Field data-invalid={!!validationErrors.diff_size_limit}>
               <FieldLabel htmlFor="diff-size-limit">Diff Size Limit (bytes)</FieldLabel>
               <Input
@@ -311,36 +303,36 @@ export const SettingsView = () => {
 
         <Card className="flex flex-col">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="size-5" />
-              Security
-            </CardTitle>
-            <CardDescription>
-              Authentication and access control settings.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <Field orientation="horizontal" data-invalid={!!validationErrors.require_email_verification}>
-                <Checkbox
-                  id="require-email-verification"
-                  checked={localSettings.require_email_verification === "true"}
-                  onCheckedChange={(checked) =>
-                    updateSetting("require_email_verification", String(checked))
-                  }
-                />
-                <FieldLabel htmlFor="require-email-verification" className="cursor-pointer">
-                  Require Email Verification
-                </FieldLabel>
-              </Field>
-              <p className="mt-1.5 ml-6 text-sm text-muted-foreground">
-                When enabled, users must verify their email address before they can log in.
-              </p>
-              {validationErrors.require_email_verification && (
-                <FieldError>{validationErrors.require_email_verification}</FieldError>
-              )}
-            </div>
-          </CardContent>
+          <CardTitle className="flex items-center gap-2">
+            <ShieldCheck className="size-5" />
+            Security
+          </CardTitle>
+          <CardDescription>
+            Authentication and access control settings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <Field orientation="horizontal" data-invalid={!!validationErrors.require_email_verification}>
+              <Checkbox
+                id="require-email-verification"
+                checked={localSettings.require_email_verification === "true"}
+                onCheckedChange={(checked) =>
+                  updateSetting("require_email_verification", String(checked))
+                }
+              />
+              <FieldLabel htmlFor="require-email-verification" className="cursor-pointer">
+                Require Email Verification
+              </FieldLabel>
+            </Field>
+            <p className="mt-1.5 ml-6 text-sm text-muted-foreground">
+              When enabled, users must verify their email address before they can log in.
+            </p>
+            {validationErrors.require_email_verification && (
+              <FieldError>{validationErrors.require_email_verification}</FieldError>
+            )}
+          </div>
+        </CardContent>
         </Card>
       </div>
 

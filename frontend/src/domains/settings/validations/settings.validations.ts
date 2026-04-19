@@ -7,12 +7,11 @@ export const settingsSchema = z.object({
   discovery_auto_approve: z.enum(["true", "false"]).optional(),
   stale_auto_remove_months: z.string().optional(),
   package_count_warning_threshold: z.string().optional(),
-  diff_size_limit: z.string().optional(),
   email_digest_enabled: z.enum(["true", "false"]).optional(),
   email_digest_frequency: z.enum(["daily", "weekly"]).optional(),
   email_digest_recipients: z.string().optional(),
-  analyzer_mode: z.enum(["auto", "manual", "disabled"]).optional(),
   require_email_verification: z.enum(["true", "false"]).optional(),
+  diff_size_limit: z.string().optional(),
 })
 
 export type SettingsFormData = z.infer<typeof settingsSchema>

@@ -11,8 +11,8 @@ import (
 	"time"
 )
 
-// CLIClient implements the Analyzer interface using copilot-api proxy.
-// It sends requests to a local copilot-api server that proxies to GitHub Copilot.
+// CLIClient implements the Analyzer interface using an OpenAI-compatible LLM API.
+// It sends requests to a configured LLM API endpoint for code analysis.
 type CLIClient struct {
 	httpClient  *http.Client
 	baseURL     string
@@ -21,32 +21,39 @@ type CLIClient struct {
 	rateLimiter *time.Ticker
 }
 
-// CLIClientConfig holds configuration for the copilot-api client.
+// CLIClientConfig holds configuration for the LLM API client.
+// All fields are mandatory — the application MUST fail to start if any are missing.
 type CLIClientConfig struct {
-	// BaseURL is the copilot-api proxy URL. Defaults to "http://localhost:4141".
+	// BaseURL is the LLM API proxy URL (required).
 	BaseURL string
-	// Model is the model to use. Defaults to "claude-sonnet-4.6".
+	// Model is the model to use (required).
 	Model string
-	// MaxDiffLen limits diff size in characters. Defaults to 20000.
+	// MaxDiffLen limits diff size in characters (required, must be > 0).
 	MaxDiffLen int
-	// RateInterval is the minimum time between requests. Defaults to 6s.
+	// RateInterval is the minimum time between requests (required, must be > 0).
 	RateInterval time.Duration
 }
 
-// NewCLIClient creates a new copilot-api analyzer client.
+// Validate ensures all required configuration is provided. Returns an error if any field is missing.
+func (c CLIClientConfig) Validate() error {
+	if c.BaseURL == "" {
+		return fmt.Errorf("LLM API base URL is required (set LLM_API_URL env var)")
+	}
+	if c.Model == "" {
+		return fmt.Errorf("LLM model is required (set LLM_MODEL env var)")
+	}
+	if c.MaxDiffLen <= 0 {
+		return fmt.Errorf("LLM max diff length must be > 0 (set LLM_MAX_DIFF_LEN env var)")
+	}
+	if c.RateInterval <= 0 {
+		return fmt.Errorf("LLM rate interval must be > 0 (set LLM_RATE_INTERVAL env var)")
+	}
+	return nil
+}
+
+// NewCLIClient creates a new LLM analyzer client.
+// Config must be validated before calling this (use CLIClientConfig.Validate()).
 func NewCLIClient(config CLIClientConfig) *CLIClient {
-	if config.BaseURL == "" {
-		config.BaseURL = "http://localhost:4141"
-	}
-	if config.Model == "" {
-		config.Model = "claude-opus-4.6"
-	}
-	if config.MaxDiffLen == 0 {
-		config.MaxDiffLen = 20000
-	}
-	if config.RateInterval == 0 {
-		config.RateInterval = 6 * time.Second
-	}
 	return &CLIClient{
 		httpClient:  &http.Client{Timeout: 120 * time.Second},
 		baseURL:     config.BaseURL,
