@@ -38,18 +38,26 @@ export const WorkspacesListView = () => {
   const searchParams = useSearchParams()
   const shouldCreateWorkspace = searchParams.get("create") === "true"
 
-  const [dialogOpen, setDialogOpen] = useState(shouldCreateWorkspace)
+  // Dialog open state: initially true if URL has ?create=true, then controlled by user interaction.
+  // The shouldCreateWorkspace value is read on mount via the state initializer;
+  // subsequent navigations to ?create=true cause shouldCreateWorkspace to become true,
+  // which we OR into the derived dialogOpen below.
+  const [dialogOpenByUser, setDialogOpenByUser] = useState(shouldCreateWorkspace)
+  const dialogOpen = dialogOpenByUser || shouldCreateWorkspace
+
+  const setDialogOpen = useCallback((open: boolean) => {
+    setDialogOpenByUser(open)
+  }, [])
+
   const [name, setName] = useState("")
   const [slug, setSlug] = useState("")
   const [description, setDescription] = useState("")
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState("")
 
+  // When URL has ?create=true, clean it up so re-navigation works
   useEffect(() => {
     if (shouldCreateWorkspace) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- open dialog based on URL param
-      setDialogOpen(true)
-      // Clean up the URL so subsequent navigations to ?create=true trigger the effect again
       router.replace("/workspaces", { scroll: false })
     }
   }, [shouldCreateWorkspace, router])

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useFilterParams } from "@/core/hooks/use-filter-params"
 import {
@@ -49,6 +49,20 @@ export const useNotificationsPage = () => {
     pageSize: 20,
   })
 
+  // Wrap filter setters to reset pagination to first page on any filter change
+  const setReadFilterAndResetPage = (value: string) => {
+    setReadFilter(value)
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+  }
+  const setSeverityFilterAndResetPage = (value: string) => {
+    setSeverityFilter(value)
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+  }
+  const setEventTypeFilterAndResetPage = (value: string) => {
+    setEventTypeFilter(value)
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+  }
+
   // Sync filter state → URL search params
   // "all" is the default for every filter — omit from URL when it matches
   const NOTIFICATIONS_FILTER_DEFAULTS = useMemo(() => ({
@@ -85,12 +99,6 @@ export const useNotificationsPage = () => {
   const deleteAllMutation = useDeleteAllNotifications()
   const deleteBatchMutation = useDeleteBatchNotifications()
 
-  // Reset to first page when any filter changes
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync pagination with filter changes
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-  }, [readFilter, severityFilter, eventTypeFilter])
-
   // Client-side filtering
   const filteredNotifications = useMemo(() => {
     let result = allNotifications
@@ -126,6 +134,7 @@ export const useNotificationsPage = () => {
     setReadFilter("all")
     setSeverityFilter("all")
     setEventTypeFilter("all")
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }))
   }
 
   // Build active filters for FilterChips
@@ -135,7 +144,7 @@ export const useNotificationsPage = () => {
           {
             label: "Status",
             value: readFilter === "unread" ? "Unread" : "Read",
-            onRemove: () => setReadFilter("all"),
+            onRemove: () => setReadFilterAndResetPage("all"),
           },
         ]
       : []),
@@ -146,7 +155,7 @@ export const useNotificationsPage = () => {
             value:
               severityFilter.charAt(0).toUpperCase() +
               severityFilter.slice(1),
-            onRemove: () => setSeverityFilter("all"),
+            onRemove: () => setSeverityFilterAndResetPage("all"),
           },
         ]
       : []),
@@ -155,7 +164,7 @@ export const useNotificationsPage = () => {
           {
             label: "Type",
             value: EVENT_TYPE_LABELS[eventTypeFilter] ?? eventTypeFilter,
-            onRemove: () => setEventTypeFilter("all"),
+            onRemove: () => setEventTypeFilterAndResetPage("all"),
           },
         ]
       : []),
@@ -172,11 +181,11 @@ export const useNotificationsPage = () => {
 
     // Filters
     readFilter,
-    setReadFilter,
+    setReadFilter: setReadFilterAndResetPage,
     severityFilter,
-    setSeverityFilter,
+    setSeverityFilter: setSeverityFilterAndResetPage,
     eventTypeFilter,
-    setEventTypeFilter,
+    setEventTypeFilter: setEventTypeFilterAndResetPage,
     hasActiveFilters,
     activeFilters,
     clearAllFilters,

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useMemo, useEffect } from "react"
+import { useState, useCallback, useMemo } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/ui/components/card"
 import { Button } from "@/ui/components/button"
@@ -58,7 +58,7 @@ const detectFormat = (text: string, fileName?: string): ImportFormat => {
 export const PackageImportView = () => {
   const [textInput, setTextInput] = useState("")
   const [detectedFormat, setDetectedFormat] = useState<ImportFormat>("requirements_txt")
-  const [entries, setEntries] = useState<ParsedEntry[]>([])
+  const [rawEntries, setRawEntries] = useState<ParsedEntry[]>([])
   const [parseError, setParseError] = useState("")
   const [importResult, setImportResult] = useState<{
     imported: number
@@ -76,6 +76,21 @@ export const PackageImportView = () => {
     const pkgs = existingRes?.data ?? []
     return new Set(pkgs.map((p) => `${p.name}:${p.ecosystem}`))
   }, [existingRes])
+
+  // Derive entries with up-to-date status from existingNames at render time,
+  // so status stays in sync without needing a useEffect.
+  const entries = useMemo(
+    () =>
+      rawEntries.map((e) => ({
+        ...e,
+        status: existingNames.has(`${e.name}:${e.ecosystem}`)
+          ? ("exists" as const)
+          : ("new" as const),
+      })),
+    [rawEntries, existingNames],
+  )
+
+  const setEntries = setRawEntries
 
   // ─── Parsing helpers ───
 
@@ -117,7 +132,7 @@ export const PackageImportView = () => {
 
       setEntries(buildEntries(packages))
     },
-    [buildEntries]
+    [buildEntries, setEntries]
   )
 
   // ─── File handling (click + drag-and-drop) ───
@@ -249,20 +264,6 @@ export const PackageImportView = () => {
       setImportProgress(null)
     }
   }
-
-  // Re-compute entries when existingNames changes (lazy re-check)
-  useEffect(() => {
-    if (entries.length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync entry status with external data
-      setEntries((prev) =>
-        prev.map((e) => ({
-          ...e,
-          status: existingNames.has(`${e.name}:${e.ecosystem}`) ? "exists" : "new",
-        }))
-      )
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existingNames])
 
   return (
     <div className="space-y-6">
