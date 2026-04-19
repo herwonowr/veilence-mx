@@ -25,6 +25,7 @@ import {
 import { Badge } from "@/ui/components/badge"
 import { Skeleton } from "@/ui/components/skeleton"
 import { TableEmptyState } from "@/ui/feedback/empty-state"
+import { FilterChips, type ActiveFilter } from "@/ui/data/filter-chips"
 import { Calendar } from "@/ui/components/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/components/popover"
 import {
@@ -103,6 +104,21 @@ export const AuditLogView = () => {
     setToDate(undefined)
     setPage(1)
   }
+
+  const activeFilters: ActiveFilter[] = [
+    ...(action
+      ? [{ label: "Action", value: action, onRemove: () => { setAction(""); setPage(1) } }]
+      : []),
+    ...(resource
+      ? [{ label: "Resource", value: resource, onRemove: () => { setResource(""); setPage(1) } }]
+      : []),
+    ...(fromDate
+      ? [{ label: "From", value: fromDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), onRemove: () => { setFromDate(undefined); setPage(1) } }]
+      : []),
+    ...(toDate
+      ? [{ label: "To", value: toDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), onRemove: () => { setToDate(undefined); setPage(1) } }]
+      : []),
+  ]
 
   const { data: logsRes, isLoading } = useAuditLogs(validWorkspaceId, {
     action: debouncedAction || undefined,
@@ -256,6 +272,9 @@ export const AuditLogView = () => {
               </Popover>
             </div>
           </div>
+          {hasActiveFilters && (
+            <FilterChips filters={activeFilters} onClearAll={clearAllFilters} />
+          )}
         </CardContent>
       </Card>
 
