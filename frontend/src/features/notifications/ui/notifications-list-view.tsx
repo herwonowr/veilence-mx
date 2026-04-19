@@ -1,5 +1,6 @@
 "use client"
 
+import { useCallback, useMemo, useState } from "react"
 import {
   Bell,
   CheckCheck,
@@ -8,6 +9,8 @@ import {
   AlertTriangle,
   RefreshCw,
   SearchX,
+  Trash2,
+  ListChecks,
 } from "lucide-react"
 import { Button } from "@/ui/components/button"
 import { Card, CardContent, CardHeader } from "@/ui/components/card"
@@ -22,6 +25,17 @@ import { Label } from "@/ui/components/label"
 import { Skeleton } from "@/ui/components/skeleton"
 import { EmptyState } from "@/ui/feedback/empty-state"
 import { FilterChips } from "@/ui/data/filter-chips"
+import { Checkbox } from "@/ui/components/checkbox"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/ui/components/alert-dialog"
 import { NotificationPageItem } from "@/features/notifications/ui/notification-page-item"
 import { useNotificationsPage } from "@/features/notifications/hooks/use-notifications-page"
 
@@ -79,8 +93,17 @@ export const NotificationsListView = () => {
     pageCount,
     markReadMutation,
     markAllReadMutation,
+    deleteMutation,
+    deleteAllMutation,
+    deleteBatchMutation,
     refetch,
   } = useNotificationsPage()
+
+  // Multi-select state
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false)
+  const [showDeleteSelectedDialog, setShowDeleteSelectedDialog] = useState(false)
 
   const rangeStart = total === 0 ? 0 : pagination.pageIndex * pagination.pageSize + 1
   const rangeEnd = Math.min(
@@ -88,9 +111,76 @@ export const NotificationsListView = () => {
     total,
   )
 
-  const handleMarkAllRead = () => {
+  const currentPageIds = useMemo(
+    () => notifications.map((n) => n.id),
+    [notifications],
+  )
+
+  const allPageSelected = useMemo(
+    () => currentPageIds.length > 0 && currentPageIds.every((id) => selectedIds.has(id)),
+    [currentPageIds, selectedIds],
+  )
+
+  const handleToggleSelect = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
+
+  const handleSelectAll = useCallback(() => {
+    if (allPageSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        for (const id of currentPageIds) {
+          next.delete(id)
+        }
+        return next
+      })
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        for (const id of currentPageIds) {
+          next.add(id)
+        }
+        return next
+      })
+    }
+  }, [allPageSelected, currentPageIds])
+
+  const handleExitSelectMode = useCallback(() => {
+    setSelectMode(false)
+    setSelectedIds(new Set())
+  }, [])
+
+  const handleMarkAllRead = useCallback(() => {
     markAllReadMutation.mutate()
-  }
+  }, [markAllReadMutation])
+
+  const handleDeleteAll = useCallback(() => {
+    deleteAllMutation.mutate(undefined, {
+      onSuccess: () => {
+        setShowDeleteAllDialog(false)
+        handleExitSelectMode()
+      },
+    })
+  }, [deleteAllMutation, handleExitSelectMode])
+
+  const handleDeleteSelected = useCallback(() => {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) return
+    deleteBatchMutation.mutate(ids, {
+      onSuccess: () => {
+        setShowDeleteSelectedDialog(false)
+        setSelectedIds(new Set())
+      },
+    })
+  }, [selectedIds, deleteBatchMutation])
 
   return (
     <div className="space-y-6">
@@ -105,16 +195,63 @@ export const NotificationsListView = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {unreadCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleMarkAllRead}
-              disabled={markAllReadMutation.isPending}
-            >
-              <CheckCheck className="mr-2 size-4" />
-              Mark all read
-            </Button>
+          {selectMode ? (
+            <>
+              <span className="text-sm text-muted-foreground">
+                {selectedIds.size} selected
+              </span>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={selectedIds.size === 0 || deleteBatchMutation.isPending}
+                onClick={() => setShowDeleteSelectedDialog(true)}
+              >
+                <Trash2 className="mr-2 size-4" />
+                Delete selected
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExitSelectMode}
+              >
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <>
+              {allNotificationsCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectMode(true)}
+                >
+                  <ListChecks className="mr-2 size-4" />
+                  Select
+                </Button>
+              )}
+              {unreadCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleMarkAllRead}
+                  disabled={markAllReadMutation.isPending}
+                >
+                  <CheckCheck className="mr-2 size-4" />
+                  Mark all read
+                </Button>
+              )}
+              {allNotificationsCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDeleteAllDialog(true)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="mr-2 size-4" />
+                  Delete all
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -124,6 +261,17 @@ export const NotificationsListView = () => {
         <CardHeader>
           <div className="space-y-3">
             <div className="flex flex-wrap items-end gap-4">
+              {/* Select all checkbox in select mode */}
+              {selectMode && notifications.length > 0 && (
+                <div className="flex items-end pb-1">
+                  <Checkbox
+                    checked={allPageSelected}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all on this page"
+                  />
+                </div>
+              )}
+
               {/* Read state filter */}
               <div className="space-y-1">
                 <Label
@@ -300,7 +448,12 @@ export const NotificationsListView = () => {
                     key={notification.id}
                     notification={notification}
                     onMarkRead={(id) => markReadMutation.mutate(id)}
+                    onDelete={(id) => deleteMutation.mutate(id)}
                     isMarkingRead={markReadMutation.isPending}
+                    isDeleting={deleteMutation.isPending}
+                    selectMode={selectMode}
+                    isSelected={selectedIds.has(notification.id)}
+                    onToggleSelect={handleToggleSelect}
                   />
                 ))}
               </ul>
@@ -350,6 +503,50 @@ export const NotificationsListView = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete All Confirmation Dialog */}
+      <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete all notifications?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete all {allNotificationsCount} notification
+              {allNotificationsCount !== 1 ? "s" : ""}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAll}
+              disabled={deleteAllMutation.isPending}
+            >
+              {deleteAllMutation.isPending ? "Deleting..." : "Delete all"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Selected Confirmation Dialog */}
+      <AlertDialog open={showDeleteSelectedDialog} onOpenChange={setShowDeleteSelectedDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete selected notifications?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {selectedIds.size} notification
+              {selectedIds.size !== 1 ? "s" : ""}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteSelected}
+              disabled={deleteBatchMutation.isPending}
+            >
+              {deleteBatchMutation.isPending ? "Deleting..." : "Delete selected"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

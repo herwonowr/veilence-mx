@@ -826,6 +826,49 @@ func (s *Service) MarkAllRead(orgID, userID uint) (int64, error) {
 	return affected, nil
 }
 
+// DeleteByID deletes a single notification by ID, scoped to org and user.
+func (s *Service) DeleteByID(ctx context.Context, id, orgID, userID uint) (int64, error) {
+	affected, err := s.notifications.DeleteByID(ctx, id, orgID, userID)
+	if err != nil {
+		return 0, fmt.Errorf("deleting notification: %w", err)
+	}
+	if affected == 0 {
+		return 0, fmt.Errorf("notification not found")
+	}
+
+	slog.Info("notification deleted", "notification_id", id, "org_id", orgID, "user_id", userID)
+	return affected, nil
+}
+
+// DeleteAll deletes all notifications for a user within an org.
+func (s *Service) DeleteAll(ctx context.Context, orgID, userID uint) (int64, error) {
+	affected, err := s.notifications.DeleteAll(ctx, orgID, userID)
+	if err != nil {
+		return 0, fmt.Errorf("deleting all notifications: %w", err)
+	}
+
+	slog.Info("all notifications deleted", "org_id", orgID, "user_id", userID, "count", affected)
+	return affected, nil
+}
+
+// DeleteBatch deletes multiple notifications by IDs, scoped to org and user.
+func (s *Service) DeleteBatch(ctx context.Context, ids []uint, orgID, userID uint) (int64, error) {
+	if len(ids) == 0 {
+		return 0, fmt.Errorf("no notification IDs provided")
+	}
+	if len(ids) > 100 {
+		return 0, fmt.Errorf("batch delete limited to 100 notifications at a time")
+	}
+
+	affected, err := s.notifications.DeleteBatch(ctx, ids, orgID, userID)
+	if err != nil {
+		return 0, fmt.Errorf("batch deleting notifications: %w", err)
+	}
+
+	slog.Info("notifications batch deleted", "org_id", orgID, "user_id", userID, "requested", len(ids), "deleted", affected)
+	return affected, nil
+}
+
 // TestChannel sends a test notification through a specific channel to verify it works.
 // Returns nil on success, an error describing the failure otherwise.
 func (s *Service) TestChannel(id, orgID uint) error {

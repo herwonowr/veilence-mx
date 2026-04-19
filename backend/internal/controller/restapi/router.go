@@ -91,7 +91,10 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 			r.Get("/notifications", h.Notifications.ListUserNotifications)
 			r.Get("/notifications/unread-count", h.Notifications.GetUnreadCount)
 			r.Put("/notifications/read-all", h.Notifications.MarkAllNotificationsRead)
+			r.Delete("/notifications/all", h.Notifications.DeleteAllNotifications)
+			r.Delete("/notifications", h.Notifications.DeleteBatchNotifications)
 			r.Put("/notifications/{id}/read", h.Notifications.MarkNotificationRead)
+			r.Delete("/notifications/{id}", h.Notifications.DeleteNotification)
 
 			// Permissions (global, not org-scoped)
 			r.Get("/permissions", h.Org.ListPermissions)

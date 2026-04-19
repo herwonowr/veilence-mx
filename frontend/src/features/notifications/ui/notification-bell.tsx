@@ -23,6 +23,7 @@ import {
   useNotifications,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
+  useDeleteNotification,
 } from "@/features/notifications/hooks/use-notifications"
 import { getNotificationLink } from "@/features/notifications/ui/notification-helpers"
 import { NotificationItem } from "@/features/notifications/ui/notification-item"
@@ -77,6 +78,7 @@ export const NotificationBell = () => {
 
   const markReadMutation = useMarkNotificationRead()
   const markAllReadMutation = useMarkAllNotificationsRead()
+  const deleteMutation = useDeleteNotification()
 
   const handleOpenChange = useCallback((nextOpen: boolean) => {
     setOpen(nextOpen)
@@ -98,6 +100,13 @@ export const NotificationBell = () => {
       markReadMutation.mutate(id)
     },
     [markReadMutation],
+  )
+
+  const handleDelete = useCallback(
+    (id: number) => {
+      deleteMutation.mutate(id)
+    },
+    [deleteMutation],
   )
 
   const handleMarkAllRead = useCallback(() => {
@@ -173,7 +182,9 @@ export const NotificationBell = () => {
                   notification={notification}
                   onClick={handleNotificationClick}
                   onMarkRead={handleMarkRead}
+                  onDelete={handleDelete}
                   isMarkingRead={markReadMutation.isPending}
+                  isDeleting={deleteMutation.isPending}
                 />
               ))}
             </ul>

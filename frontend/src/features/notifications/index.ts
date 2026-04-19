@@ -5,6 +5,9 @@ export {
   useNotifications,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
+  useDeleteNotification,
+  useDeleteAllNotifications,
+  useDeleteBatchNotifications,
   notificationKeys,
 } from "@/features/notifications/hooks/use-notifications"
 

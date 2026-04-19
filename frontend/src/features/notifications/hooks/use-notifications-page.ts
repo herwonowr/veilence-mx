@@ -8,6 +8,9 @@ import {
   useUnreadCount,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
+  useDeleteNotification,
+  useDeleteAllNotifications,
+  useDeleteBatchNotifications,
 } from "@/features/notifications/hooks/use-notifications"
 import {
   classifySeverity,
@@ -78,6 +81,9 @@ export const useNotificationsPage = () => {
 
   const markReadMutation = useMarkNotificationRead()
   const markAllReadMutation = useMarkAllNotificationsRead()
+  const deleteMutation = useDeleteNotification()
+  const deleteAllMutation = useDeleteAllNotifications()
+  const deleteBatchMutation = useDeleteBatchNotifications()
 
   // Reset to first page when any filter changes
   useEffect(() => {
@@ -182,6 +188,9 @@ export const useNotificationsPage = () => {
     // Actions
     markReadMutation,
     markAllReadMutation,
+    deleteMutation,
+    deleteAllMutation,
+    deleteBatchMutation,
     refetch,
   }
 }

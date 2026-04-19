@@ -100,6 +100,52 @@ func (r *NotificationRepo) MarkAllRead(ctx context.Context, orgID, userID uint) 
 	return result.RowsAffected, nil
 }
 
+func (r *NotificationRepo) DeleteByID(ctx context.Context, id, orgID, userID uint) (int64, error) {
+	query := r.db.WithContext(ctx).Where("id = ? AND (user_id = ? OR user_id = 0)", id, userID)
+
+	if orgID != 0 {
+		query = query.Where("org_id = ?", orgID)
+	}
+
+	result := query.Delete(&Notification{})
+	if result.Error != nil {
+		return 0, fmt.Errorf("deleting notification: %w", result.Error)
+	}
+	return result.RowsAffected, nil
+}
+
+func (r *NotificationRepo) DeleteAll(ctx context.Context, orgID, userID uint) (int64, error) {
+	query := r.db.WithContext(ctx).Where("user_id = ? OR user_id = 0", userID)
+
+	if orgID != 0 {
+		query = query.Where("org_id = ?", orgID)
+	}
+
+	result := query.Delete(&Notification{})
+	if result.Error != nil {
+		return 0, fmt.Errorf("deleting all notifications: %w", result.Error)
+	}
+	return result.RowsAffected, nil
+}
+
+func (r *NotificationRepo) DeleteBatch(ctx context.Context, ids []uint, orgID, userID uint) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	query := r.db.WithContext(ctx).Where("id IN ? AND (user_id = ? OR user_id = 0)", ids, userID)
+
+	if orgID != 0 {
+		query = query.Where("org_id = ?", orgID)
+	}
+
+	result := query.Delete(&Notification{})
+	if result.Error != nil {
+		return 0, fmt.Errorf("batch deleting notifications: %w", result.Error)
+	}
+	return result.RowsAffected, nil
+}
+
 // --- Converters ---
 
 func notifToDomain(m *Notification) *entity.Notification {

@@ -36,6 +36,11 @@ type createRuleRequest struct {
 	Severity  string `json:"severity"`
 }
 
+// batchDeleteNotificationsRequest is the request body for batch deleting notifications.
+type batchDeleteNotificationsRequest struct {
+	IDs []uint `json:"ids"`
+}
+
 // ListNotificationChannels handles GET /api/orgs/{orgId}/notification-channels.
 func (h *NotificationHandlers) ListNotificationChannels(w http.ResponseWriter, r *http.Request) {
 	orgID := rbac.OrgIDFromContext(r.Context())
@@ -365,4 +370,81 @@ func (h *NotificationHandlers) TestNotificationChannel(w http.ResponseWriter, r 
 	h.Audit.LogAction(r.Context(), "test", "notification_channel", uint(id), fmt.Sprintf("sent test notification to channel %d", id))
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "test notification sent"}, nil)
+}
+
+// DeleteNotification handles DELETE /api/notifications/{id} — deletes a single
+// notification for the current user.
+func (h *NotificationHandlers) DeleteNotification(w http.ResponseWriter, r *http.Request) {
+	userID := rbac.UserIDFromContext(r.Context())
+	if userID == 0 {
+		respondError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid notification ID")
+		return
+	}
+
+	// Use orgID=0 to scope across all orgs for the user
+	if _, err := h.Notifications.DeleteByID(r.Context(), uint(id), 0, userID); err != nil {
+		respondError(w, http.StatusNotFound, "notification not found")
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "delete", "notification", uint(id), fmt.Sprintf("deleted notification %d", id))
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// DeleteAllNotifications handles DELETE /api/notifications/all — deletes all
+// notifications for the current user.
+func (h *NotificationHandlers) DeleteAllNotifications(w http.ResponseWriter, r *http.Request) {
+	userID := rbac.UserIDFromContext(r.Context())
+	if userID == 0 {
+		respondError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	affected, err := h.Notifications.DeleteAll(r.Context(), 0, userID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to delete notifications")
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "delete", "notification", 0, fmt.Sprintf("deleted all notifications (%d)", affected))
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// DeleteBatchNotifications handles DELETE /api/notifications — deletes
+// multiple notifications by IDs for the current user.
+func (h *NotificationHandlers) DeleteBatchNotifications(w http.ResponseWriter, r *http.Request) {
+	userID := rbac.UserIDFromContext(r.Context())
+	if userID == 0 {
+		respondError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	var req batchDeleteNotificationsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if len(req.IDs) == 0 {
+		respondAppError(w, Validation("ids is required and must not be empty"))
+		return
+	}
+
+	if _, err := h.Notifications.DeleteBatch(r.Context(), req.IDs, 0, userID); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "delete", "notification", 0, fmt.Sprintf("batch deleted notifications (requested %d)", len(req.IDs)))
+
+	w.WriteHeader(http.StatusNoContent)
 }

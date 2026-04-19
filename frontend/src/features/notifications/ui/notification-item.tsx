@@ -1,7 +1,7 @@
 "use client"
 
 import type { KeyboardEvent, MouseEvent } from "react"
-import { Check } from "lucide-react"
+import { Check, Trash2 } from "lucide-react"
 import { Badge } from "@/ui/components/badge"
 import { cn } from "@/core/utils"
 import type { Notification } from "@/domains/notifications"
@@ -16,7 +16,9 @@ type NotificationItemProps = {
   notification: Notification
   onClick: (notification: Notification) => void
   onMarkRead?: (id: number) => void
+  onDelete?: (id: number) => void
   isMarkingRead?: boolean
+  isDeleting?: boolean
 }
 
 const SeverityBadge = ({ severity }: { severity: string }) => {
@@ -39,7 +41,9 @@ export const NotificationItem = ({
   notification,
   onClick,
   onMarkRead,
+  onDelete,
   isMarkingRead,
+  isDeleting,
 }: NotificationItemProps) => {
   const severity = classifySeverity(notification)
   const eventConfig = getEventTypeConfig(notification.eventType)
@@ -48,6 +52,11 @@ export const NotificationItem = ({
   const handleMarkRead = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
     onMarkRead?.(notification.id)
+  }
+
+  const handleDelete = (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    onDelete?.(notification.id)
   }
 
   const handleOuterKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -109,6 +118,22 @@ export const NotificationItem = ({
                   aria-label="Mark as read"
                 >
                   <Check className="size-3" />
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className={cn(
+                    "flex size-5 items-center justify-center rounded-full transition-all",
+                    "text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
+                    "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+                    "disabled:pointer-events-none disabled:opacity-50",
+                  )}
+                  aria-label="Delete notification"
+                >
+                  <Trash2 className="size-3" />
                 </button>
               )}
             </div>

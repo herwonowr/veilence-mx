@@ -196,6 +196,9 @@ type NotificationRepository interface {
 	MarkRead(ctx context.Context, id, userID uint) (int64, error)
 	MarkAllRead(ctx context.Context, orgID, userID uint) (int64, error)
 	CountUnread(ctx context.Context, orgID, userID uint) (int64, error)
+	DeleteByID(ctx context.Context, id, orgID, userID uint) (int64, error)
+	DeleteAll(ctx context.Context, orgID, userID uint) (int64, error)
+	DeleteBatch(ctx context.Context, ids []uint, orgID, userID uint) (int64, error)
 }
 
 // PasswordResetTokenRepository defines persistence operations for PasswordResetToken entities.

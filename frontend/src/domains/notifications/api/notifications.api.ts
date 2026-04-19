@@ -102,6 +102,23 @@ export const apiCreateRule = async (
     }
   )
 
+export const apiDeleteNotification = async (
+  id: number
+): Promise<ApiResponse<null>> =>
+  fetchApi<null>(`/api/notifications/${id}`, { method: "DELETE" })
+
+export const apiDeleteAllNotifications = async (): Promise<
+  ApiResponse<null>
+> => fetchApi<null>("/api/notifications/all", { method: "DELETE" })
+
+export const apiDeleteBatchNotifications = async (
+  ids: number[]
+): Promise<ApiResponse<null>> =>
+  fetchApi<null>("/api/notifications", {
+    method: "DELETE",
+    body: JSON.stringify({ ids }),
+  })
+
 export const apiDeleteRule = async (
   orgId: number,
   id: number

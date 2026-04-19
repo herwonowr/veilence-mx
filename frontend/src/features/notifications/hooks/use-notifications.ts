@@ -11,6 +11,9 @@ import {
   apiListNotifications,
   apiMarkNotificationRead,
   apiMarkAllNotificationsRead,
+  apiDeleteNotification,
+  apiDeleteAllNotifications,
+  apiDeleteBatchNotifications,
 } from "@/domains/notifications"
 import type { ApiResponse } from "@/domains/common"
 import type { Notification } from "@/domains/notifications"
@@ -163,6 +166,177 @@ export const useMarkAllNotificationsRead = () => {
         queryClient.setQueryData(notificationKeys.unreadCount(), context.previousUnreadCount)
       }
       toast.error(sanitizeErrorMessage(_error, "Failed to mark all notifications as read"))
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all })
+    },
+  })
+}
+
+export const useDeleteNotification = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: number) => apiDeleteNotification(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: notificationKeys.all })
+
+      const previousNotifications = queryClient.getQueriesData<ApiResponse<Notification[]>>({
+        queryKey: notificationKeys.list(),
+      })
+      const previousUnreadCount = queryClient.getQueryData<ApiResponse<{ count: number }>>(
+        notificationKeys.unreadCount()
+      )
+
+      let wasUnread = false
+      queryClient.setQueriesData<ApiResponse<Notification[]>>(
+        { queryKey: notificationKeys.list() },
+        (old) => {
+          if (!old?.data || !Array.isArray(old.data)) return old
+          const target = old.data.find((n) => n.id === id)
+          if (target && !target.isRead) wasUnread = true
+          return {
+            ...old,
+            data: old.data.filter((n) => n.id !== id),
+          }
+        }
+      )
+
+      if (wasUnread) {
+        queryClient.setQueryData<ApiResponse<{ count: number }>>(
+          notificationKeys.unreadCount(),
+          (old) => {
+            if (!old?.data) return old
+            return { ...old, data: { count: Math.max(0, old.data.count - 1) } }
+          }
+        )
+      }
+
+      return { previousNotifications, previousUnreadCount }
+    },
+    onError: (_error, _id, context) => {
+      if (context?.previousNotifications) {
+        for (const [queryKey, data] of context.previousNotifications) {
+          queryClient.setQueryData(queryKey, data)
+        }
+      }
+      if (context?.previousUnreadCount) {
+        queryClient.setQueryData(notificationKeys.unreadCount(), context.previousUnreadCount)
+      }
+      toast.error(sanitizeErrorMessage(_error, "Failed to delete notification"))
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all })
+    },
+  })
+}
+
+export const useDeleteAllNotifications = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async () => {
+      await apiDeleteAllNotifications()
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: notificationKeys.all })
+
+      const previousNotifications = queryClient.getQueriesData<ApiResponse<Notification[]>>({
+        queryKey: notificationKeys.list(),
+      })
+      const previousUnreadCount = queryClient.getQueryData<ApiResponse<{ count: number }>>(
+        notificationKeys.unreadCount()
+      )
+
+      queryClient.setQueriesData<ApiResponse<Notification[]>>(
+        { queryKey: notificationKeys.list() },
+        (old) => {
+          if (!old?.data || !Array.isArray(old.data)) return old
+          return { ...old, data: [] }
+        }
+      )
+
+      queryClient.setQueryData<ApiResponse<{ count: number }>>(
+        notificationKeys.unreadCount(),
+        (old) => {
+          if (!old?.data) return old
+          return { ...old, data: { count: 0 } }
+        }
+      )
+
+      return { previousNotifications, previousUnreadCount }
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previousNotifications) {
+        for (const [queryKey, data] of context.previousNotifications) {
+          queryClient.setQueryData(queryKey, data)
+        }
+      }
+      if (context?.previousUnreadCount) {
+        queryClient.setQueryData(notificationKeys.unreadCount(), context.previousUnreadCount)
+      }
+      toast.error(sanitizeErrorMessage(_error, "Failed to delete all notifications"))
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all })
+    },
+  })
+}
+
+export const useDeleteBatchNotifications = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (ids: number[]) => apiDeleteBatchNotifications(ids),
+    onMutate: async (ids) => {
+      await queryClient.cancelQueries({ queryKey: notificationKeys.all })
+
+      const previousNotifications = queryClient.getQueriesData<ApiResponse<Notification[]>>({
+        queryKey: notificationKeys.list(),
+      })
+      const previousUnreadCount = queryClient.getQueryData<ApiResponse<{ count: number }>>(
+        notificationKeys.unreadCount()
+      )
+
+      const idsSet = new Set(ids)
+      let unreadRemoved = 0
+
+      queryClient.setQueriesData<ApiResponse<Notification[]>>(
+        { queryKey: notificationKeys.list() },
+        (old) => {
+          if (!old?.data || !Array.isArray(old.data)) return old
+          for (const n of old.data) {
+            if (idsSet.has(n.id) && !n.isRead) unreadRemoved++
+          }
+          return {
+            ...old,
+            data: old.data.filter((n) => !idsSet.has(n.id)),
+          }
+        }
+      )
+
+      if (unreadRemoved > 0) {
+        queryClient.setQueryData<ApiResponse<{ count: number }>>(
+          notificationKeys.unreadCount(),
+          (old) => {
+            if (!old?.data) return old
+            return { ...old, data: { count: Math.max(0, old.data.count - unreadRemoved) } }
+          }
+        )
+      }
+
+      return { previousNotifications, previousUnreadCount }
+    },
+    onError: (_error, _ids, context) => {
+      if (context?.previousNotifications) {
+        for (const [queryKey, data] of context.previousNotifications) {
+          queryClient.setQueryData(queryKey, data)
+        }
+      }
+      if (context?.previousUnreadCount) {
+        queryClient.setQueryData(notificationKeys.unreadCount(), context.previousUnreadCount)
+      }
+      toast.error(sanitizeErrorMessage(_error, "Failed to delete notifications"))
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.all })

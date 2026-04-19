@@ -1,9 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import { CheckCheck, Circle } from "lucide-react"
+import { CheckCheck, Circle, Trash2 } from "lucide-react"
 import { Badge } from "@/ui/components/badge"
 import { Button } from "@/ui/components/button"
+import { Checkbox } from "@/ui/components/checkbox"
 import { cn } from "@/core/utils"
 import type { Notification } from "@/domains/notifications"
 import {
@@ -41,13 +42,23 @@ const SeverityBadge = ({ severity }: { severity: string }) => {
 type NotificationPageItemProps = {
   notification: Notification
   onMarkRead: (id: number) => void
+  onDelete: (id: number) => void
   isMarkingRead: boolean
+  isDeleting: boolean
+  isSelected?: boolean
+  onToggleSelect?: (id: number) => void
+  selectMode?: boolean
 }
 
 export const NotificationPageItem = ({
   notification,
   onMarkRead,
+  onDelete,
   isMarkingRead,
+  isDeleting,
+  isSelected = false,
+  onToggleSelect,
+  selectMode = false,
 }: NotificationPageItemProps) => {
   const severity = classifySeverity(notification)
   const eventConfig = getEventTypeConfig(notification.eventType)
@@ -60,8 +71,19 @@ export const NotificationPageItem = ({
           "group flex gap-3 px-4 py-4 transition-colors",
           "hover:bg-muted/50",
           !notification.isRead && "bg-muted/30",
+          isSelected && "bg-primary/5",
         )}
       >
+        {/* Checkbox for multi-select */}
+        {selectMode && (
+          <div className="flex shrink-0 items-center pt-1">
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={() => onToggleSelect?.(notification.id)}
+              aria-label={`Select notification: ${notification.title}`}
+            />
+          </div>
+        )}
         {/* Left: Event type icon */}
         <div
           className={cn(
@@ -132,6 +154,16 @@ export const NotificationPageItem = ({
                   Read
                 </span>
               )}
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => onDelete(notification.id)}
+                disabled={isDeleting}
+                className="text-xs text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="size-3.5" />
+                Delete
+              </Button>
             </div>
           </div>
         </div>
