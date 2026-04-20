@@ -187,7 +187,7 @@ func (s *Service) Register(email, password, firstName, lastName string) (*entity
 }
 
 // sendPostRegistrationVerification sends a verification email to a newly
-// registered user if the require_email_verification config is enabled.
+// registered user if the RequireEmailVerification config is enabled.
 // Errors are logged but never propagated - registration must not fail
 // because of an email delivery issue.
 func (s *Service) sendPostRegistrationVerification(ctx context.Context, user *entity.User) {

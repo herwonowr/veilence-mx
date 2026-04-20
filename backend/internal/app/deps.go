@@ -313,12 +313,12 @@ func recoverStuckReleases(ctx context.Context, jobQueue *queue.Queue, db *gorm.D
 func seedSettingsDefaults(cfg *config.Config, db *gorm.DB) {
 	seedDefaults := map[string]string{
 		entity.SettingMonitoringInterval:           cfg.MonitoringInterval.String(),
-		entity.SettingDiscoveryScanDepth:           cfg.DiscoveryScanDepth,
+		entity.SettingDiscoveryScanDepth:           fmt.Sprintf("%d", cfg.DiscoveryScanDepth),
 		entity.SettingDiscoveryInterval:            cfg.DiscoveryInterval.String(),
 		entity.SettingDiffSizeLimit:                fmt.Sprintf("%d", cfg.DiffSizeLimit),
-		entity.SettingDiscoveryAutoApprove:         cfg.DiscoveryAutoApprove,
-		entity.SettingStaleAutoRemoveMonths:        cfg.StaleAutoRemoveMonths,
-		entity.SettingPackageCountWarningThreshold: cfg.PackageCountWarningThreshold,
+		entity.SettingDiscoveryAutoApprove:         fmt.Sprintf("%t", cfg.DiscoveryAutoApprove),
+		entity.SettingStaleAutoRemoveMonths:        fmt.Sprintf("%d", cfg.StaleAutoRemoveMonths),
+		entity.SettingPackageCountWarningThreshold: fmt.Sprintf("%d", cfg.PackageCountWarningThreshold),
 	}
 	for key, value := range seedDefaults {
 		db.Where("key = ?", key).FirstOrCreate(&persistent.Setting{Key: key, Value: value})

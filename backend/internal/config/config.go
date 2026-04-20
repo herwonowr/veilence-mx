@@ -49,10 +49,10 @@ type Config struct {
 	SMTPUseTLS   bool
 
 	// Settings seed defaults (from env)
-	DiscoveryScanDepth           string
-	DiscoveryAutoApprove         string
-	StaleAutoRemoveMonths        string
-	PackageCountWarningThreshold string
+	DiscoveryScanDepth           int
+	DiscoveryAutoApprove         bool
+	StaleAutoRemoveMonths        int
+	PackageCountWarningThreshold int
 	RequireEmailVerification     bool
 }
 
@@ -96,10 +96,10 @@ func NewConfig() (*Config, error) {
 		SMTPUseTLS:   envBoolOrDefault("SMTP_USE_TLS", true),
 
 		// Settings seed defaults
-		DiscoveryScanDepth:           envOrDefault("DISCOVERY_SCAN_DEPTH", "50"),
-		DiscoveryAutoApprove:         envOrDefault("DISCOVERY_AUTO_APPROVE", "false"),
-		StaleAutoRemoveMonths:        envOrDefault("STALE_AUTO_REMOVE_MONTHS", "0"),
-		PackageCountWarningThreshold: envOrDefault("PACKAGE_COUNT_WARNING_THRESHOLD", "0"),
+		DiscoveryScanDepth:           envIntOrDefault("DISCOVERY_SCAN_DEPTH", 50),
+		DiscoveryAutoApprove:         envBoolOrDefault("DISCOVERY_AUTO_APPROVE", false),
+		StaleAutoRemoveMonths:        envIntOrDefault("STALE_AUTO_REMOVE_MONTHS", 0),
+		PackageCountWarningThreshold: envIntOrDefault("PACKAGE_COUNT_WARNING_THRESHOLD", 0),
 		RequireEmailVerification:     envBoolOrDefault("REQUIRE_EMAIL_VERIFICATION", false),
 	}
 
