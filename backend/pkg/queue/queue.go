@@ -193,6 +193,7 @@ func (q *Queue) Complete(ctx context.Context, job *Job) error {
 	pipe.Set(ctx, jobHash+job.ID, data, 1*time.Hour)
 	pipe.ZRem(ctx, processingSet+job.Type, job.ID)
 	pipe.HIncrBy(ctx, statsHash, "total_completed", 1)
+	pipe.HIncrBy(ctx, statsHash, fmt.Sprintf("completed:%d", job.WorkspaceID), 1)
 	_, err := pipe.Exec(ctx)
 	return err
 }
@@ -661,9 +662,8 @@ func (q *Queue) StatsForWorkspace(ctx context.Context, jobType string, workspace
 		}
 	}
 
-	// Completed is a global counter - we cannot scope it by workspace from
-	// the existing counter. Set to 0 for workspace-scoped view.
-	stats.Completed = 0
+	// Read workspace-scoped completed counter
+	stats.Completed, _ = q.rdb.HGet(ctx, statsHash, fmt.Sprintf("completed:%d", workspaceID)).Int64()
 
 	return &stats, nil
 }
