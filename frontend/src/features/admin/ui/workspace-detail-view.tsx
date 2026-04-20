@@ -299,7 +299,7 @@ export const WorkspaceDetailView = () => {
                           <SelectValue>{inviteRoleId != null ? capitalize(roles.find(r => r.id === inviteRoleId)?.name ?? "") : "Select a role"}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {roles.map((role) => (
+                          {roles.filter((role) => role.name.toLowerCase() !== "owner").map((role) => (
                             <SelectItem key={role.id} value={String(role.id)}>
                               {capitalize(role.name)}
                             </SelectItem>
@@ -349,24 +349,30 @@ export const WorkspaceDetailView = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={String(member.roleId)}
-                          onValueChange={(v) =>
-                            handleUpdateRole(member.userId, String(v))
-                          }
-                          disabled={member.userId === user?.id || !canUpdateRole}
-                        >
-                          <SelectTrigger className="w-28">
-                            <SelectValue>{member.role?.name ? capitalize(member.role.name) : "No role"}</SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {roles.map((role) => (
-                              <SelectItem key={role.id} value={String(role.id)}>
-                                {capitalize(role.name)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {member.userId === workspace.ownerId ? (
+                          <Badge variant="secondary">
+                            {member.role?.name ? capitalize(member.role.name) : "Owner"}
+                          </Badge>
+                        ) : (
+                          <Select
+                            value={String(member.roleId)}
+                            onValueChange={(v) =>
+                              handleUpdateRole(member.userId, String(v))
+                            }
+                            disabled={member.userId === user?.id || !canUpdateRole}
+                          >
+                            <SelectTrigger className="w-28">
+                              <SelectValue>{member.role?.name ? capitalize(member.role.name) : "No role"}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {roles.filter((role) => role.name.toLowerCase() !== "owner").map((role) => (
+                                <SelectItem key={role.id} value={String(role.id)}>
+                                  {capitalize(role.name)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(member.joinedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
