@@ -12,8 +12,8 @@ export interface Package {
   source: PackageSource
   status: PackageStatus
   downloadCount: number
+  workspaceId: number
   downloadCountUpdatedAt: string | null
-  rank: number | null
   blockedAt: string | null
   blockedReason: string | null
   createdAt: string

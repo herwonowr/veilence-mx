@@ -5,5 +5,4 @@ export interface SettingsMap {
 export interface ReanalyzeAllResponse {
   message: string
   queued: number
-  dead_retried: number
 }

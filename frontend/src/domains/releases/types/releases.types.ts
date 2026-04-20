@@ -45,7 +45,6 @@ export interface ReleaseDetail extends Release {
     description: string
     source: string
     status: string
-    rank: number | null
     blockedAt: string | null
     blockedReason: string | null
     downloadCount: number
@@ -60,4 +59,9 @@ export interface RecentRelease extends Release {
   packageName: string
   packageEcosystem: string
   classification?: Classification
+}
+
+export interface ReanalyzeReleaseResponse {
+  message: string
+  jobId: string
 }

@@ -377,7 +377,7 @@ export const handlers = [
 
   http.post(`${API_BASE}/api/sync/reanalyze`, () => {
     return HttpResponse.json({
-      data: { message: "Reanalysis queued", queued: 10, dead_retried: 0 },
+      data: { message: "Reanalysis queued", queued: 10 },
       error: null,
     })
   }),

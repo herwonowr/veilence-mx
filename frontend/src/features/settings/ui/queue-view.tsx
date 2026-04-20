@@ -33,10 +33,7 @@ export const QueueView = () => {
     setQueueMessage("")
     try {
       const { data } = await reanalyzeMutation.mutateAsync()
-      setQueueMessage(
-        `Queued ${data.queued} job(s)` +
-          (data.dead_retried > 0 ? `, retried ${data.dead_retried} dead job(s)` : "")
-      )
+      setQueueMessage(`Queued ${data.queued} job(s)`)
       handleRefresh()
     } catch (err) {
       setQueueMessage(err instanceof Error ? err.message : "Failed to trigger re-analysis")

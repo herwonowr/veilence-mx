@@ -1,6 +1,7 @@
 import { fetchApi, getStoredRefreshToken } from "@/core"
 import type { ApiResponse } from "@/domains/common"
-import type { User, LoginResponse, ProfileUpdateRequest, PasswordChangeRequest, Session, ApiKeyInfo, CreateApiKeyRequest } from "@/domains/auth/types/auth.types"
+import type { User, LoginResponse, ProfileUpdateRequest, PasswordChangeRequest, Session } from "@/domains/auth/types/auth.types"
+import type { ApiKeyInfo, CreateApiKeyRequest } from "@/domains/account/types/account.types"
 
 export const apiLogin = async (
   email: string,

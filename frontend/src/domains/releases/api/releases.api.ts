@@ -1,6 +1,6 @@
 import { fetchApi } from "@/core"
 import type { ApiResponse } from "@/domains/common"
-import type { ReleaseDetail } from "@/domains/releases/types/releases.types"
+import type { ReleaseDetail, ReanalyzeReleaseResponse } from "@/domains/releases/types/releases.types"
 
 export const getRelease = async (
   id: number
@@ -9,8 +9,8 @@ export const getRelease = async (
 
 export const reanalyzeRelease = async (
   releaseId: number
-): Promise<ApiResponse<{ message: string }>> =>
-  fetchApi<{ message: string }>(`/api/releases/${releaseId}/reanalyze`, {
+): Promise<ApiResponse<ReanalyzeReleaseResponse>> =>
+  fetchApi<ReanalyzeReleaseResponse>(`/api/releases/${releaseId}/reanalyze`, {
     method: "POST",
   })
 
