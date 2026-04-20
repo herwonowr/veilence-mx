@@ -4,11 +4,13 @@
 --   DELETE FROM schema_migrations;
 --   INSERT INTO schema_migrations (version, dirty) VALUES (1, false);
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- =========================================================================
 -- Users
 -- =========================================================================
 CREATE TABLE users (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255),
     first_name VARCHAR(100),
@@ -27,11 +29,11 @@ CREATE INDEX idx_users_deleted_at ON users(deleted_at);
 -- Workspaces (originally "organizations", renamed in 000004)
 -- =========================================================================
 CREATE TABLE workspaces (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
     slug VARCHAR(100) NOT NULL,
     description TEXT,
-    owner_id BIGINT NOT NULL,
+    owner_id UUID NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -44,8 +46,8 @@ CREATE INDEX idx_workspaces_deleted_at ON workspaces(deleted_at);
 -- Roles
 -- =========================================================================
 CREATE TABLE roles (
-    id BIGSERIAL PRIMARY KEY,
-    workspace_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL,
     name VARCHAR(50) NOT NULL,
     description TEXT,
     is_system BOOLEAN NOT NULL DEFAULT false,
@@ -58,15 +60,15 @@ CREATE INDEX idx_roles_workspace_id ON roles(workspace_id);
 -- Permissions
 -- =========================================================================
 CREATE TABLE permissions (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     resource VARCHAR(50) NOT NULL,
     action VARCHAR(50) NOT NULL
 );
 
 -- Role-Permission join table
 CREATE TABLE role_permissions (
-    role_id BIGINT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-    permission_id BIGINT NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+    role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    permission_id UUID NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
     PRIMARY KEY (role_id, permission_id)
 );
 
@@ -74,10 +76,10 @@ CREATE TABLE role_permissions (
 -- Workspace members (originally "org_members", renamed in 000004)
 -- =========================================================================
 CREATE TABLE workspace_members (
-    id BIGSERIAL PRIMARY KEY,
-    workspace_id BIGINT NOT NULL,
-    user_id BIGINT NOT NULL,
-    role_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    role_id UUID NOT NULL,
     joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -88,12 +90,12 @@ CREATE UNIQUE INDEX idx_workspace_user ON workspace_members(workspace_id, user_i
 -- Invitations
 -- =========================================================================
 CREATE TABLE invitations (
-    id BIGSERIAL PRIMARY KEY,
-    workspace_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL,
     email VARCHAR(255) NOT NULL,
-    role_id BIGINT NOT NULL,
+    role_id UUID NOT NULL,
     token_hash VARCHAR(255) NOT NULL,
-    invited_by BIGINT NOT NULL,
+    invited_by UUID NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     accepted_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -105,8 +107,8 @@ CREATE INDEX idx_invitations_workspace_id ON invitations(workspace_id);
 -- Refresh tokens
 -- =========================================================================
 CREATE TABLE refresh_tokens (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
     token_hash VARCHAR(255) NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -118,9 +120,9 @@ CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
 -- API keys (scope renamed to role in 000005, workspace_id added in 000005)
 -- =========================================================================
 CREATE TABLE api_keys (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    workspace_id BIGINT NOT NULL DEFAULT 0,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    workspace_id UUID NOT NULL,
     name VARCHAR(100) NOT NULL,
     key_hash VARCHAR(255) NOT NULL,
     key_prefix VARCHAR(10) NOT NULL,
@@ -142,8 +144,8 @@ CREATE INDEX idx_api_keys_workspace_id ON api_keys(workspace_id);
 -- Sessions
 -- =========================================================================
 CREATE TABLE sessions (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash VARCHAR(255) NOT NULL,
     ip_address VARCHAR(45),
     user_agent VARCHAR(512),
@@ -159,8 +161,8 @@ CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
 -- Password reset tokens
 -- =========================================================================
 CREATE TABLE password_reset_tokens (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
     token_hash VARCHAR(255) NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     used_at TIMESTAMPTZ,
@@ -173,8 +175,8 @@ CREATE INDEX idx_password_reset_tokens_user_id ON password_reset_tokens(user_id)
 -- Email verification tokens
 -- =========================================================================
 CREATE TABLE email_verification_tokens (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
     token_hash VARCHAR(255) NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -186,8 +188,8 @@ CREATE INDEX idx_email_verification_tokens_user_id ON email_verification_tokens(
 -- Packages (with download fields from 000002, workspace rename from 000004)
 -- =========================================================================
 CREATE TABLE packages (
-    id BIGSERIAL PRIMARY KEY,
-    workspace_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     ecosystem VARCHAR(10) NOT NULL,
     latest_version VARCHAR(100),
@@ -212,8 +214,8 @@ CREATE INDEX idx_packages_workspace_status ON packages(workspace_id, status);
 -- Releases
 -- =========================================================================
 CREATE TABLE releases (
-    id BIGSERIAL PRIMARY KEY,
-    package_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    package_id UUID NOT NULL,
     version VARCHAR(100) NOT NULL,
     published_at TIMESTAMPTZ,
     tarball_url TEXT,
@@ -231,9 +233,9 @@ CREATE INDEX idx_releases_status ON releases(status);
 -- Diffs
 -- =========================================================================
 CREATE TABLE diffs (
-    id BIGSERIAL PRIMARY KEY,
-    release_id BIGINT NOT NULL,
-    prev_release_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    release_id UUID NOT NULL,
+    prev_release_id UUID NOT NULL,
     diff_content TEXT,
     file_changes_count BIGINT DEFAULT 0,
     lines_added BIGINT DEFAULT 0,
@@ -246,8 +248,8 @@ CREATE INDEX idx_diffs_release_id ON diffs(release_id);
 -- Analyses
 -- =========================================================================
 CREATE TABLE analyses (
-    id BIGSERIAL PRIMARY KEY,
-    diff_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    diff_id UUID NOT NULL,
     classification VARCHAR(20) NOT NULL,
     confidence DOUBLE PRECISION NOT NULL,
     reasoning TEXT,
@@ -262,11 +264,11 @@ CREATE INDEX idx_analyses_diff_id ON analyses(diff_id);
 -- Alerts
 -- =========================================================================
 CREATE TABLE alerts (
-    id BIGSERIAL PRIMARY KEY,
-    workspace_id BIGINT NOT NULL,
-    analysis_id BIGINT NOT NULL,
-    package_id BIGINT NOT NULL,
-    release_id BIGINT DEFAULT 0,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL,
+    analysis_id UUID NOT NULL,
+    package_id UUID NOT NULL,
+    release_id UUID,
     severity VARCHAR(20) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'new',
     message TEXT,
@@ -284,10 +286,10 @@ CREATE INDEX idx_alerts_workspace_severity ON alerts(workspace_id, severity);
 -- Alert notes
 -- =========================================================================
 CREATE TABLE alert_notes (
-    id BIGSERIAL PRIMARY KEY,
-    alert_id BIGINT NOT NULL,
-    workspace_id BIGINT NOT NULL,
-    user_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    alert_id UUID NOT NULL,
+    workspace_id UUID NOT NULL,
+    user_id UUID NOT NULL,
     user_email VARCHAR(255),
     content TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -300,8 +302,8 @@ CREATE INDEX idx_alert_notes_workspace_id ON alert_notes(workspace_id);
 -- Settings
 -- =========================================================================
 CREATE TABLE settings (
-    id BIGSERIAL PRIMARY KEY,
-    workspace_id BIGINT NOT NULL DEFAULT 0,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL,
     key VARCHAR(100) NOT NULL,
     value TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -313,12 +315,12 @@ CREATE UNIQUE INDEX idx_settings_workspace_key ON settings(workspace_id, key);
 -- Audit logs
 -- =========================================================================
 CREATE TABLE audit_logs (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT,
-    workspace_id BIGINT,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID,
+    workspace_id UUID,
     action VARCHAR(50) NOT NULL,
     resource VARCHAR(50) NOT NULL,
-    resource_id BIGINT,
+    resource_id UUID,
     details TEXT,
     ip_address VARCHAR(45),
     user_agent VARCHAR(255),
@@ -335,8 +337,8 @@ CREATE INDEX idx_audit_logs_workspace_created ON audit_logs(workspace_id, create
 -- Notification channels
 -- =========================================================================
 CREATE TABLE notification_channels (
-    id BIGSERIAL PRIMARY KEY,
-    workspace_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL,
     name VARCHAR(100) NOT NULL,
     type VARCHAR(20) NOT NULL,
     config TEXT,
@@ -350,9 +352,9 @@ CREATE INDEX idx_notification_channels_workspace_id ON notification_channels(wor
 -- Notification rules
 -- =========================================================================
 CREATE TABLE notification_rules (
-    id BIGSERIAL PRIMARY KEY,
-    workspace_id BIGINT NOT NULL,
-    channel_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL,
+    channel_id UUID NOT NULL,
     severity VARCHAR(20),
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -365,15 +367,15 @@ CREATE INDEX idx_notification_rules_channel_id ON notification_rules(channel_id)
 -- Notifications (with event fields from 000003)
 -- =========================================================================
 CREATE TABLE notifications (
-    id BIGSERIAL PRIMARY KEY,
-    workspace_id BIGINT NOT NULL,
-    user_id BIGINT,
-    channel_id BIGINT,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL,
+    user_id UUID,
+    channel_id UUID,
     title VARCHAR(255) NOT NULL,
     message TEXT,
     severity VARCHAR(20) NOT NULL DEFAULT '',
     event_type VARCHAR(100) NOT NULL DEFAULT '',
-    reference_id BIGINT NOT NULL DEFAULT 0,
+    reference_id UUID,
     reference_type VARCHAR(50) NOT NULL DEFAULT '',
     is_read BOOLEAN NOT NULL DEFAULT false,
     sent_at TIMESTAMPTZ,

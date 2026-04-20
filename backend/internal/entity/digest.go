@@ -4,14 +4,14 @@ import "time"
 
 // DigestOrgConfig holds the digest configuration for a single workspace.
 type DigestOrgConfig struct {
-	WorkspaceID uint
+	WorkspaceID string
 	Frequency   string
 	Recipients  string
 }
 
 // DigestTopAlert is a summary of an alert for the digest.
 type DigestTopAlert struct {
-	ID          uint
+	ID          string
 	PackageName string
 	Severity    string
 	Message     string

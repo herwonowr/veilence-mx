@@ -118,14 +118,14 @@ export const PackageSuggestionsView = () => {
   const bulkApproveMutation = useBulkApprovePackages()
 
   const handleApprove = useCallback(
-    (id: number) => {
+    (id: string) => {
       approveMutation.mutate(id)
     },
     [approveMutation]
   )
 
   const handleReject = useCallback(
-    (id: number) => {
+    (id: string) => {
       rejectMutation.mutate(id)
     },
     [rejectMutation]

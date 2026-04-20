@@ -21,7 +21,7 @@ func NewAlertRepo(db *gorm.DB) *AlertRepo {
 	return &AlertRepo{db: db}
 }
 
-func (r *AlertRepo) FindByID(ctx context.Context, id uint) (*entity.Alert, error) {
+func (r *AlertRepo) FindByID(ctx context.Context, id string) (*entity.Alert, error) {
 	var m Alert
 	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -32,7 +32,7 @@ func (r *AlertRepo) FindByID(ctx context.Context, id uint) (*entity.Alert, error
 	return alertToDomain(&m), nil
 }
 
-func (r *AlertRepo) FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID uint) (*entity.Alert, error) {
+func (r *AlertRepo) FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID string) (*entity.Alert, error) {
 	var m Alert
 	err := r.db.WithContext(ctx).
 		Where("id = ? AND workspace_id = ?", id, workspaceID).
@@ -46,7 +46,7 @@ func (r *AlertRepo) FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID 
 	return alertToDomain(&m), nil
 }
 
-func (r *AlertRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.Alert, int64, error) {
+func (r *AlertRepo) FindByWorkspaceID(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.Alert, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Alert{}).
 		Where("alerts.workspace_id = ?", workspaceID)
@@ -105,7 +105,7 @@ func (r *AlertRepo) Create(ctx context.Context, alert *entity.Alert) error {
 	return nil
 }
 
-func (r *AlertRepo) FindByIDWithPackage(ctx context.Context, id, workspaceID uint) (*entity.Alert, *entity.Package, error) {
+func (r *AlertRepo) FindByIDWithPackage(ctx context.Context, id, workspaceID string) (*entity.Alert, *entity.Package, error) {
 	var m Alert
 	err := r.db.WithContext(ctx).
 		Where("id = ? AND workspace_id = ?", id, workspaceID).
@@ -128,7 +128,7 @@ func (r *AlertRepo) FindByIDWithPackage(ctx context.Context, id, workspaceID uin
 	return alertToDomain(&m), packageToDomain(&pkg), nil
 }
 
-func (r *AlertRepo) FindByWorkspaceIDWithPackage(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
+func (r *AlertRepo) FindByWorkspaceIDWithPackage(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Alert{}).
 		Joins("JOIN packages ON packages.id = alerts.package_id").
@@ -181,7 +181,7 @@ func (r *AlertRepo) FindByWorkspaceIDWithPackage(ctx context.Context, workspaceI
 	return result, total, nil
 }
 
-func (r *AlertRepo) UpdateStatus(ctx context.Context, id, workspaceID uint, status entity.AlertStatus) error {
+func (r *AlertRepo) UpdateStatus(ctx context.Context, id, workspaceID string, status entity.AlertStatus) error {
 	result := r.db.WithContext(ctx).
 		Model(&Alert{}).
 		Where("id = ? AND workspace_id = ?", id, workspaceID).
@@ -204,7 +204,7 @@ func (r *AlertRepo) Update(ctx context.Context, alert *entity.Alert) error {
 	return nil
 }
 
-func (r *AlertRepo) CountByWorkspaceAndStatus(ctx context.Context, workspaceID uint) (map[entity.AlertStatus]int64, error) {
+func (r *AlertRepo) CountByWorkspaceAndStatus(ctx context.Context, workspaceID string) (map[entity.AlertStatus]int64, error) {
 	type statusCount struct {
 		Status string
 		Count  int64

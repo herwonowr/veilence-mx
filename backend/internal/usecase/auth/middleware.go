@@ -97,11 +97,11 @@ func Middleware(svc *Service) func(http.Handler) http.Handler {
 
 // UserIDFromContext extracts the authenticated user's ID from the request context.
 // Returns 0 if no user is authenticated.
-func UserIDFromContext(ctx context.Context) uint {
-	if v, ok := ctx.Value(contextKeyUserID).(uint); ok {
+func UserIDFromContext(ctx context.Context) string {
+	if v, ok := ctx.Value(contextKeyUserID).(string); ok {
 		return v
 	}
-	return 0
+	return ""
 }
 
 // EmailFromContext extracts the authenticated user's email from the request context.
@@ -133,9 +133,9 @@ func APIKeyRoleFromContext(ctx context.Context) entity.APIKeyRole {
 
 // APIKeyWorkspaceIDFromContext extracts the API key's workspace ID from the request context.
 // Returns 0 if the request was not authenticated via API key.
-func APIKeyWorkspaceIDFromContext(ctx context.Context) uint {
-	if v, ok := ctx.Value(contextKeyAPIKeyWorkspaceID).(uint); ok {
+func APIKeyWorkspaceIDFromContext(ctx context.Context) string {
+	if v, ok := ctx.Value(contextKeyAPIKeyWorkspaceID).(string); ok {
 		return v
 	}
-	return 0
+	return ""
 }

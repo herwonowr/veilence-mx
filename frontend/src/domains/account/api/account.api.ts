@@ -14,7 +14,7 @@ export const apiCreateApiKey = async (
   })
 
 export const apiDeleteApiKey = async (
-  id: number
+  id: string
 ): Promise<ApiResponse<null>> =>
   fetchApi<null>(`/api/auth/api-keys/${id}`, { method: "DELETE" })
 

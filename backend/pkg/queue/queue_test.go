@@ -15,6 +15,16 @@ import (
 )
 
 // ------------------------------------------------------------
+// ID helpers for UUID-based tests
+// ------------------------------------------------------------
+
+func refID(n int) string {
+	return fmt.Sprintf("01935d5a-0000-7000-8000-%012x", n)
+}
+
+const testWsID = "01935d5a-0000-7000-8000-000000000001"
+
+// ------------------------------------------------------------
 // Test helpers
 // ------------------------------------------------------------
 
@@ -62,7 +72,7 @@ func TestEnqueue_CreatesJobAndAddsToQueue(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	jobID, err := q.Enqueue(ctx, JobTypeDiff, 1, 42)
+	jobID, err := q.Enqueue(ctx, JobTypeDiff, "01935d5a-0000-7000-8000-000000000001", "01935d5a-0000-7000-8000-00000000002a")
 	require.NoError(t, err)
 	assert.NotEmpty(t, jobID)
 
@@ -70,7 +80,7 @@ func TestEnqueue_CreatesJobAndAddsToQueue(t *testing.T) {
 	job := loadTestJob(t, q, jobID)
 	assert.Equal(t, jobID, job.ID)
 	assert.Equal(t, JobTypeDiff, job.Type)
-	assert.Equal(t, uint(42), job.ReferenceID)
+	assert.Equal(t, "01935d5a-0000-7000-8000-00000000002a", job.ReferenceID)
 	assert.Equal(t, StatusPending, job.Status)
 	assert.Equal(t, 0, job.Attempts)
 	assert.Equal(t, 3, job.MaxAttempts) // default from test queue
@@ -87,10 +97,10 @@ func TestEnqueue_IncrementsIDCounter(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	id1, err := q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	id1, err := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	require.NoError(t, err)
 
-	id2, err := q.Enqueue(ctx, JobTypeDiff, 1, 2)
+	id2, err := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(2))
 	require.NoError(t, err)
 
 	assert.NotEqual(t, id1, id2)
@@ -100,9 +110,9 @@ func TestEnqueue_IncrementsTotalEnqueued(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	_, err := q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, err := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	require.NoError(t, err)
-	_, err = q.Enqueue(ctx, JobTypeAnalyze, 1, 2)
+	_, err = q.Enqueue(ctx, JobTypeAnalyze, testWsID, refID(2))
 	require.NoError(t, err)
 
 	val, err := q.rdb.HGet(ctx, statsHash, "total_enqueued").Int64()
@@ -114,10 +124,10 @@ func TestEnqueue_DifferentJobTypes(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	diffID, err := q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	diffID, err := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	require.NoError(t, err)
 
-	analyzeID, err := q.Enqueue(ctx, JobTypeAnalyze, 1, 2)
+	analyzeID, err := q.Enqueue(ctx, JobTypeAnalyze, testWsID, refID(2))
 	require.NoError(t, err)
 
 	diffPending, _ := q.rdb.LRange(ctx, pendingList+JobTypeDiff, 0, -1).Result()
@@ -137,7 +147,7 @@ func TestDequeue_ReturnsJobAndMovesToProcessing(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	jobID, err := q.Enqueue(ctx, JobTypeDiff, 1, 10)
+	jobID, err := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(10))
 	require.NoError(t, err)
 
 	job, err := q.Dequeue(ctx, JobTypeDiff)
@@ -172,7 +182,7 @@ func TestDequeue_IncrementsAttempts(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	_, err := q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, err := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	require.NoError(t, err)
 
 	job, err := q.Dequeue(ctx, JobTypeDiff)
@@ -184,9 +194,9 @@ func TestDequeue_FIFO_Order(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	id1, _ := q.Enqueue(ctx, JobTypeDiff, 1, 1)
-	id2, _ := q.Enqueue(ctx, JobTypeDiff, 1, 2)
-	id3, _ := q.Enqueue(ctx, JobTypeDiff, 1, 3)
+	id1, _ := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
+	id2, _ := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(2))
+	id3, _ := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(3))
 
 	job1, err := q.Dequeue(ctx, JobTypeDiff)
 	require.NoError(t, err)
@@ -210,7 +220,7 @@ func TestDequeue_DoesNotCrossPollJobTypes(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	_, err := q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, err := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	require.NoError(t, err)
 
 	job, err := q.Dequeue(ctx, JobTypeAnalyze)
@@ -226,7 +236,7 @@ func TestComplete_RemovesJobFromProcessing(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	_, err := q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, err := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	require.NoError(t, err)
 
 	job, err := q.Dequeue(ctx, JobTypeDiff)
@@ -250,7 +260,7 @@ func TestComplete_IncrementsTotalCompleted(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	job, _ := q.Dequeue(ctx, JobTypeDiff)
 
 	err := q.Complete(ctx, job)
@@ -269,7 +279,7 @@ func TestFail_RetriesWhenAttemptsRemain(t *testing.T) {
 	q, _ := newTestQueue(t, withMaxAttempts(3))
 	ctx := context.Background()
 
-	_, err := q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, err := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	require.NoError(t, err)
 
 	job, err := q.Dequeue(ctx, JobTypeDiff)
@@ -301,7 +311,7 @@ func TestFail_MovesToDeadWhenMaxAttemptsExceeded(t *testing.T) {
 	q, _ := newTestQueue(t, withMaxAttempts(1))
 	ctx := context.Background()
 
-	_, err := q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, err := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	require.NoError(t, err)
 
 	job, err := q.Dequeue(ctx, JobTypeDiff)
@@ -333,7 +343,7 @@ func TestFail_IncrementsDeadCounter(t *testing.T) {
 	q, _ := newTestQueue(t, withMaxAttempts(1))
 	ctx := context.Background()
 
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	job, _ := q.Dequeue(ctx, JobTypeDiff)
 
 	err := q.Fail(ctx, job, errors.New("boom"))
@@ -348,7 +358,7 @@ func TestFail_BackoffIncreases(t *testing.T) {
 	q, _ := newTestQueue(t, withMaxAttempts(5))
 	ctx := context.Background()
 
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	job, _ := q.Dequeue(ctx, JobTypeDiff)
 
 	before := time.Now().Unix()
@@ -369,9 +379,9 @@ func TestStats_ReturnsCorrectCounts(t *testing.T) {
 	ctx := context.Background()
 
 	// Enqueue 3 jobs
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 2)
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 3)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(2))
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(3))
 
 	stats, err := q.Stats(ctx, JobTypeDiff)
 	require.NoError(t, err)
@@ -429,7 +439,7 @@ func TestRecoverStuckJobs_MovesStaleJobsBackToPending(t *testing.T) {
 	ctx := context.Background()
 
 	// Enqueue and dequeue a job (moves it to processing)
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	job, _ := q.Dequeue(ctx, JobTypeDiff)
 	require.NotNil(t, job)
 
@@ -461,7 +471,7 @@ func TestRecoverStuckJobs_NoStuckJobs(t *testing.T) {
 	ctx := context.Background()
 
 	// Enqueue and dequeue (freshly processing, not stuck)
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	_, _ = q.Dequeue(ctx, JobTypeDiff)
 
 	recovered, err := q.RecoverStuckJobs(ctx, JobTypeDiff)
@@ -474,7 +484,7 @@ func TestRecoverStuckJobs_MovesToDeadWhenMaxAttemptsExceeded(t *testing.T) {
 	ctx := context.Background()
 
 	// Enqueue and dequeue (attempt 1)
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	job, _ := q.Dequeue(ctx, JobTypeDiff)
 	require.NotNil(t, job)
 	assert.Equal(t, 0, job.Attempts) // Dequeue doesn't increment
@@ -508,7 +518,7 @@ func TestRecoverStuckJobs_RecoverMultipleJobs(t *testing.T) {
 	// Enqueue and dequeue 3 jobs
 	ids := make([]string, 3)
 	for i := range ids {
-		id, _ := q.Enqueue(ctx, JobTypeDiff, 1, uint(i+1))
+		id, _ := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(i+1))
 		ids[i] = id
 	}
 	for range ids {
@@ -535,7 +545,7 @@ func TestRequeueDead_MovesDeadJobBackToPending(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a dead job
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	job, _ := q.Dequeue(ctx, JobTypeDiff)
 	_ = q.Fail(ctx, job, errors.New("fatal"))
 
@@ -567,7 +577,7 @@ func TestRequeueDead_FailsIfJobNotDead(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a pending job
-	jobID, _ := q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	jobID, _ := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 
 	err := q.RequeueDead(ctx, JobTypeDiff, jobID)
 	assert.Error(t, err)
@@ -592,7 +602,7 @@ func TestRequeueAllDead_RequeuesAllDeadJobs(t *testing.T) {
 
 	// Create 3 dead jobs
 	for i := range 3 {
-		_, _ = q.Enqueue(ctx, JobTypeDiff, 1, uint(i+1))
+		_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(i+1))
 		job, _ := q.Dequeue(ctx, JobTypeDiff)
 		_ = q.Fail(ctx, job, fmt.Errorf("error %d", i))
 	}
@@ -621,7 +631,7 @@ func TestDeadJobs_ReturnsDeadJobsSortedByRecent(t *testing.T) {
 
 	// Create dead jobs
 	for i := range 3 {
-		_, _ = q.Enqueue(ctx, JobTypeDiff, 1, uint(i+1))
+		_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(i+1))
 		job, _ := q.Dequeue(ctx, JobTypeDiff)
 		_ = q.Fail(ctx, job, fmt.Errorf("error %d", i))
 	}
@@ -641,7 +651,7 @@ func TestDeadJobs_RespectsLimit(t *testing.T) {
 	ctx := context.Background()
 
 	for i := range 5 {
-		_, _ = q.Enqueue(ctx, JobTypeDiff, 1, uint(i+1))
+		_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(i+1))
 		job, _ := q.Dequeue(ctx, JobTypeDiff)
 		_ = q.Fail(ctx, job, fmt.Errorf("error %d", i))
 	}
@@ -691,7 +701,7 @@ func TestJob_JSONRoundTrip(t *testing.T) {
 	original := Job{
 		ID:          "42",
 		Type:        JobTypeDiff,
-		ReferenceID: 100,
+		ReferenceID: refID(100),
 		Status:      StatusPending,
 		Attempts:    2,
 		MaxAttempts: 5,
@@ -770,7 +780,7 @@ func TestFullJobLifecycle_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// 1. Enqueue
-	jobID, err := q.Enqueue(ctx, JobTypeDiff, 1, 42)
+	jobID, err := q.Enqueue(ctx, JobTypeDiff, "01935d5a-0000-7000-8000-000000000001", "01935d5a-0000-7000-8000-00000000002a")
 	require.NoError(t, err)
 
 	// 2. Dequeue
@@ -800,7 +810,7 @@ func TestFullJobLifecycle_FailRetrySuccess(t *testing.T) {
 	ctx := context.Background()
 
 	// 1. Enqueue
-	jobID, err := q.Enqueue(ctx, JobTypeDiff, 1, 42)
+	jobID, err := q.Enqueue(ctx, JobTypeDiff, "01935d5a-0000-7000-8000-000000000001", "01935d5a-0000-7000-8000-00000000002a")
 	require.NoError(t, err)
 
 	// 2. First attempt - fail
@@ -827,7 +837,7 @@ func TestFullJobLifecycle_FailUntilDead(t *testing.T) {
 	q, _ := newTestQueue(t, withMaxAttempts(2))
 	ctx := context.Background()
 
-	_, err := q.Enqueue(ctx, JobTypeDiff, 1, 42)
+	_, err := q.Enqueue(ctx, JobTypeDiff, "01935d5a-0000-7000-8000-000000000001", "01935d5a-0000-7000-8000-00000000002a")
 	require.NoError(t, err)
 
 	// First attempt - fail
@@ -856,7 +866,7 @@ func TestFullJobLifecycle_DeadThenRequeue(t *testing.T) {
 	ctx := context.Background()
 
 	// Enqueue → Dequeue → Fail → Dead
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 42)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, "01935d5a-0000-7000-8000-000000000001", "01935d5a-0000-7000-8000-00000000002a")
 	job, _ := q.Dequeue(ctx, JobTypeDiff)
 	_ = q.Fail(ctx, job, errors.New("fatal"))
 
@@ -885,7 +895,7 @@ func TestSaveJob_SetsTTLBasedOnStatus(t *testing.T) {
 	ctx := context.Background()
 
 	// Pending job → 24h TTL
-	jobID, _ := q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	jobID, _ := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	ttl := mr.TTL(jobHash + jobID)
 	assert.InDelta(t, (24 * time.Hour).Seconds(), ttl.Seconds(), 5)
 
@@ -900,7 +910,7 @@ func TestSaveJob_DeadJobTTL(t *testing.T) {
 	q, mr := newTestQueue(t, withMaxAttempts(1))
 	ctx := context.Background()
 
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	job, _ := q.Dequeue(ctx, JobTypeDiff)
 	_ = q.Fail(ctx, job, errors.New("dead"))
 
@@ -916,9 +926,9 @@ func TestPendingJobs_ReturnsJobsInFIFOOrder(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	id1, _ := q.Enqueue(ctx, JobTypeDiff, 1, 1)
-	id2, _ := q.Enqueue(ctx, JobTypeDiff, 1, 2)
-	id3, _ := q.Enqueue(ctx, JobTypeDiff, 1, 3)
+	id1, _ := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
+	id2, _ := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(2))
+	id3, _ := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(3))
 
 	jobs, total, err := q.PendingJobs(ctx, JobTypeDiff, 0, 10)
 	require.NoError(t, err)
@@ -947,7 +957,7 @@ func TestPendingJobs_Pagination(t *testing.T) {
 
 	ids := make([]string, 5)
 	for i := range 5 {
-		ids[i], _ = q.Enqueue(ctx, JobTypeDiff, 1, uint(i+1))
+		ids[i], _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(i+1))
 	}
 
 	// Page 1: first 2 jobs
@@ -978,7 +988,7 @@ func TestPendingJobs_PageBeyondTotal(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 
 	jobs, total, err := q.PendingJobs(ctx, JobTypeDiff, 100, 20)
 	require.NoError(t, err)
@@ -990,8 +1000,8 @@ func TestPendingJobs_SkipsExpiredHashes(t *testing.T) {
 	q, mr := newTestQueue(t)
 	ctx := context.Background()
 
-	id1, _ := q.Enqueue(ctx, JobTypeDiff, 1, 1)
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 2)
+	id1, _ := q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(2))
 
 	// Expire the first job's hash
 	mr.Del(jobHash + id1)
@@ -1022,8 +1032,8 @@ func TestPendingJobs_DoesNotCrossJobTypes(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
-	_, _ = q.Enqueue(ctx, JobTypeAnalyze, 1, 2)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
+	_, _ = q.Enqueue(ctx, JobTypeAnalyze, testWsID, refID(2))
 
 	diffJobs, diffTotal, err := q.PendingJobs(ctx, JobTypeDiff, 0, 10)
 	require.NoError(t, err)
@@ -1046,9 +1056,9 @@ func TestProcessingJobs_ReturnsJobsOrderedByStartTime(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 2)
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 3)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(2))
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(3))
 
 	// Dequeue all (moves to processing)
 	job1, _ := q.Dequeue(ctx, JobTypeDiff)
@@ -1087,7 +1097,7 @@ func TestProcessingJobs_Pagination(t *testing.T) {
 	ctx := context.Background()
 
 	for i := range 5 {
-		_, _ = q.Enqueue(ctx, JobTypeDiff, 1, uint(i+1))
+		_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(i+1))
 		_, _ = q.Dequeue(ctx, JobTypeDiff)
 	}
 
@@ -1112,7 +1122,7 @@ func TestProcessingJobs_PageBeyondTotal(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	_, _ = q.Dequeue(ctx, JobTypeDiff)
 
 	jobs, total, err := q.ProcessingJobs(ctx, JobTypeDiff, 100, 20)
@@ -1125,8 +1135,8 @@ func TestProcessingJobs_SkipsExpiredHashes(t *testing.T) {
 	q, mr := newTestQueue(t)
 	ctx := context.Background()
 
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 2)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(2))
 	job1, _ := q.Dequeue(ctx, JobTypeDiff)
 	_, _ = q.Dequeue(ctx, JobTypeDiff)
 
@@ -1143,10 +1153,10 @@ func TestProcessingJobs_DoesNotCrossJobTypes(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	_, _ = q.Dequeue(ctx, JobTypeDiff)
 
-	_, _ = q.Enqueue(ctx, JobTypeAnalyze, 1, 2)
+	_, _ = q.Enqueue(ctx, JobTypeAnalyze, testWsID, refID(2))
 	_, _ = q.Dequeue(ctx, JobTypeAnalyze)
 
 	diffJobs, diffTotal, err := q.ProcessingJobs(ctx, JobTypeDiff, 0, 10)
@@ -1165,7 +1175,7 @@ func TestDeadJobs_Pagination(t *testing.T) {
 	ctx := context.Background()
 
 	for i := range 5 {
-		_, _ = q.Enqueue(ctx, JobTypeDiff, 1, uint(i+1))
+		_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(i+1))
 		job, _ := q.Dequeue(ctx, JobTypeDiff)
 		_ = q.Fail(ctx, job, fmt.Errorf("error %d", i))
 	}
@@ -1191,7 +1201,7 @@ func TestDeadJobs_PageBeyondTotal(t *testing.T) {
 	q, _ := newTestQueue(t, withMaxAttempts(1))
 	ctx := context.Background()
 
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	job, _ := q.Dequeue(ctx, JobTypeDiff)
 	_ = q.Fail(ctx, job, errors.New("dead"))
 
@@ -1205,11 +1215,11 @@ func TestDeadJobs_SkipsExpiredHashes(t *testing.T) {
 	q, mr := newTestQueue(t, withMaxAttempts(1))
 	ctx := context.Background()
 
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 1)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(1))
 	job1, _ := q.Dequeue(ctx, JobTypeDiff)
 	_ = q.Fail(ctx, job1, errors.New("dead"))
 
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 2)
+	_, _ = q.Enqueue(ctx, JobTypeDiff, testWsID, refID(2))
 	job2, _ := q.Dequeue(ctx, JobTypeDiff)
 	_ = q.Fail(ctx, job2, errors.New("dead"))
 
@@ -1230,13 +1240,13 @@ func TestLoadJob_ReturnsJob(t *testing.T) {
 	q, _ := newTestQueue(t)
 	ctx := context.Background()
 
-	jobID, _ := q.Enqueue(ctx, JobTypeDiff, 1, 42)
+	jobID, _ := q.Enqueue(ctx, JobTypeDiff, "01935d5a-0000-7000-8000-000000000001", "01935d5a-0000-7000-8000-00000000002a")
 
 	job, err := q.LoadJob(ctx, jobID)
 	require.NoError(t, err)
 	assert.Equal(t, jobID, job.ID)
 	assert.Equal(t, JobTypeDiff, job.Type)
-	assert.Equal(t, uint(42), job.ReferenceID)
+	assert.Equal(t, "01935d5a-0000-7000-8000-00000000002a", job.ReferenceID)
 }
 
 func TestLoadJob_ReturnsErrorForMissingJob(t *testing.T) {

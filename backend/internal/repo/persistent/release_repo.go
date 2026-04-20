@@ -21,7 +21,7 @@ func NewReleaseRepo(db *gorm.DB) *ReleaseRepo {
 	return &ReleaseRepo{db: db}
 }
 
-func (r *ReleaseRepo) FindByID(ctx context.Context, id uint) (*entity.Release, error) {
+func (r *ReleaseRepo) FindByID(ctx context.Context, id string) (*entity.Release, error) {
 	var m Release
 	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -32,7 +32,7 @@ func (r *ReleaseRepo) FindByID(ctx context.Context, id uint) (*entity.Release, e
 	return releaseToDomain(&m), nil
 }
 
-func (r *ReleaseRepo) FindByPackageID(ctx context.Context, packageID uint, page, limit int) ([]entity.Release, int64, error) {
+func (r *ReleaseRepo) FindByPackageID(ctx context.Context, packageID string, page, limit int) ([]entity.Release, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Release{}).Where("package_id = ?", packageID)
 
@@ -57,7 +57,7 @@ func (r *ReleaseRepo) FindByPackageID(ctx context.Context, packageID uint, page,
 	return result, total, nil
 }
 
-func (r *ReleaseRepo) FindByPackageIDAndWorkspace(ctx context.Context, packageID, workspaceID uint, page, limit int) ([]entity.Release, int64, error) {
+func (r *ReleaseRepo) FindByPackageIDAndWorkspace(ctx context.Context, packageID, workspaceID string, page, limit int) ([]entity.Release, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Release{}).
 		Joins("JOIN packages ON packages.id = releases.package_id").
@@ -95,7 +95,7 @@ func (r *ReleaseRepo) Create(ctx context.Context, release *entity.Release) error
 	return nil
 }
 
-func (r *ReleaseRepo) FindByIDWithPackage(ctx context.Context, id uint) (*entity.Release, *entity.Package, error) {
+func (r *ReleaseRepo) FindByIDWithPackage(ctx context.Context, id string) (*entity.Release, *entity.Package, error) {
 	var m Release
 	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -115,7 +115,7 @@ func (r *ReleaseRepo) FindByIDWithPackage(ctx context.Context, id uint) (*entity
 	return releaseToDomain(&m), packageToDomain(&pkg), nil
 }
 
-func (r *ReleaseRepo) FindByIDWithPackageAndWorkspace(ctx context.Context, id, workspaceID uint) (*entity.Release, *entity.Package, error) {
+func (r *ReleaseRepo) FindByIDWithPackageAndWorkspace(ctx context.Context, id, workspaceID string) (*entity.Release, *entity.Package, error) {
 	var m Release
 	err := r.db.WithContext(ctx).
 		Joins("JOIN packages ON packages.id = releases.package_id").
@@ -140,7 +140,7 @@ func (r *ReleaseRepo) FindByIDWithPackageAndWorkspace(ctx context.Context, id, w
 	return releaseToDomain(&m), packageToDomain(&pkg), nil
 }
 
-func (r *ReleaseRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.Release, int64, error) {
+func (r *ReleaseRepo) FindByWorkspaceID(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.Release, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Release{}).
 		Joins("JOIN packages ON packages.id = releases.package_id").
@@ -188,7 +188,7 @@ func (r *ReleaseRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, p
 	return result, total, nil
 }
 
-func (r *ReleaseRepo) FindByWorkspaceIDWithDetails(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error) {
+func (r *ReleaseRepo) FindByWorkspaceIDWithDetails(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Release{}).
 		Joins("JOIN packages ON packages.id = releases.package_id").
@@ -271,7 +271,7 @@ func (r *ReleaseRepo) FindByWorkspaceIDWithDetails(ctx context.Context, workspac
 	return result, total, nil
 }
 
-func (r *ReleaseRepo) FindByPackageIDAll(ctx context.Context, packageID uint) ([]entity.Release, error) {
+func (r *ReleaseRepo) FindByPackageIDAll(ctx context.Context, packageID string) ([]entity.Release, error) {
 	var ms []Release
 	err := r.db.WithContext(ctx).
 		Where("package_id = ?", packageID).
@@ -288,7 +288,7 @@ func (r *ReleaseRepo) FindByPackageIDAll(ctx context.Context, packageID uint) ([
 	return result, nil
 }
 
-func (r *ReleaseRepo) UpdateStatus(ctx context.Context, id uint, status entity.ReleaseStatus) error {
+func (r *ReleaseRepo) UpdateStatus(ctx context.Context, id string, status entity.ReleaseStatus) error {
 	result := r.db.WithContext(ctx).
 		Model(&Release{}).
 		Where("id = ?", id).

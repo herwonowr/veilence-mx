@@ -1,5 +1,5 @@
 export interface User {
-  id: number
+  id: string
   email: string
   firstName: string
   lastName: string
@@ -27,8 +27,8 @@ export interface PasswordChangeRequest {
 }
 
 export interface Session {
-  id: number
-  userId: number
+  id: string
+  userId: string
   ipAddress: string
   userAgent: string
   createdAt: string

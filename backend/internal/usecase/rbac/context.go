@@ -17,21 +17,21 @@ const (
 )
 
 // WithWorkspaceID returns a new context with the workspace ID set.
-func WithWorkspaceID(ctx context.Context, workspaceID uint) context.Context {
+func WithWorkspaceID(ctx context.Context, workspaceID string) context.Context {
 	return context.WithValue(ctx, ctxWorkspaceID, workspaceID)
 }
 
 // WorkspaceIDFromContext extracts the workspace ID from the request context.
-// Returns 0 if not set.
-func WorkspaceIDFromContext(ctx context.Context) uint {
-	id, _ := ctx.Value(ctxWorkspaceID).(uint)
+// Returns "" if not set.
+func WorkspaceIDFromContext(ctx context.Context) string {
+	id, _ := ctx.Value(ctxWorkspaceID).(string)
 	return id
 }
 
 // UserIDFromContext extracts the user ID from the request context.
 // This delegates to the auth package's UserIDFromContext to ensure
 // compatibility with the auth middleware's context keys.
-func UserIDFromContext(ctx context.Context) uint {
+func UserIDFromContext(ctx context.Context) string {
 	return auth.UserIDFromContext(ctx)
 }
 

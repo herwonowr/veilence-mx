@@ -2,6 +2,7 @@ package audit_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -21,7 +22,7 @@ func TestGetAuditLog_Success(t *testing.T) {
 	db, svc := setupTestDB(t)
 
 	ctx := context.Background()
-	svc.LogAction(ctx, "create", "package", 42, "created pkg lodash")
+	svc.LogAction(ctx, "create", "package", "01935d5a-0000-7000-8000-00000000002a", "created pkg lodash")
 
 	var logs []persistent.AuditLog
 	db.Find(&logs)
@@ -31,13 +32,13 @@ func TestGetAuditLog_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "create", entry.Action)
 	assert.Equal(t, "package", entry.Resource)
-	assert.Equal(t, uint(42), entry.ResourceID)
+	assert.Equal(t, "01935d5a-0000-7000-8000-00000000002a", entry.ResourceID)
 }
 
 func TestGetAuditLog_NotFound(t *testing.T) {
 	_, svc := setupTestDB(t)
 
-	_, err := svc.GetAuditLog(99999)
+	_, err := svc.GetAuditLog("01935d5a-0000-7000-8000-00000001869f")
 	require.Error(t, err)
 }
 
@@ -54,7 +55,7 @@ func TestLogAction_WithHTTPRequest_ExtractsIPAndUA(t *testing.T) {
 	req.Header.Set("User-Agent", "TestAgent/2.0")
 
 	ctx := audit.WithHTTPRequest(context.Background(), req)
-	svc.LogAction(ctx, "create", "package", 1, "test with request")
+	svc.LogAction(ctx, "create", "package", "01935d5a-0000-7000-8000-000000000001", "test with request")
 
 	var logs []persistent.AuditLog
 	db.Find(&logs)
@@ -71,7 +72,7 @@ func TestLogAuthEvent_WithHTTPRequest_ExtractsIPAndUA(t *testing.T) {
 	req.Header.Set("User-Agent", "LoginBrowser/1.0")
 
 	ctx := audit.WithHTTPRequest(context.Background(), req)
-	svc.LogAuthEvent(ctx, "login", 42, "user logged in")
+	svc.LogAuthEvent(ctx, "login", "01935d5a-0000-7000-8000-00000000002a", "user logged in")
 
 	var logs []persistent.AuditLog
 	db.Find(&logs)
@@ -89,7 +90,7 @@ func TestRequestCaptureMiddleware(t *testing.T) {
 
 	// Handler that uses the audit service to log an action
 	handler := audit.RequestCaptureMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		svc.LogAction(r.Context(), "test", "middleware", 1, "via middleware")
+		svc.LogAction(r.Context(), "test", "middleware", "01935d5a-0000-7000-8000-000000000001", "via middleware")
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -120,7 +121,7 @@ func TestCorrelationMiddleware_GeneratesID(t *testing.T) {
 		corrID := audit.CorrelationIDFromContext(r.Context())
 		assert.NotEmpty(t, corrID, "correlation ID should be generated")
 
-		svc.LogAction(r.Context(), "correlated", "test", 1, "with correlation")
+		svc.LogAction(r.Context(), "correlated", "test", "01935d5a-0000-7000-8000-000000000001", "with correlation")
 		w.WriteHeader(http.StatusOK)
 	})))
 
@@ -169,17 +170,17 @@ func TestListAuditLogs_Pagination(t *testing.T) {
 
 	ctx := context.Background()
 	for i := 0; i < 25; i++ {
-		svc.LogAction(ctx, "create", "package", uint(i+1), "pkg")
+		svc.LogAction(ctx, "create", "package", fmt.Sprintf("01935d5a-0000-7000-8000-%012x", i+1), "pkg")
 	}
 
 	// Page 1, limit 10
-	logs, total, err := svc.ListAuditLogs(0, audit.AuditLogFilters{}, 1, 10)
+	logs, total, err := svc.ListAuditLogs("", audit.AuditLogFilters{}, 1, 10)
 	require.NoError(t, err)
 	assert.Equal(t, int64(25), total)
 	assert.Len(t, logs, 10)
 
 	// Page 3, limit 10 (only 5 left)
-	logs, total, err = svc.ListAuditLogs(0, audit.AuditLogFilters{}, 3, 10)
+	logs, total, err = svc.ListAuditLogs("", audit.AuditLogFilters{}, 3, 10)
 	require.NoError(t, err)
 	assert.Equal(t, int64(25), total)
 	assert.Len(t, logs, 5)
@@ -189,11 +190,11 @@ func TestListAuditLogs_FilterByUserID(t *testing.T) {
 	_, svc := setupTestDB(t)
 
 	ctx := context.Background()
-	svc.LogAuthEvent(ctx, "login", 1, "user 1 logged in")
-	svc.LogAuthEvent(ctx, "login", 2, "user 2 logged in")
-	svc.LogAuthEvent(ctx, "logout", 1, "user 1 logged out")
+	svc.LogAuthEvent(ctx, "login", "01935d5a-0000-7000-8000-000000000001", "user 1 logged in")
+	svc.LogAuthEvent(ctx, "login", "01935d5a-0000-7000-8000-000000000002", "user 2 logged in")
+	svc.LogAuthEvent(ctx, "logout", "01935d5a-0000-7000-8000-000000000001", "user 1 logged out")
 
-	logs, total, err := svc.ListAuditLogs(0, audit.AuditLogFilters{UserID: 1}, 1, 10)
+	logs, total, err := svc.ListAuditLogs("", audit.AuditLogFilters{UserID: "01935d5a-0000-7000-8000-000000000001"}, 1, 10)
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), total)
 	assert.Len(t, logs, 2)
@@ -213,7 +214,7 @@ func TestCaptureState_MultipleFieldChanges(t *testing.T) {
 		"active": true,
 	}
 
-	auditCtx := svc.CaptureState(ctx, "channel", 5, before)
+	auditCtx := svc.CaptureState(ctx, "channel", "01935d5a-0000-7000-8000-000000000005", before)
 
 	after := map[string]any{
 		"name":   "After Name",

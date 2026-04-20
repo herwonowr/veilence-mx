@@ -33,7 +33,7 @@ export const useRevokeSession = (options?: {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: number) => apiRevokeSession(id),
+    mutationFn: (id: string) => apiRevokeSession(id),
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: sessionKeys.list() })
       if (options?.onRevoked) {

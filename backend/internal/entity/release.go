@@ -25,8 +25,8 @@ var InProgressStatuses = []ReleaseStatus{ReleaseStatusPending, ReleaseStatusDiff
 
 // Release represents a specific version release of a package.
 type Release struct {
-	ID             uint
-	PackageID      uint
+	ID             string
+	PackageID      string
 	Version        string
 	PublishedAt    time.Time
 	TarballURL     string
@@ -65,7 +65,7 @@ type ReleaseWithDetails struct {
 
 // AnalysisHistoryEntry holds a single entry in the analysis history for a package.
 type AnalysisHistoryEntry struct {
-	ReleaseID      uint
+	ReleaseID      string
 	Version        string
 	Classification string
 	Confidence     float64

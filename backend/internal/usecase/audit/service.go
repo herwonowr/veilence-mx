@@ -24,7 +24,7 @@ type AuditContext struct {
 	service    *Service
 	ctx        context.Context
 	resource   string
-	resourceID uint
+	resourceID string
 	before     map[string]any
 }
 
@@ -40,7 +40,7 @@ func NewService(repo usecase.AuditLogRepository) *Service {
 
 // LogAction creates an audit log entry, extracting user, org, IP, user-agent,
 // and correlation ID from the request context.
-func (s *Service) LogAction(ctx context.Context, action, resource string, resourceID uint, details string) {
+func (s *Service) LogAction(ctx context.Context, action, resource string, resourceID string, details string) {
 	userID := auth.UserIDFromContext(ctx)
 	workspaceID := rbac.WorkspaceIDFromContext(ctx)
 	correlationID := CorrelationIDFromContext(ctx)
@@ -91,7 +91,7 @@ func (s *Service) LogAction(ctx context.Context, action, resource string, resour
 // This is similar to LogAction but uses the provided userID and email rather than
 // extracting from context, since auth events may not have a user in context yet
 // (e.g., failed login).
-func (s *Service) LogAuthEvent(ctx context.Context, action string, userID uint, details string) {
+func (s *Service) LogAuthEvent(ctx context.Context, action string, userID string, details string) {
 	correlationID := CorrelationIDFromContext(ctx)
 
 	var ipAddress, userAgent string
@@ -102,7 +102,7 @@ func (s *Service) LogAuthEvent(ctx context.Context, action string, userID uint, 
 
 	entry := &entity.AuditLog{
 		UserID:        userID,
-		WorkspaceID:   0, // Auth events are not org-scoped
+		WorkspaceID:   "", // Auth events are not org-scoped
 		Action:        action,
 		Resource:      "auth",
 		ResourceID:    userID,
@@ -131,7 +131,7 @@ func (s *Service) LogAuthEvent(ctx context.Context, action string, userID uint, 
 // CaptureState creates an AuditContext by recording the current state of a resource.
 // Pass a map of field names to current values. After making changes, call
 // auditCtx.LogChange(action, afterValues) to record the diff.
-func (s *Service) CaptureState(ctx context.Context, resource string, resourceID uint, before map[string]any) *AuditContext {
+func (s *Service) CaptureState(ctx context.Context, resource string, resourceID string, before map[string]any) *AuditContext {
 	return &AuditContext{
 		service:    s,
 		ctx:        ctx,
@@ -178,12 +178,12 @@ func (ac *AuditContext) LogChange(action string, after map[string]any) {
 
 // ListAuditLogs returns a paginated list of audit logs for a workspace
 // with optional filters.
-func (s *Service) ListAuditLogs(workspaceID uint, filters AuditLogFilters, page, limit int) ([]entity.AuditLog, int64, error) {
+func (s *Service) ListAuditLogs(workspaceID string, filters AuditLogFilters, page, limit int) ([]entity.AuditLog, int64, error) {
 	return s.repo.FindByWorkspaceID(context.Background(), workspaceID, filters, page, limit)
 }
 
 // GetAuditLog returns a single audit log entry by ID.
-func (s *Service) GetAuditLog(id uint) (*entity.AuditLog, error) {
+func (s *Service) GetAuditLog(id string) (*entity.AuditLog, error) {
 	return s.repo.FindByID(context.Background(), id)
 }
 

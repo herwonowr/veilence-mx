@@ -4,7 +4,7 @@ import "time"
 
 // User represents an authenticated user of the system.
 type User struct {
-	ID             uint
+	ID             string
 	Email          string
 	PasswordHash   string
 	FirstName      string

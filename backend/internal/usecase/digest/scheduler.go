@@ -31,7 +31,7 @@ type Scheduler struct {
 
 	// lastSentAt tracks when each org last received a digest (in-memory).
 	// Key: workspaceID, Value: time the last digest was sent.
-	lastSentAt map[uint]time.Time
+	lastSentAt map[string]time.Time
 }
 
 // Config holds configuration for the digest scheduler.
@@ -52,7 +52,7 @@ func New(repo DigestRepository, smtpCfg notifications.SMTPConfig, cfg Config) *S
 		smtp:          smtpCfg,
 		checkInterval: interval,
 		nowFunc:       time.Now,
-		lastSentAt:    make(map[uint]time.Time),
+		lastSentAt:    make(map[string]time.Time),
 	}
 }
 
@@ -117,7 +117,7 @@ func (s *Scheduler) tick(ctx context.Context) {
 }
 
 // isDue returns true if the org's digest is due to be sent based on frequency.
-func (s *Scheduler) isDue(workspaceID uint, frequency string, now time.Time) bool {
+func (s *Scheduler) isDue(workspaceID string, frequency string, now time.Time) bool {
 	lastSent, ok := s.lastSentAt[workspaceID]
 	if !ok {
 		// Never sent - send now
@@ -147,7 +147,7 @@ type DigestContent struct {
 }
 
 // GenerateDigest generates the digest content for an org over the given period.
-func (s *Scheduler) GenerateDigest(ctx context.Context, workspaceID uint, frequency string, now time.Time) (*DigestContent, error) {
+func (s *Scheduler) GenerateDigest(ctx context.Context, workspaceID string, frequency string, now time.Time) (*DigestContent, error) {
 	var since time.Time
 	var period string
 	switch frequency {

@@ -20,7 +20,7 @@ func NewAnalysisRepo(db *gorm.DB) *AnalysisRepo {
 	return &AnalysisRepo{db: db}
 }
 
-func (r *AnalysisRepo) FindByID(ctx context.Context, id uint) (*entity.Analysis, error) {
+func (r *AnalysisRepo) FindByID(ctx context.Context, id string) (*entity.Analysis, error) {
 	var m Analysis
 	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -31,7 +31,7 @@ func (r *AnalysisRepo) FindByID(ctx context.Context, id uint) (*entity.Analysis,
 	return analysisToDomain(&m), nil
 }
 
-func (r *AnalysisRepo) FindByDiffID(ctx context.Context, diffID uint) ([]entity.Analysis, error) {
+func (r *AnalysisRepo) FindByDiffID(ctx context.Context, diffID string) ([]entity.Analysis, error) {
 	var ms []Analysis
 	if err := r.db.WithContext(ctx).Where("diff_id = ?", diffID).Find(&ms).Error; err != nil {
 		return nil, fmt.Errorf("finding analyses by diff: %w", err)
@@ -53,7 +53,7 @@ func (r *AnalysisRepo) Create(ctx context.Context, analysis *entity.Analysis) er
 	return nil
 }
 
-func (r *AnalysisRepo) CountByDiffID(ctx context.Context, diffID uint) (int64, error) {
+func (r *AnalysisRepo) CountByDiffID(ctx context.Context, diffID string) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&Analysis{}).Where("diff_id = ?", diffID).Count(&count).Error; err != nil {
 		return 0, fmt.Errorf("counting analyses: %w", err)
@@ -61,7 +61,7 @@ func (r *AnalysisRepo) CountByDiffID(ctx context.Context, diffID uint) (int64, e
 	return count, nil
 }
 
-func (r *AnalysisRepo) FindByDiffIDs(ctx context.Context, diffIDs []uint) ([]entity.Analysis, error) {
+func (r *AnalysisRepo) FindByDiffIDs(ctx context.Context, diffIDs []string) ([]entity.Analysis, error) {
 	if len(diffIDs) == 0 {
 		return []entity.Analysis{}, nil
 	}

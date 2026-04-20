@@ -44,7 +44,7 @@ func NewService(repo RBACRepository) *Service {
 
 // CreateWorkspace creates a new workspace, seeds default roles, and assigns
 // the creating user as the owner.
-func (s *Service) CreateWorkspace(userID uint, name, slug, description string) (*entity.Workspace, error) {
+func (s *Service) CreateWorkspace(userID string, name, slug, description string) (*entity.Workspace, error) {
 	ctx := ctx_bg()
 
 	// Check slug uniqueness
@@ -106,7 +106,7 @@ func (s *Service) CreateWorkspace(userID uint, name, slug, description string) (
 
 // createDefaultRoles creates the four system roles (owner, admin, member, viewer)
 // with their respective permissions for the given workspace.
-func (s *Service) createDefaultRoles(ctx_unused interface{}, tx RBACRepository, workspaceID uint) ([]entity.Role, error) {
+func (s *Service) createDefaultRoles(ctx_unused interface{}, tx RBACRepository, workspaceID string) ([]entity.Role, error) {
 	ctx := ctx_bg()
 
 	// Load all system permissions
@@ -191,12 +191,12 @@ func (s *Service) createDefaultRoles(ctx_unused interface{}, tx RBACRepository, 
 }
 
 // GetUserWorkspaces returns all workspaces the user is a member of.
-func (s *Service) GetUserWorkspaces(userID uint) ([]entity.Workspace, error) {
+func (s *Service) GetUserWorkspaces(userID string) ([]entity.Workspace, error) {
 	return s.repo.FindWorkspacesByUserID(ctx_bg(), userID)
 }
 
 // GetWorkspace returns a single workspace by ID.
-func (s *Service) GetWorkspace(workspaceID uint) (*entity.Workspace, error) {
+func (s *Service) GetWorkspace(workspaceID string) (*entity.Workspace, error) {
 	ws, err := s.repo.FindWorkspaceByID(ctx_bg(), workspaceID)
 	if err != nil {
 		return nil, ErrWorkspaceNotFound
@@ -205,7 +205,7 @@ func (s *Service) GetWorkspace(workspaceID uint) (*entity.Workspace, error) {
 }
 
 // UpdateWorkspace updates the workspace's name, slug, and description.
-func (s *Service) UpdateWorkspace(workspaceID uint, name, slug, description string) (*entity.Workspace, error) {
+func (s *Service) UpdateWorkspace(workspaceID string, name, slug, description string) (*entity.Workspace, error) {
 	ctx := ctx_bg()
 
 	ws, err := s.repo.FindWorkspaceByID(ctx, workspaceID)
@@ -232,7 +232,7 @@ func (s *Service) UpdateWorkspace(workspaceID uint, name, slug, description stri
 }
 
 // DeleteWorkspace soft-deletes the workspace.
-func (s *Service) DeleteWorkspace(workspaceID uint) error {
+func (s *Service) DeleteWorkspace(workspaceID string) error {
 	if err := s.repo.SoftDeleteWorkspace(ctx_bg(), workspaceID); err != nil {
 		return ErrWorkspaceNotFound
 	}
@@ -241,14 +241,14 @@ func (s *Service) DeleteWorkspace(workspaceID uint) error {
 }
 
 // GetWorkspaceMembers returns all members of a workspace with their roles and user data.
-func (s *Service) GetWorkspaceMembers(workspaceID uint) ([]entity.WorkspaceMember, error) {
+func (s *Service) GetWorkspaceMembers(workspaceID string) ([]entity.WorkspaceMember, error) {
 	return s.repo.FindMembersByWorkspaceID(ctx_bg(), workspaceID)
 }
 
 // InviteMember creates an invitation for a user to join a workspace.
 // Returns the invitation and the raw token (for inclusion in the invitation URL).
 // Only the SHA-256 hash of the token is stored in the database.
-func (s *Service) InviteMember(workspaceID uint, email string, roleID, invitedBy uint) (*entity.Invitation, string, error) {
+func (s *Service) InviteMember(workspaceID string, email string, roleID string, invitedBy string) (*entity.Invitation, string, error) {
 	ctx := ctx_bg()
 
 	// Verify the role exists and belongs to this org
@@ -288,7 +288,7 @@ func (s *Service) InviteMember(workspaceID uint, email string, roleID, invitedBy
 // AcceptInvitation accepts a pending invitation and creates a membership.
 // The userEmail is compared against the invitation email to prevent unauthorized
 // acceptance. If the emails don't match, ErrInvitationEmailMismatch is returned.
-func (s *Service) AcceptInvitation(token string, userID uint, userEmail string) (*entity.WorkspaceMember, error) {
+func (s *Service) AcceptInvitation(token string, userID string, userEmail string) (*entity.WorkspaceMember, error) {
 	ctx := ctx_bg()
 
 	invitation, err := s.repo.FindInvitationByTokenHash(ctx, hashToken(token))
@@ -356,13 +356,13 @@ func (s *Service) GetInvitationByToken(token string) (*entity.Invitation, error)
 
 // ListPendingInvitations returns all pending (not accepted, not expired)
 // invitations for a workspace.
-func (s *Service) ListPendingInvitations(workspaceID uint) ([]entity.Invitation, error) {
+func (s *Service) ListPendingInvitations(workspaceID string) ([]entity.Invitation, error) {
 	return s.repo.FindPendingInvitations(ctx_bg(), workspaceID)
 }
 
 // RevokeInvitation deletes a pending invitation by ID and org. Only pending
 // (not accepted) invitations can be revoked.
-func (s *Service) RevokeInvitation(workspaceID, invitationID uint) error {
+func (s *Service) RevokeInvitation(workspaceID, invitationID string) error {
 	if err := s.repo.DeletePendingInvitation(ctx_bg(), workspaceID, invitationID); err != nil {
 		return ErrInvitationNotFound
 	}
@@ -371,7 +371,7 @@ func (s *Service) RevokeInvitation(workspaceID, invitationID uint) error {
 }
 
 // RemoveMember removes a user from a workspace. The owner cannot be removed.
-func (s *Service) RemoveMember(workspaceID, userID uint) error {
+func (s *Service) RemoveMember(workspaceID, userID string) error {
 	ctx := ctx_bg()
 
 	// Check if user is the owner
@@ -393,7 +393,7 @@ func (s *Service) RemoveMember(workspaceID, userID uint) error {
 
 // UpdateMemberRole changes a member's role within a workspace.
 // The owner's role cannot be changed.
-func (s *Service) UpdateMemberRole(workspaceID, userID, newRoleID uint) (*entity.WorkspaceMember, error) {
+func (s *Service) UpdateMemberRole(workspaceID, userID, newRoleID string) (*entity.WorkspaceMember, error) {
 	ctx := ctx_bg()
 
 	// Check if user is the owner
@@ -433,7 +433,7 @@ func (s *Service) UpdateMemberRole(workspaceID, userID, newRoleID uint) (*entity
 
 // CheckPermission verifies whether a user has a specific permission within a workspace.
 // Returns nil if permitted, ErrPermissionDenied otherwise.
-func (s *Service) CheckPermission(userID, workspaceID uint, resource, action string) error {
+func (s *Service) CheckPermission(userID, workspaceID string, resource, action string) error {
 	ok, err := s.repo.CheckUserPermission(ctx_bg(), userID, workspaceID, resource, action)
 	if err != nil {
 		return fmt.Errorf("checking permission: %w", err)
@@ -448,7 +448,7 @@ func (s *Service) CheckPermission(userID, workspaceID uint, resource, action str
 // within a workspace. This is used for API key auth where the key has an assigned
 // role rather than a user membership.
 // Returns nil if permitted, ErrPermissionDenied otherwise.
-func (s *Service) CheckRolePermission(workspaceID uint, roleName, resource, action string) error {
+func (s *Service) CheckRolePermission(workspaceID string, roleName, resource, action string) error {
 	ok, err := s.repo.CheckRolePermission(ctx_bg(), workspaceID, roleName, resource, action)
 	if err != nil {
 		return fmt.Errorf("checking role permission: %w", err)
@@ -460,7 +460,7 @@ func (s *Service) CheckRolePermission(workspaceID uint, roleName, resource, acti
 }
 
 // GetWorkspaceRoles returns all roles for a workspace.
-func (s *Service) GetWorkspaceRoles(workspaceID uint) ([]entity.Role, error) {
+func (s *Service) GetWorkspaceRoles(workspaceID string) ([]entity.Role, error) {
 	return s.repo.FindRolesByWorkspaceID(ctx_bg(), workspaceID)
 }
 
@@ -470,7 +470,7 @@ func (s *Service) GetAllPermissions() ([]entity.Permission, error) {
 }
 
 // GetUserMembership returns the user's membership record for a workspace.
-func (s *Service) GetUserMembership(userID, workspaceID uint) (*entity.WorkspaceMember, error) {
+func (s *Service) GetUserMembership(userID, workspaceID string) (*entity.WorkspaceMember, error) {
 	member, err := s.repo.FindMemberByUserAndWorkspace(ctx_bg(), userID, workspaceID)
 	if err != nil || member == nil {
 		return nil, ErrMemberNotFound

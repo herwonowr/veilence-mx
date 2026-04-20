@@ -64,7 +64,7 @@ func BenchmarkJWTTokenGeneration(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		claims := &Claims{
-			UserID:    1,
+			UserID:    "01935d5a-0000-7000-8000-000000000001",
 			Email:     "bench@example.com",
 			TokenType: TokenTypeAccess,
 			RegisteredClaims: jwt.RegisteredClaims{
@@ -107,7 +107,7 @@ func BenchmarkJWTTokenValidation(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		if claims.UserID == 0 {
+		if claims.UserID == "" {
 			b.Fatal("expected valid user ID")
 		}
 	}

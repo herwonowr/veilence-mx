@@ -2,7 +2,6 @@ package rbac_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -83,7 +82,7 @@ func registerAndLogin(t *testing.T, env *middlewareTestEnv, email string) (*enti
 
 // createOrgWithOwner creates an org and returns it. The registering user
 // automatically becomes the owner.
-func createOrgWithOwner(t *testing.T, env *middlewareTestEnv, ownerID uint, slug string) *entity.Workspace {
+func createOrgWithOwner(t *testing.T, env *middlewareTestEnv, ownerID string, slug string) *entity.Workspace {
 	t.Helper()
 	org, err := env.RBACSvc.CreateWorkspace(ownerID, "Test Workspace "+slug, slug, "test")
 	require.NoError(t, err)
@@ -92,7 +91,7 @@ func createOrgWithOwner(t *testing.T, env *middlewareTestEnv, ownerID uint, slug
 
 // addMemberWithRole invites a user to the org with the given role name and
 // accepts the invitation, returning the membership record.
-func addMemberWithRole(t *testing.T, env *middlewareTestEnv, org *entity.Workspace, ownerID uint, member *entity.User, roleName string) *entity.WorkspaceMember {
+func addMemberWithRole(t *testing.T, env *middlewareTestEnv, org *entity.Workspace, ownerID string, member *entity.User, roleName string) *entity.WorkspaceMember {
 	t.Helper()
 
 	roles, err := env.RBACSvc.GetWorkspaceRoles(org.ID)
@@ -105,7 +104,7 @@ func addMemberWithRole(t *testing.T, env *middlewareTestEnv, org *entity.Workspa
 			break
 		}
 	}
-	require.NotNil(t, targetRole, "role %q not found for org %d", roleName, org.ID)
+	require.NotNil(t, targetRole, "role %q not found for org %s", roleName, org.ID)
 
 	_, rawToken, err := env.RBACSvc.InviteMember(org.ID, member.Email, targetRole.ID, ownerID)
 	require.NoError(t, err)
@@ -116,8 +115,8 @@ func addMemberWithRole(t *testing.T, env *middlewareTestEnv, org *entity.Workspa
 }
 
 // workspaceIDStr returns the string representation of an org ID for URL building.
-func workspaceIDStr(id uint) string {
-	return fmt.Sprintf("%d", id)
+func workspaceIDStr(id string) string {
+	return id
 }
 
 // successHandler returns a handler that writes 200 with context values so
@@ -265,8 +264,7 @@ func TestRequireWorkspace_SetsOrgContextCorrectly(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 
 	resp := decodeJSON(t, w)
-	// workspaceId is stored as uint, JSON decodes to float64.
-	assert.Equal(t, float64(org.ID), resp["workspaceId"])
+	assert.Equal(t, org.ID, resp["workspaceId"])
 	assert.Equal(t, entity.RoleOwner, resp["memberRole"])
 }
 
@@ -302,15 +300,17 @@ func TestRequireWorkspace_InvalidWorkspaceIDFormat(t *testing.T) {
 		r.Get("/", successHandler())
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/workspaces/not-a-number", nil)
+	// With string UUIDs, any non-empty string is accepted as workspace ID format;
+	// it just won't find a membership, resulting in 403.
+	req := httptest.NewRequest(http.MethodGet, "/api/workspaces/not-a-uuid", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 	resp := decodeJSON(t, w)
-	assert.Contains(t, resp["error"], "valid workspace ID is required")
+	assert.Contains(t, resp["error"], "not a member of this workspace")
 }
 
 func TestRequireWorkspace_ZeroWorkspaceID(t *testing.T) {
@@ -324,13 +324,14 @@ func TestRequireWorkspace_ZeroWorkspaceID(t *testing.T) {
 		r.Get("/", successHandler())
 	})
 
+	// "0" is a non-empty string, so it passes format check but won't find a membership.
 	req := httptest.NewRequest(http.MethodGet, "/api/workspaces/0", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 }
 
 func TestRequireWorkspace_WorkspaceIDFromHeader(t *testing.T) {
@@ -356,7 +357,7 @@ func TestRequireWorkspace_WorkspaceIDFromHeader(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	resp := decodeJSON(t, w)
-	assert.Equal(t, float64(org.ID), resp["workspaceId"])
+	assert.Equal(t, org.ID, resp["workspaceId"])
 }
 
 func TestRequireWorkspace_WorkspaceIDFromQueryParam(t *testing.T) {
@@ -381,7 +382,7 @@ func TestRequireWorkspace_WorkspaceIDFromQueryParam(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	resp := decodeJSON(t, w)
-	assert.Equal(t, float64(org.ID), resp["workspaceId"])
+	assert.Equal(t, org.ID, resp["workspaceId"])
 }
 
 func TestRequireWorkspace_InvitedMemberAllowed(t *testing.T) {
@@ -408,7 +409,7 @@ func TestRequireWorkspace_InvitedMemberAllowed(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	resp := decodeJSON(t, w)
-	assert.Equal(t, float64(org.ID), resp["workspaceId"])
+	assert.Equal(t, org.ID, resp["workspaceId"])
 	assert.Equal(t, entity.RoleMember, resp["memberRole"])
 }
 
@@ -743,7 +744,7 @@ func TestMiddlewareChain_RequireOrgThenPermission(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	resp := decodeJSON(t, w)
-	assert.Equal(t, float64(org.ID), resp["workspaceId"])
+	assert.Equal(t, org.ID, resp["workspaceId"])
 	assert.Equal(t, entity.RoleOwner, resp["memberRole"])
 }
 

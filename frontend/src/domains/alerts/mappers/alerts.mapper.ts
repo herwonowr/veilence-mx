@@ -1,9 +1,9 @@
 import type { AlertNote } from "@/domains/alerts/types/alerts.types"
 
 export interface AlertNoteViewModel {
-  id: number
-  alertId: number
-  userId: number
+  id: string
+  alertId: string
+  userId: string
   userEmail: string
   userInitials: string
   content: string

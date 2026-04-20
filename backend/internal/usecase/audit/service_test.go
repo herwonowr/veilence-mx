@@ -30,14 +30,14 @@ func TestService_LogAction(t *testing.T) {
 	db, svc := setupTestDB(t)
 
 	ctx := context.Background()
-	svc.LogAction(ctx, "create", "package", 1, "added package react")
+	svc.LogAction(ctx, "create", "package", "01935d5a-0000-7000-8000-000000000001", "added package react")
 
 	var logs []persistent.AuditLog
 	db.Find(&logs)
 	require.Len(t, logs, 1)
 	assert.Equal(t, "create", logs[0].Action)
 	assert.Equal(t, "package", logs[0].Resource)
-	assert.Equal(t, uint(1), logs[0].ResourceID)
+	assert.Equal(t, "01935d5a-0000-7000-8000-000000000001", logs[0].ResourceID)
 	assert.Contains(t, logs[0].Details, "react")
 }
 
@@ -47,15 +47,15 @@ func TestService_LogAuthEvent(t *testing.T) {
 	ctx := context.Background()
 
 	// Test successful login
-	svc.LogAuthEvent(ctx, "login", 42, "user test@example.com logged in")
+	svc.LogAuthEvent(ctx, "login", "01935d5a-0000-7000-8000-00000000002a", "user test@example.com logged in")
 
 	var logs []persistent.AuditLog
 	db.Find(&logs)
 	require.Len(t, logs, 1)
 	assert.Equal(t, "login", logs[0].Action)
 	assert.Equal(t, "auth", logs[0].Resource)
-	assert.Equal(t, uint(42), logs[0].UserID)
-	assert.Equal(t, uint(0), logs[0].WorkspaceID, "auth events should not be org-scoped")
+	assert.Equal(t, "01935d5a-0000-7000-8000-00000000002a", logs[0].UserID)
+	assert.Equal(t, "", logs[0].WorkspaceID, "auth events should not be org-scoped")
 }
 
 func TestService_LogAuthEvent_FailedLogin(t *testing.T) {
@@ -64,26 +64,26 @@ func TestService_LogAuthEvent_FailedLogin(t *testing.T) {
 	ctx := context.Background()
 
 	// Failed login (no user ID)
-	svc.LogAuthEvent(ctx, "login_failed", 0, "failed login for unknown@example.com")
+	svc.LogAuthEvent(ctx, "login_failed", "", "failed login for unknown@example.com")
 
 	var logs []persistent.AuditLog
 	db.Find(&logs)
 	require.Len(t, logs, 1)
 	assert.Equal(t, "login_failed", logs[0].Action)
-	assert.Equal(t, uint(0), logs[0].UserID)
+	assert.Equal(t, "", logs[0].UserID)
 }
 
 func TestService_LogAuthEvent_Logout(t *testing.T) {
 	db, svc := setupTestDB(t)
 
 	ctx := context.Background()
-	svc.LogAuthEvent(ctx, "logout", 42, "user logged out")
+	svc.LogAuthEvent(ctx, "logout", "01935d5a-0000-7000-8000-00000000002a", "user logged out")
 
 	var logs []persistent.AuditLog
 	db.Find(&logs)
 	require.Len(t, logs, 1)
 	assert.Equal(t, "logout", logs[0].Action)
-	assert.Equal(t, uint(42), logs[0].UserID)
+	assert.Equal(t, "01935d5a-0000-7000-8000-00000000002a", logs[0].UserID)
 }
 
 func TestService_CaptureState_LogChange(t *testing.T) {
@@ -98,7 +98,7 @@ func TestService_CaptureState_LogChange(t *testing.T) {
 		"status": "active",
 	}
 
-	auditCtx := svc.CaptureState(ctx, "org", 1, before)
+	auditCtx := svc.CaptureState(ctx, "org", "01935d5a-0000-7000-8000-000000000001", before)
 
 	// After state with changes
 	after := map[string]any{
@@ -114,7 +114,7 @@ func TestService_CaptureState_LogChange(t *testing.T) {
 	require.Len(t, logs, 1)
 	assert.Equal(t, "update", logs[0].Action)
 	assert.Equal(t, "org", logs[0].Resource)
-	assert.Equal(t, uint(1), logs[0].ResourceID)
+	assert.Equal(t, "01935d5a-0000-7000-8000-000000000001", logs[0].ResourceID)
 
 	// Details should contain the changes (not the unchanged field)
 	assert.Contains(t, logs[0].Details, "name")
@@ -133,7 +133,7 @@ func TestService_CaptureState_NoChanges(t *testing.T) {
 	before := map[string]any{
 		"name": "Same Name",
 	}
-	auditCtx := svc.CaptureState(ctx, "org", 1, before)
+	auditCtx := svc.CaptureState(ctx, "org", "01935d5a-0000-7000-8000-000000000001", before)
 	auditCtx.LogChange("update", map[string]any{
 		"name": "Same Name",
 	})
@@ -150,19 +150,19 @@ func TestService_ListAuditLogs_Filters(t *testing.T) {
 	ctx := context.Background()
 
 	// Create multiple log entries
-	svc.LogAction(ctx, "create", "package", 1, "created package")
-	svc.LogAction(ctx, "update", "package", 1, "updated package")
-	svc.LogAction(ctx, "delete", "package", 1, "deleted package")
+	svc.LogAction(ctx, "create", "package", "01935d5a-0000-7000-8000-000000000001", "created package")
+	svc.LogAction(ctx, "update", "package", "01935d5a-0000-7000-8000-000000000001", "updated package")
+	svc.LogAction(ctx, "delete", "package", "01935d5a-0000-7000-8000-000000000001", "deleted package")
 
 	// Filter by action
-	logs, total, err := svc.ListAuditLogs(0, audit.AuditLogFilters{Action: "create"}, 1, 10)
+	logs, total, err := svc.ListAuditLogs("", audit.AuditLogFilters{Action: "create"}, 1, 10)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), total)
 	assert.Len(t, logs, 1)
 	assert.Equal(t, "create", logs[0].Action)
 
 	// Filter by resource
-	logs, total, err = svc.ListAuditLogs(0, audit.AuditLogFilters{Resource: "package"}, 1, 10)
+	logs, total, err = svc.ListAuditLogs("", audit.AuditLogFilters{Resource: "package"}, 1, 10)
 	require.NoError(t, err)
 	assert.Equal(t, int64(3), total)
 	assert.Len(t, logs, 3)
@@ -176,12 +176,12 @@ func TestService_AuditLogCoverage_AuthEvents(t *testing.T) {
 	// Simulate all auth events that should be logged
 	authEvents := []struct {
 		action  string
-		userID  uint
+		userID  string
 		details string
 	}{
-		{"login", 1, "user logged in"},
-		{"login_failed", 0, "failed login for test@example.com"},
-		{"logout", 1, "user logged out"},
+		{"login", "01935d5a-0000-7000-8000-000000000001", "user logged in"},
+		{"login_failed", "", "failed login for test@example.com"},
+		{"logout", "01935d5a-0000-7000-8000-000000000001", "user logged out"},
 	}
 
 	for _, event := range authEvents {

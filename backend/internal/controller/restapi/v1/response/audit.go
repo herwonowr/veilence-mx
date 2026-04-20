@@ -6,12 +6,12 @@ import "time"
 // Mapped from persistent.AuditLog at the handler level because the audit
 // service currently returns persistent types (pre-existing arch compromise).
 type AuditLogResponse struct {
-	ID            uint      `json:"id"`
-	UserID        uint      `json:"userId"`
-	WorkspaceID         uint      `json:"workspaceId"`
+	ID            string    `json:"id"`
+	UserID        string    `json:"userId"`
+	WorkspaceID         string    `json:"workspaceId"`
 	Action        string    `json:"action"`
 	Resource      string    `json:"resource"`
-	ResourceID    uint      `json:"resourceId"`
+	ResourceID    string    `json:"resourceId"`
 	Details       string    `json:"details"`
 	IPAddress     string    `json:"ipAddress"`
 	UserAgent     string    `json:"userAgent"`

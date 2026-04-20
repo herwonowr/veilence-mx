@@ -21,7 +21,7 @@ func NewDifferRepo(db *gorm.DB) *DifferRepo {
 }
 
 // FindReleaseByIDWithPackage loads a release by ID along with its package.
-func (r *DifferRepo) FindReleaseByIDWithPackage(ctx context.Context, id uint) (*entity.Release, *entity.Package, error) {
+func (r *DifferRepo) FindReleaseByIDWithPackage(ctx context.Context, id string) (*entity.Release, *entity.Package, error) {
 	var model Release
 	if err := r.db.WithContext(ctx).Preload("Package").First(&model, id).Error; err != nil {
 		return nil, nil, fmt.Errorf("DifferRepo.FindReleaseByIDWithPackage: %w", err)
@@ -50,7 +50,7 @@ func (r *DifferRepo) FindReleaseByIDWithPackage(ctx context.Context, id uint) (*
 }
 
 // FindPreviousCompletedRelease finds the latest completed release before the given publish time.
-func (r *DifferRepo) FindPreviousCompletedRelease(ctx context.Context, packageID uint, beforePublishedAt time.Time) (*entity.Release, error) {
+func (r *DifferRepo) FindPreviousCompletedRelease(ctx context.Context, packageID string, beforePublishedAt time.Time) (*entity.Release, error) {
 	var model Release
 	err := r.db.WithContext(ctx).
 		Where("package_id = ? AND status = ? AND published_at < ?", packageID, string(ReleaseStatusCompleted), beforePublishedAt).
@@ -73,7 +73,7 @@ func (r *DifferRepo) FindPreviousCompletedRelease(ctx context.Context, packageID
 }
 
 // UpdateReleaseStatus updates the status of a release.
-func (r *DifferRepo) UpdateReleaseStatus(ctx context.Context, id uint, status entity.ReleaseStatus) error {
+func (r *DifferRepo) UpdateReleaseStatus(ctx context.Context, id string, status entity.ReleaseStatus) error {
 	if err := r.db.WithContext(ctx).Model(&Release{}).Where("id = ?", id).Update("status", string(status)).Error; err != nil {
 		return fmt.Errorf("DifferRepo.UpdateReleaseStatus: %w", err)
 	}
@@ -81,7 +81,7 @@ func (r *DifferRepo) UpdateReleaseStatus(ctx context.Context, id uint, status en
 }
 
 // UpdateReleaseError updates the status and error message on a release.
-func (r *DifferRepo) UpdateReleaseError(ctx context.Context, id uint, status entity.ReleaseStatus, errorMessage string) error {
+func (r *DifferRepo) UpdateReleaseError(ctx context.Context, id string, status entity.ReleaseStatus, errorMessage string) error {
 	if err := r.db.WithContext(ctx).Model(&Release{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"status":        string(status),
 		"error_message": errorMessage,

@@ -31,14 +31,14 @@ type mockAlertRepo struct {
 	updateStatusErr error
 }
 
-func (m *mockAlertRepo) FindByID(_ context.Context, id uint) (*entity.Alert, error) {
+func (m *mockAlertRepo) FindByID(_ context.Context, id string) (*entity.Alert, error) {
 	if m.findByIDErr != nil {
 		return nil, m.findByIDErr
 	}
 	return m.findByIDResult, nil
 }
 
-func (m *mockAlertRepo) FindByIDAndWorkspaceID(_ context.Context, _ uint, _ uint) (*entity.Alert, error) {
+func (m *mockAlertRepo) FindByIDAndWorkspaceID(_ context.Context, _ string, _ string) (*entity.Alert, error) {
 	if m.findByIDErr != nil {
 		return nil, m.findByIDErr
 	}
@@ -48,18 +48,18 @@ func (m *mockAlertRepo) FindByIDAndWorkspaceID(_ context.Context, _ uint, _ uint
 	return nil, entity.ErrNotFound
 }
 
-func (m *mockAlertRepo) FindByIDWithPackage(_ context.Context, _, _ uint) (*entity.Alert, *entity.Package, error) {
+func (m *mockAlertRepo) FindByIDWithPackage(_ context.Context, _, _ string) (*entity.Alert, *entity.Package, error) {
 	if m.findByIDWithPackageErr != nil {
 		return nil, nil, m.findByIDWithPackageErr
 	}
 	return m.findByIDWithPackageAlert, m.findByIDWithPackagePkg, nil
 }
 
-func (m *mockAlertRepo) FindByWorkspaceID(_ context.Context, _ uint, _, _ int, _ string, _ entity.AlertFilters) ([]entity.Alert, int64, error) {
+func (m *mockAlertRepo) FindByWorkspaceID(_ context.Context, _ string, _, _ int, _ string, _ entity.AlertFilters) ([]entity.Alert, int64, error) {
 	return nil, 0, nil // unused
 }
 
-func (m *mockAlertRepo) FindByWorkspaceIDWithPackage(_ context.Context, _ uint, _, _ int, _ string, _ entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
+func (m *mockAlertRepo) FindByWorkspaceIDWithPackage(_ context.Context, _ string, _, _ int, _ string, _ entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
 	if m.findByWorkspaceIDWithPackageErr != nil {
 		return nil, 0, m.findByWorkspaceIDWithPackageErr
 	}
@@ -68,10 +68,10 @@ func (m *mockAlertRepo) FindByWorkspaceIDWithPackage(_ context.Context, _ uint, 
 
 func (m *mockAlertRepo) Create(_ context.Context, _ *entity.Alert) error   { return nil }
 func (m *mockAlertRepo) Update(_ context.Context, _ *entity.Alert) error   { return nil }
-func (m *mockAlertRepo) UpdateStatus(_ context.Context, _ uint, _ uint, _ entity.AlertStatus) error {
+func (m *mockAlertRepo) UpdateStatus(_ context.Context, _ string, _ string, _ entity.AlertStatus) error {
 	return m.updateStatusErr
 }
-func (m *mockAlertRepo) CountByWorkspaceAndStatus(_ context.Context, _ uint) (map[entity.AlertStatus]int64, error) {
+func (m *mockAlertRepo) CountByWorkspaceAndStatus(_ context.Context, _ string) (map[entity.AlertStatus]int64, error) {
 	return nil, nil
 }
 
@@ -84,7 +84,7 @@ type mockAuditLogger struct {
 	lastResource string
 }
 
-func (m *mockAuditLogger) LogAction(_ context.Context, action, resource string, _ uint, _ string) {
+func (m *mockAuditLogger) LogAction(_ context.Context, action, resource string, _ string, _ string) {
 	m.lastAction = action
 	m.lastResource = resource
 }
@@ -94,9 +94,10 @@ func (m *mockAuditLogger) LogAction(_ context.Context, action, resource string, 
 // ---------------------------------------------------------------------------
 
 func TestListAlerts_Success(t *testing.T) {
+	wsID := "01935d5a-0000-7000-8000-00000000000a"
 	alerts := []entity.AlertWithPackage{
-		{Alert: entity.Alert{ID: 1, WorkspaceID: 10}, PackageName: "requests"},
-		{Alert: entity.Alert{ID: 2, WorkspaceID: 10}, PackageName: "flask"},
+		{Alert: entity.Alert{ID: "01935d5a-0000-7000-8000-000000000001", WorkspaceID: wsID}, PackageName: "requests"},
+		{Alert: entity.Alert{ID: "01935d5a-0000-7000-8000-000000000002", WorkspaceID: wsID}, PackageName: "flask"},
 	}
 	repo := &mockAlertRepo{
 		findByWorkspaceIDWithPackageResult: alerts,
@@ -104,7 +105,7 @@ func TestListAlerts_Success(t *testing.T) {
 	}
 	uc := alertuc.New(repo, &mockAuditLogger{})
 
-	result, total, err := uc.ListAlerts(context.Background(), 10, 1, 20, "", entity.AlertFilters{})
+	result, total, err := uc.ListAlerts(context.Background(), wsID, 1, 20, "", entity.AlertFilters{})
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), total)
 	assert.Len(t, result, 2)
@@ -117,7 +118,7 @@ func TestListAlerts_RepoError(t *testing.T) {
 	}
 	uc := alertuc.New(repo, &mockAuditLogger{})
 
-	_, _, err := uc.ListAlerts(context.Background(), 10, 1, 20, "", entity.AlertFilters{})
+	_, _, err := uc.ListAlerts(context.Background(), "01935d5a-0000-7000-8000-00000000000a", 1, 20, "", entity.AlertFilters{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "AlertUseCase.ListAlerts")
 }
@@ -127,17 +128,19 @@ func TestListAlerts_RepoError(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGetAlert_Success(t *testing.T) {
-	alert := &entity.Alert{ID: 1, WorkspaceID: 10}
-	pkg := &entity.Package{ID: 5, Name: "requests"}
+	wsID := "01935d5a-0000-7000-8000-00000000000a"
+	alertID := "01935d5a-0000-7000-8000-000000000001"
+	alert := &entity.Alert{ID: alertID, WorkspaceID: wsID}
+	pkg := &entity.Package{ID: "01935d5a-0000-7000-8000-000000000005", Name: "requests"}
 	repo := &mockAlertRepo{
 		findByIDWithPackageAlert: alert,
 		findByIDWithPackagePkg:   pkg,
 	}
 	uc := alertuc.New(repo, &mockAuditLogger{})
 
-	gotAlert, gotPkg, err := uc.GetAlert(context.Background(), 10, 1)
+	gotAlert, gotPkg, err := uc.GetAlert(context.Background(), wsID, alertID)
 	require.NoError(t, err)
-	assert.Equal(t, uint(1), gotAlert.ID)
+	assert.Equal(t, alertID, gotAlert.ID)
 	assert.Equal(t, "requests", gotPkg.Name)
 }
 
@@ -147,7 +150,7 @@ func TestGetAlert_NotFound(t *testing.T) {
 	}
 	uc := alertuc.New(repo, &mockAuditLogger{})
 
-	_, _, err := uc.GetAlert(context.Background(), 10, 999)
+	_, _, err := uc.GetAlert(context.Background(), "01935d5a-0000-7000-8000-00000000000a", "01935d5a-0000-7000-8000-0000000003e7")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -158,7 +161,7 @@ func TestGetAlert_RepoError(t *testing.T) {
 	}
 	uc := alertuc.New(repo, &mockAuditLogger{})
 
-	_, _, err := uc.GetAlert(context.Background(), 10, 1)
+	_, _, err := uc.GetAlert(context.Background(), "01935d5a-0000-7000-8000-00000000000a", "01935d5a-0000-7000-8000-000000000001")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "AlertUseCase.GetAlert")
 	assert.False(t, errors.Is(err, entity.ErrNotFound))
@@ -169,12 +172,14 @@ func TestGetAlert_RepoError(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestUpdateAlertStatus_Success(t *testing.T) {
-	alert := &entity.Alert{ID: 1, WorkspaceID: 10, Status: entity.AlertStatusNew}
+	wsID := "01935d5a-0000-7000-8000-00000000000a"
+	alertID := "01935d5a-0000-7000-8000-000000000001"
+	alert := &entity.Alert{ID: alertID, WorkspaceID: wsID, Status: entity.AlertStatusNew}
 	audit := &mockAuditLogger{}
 	repo := &mockAlertRepo{findByIDResult: alert}
 	uc := alertuc.New(repo, audit)
 
-	updated, err := uc.UpdateAlertStatus(context.Background(), 10, 1, entity.AlertStatusAcknowledged)
+	updated, err := uc.UpdateAlertStatus(context.Background(), wsID, alertID, entity.AlertStatusAcknowledged)
 	require.NoError(t, err)
 	assert.Equal(t, entity.AlertStatusAcknowledged, updated.Status)
 	assert.Equal(t, "update", audit.lastAction)
@@ -185,7 +190,7 @@ func TestUpdateAlertStatus_AlertNotFound(t *testing.T) {
 	repo := &mockAlertRepo{findByIDErr: entity.ErrNotFound}
 	uc := alertuc.New(repo, &mockAuditLogger{})
 
-	_, err := uc.UpdateAlertStatus(context.Background(), 10, 999, entity.AlertStatusResolved)
+	_, err := uc.UpdateAlertStatus(context.Background(), "01935d5a-0000-7000-8000-00000000000a", "01935d5a-0000-7000-8000-0000000003e7", entity.AlertStatusResolved)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -194,7 +199,7 @@ func TestUpdateAlertStatus_WrongOrg(t *testing.T) {
 	repo := &mockAlertRepo{findByIDErr: entity.ErrNotFound}
 	uc := alertuc.New(repo, &mockAuditLogger{})
 
-	_, err := uc.UpdateAlertStatus(context.Background(), 99, 1, entity.AlertStatusResolved)
+	_, err := uc.UpdateAlertStatus(context.Background(), "01935d5a-0000-7000-8000-000000000063", "01935d5a-0000-7000-8000-000000000001", entity.AlertStatusResolved)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, entity.ErrNotFound))
 }
@@ -203,20 +208,22 @@ func TestUpdateAlertStatus_FindRepoError(t *testing.T) {
 	repo := &mockAlertRepo{findByIDErr: errors.New("db error")}
 	uc := alertuc.New(repo, &mockAuditLogger{})
 
-	_, err := uc.UpdateAlertStatus(context.Background(), 10, 1, entity.AlertStatusResolved)
+	_, err := uc.UpdateAlertStatus(context.Background(), "01935d5a-0000-7000-8000-00000000000a", "01935d5a-0000-7000-8000-000000000001", entity.AlertStatusResolved)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "AlertUseCase.UpdateAlertStatus")
 }
 
 func TestUpdateAlertStatus_UpdateRepoError(t *testing.T) {
-	alert := &entity.Alert{ID: 1, WorkspaceID: 10, Status: entity.AlertStatusNew}
+	wsID := "01935d5a-0000-7000-8000-00000000000a"
+	alertID := "01935d5a-0000-7000-8000-000000000001"
+	alert := &entity.Alert{ID: alertID, WorkspaceID: wsID, Status: entity.AlertStatusNew}
 	repo := &mockAlertRepo{
 		findByIDResult:  alert,
 		updateStatusErr: errors.New("db error"),
 	}
 	uc := alertuc.New(repo, &mockAuditLogger{})
 
-	_, err := uc.UpdateAlertStatus(context.Background(), 10, 1, entity.AlertStatusResolved)
+	_, err := uc.UpdateAlertStatus(context.Background(), wsID, alertID, entity.AlertStatusResolved)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "AlertUseCase.UpdateAlertStatus")
 }

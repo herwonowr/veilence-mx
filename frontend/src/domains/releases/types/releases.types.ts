@@ -1,8 +1,8 @@
 import type { Classification, AnalyzerType, ReleaseStatus } from "@/domains/common"
 
 export interface Release {
-  id: number
-  packageId: number
+  id: string
+  packageId: string
   version: string
   publishedAt: string
   tarballUrl: string
@@ -13,9 +13,9 @@ export interface Release {
 }
 
 export interface Diff {
-  id: number
-  releaseId: number
-  prevReleaseId: number
+  id: string
+  releaseId: string
+  prevReleaseId: string
   diffContent: string
   fileChangesCount: number
   linesAdded: number
@@ -24,8 +24,8 @@ export interface Diff {
 }
 
 export interface Analysis {
-  id: number
-  diffId: number
+  id: string
+  diffId: string
   classification: Classification
   confidence: number
   reasoning: string
@@ -38,7 +38,7 @@ export interface ReleaseDetail extends Release {
   diff?: Diff
   analysis?: Analysis
   package?: {
-    id: number
+    id: string
     name: string
     ecosystem: string
     latestVersion: string

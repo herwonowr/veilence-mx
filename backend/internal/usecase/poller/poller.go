@@ -126,8 +126,8 @@ func (p *Poller) InvalidateSettingsCache() {
 
 // TriggerDiscovery resets the discovery timer for a workspace, making it due
 // on the next tick. Called by the settings handler when discovery_scan_depth changes.
-func (p *Poller) TriggerDiscovery(workspaceID uint) {
-	key := fmt.Sprintf("%d:discover", workspaceID)
+func (p *Poller) TriggerDiscovery(workspaceID string) {
+	key := workspaceID + ":discover"
 	p.lastPollMu.Lock()
 	delete(p.lastPollAt, key)
 	p.lastPollMu.Unlock()
@@ -182,7 +182,7 @@ func (p *Poller) runMonitorCycle(ctx context.Context) {
 	}
 
 	// Filter to workspaces that are due for monitoring.
-	var dueWorkspaceIDs []uint
+	var dueWorkspaceIDs []string
 	for _, workspaceID := range wsIDs {
 		interval := p.getWorkspaceMonitoringInterval(workspaceID)
 		if p.isWorkspaceDue(workspaceID, "monitor", interval) {
@@ -201,7 +201,7 @@ func (p *Poller) runMonitorCycle(ctx context.Context) {
 
 	for _, workspaceID := range dueWorkspaceIDs {
 		wg.Add(1)
-		go func(workspaceID uint) {
+		go func(workspaceID string) {
 			defer wg.Done()
 			wsSem <- struct{}{}
 			defer func() { <-wsSem }()
@@ -220,7 +220,7 @@ func (p *Poller) runMonitorCycle(ctx context.Context) {
 
 // monitorWorkspacePackages loads all active packages for a workspace (both ecosystems)
 // and checks each for new releases. Returns the number of packages checked.
-func (p *Poller) monitorWorkspacePackages(ctx context.Context, workspaceID uint) int {
+func (p *Poller) monitorWorkspacePackages(ctx context.Context, workspaceID string) int {
 	packages, err := p.repo.FindActivePackagesByWorkspace(ctx, workspaceID)
 	if err != nil {
 		slog.Error("failed to load active packages for monitoring", "workspace_id", workspaceID, "error", err)
@@ -288,7 +288,7 @@ func (p *Poller) checkPackageForNewReleases(ctx context.Context, reg usecase.Reg
 
 	var newVersions []entity.RegistryVersionInfo
 
-	if latestKnownRelease != nil && latestKnownRelease.ID > 0 {
+	if latestKnownRelease != nil && latestKnownRelease.ID != "" {
 		// Find all versions published AFTER our latest known release
 		for _, v := range info.Versions {
 			if v.PublishedAt.After(latestKnownRelease.PublishedAt) && v.Version != latestKnownRelease.Version {
@@ -426,7 +426,7 @@ func (p *Poller) runDiscoveryCycle(ctx context.Context) {
 // When autoApprove is true, new packages are created with status 'active' (auto-approved).
 // When autoApprove is false, new packages are created with status 'suggested' (pending admin approval).
 // Existing active packages get their download metrics refreshed.
-func (p *Poller) discoverPackages(ctx context.Context, reg usecase.Registry, scanDepth int, workspaceID uint, autoApprove bool) {
+func (p *Poller) discoverPackages(ctx context.Context, reg usecase.Registry, scanDepth int, workspaceID string, autoApprove bool) {
 	rankings, err := reg.GetTopPackages(ctx, scanDepth)
 	if err != nil {
 		slog.Error("failed to fetch top packages for discovery", "ecosystem", reg.Name(), "workspace_id", workspaceID, "error", err)
@@ -445,7 +445,7 @@ func (p *Poller) discoverPackages(ctx context.Context, reg usecase.Registry, sca
 //   - Existing 'suggested' → update rank + download metrics
 //   - Existing 'blocked' → skip entirely
 //   - Existing 'removed' → re-suggest for admin review (or auto-approve if enabled)
-func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID uint, rankings []entity.PackageRanking, ecosystem entity.Ecosystem, autoApprove bool) {
+func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID string, rankings []entity.PackageRanking, ecosystem entity.Ecosystem, autoApprove bool) {
 	now := time.Now()
 	var suggested int
 	var downloadUpdates []entity.PackageDownloadUpdate
@@ -530,7 +530,7 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID uint,
 				EventType:     entity.NotifEventDiscoveryAdded,
 				Title:         fmt.Sprintf("Discovery: %d new %s packages found", suggested, string(ecosystem)),
 				Message:       fmt.Sprintf("Discovery scan found %d new %s packages (%s). Review them in the Packages page.", suggested, string(ecosystem), label),
-				ReferenceID:   0,
+				ReferenceID:   "",
 				ReferenceType: "package",
 			})
 		}
@@ -539,7 +539,7 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID uint,
 
 // SyncTopPackages is kept for backward compatibility with the API handler.
 // It delegates to discoverPackages with auto-approve disabled (manual trigger = always suggest).
-func (p *Poller) SyncTopPackages(ctx context.Context, reg usecase.Registry, limit int, workspaceID uint) error {
+func (p *Poller) SyncTopPackages(ctx context.Context, reg usecase.Registry, limit int, workspaceID string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -554,7 +554,7 @@ func (p *Poller) SyncTopPackages(ctx context.Context, reg usecase.Registry, limi
 
 // removeStalePackages removes active packages that have had no updates for
 // the given number of months. Called at the end of the discovery cycle.
-func (p *Poller) removeStalePackages(ctx context.Context, workspaceID uint, months int) {
+func (p *Poller) removeStalePackages(ctx context.Context, workspaceID string, months int) {
 	if months <= 0 {
 		return
 	}
@@ -574,7 +574,7 @@ func (p *Poller) removeStalePackages(ctx context.Context, workspaceID uint, mont
 				EventType:     entity.NotifEventStaleRemoved,
 				Title:         fmt.Sprintf("%d stale packages auto-removed", removed),
 				Message:       fmt.Sprintf("%d packages with no updates in %d months were automatically removed from monitoring.", removed, months),
-				ReferenceID:   0,
+				ReferenceID:   "",
 				ReferenceType: "",
 			})
 		}
@@ -586,13 +586,13 @@ func (p *Poller) removeStalePackages(ctx context.Context, workspaceID uint, mont
 // ---------------------------------------------------------------------------
 
 // pollRegistryKey returns the lastPollAt map key for an (workspaceID, purpose) pair.
-func pollRegistryKey(workspaceID uint, purpose string) string {
-	return fmt.Sprintf("%d:%s", workspaceID, purpose)
+func pollRegistryKey(workspaceID string, purpose string) string {
+	return workspaceID + ":" + purpose
 }
 
 // getWorkspaceMonitoringInterval returns the monitoring interval for a specific workspace.
 // Falls back to the global config default if no per-workspace setting exists.
-func (p *Poller) getWorkspaceMonitoringInterval(workspaceID uint) time.Duration {
+func (p *Poller) getWorkspaceMonitoringInterval(workspaceID string) time.Duration {
 	intervalStr := p.getSetting(entity.SettingMonitoringInterval, p.config.MonitoringInterval.String(), workspaceID)
 	if d, err := time.ParseDuration(intervalStr); err == nil && d > 0 {
 		return d
@@ -601,7 +601,7 @@ func (p *Poller) getWorkspaceMonitoringInterval(workspaceID uint) time.Duration 
 }
 
 // getWorkspaceDiscoveryInterval returns the discovery interval for a specific workspace.
-func (p *Poller) getWorkspaceDiscoveryInterval(workspaceID uint) time.Duration {
+func (p *Poller) getWorkspaceDiscoveryInterval(workspaceID string) time.Duration {
 	intervalStr := p.getSetting(entity.SettingDiscoveryInterval, p.config.DiscoveryInterval.String(), workspaceID)
 	if d, err := time.ParseDuration(intervalStr); err == nil && d > 0 {
 		return d
@@ -611,7 +611,7 @@ func (p *Poller) getWorkspaceDiscoveryInterval(workspaceID uint) time.Duration {
 
 // getDiscoveryScanDepth returns the discovery scan depth for a specific workspace.
 // A value of 0 means discovery is disabled for that workspace.
-func (p *Poller) getDiscoveryScanDepth(workspaceID uint) int {
+func (p *Poller) getDiscoveryScanDepth(workspaceID string) int {
 	depthStr := p.getSetting(entity.SettingDiscoveryScanDepth, "50", workspaceID)
 	if v, err := strconv.Atoi(depthStr); err == nil && v >= 0 {
 		return v
@@ -621,13 +621,13 @@ func (p *Poller) getDiscoveryScanDepth(workspaceID uint) int {
 
 // getDiscoveryAutoApprove returns whether newly discovered packages should be
 // automatically approved (status=active) instead of suggested (pending review).
-func (p *Poller) getDiscoveryAutoApprove(workspaceID uint) bool {
+func (p *Poller) getDiscoveryAutoApprove(workspaceID string) bool {
 	return p.getSetting(entity.SettingDiscoveryAutoApprove, "false", workspaceID) == "true"
 }
 
 // getStaleAutoRemoveMonths returns the number of months after which active
 // packages with no updates are automatically removed. 0 means disabled.
-func (p *Poller) getStaleAutoRemoveMonths(workspaceID uint) int {
+func (p *Poller) getStaleAutoRemoveMonths(workspaceID string) int {
 	monthsStr := p.getSetting(entity.SettingStaleAutoRemoveMonths, "0", workspaceID)
 	if v, err := strconv.Atoi(monthsStr); err == nil && v >= 0 {
 		return v
@@ -637,7 +637,7 @@ func (p *Poller) getStaleAutoRemoveMonths(workspaceID uint) int {
 
 // isWorkspaceDue returns true if the given workspace is due for the given purpose
 // (monitor or discover) based on its interval and last poll time.
-func (p *Poller) isWorkspaceDue(workspaceID uint, purpose string, interval time.Duration) bool {
+func (p *Poller) isWorkspaceDue(workspaceID string, purpose string, interval time.Duration) bool {
 	key := pollRegistryKey(workspaceID, purpose)
 
 	p.lastPollMu.RLock()
@@ -651,7 +651,7 @@ func (p *Poller) isWorkspaceDue(workspaceID uint, purpose string, interval time.
 }
 
 // markWorkspacePolled records the current time as the last poll time for the workspace+purpose.
-func (p *Poller) markWorkspacePolled(workspaceID uint, purpose string) {
+func (p *Poller) markWorkspacePolled(workspaceID string, purpose string) {
 	key := pollRegistryKey(workspaceID, purpose)
 	p.lastPollMu.Lock()
 	p.lastPollAt[key] = time.Now()
@@ -661,8 +661,8 @@ func (p *Poller) markWorkspacePolled(workspaceID uint, purpose string) {
 // getSetting retrieves a setting value, using the cache when available.
 // Falls back to a database lookup on cache miss and stores the result.
 // The workspaceID parameter scopes settings to the requesting workspace.
-func (p *Poller) getSetting(key, defaultValue string, workspaceID uint) string {
-	cacheKey := fmt.Sprintf("%d:%s", workspaceID, key)
+func (p *Poller) getSetting(key, defaultValue string, workspaceID string) string {
+	cacheKey := workspaceID + ":" + key
 	if v, ok := p.settings.get(cacheKey); ok {
 		return v
 	}

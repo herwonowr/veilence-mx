@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"log/slog"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 
@@ -22,7 +21,7 @@ func RequireWorkspace(svc *Service) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userID := UserIDFromContext(r.Context())
-			if userID == 0 {
+			if userID == "" {
 				http.Error(w, `{"data":null,"error":"authentication required"}`, http.StatusUnauthorized)
 				return
 			}
@@ -32,7 +31,7 @@ func RequireWorkspace(svc *Service) func(http.Handler) http.Handler {
 				apiKeyWsID := auth.APIKeyWorkspaceIDFromContext(r.Context())
 				apiKeyRole := auth.APIKeyRoleFromContext(r.Context())
 
-				if apiKeyWsID == 0 {
+				if apiKeyWsID == "" {
 					http.Error(w, `{"data":null,"error":"API key is not bound to a workspace"}`, http.StatusForbidden)
 					return
 				}
@@ -44,8 +43,7 @@ func RequireWorkspace(svc *Service) func(http.Handler) http.Handler {
 					r.URL.Query().Get("workspace_id"),
 				)
 				if wsIDStr != "" {
-					requestedWsID, err := strconv.ParseUint(wsIDStr, 10, 64)
-					if err == nil && uint(requestedWsID) != apiKeyWsID {
+					if wsIDStr != apiKeyWsID {
 						http.Error(w, `{"data":null,"error":"API key is not authorized for this workspace"}`, http.StatusForbidden)
 						return
 					}
@@ -64,13 +62,13 @@ func RequireWorkspace(svc *Service) func(http.Handler) http.Handler {
 				r.URL.Query().Get("workspace_id"),
 			)
 
-			workspaceID, err := strconv.ParseUint(wsIDStr, 10, 64)
-			if err != nil || workspaceID == 0 {
+			workspaceID := wsIDStr
+			if workspaceID == "" {
 				http.Error(w, `{"data":null,"error":"valid workspace ID is required"}`, http.StatusBadRequest)
 				return
 			}
 
-			member, err := svc.GetUserMembership(userID, uint(workspaceID))
+			member, err := svc.GetUserMembership(userID, workspaceID)
 			if err != nil {
 				slog.Debug("workspace membership check failed",
 					"user_id", userID,
@@ -81,7 +79,7 @@ func RequireWorkspace(svc *Service) func(http.Handler) http.Handler {
 				return
 			}
 
-			ctx := WithWorkspaceID(r.Context(), uint(workspaceID))
+			ctx := WithWorkspaceID(r.Context(), workspaceID)
 			ctx = WithMemberRole(ctx, member.Role.Name)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -103,7 +101,7 @@ func RequirePermission(svc *Service, resource, action string) func(http.Handler)
 			userID := UserIDFromContext(r.Context())
 			workspaceID := WorkspaceIDFromContext(r.Context())
 
-			if userID == 0 || workspaceID == 0 {
+			if userID == "" || workspaceID == "" {
 				http.Error(w, `{"data":null,"error":"authentication and workspace context required"}`, http.StatusUnauthorized)
 				return
 			}

@@ -17,25 +17,25 @@ import { sanitizeErrorMessage } from "@/core"
 export const channelKeys = {
   all: ["channels"] as const,
   lists: () => [...channelKeys.all, "list"] as const,
-  list: (workspaceId: number) => [...channelKeys.lists(), workspaceId] as const,
+  list: (workspaceId: string) => [...channelKeys.lists(), workspaceId] as const,
 }
 
 export const ruleKeys = {
   all: ["rules"] as const,
   lists: () => [...ruleKeys.all, "list"] as const,
-  list: (workspaceId: number) => [...ruleKeys.lists(), workspaceId] as const,
+  list: (workspaceId: string) => [...ruleKeys.lists(), workspaceId] as const,
 }
 
-export const useChannels = (workspaceId: number | null) => {
+export const useChannels = (workspaceId: string | null) => {
   return useQuery({
-    queryKey: channelKeys.list(workspaceId ?? 0),
+    queryKey: channelKeys.list(workspaceId ?? ""),
     queryFn: () => apiListChannels(workspaceId!),
     enabled: !!workspaceId,
     staleTime: 30_000,
   })
 }
 
-export const useCreateChannel = (workspaceId: number) => {
+export const useCreateChannel = (workspaceId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (data: { name: string; type: string; config: string }) =>
@@ -50,14 +50,14 @@ export const useCreateChannel = (workspaceId: number) => {
   })
 }
 
-export const useUpdateChannel = (workspaceId: number) => {
+export const useUpdateChannel = (workspaceId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({
       id,
       ...data
     }: {
-      id: number
+      id: string
       name: string
       config: string
       isActive: boolean
@@ -72,10 +72,10 @@ export const useUpdateChannel = (workspaceId: number) => {
   })
 }
 
-export const useDeleteChannel = (workspaceId: number) => {
+export const useDeleteChannel = (workspaceId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: number) => apiDeleteChannel(workspaceId, id),
+    mutationFn: (id: string) => apiDeleteChannel(workspaceId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: channelKeys.list(workspaceId) })
       toast.success("Channel deleted")
@@ -86,19 +86,19 @@ export const useDeleteChannel = (workspaceId: number) => {
   })
 }
 
-export const useRules = (workspaceId: number | null) => {
+export const useRules = (workspaceId: string | null) => {
   return useQuery({
-    queryKey: ruleKeys.list(workspaceId ?? 0),
+    queryKey: ruleKeys.list(workspaceId ?? ""),
     queryFn: () => apiListRules(workspaceId!),
     enabled: !!workspaceId,
     staleTime: 30_000,
   })
 }
 
-export const useCreateRule = (workspaceId: number) => {
+export const useCreateRule = (workspaceId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: { channelId: number; severity: string }) =>
+    mutationFn: (data: { channelId: string; severity: string }) =>
       apiCreateRule(workspaceId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ruleKeys.list(workspaceId) })
@@ -110,10 +110,10 @@ export const useCreateRule = (workspaceId: number) => {
   })
 }
 
-export const useDeleteRule = (workspaceId: number) => {
+export const useDeleteRule = (workspaceId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: number) => apiDeleteRule(workspaceId, id),
+    mutationFn: (id: string) => apiDeleteRule(workspaceId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ruleKeys.list(workspaceId) })
       toast.success("Rule deleted")
@@ -124,9 +124,9 @@ export const useDeleteRule = (workspaceId: number) => {
   })
 }
 
-export const useTestChannel = (workspaceId: number) => {
+export const useTestChannel = (workspaceId: string) => {
   return useMutation({
-    mutationFn: (channelId: number) => testNotificationChannel(workspaceId, channelId),
+    mutationFn: (channelId: string) => testNotificationChannel(workspaceId, channelId),
     onSuccess: () => {
       toast.success("Test notification sent")
     },

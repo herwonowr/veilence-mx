@@ -30,8 +30,8 @@ const (
 
 // Analysis represents the LLM analysis of a diff.
 type Analysis struct {
-	ID             uint
-	DiffID         uint
+	ID             string
+	DiffID         string
 	Classification Classification
 	Confidence     float64
 	Reasoning      string

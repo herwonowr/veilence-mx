@@ -5,8 +5,8 @@ import "time"
 // Setting represents a configurable system setting stored as key-value.
 // WorkspaceID=0 represents a global default setting; workspace-specific settings override globals.
 type Setting struct {
-	ID             uint
-	WorkspaceID    uint
+	ID             string
+	WorkspaceID    string
 	Key            string
 	Value          string
 	CreatedAt      time.Time

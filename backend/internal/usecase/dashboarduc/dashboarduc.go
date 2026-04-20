@@ -39,7 +39,7 @@ func New(
 }
 
 // GetStats returns the overview statistics for the dashboard.
-func (uc *UseCase) GetStats(ctx context.Context, workspaceID uint) (*entity.DashboardStats, error) {
+func (uc *UseCase) GetStats(ctx context.Context, workspaceID string) (*entity.DashboardStats, error) {
 	stats, err := uc.dashboard.GetStats(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("DashboardUseCase.GetStats: %w", err)
@@ -48,7 +48,7 @@ func (uc *UseCase) GetStats(ctx context.Context, workspaceID uint) (*entity.Dash
 }
 
 // GetRecentReleases returns a paginated list of recent releases with package and classification info.
-func (uc *UseCase) GetRecentReleases(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error) {
+func (uc *UseCase) GetRecentReleases(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error) {
 	results, total, err := uc.releases.FindByWorkspaceIDWithDetails(ctx, workspaceID, page, limit, sortClause, filters)
 	if err != nil {
 		return nil, 0, fmt.Errorf("DashboardUseCase.GetRecentReleases: %w", err)
@@ -57,7 +57,7 @@ func (uc *UseCase) GetRecentReleases(ctx context.Context, workspaceID uint, page
 }
 
 // GetChartData returns all chart data for the dashboard within the given time range.
-func (uc *UseCase) GetChartData(ctx context.Context, workspaceID uint, from, to time.Time) (*entity.ChartData, error) {
+func (uc *UseCase) GetChartData(ctx context.Context, workspaceID string, from, to time.Time) (*entity.ChartData, error) {
 	data := &entity.ChartData{}
 
 	// 1. Release activity
@@ -153,7 +153,7 @@ func (uc *UseCase) GetChartData(ctx context.Context, workspaceID uint, from, to 
 }
 
 // ReanalyzeAll re-queues all unanalyzed diffs for analysis, scoped to the given org.
-func (uc *UseCase) ReanalyzeAll(ctx context.Context, workspaceID uint) (int, error) {
+func (uc *UseCase) ReanalyzeAll(ctx context.Context, workspaceID string) (int, error) {
 	if uc.queue == nil {
 		return 0, fmt.Errorf("DashboardUseCase.ReanalyzeAll: queue not configured")
 	}
@@ -166,7 +166,7 @@ func (uc *UseCase) ReanalyzeAll(ctx context.Context, workspaceID uint) (int, err
 	queued := 0
 	for _, id := range diffIDs {
 		if _, err := uc.queue.Enqueue(ctx, jobTypeAnalyze, workspaceID, id); err != nil {
-			return queued, fmt.Errorf("DashboardUseCase.ReanalyzeAll: enqueue diff %d: %w", id, err)
+			return queued, fmt.Errorf("DashboardUseCase.ReanalyzeAll: enqueue diff %s: %w", id, err)
 		}
 		queued++
 	}

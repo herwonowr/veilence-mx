@@ -27,7 +27,7 @@ type updateOrgRequest struct {
 // CreateWorkspace handles POST /api/workspaces - creates a new workspace.
 func (h *WorkspaceHandlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
-	if userID == 0 {
+	if userID == "" {
 		respondError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
@@ -68,7 +68,7 @@ func (h *WorkspaceHandlers) CreateWorkspace(w http.ResponseWriter, r *http.Reque
 // ListWorkspaces handles GET /api/workspaces - lists workspaces the user belongs to.
 func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
-	if userID == 0 {
+	if userID == "" {
 		respondError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
@@ -92,7 +92,7 @@ func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Reques
 // GetWorkspace handles GET /api/workspaces/{workspaceId} - returns workspace details.
 func (h *WorkspaceHandlers) GetWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
-	if workspaceID == 0 {
+	if workspaceID == "" {
 		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
@@ -116,7 +116,7 @@ func (h *WorkspaceHandlers) GetWorkspace(w http.ResponseWriter, r *http.Request)
 // UpdateWorkspace handles PUT /api/workspaces/{workspaceId} - updates workspace details.
 func (h *WorkspaceHandlers) UpdateWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
-	if workspaceID == 0 {
+	if workspaceID == "" {
 		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
@@ -176,7 +176,7 @@ func (h *WorkspaceHandlers) UpdateWorkspace(w http.ResponseWriter, r *http.Reque
 // DeleteWorkspace handles DELETE /api/workspaces/{workspaceId} - soft-deletes a workspace.
 func (h *WorkspaceHandlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
-	if workspaceID == 0 {
+	if workspaceID == "" {
 		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
@@ -190,7 +190,7 @@ func (h *WorkspaceHandlers) DeleteWorkspace(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "delete", "workspace", workspaceID, fmt.Sprintf("deleted workspace %d", workspaceID))
+	h.Audit.LogAction(r.Context(), "delete", "workspace", workspaceID, fmt.Sprintf("deleted workspace %s", workspaceID))
 
 	respondJSON(w, http.StatusOK, nil, nil)
 }

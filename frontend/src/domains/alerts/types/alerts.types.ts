@@ -1,11 +1,11 @@
 import type { AlertSeverity, AlertStatus } from "@/domains/common"
 
 export interface Alert {
-  id: number
-  workspaceId: number
-  analysisId: number
-  packageId: number
-  releaseId: number
+  id: string
+  workspaceId: string
+  analysisId: string
+  packageId: string
+  releaseId: string
   severity: AlertSeverity
   status: AlertStatus
   message: string
@@ -16,10 +16,10 @@ export interface Alert {
 }
 
 export interface AlertNote {
-  id: number
-  workspaceId: number
-  alertId: number
-  userId: number
+  id: string
+  workspaceId: string
+  alertId: string
+  userId: string
   userEmail: string
   content: string
   createdAt: string

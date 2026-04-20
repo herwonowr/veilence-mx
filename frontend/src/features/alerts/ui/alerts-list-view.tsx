@@ -130,7 +130,7 @@ const AlertsContent = () => {
   ]
 
   const handleStatusChange = useCallback(
-    (id: number, status: string) => {
+    (id: string, status: string) => {
       updateMutation.mutate({ id, status })
     },
     [updateMutation]

@@ -22,11 +22,11 @@ export const getAlerts = async (params?: {
   return fetchApi<Alert[]>(`/api/alerts?${searchParams.toString()}`)
 }
 
-export const getAlert = async (id: number): Promise<ApiResponse<Alert>> =>
+export const getAlert = async (id: string): Promise<ApiResponse<Alert>> =>
   fetchApi<Alert>(`/api/alerts/${id}`)
 
 export const updateAlertStatus = async (
-  id: number,
+  id: string,
   status: string
 ): Promise<ApiResponse<Alert>> =>
   fetchApi<Alert>(`/api/alerts/${id}`, {
@@ -35,12 +35,12 @@ export const updateAlertStatus = async (
   })
 
 export const getAlertNotes = async (
-  alertId: number
+  alertId: string
 ): Promise<ApiResponse<AlertNote[]>> =>
   fetchApi<AlertNote[]>(`/api/alerts/${alertId}/notes`)
 
 export const createAlertNote = async (
-  alertId: number,
+  alertId: string,
   content: string
 ): Promise<ApiResponse<AlertNote>> =>
   fetchApi<AlertNote>(`/api/alerts/${alertId}/notes`, {
@@ -49,8 +49,8 @@ export const createAlertNote = async (
   })
 
 export const updateAlertNote = async (
-  alertId: number,
-  noteId: number,
+  alertId: string,
+  noteId: string,
   content: string
 ): Promise<ApiResponse<AlertNote>> =>
   fetchApi<AlertNote>(`/api/alerts/${alertId}/notes/${noteId}`, {
@@ -59,8 +59,8 @@ export const updateAlertNote = async (
   })
 
 export const deleteAlertNote = async (
-  alertId: number,
-  noteId: number
+  alertId: string,
+  noteId: string
 ): Promise<ApiResponse<null>> =>
   fetchApi<null>(`/api/alerts/${alertId}/notes/${noteId}`, {
     method: "DELETE",

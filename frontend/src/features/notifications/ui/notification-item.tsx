@@ -15,8 +15,8 @@ import {
 type NotificationItemProps = {
   notification: Notification
   onClick: (notification: Notification) => void
-  onMarkRead?: (id: number) => void
-  onDelete?: (id: number) => void
+  onMarkRead?: (id: string) => void
+  onDelete?: (id: string) => void
   isMarkingRead?: boolean
   isDeleting?: boolean
 }

@@ -34,10 +34,10 @@ export const packageKeys = {
   list: (params?: Record<string, unknown>) =>
     [...packageKeys.lists(), params] as const,
   details: () => [...packageKeys.all, "detail"] as const,
-  detail: (id: number) => [...packageKeys.details(), id] as const,
-  releases: (packageId: number, page?: number, limit?: number) =>
+  detail: (id: string) => [...packageKeys.details(), id] as const,
+  releases: (packageId: string, page?: number, limit?: number) =>
     [...packageKeys.all, "releases", packageId, page, limit] as const,
-  analysisHistory: (packageId: number) =>
+  analysisHistory: (packageId: string) =>
     [...packageKeys.all, "analysis-history", packageId] as const,
   suggestions: (params?: Record<string, unknown>) =>
     [...packageKeys.all, "suggestions", params] as const,
@@ -67,18 +67,18 @@ export const usePackages = (
   })
 
 export const usePackage = (
-  id: number,
+  id: string,
   options?: Partial<UseQueryOptions<ApiResponse<Package>>>
 ) =>
   useQuery({
     queryKey: packageKeys.detail(id),
     queryFn: () => getPackage(id),
-    enabled: id > 0,
+    enabled: !!id,
     ...options,
   })
 
 export const usePackageReleases = (
-  packageId: number,
+  packageId: string,
   page = 1,
   limit = 50,
   options?: Partial<UseQueryOptions<ApiResponse<Release[]>>>
@@ -86,7 +86,7 @@ export const usePackageReleases = (
   useQuery({
     queryKey: packageKeys.releases(packageId, page, limit),
     queryFn: () => getPackageReleases(packageId, page, limit),
-    enabled: packageId > 0,
+    enabled: !!packageId,
     ...options,
   })
 
@@ -110,7 +110,7 @@ export const useDeletePackage = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: number) => deletePackage(id),
+    mutationFn: (id: string) => deletePackage(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: packageKeys.lists() })
       toast.success("Package removed from monitoring")
@@ -125,7 +125,7 @@ export const useBlockPackage = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, reason }: { id: number; reason?: string }) =>
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
       blockPackage(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: packageKeys.lists() })
@@ -141,7 +141,7 @@ export const useUnblockPackage = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: number) => unblockPackage(id),
+    mutationFn: (id: string) => unblockPackage(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: packageKeys.lists() })
       toast.success("Package unblocked")
@@ -190,13 +190,13 @@ export const useBulkImportPackages = () => {
 }
 
 export const useAnalysisHistory = (
-  packageId: number,
+  packageId: string,
   options?: Partial<UseQueryOptions<ApiResponse<AnalysisHistoryEntry[]>>>
 ) =>
   useQuery({
     queryKey: packageKeys.analysisHistory(packageId),
     queryFn: () => getAnalysisHistory(packageId),
-    enabled: packageId > 0,
+    enabled: !!packageId,
     ...options,
   })
 
@@ -221,7 +221,7 @@ export const useApprovePackage = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: number) => approvePackage(id),
+    mutationFn: (id: string) => approvePackage(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: packageKeys.all })
       toast.success("Package approved and added to monitoring")
@@ -236,7 +236,7 @@ export const useRejectPackage = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: number) => rejectPackage(id),
+    mutationFn: (id: string) => rejectPackage(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: packageKeys.all })
       toast.success("Suggestion rejected")
@@ -251,7 +251,7 @@ export const useBulkApprovePackages = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (params: { packageIds: number[] } | { ecosystem: string } | { approveAll: true }) =>
+    mutationFn: (params: { packageIds: string[] } | { ecosystem: string } | { approveAll: true }) =>
       bulkApprovePackages(params),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: packageKeys.all })

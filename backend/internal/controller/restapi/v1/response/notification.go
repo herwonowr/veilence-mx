@@ -8,8 +8,8 @@ import (
 
 // NotificationChannelResponse is the JSON representation of a notification channel.
 type NotificationChannelResponse struct {
-	ID        uint                          `json:"id"`
-	WorkspaceID     uint                          `json:"workspaceId"`
+	ID        string                        `json:"id"`
+	WorkspaceID     string                        `json:"workspaceId"`
 	Name      string                        `json:"name"`
 	Type      entity.NotificationChannelType `json:"type"`
 	Config    string                        `json:"config"`
@@ -43,9 +43,9 @@ func NotificationChannelsFromEntities(channels []entity.NotificationChannel) []N
 
 // NotificationRuleResponse is the JSON representation of a notification rule.
 type NotificationRuleResponse struct {
-	ID        uint      `json:"id"`
-	WorkspaceID     uint      `json:"workspaceId"`
-	ChannelID uint      `json:"channelId"`
+	ID        string    `json:"id"`
+	WorkspaceID     string    `json:"workspaceId"`
+	ChannelID string    `json:"channelId"`
 	Severity  string    `json:"severity"`
 	IsActive  bool      `json:"isActive"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -76,13 +76,13 @@ func NotificationRulesFromEntities(rules []entity.NotificationRule) []Notificati
 
 // NotificationResponse is the JSON representation of an in-app notification.
 type NotificationResponse struct {
-	ID            uint      `json:"id"`
-	WorkspaceID         uint      `json:"workspaceId"`
-	UserID        uint      `json:"userId"`
-	ChannelID     uint      `json:"channelId"`
+	ID            string    `json:"id"`
+	WorkspaceID         string    `json:"workspaceId"`
+	UserID        string    `json:"userId"`
+	ChannelID     string    `json:"channelId"`
 	Severity      string    `json:"severity"`
 	EventType     string    `json:"eventType"`
-	ReferenceID   uint      `json:"referenceId"`
+	ReferenceID   string    `json:"referenceId"`
 	ReferenceType string    `json:"referenceType"`
 	Title         string    `json:"title"`
 	Message       string    `json:"message"`

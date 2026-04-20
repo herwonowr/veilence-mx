@@ -1,13 +1,13 @@
 export type NotificationChannelType = "email" | "slack" | "webhook"
 
 export interface Notification {
-  id: number
-  workspaceId: number
-  userId: number
-  channelId: number
+  id: string
+  workspaceId: string
+  userId: string
+  channelId: string
   severity: string
   eventType: string
-  referenceId: number
+  referenceId: string
   referenceType: string
   title: string
   message: string
@@ -17,8 +17,8 @@ export interface Notification {
 }
 
 export interface NotificationChannel {
-  id: number
-  workspaceId: number
+  id: string
+  workspaceId: string
   name: string
   type: NotificationChannelType
   config: string
@@ -28,9 +28,9 @@ export interface NotificationChannel {
 }
 
 export interface NotificationRule {
-  id: number
-  workspaceId: number
-  channelId: number
+  id: string
+  workspaceId: string
+  channelId: string
   severity: string
   isActive: boolean
   createdAt: string

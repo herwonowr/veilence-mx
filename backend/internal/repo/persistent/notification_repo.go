@@ -29,19 +29,19 @@ func (r *NotificationRepo) Create(ctx context.Context, notification *entity.Noti
 	return nil
 }
 
-func (r *NotificationRepo) FindByUserAndWorkspace(ctx context.Context, workspaceID, userID uint, onlyUnread bool) ([]entity.Notification, error) {
+func (r *NotificationRepo) FindByUserAndWorkspace(ctx context.Context, workspaceID, userID string, onlyUnread bool) ([]entity.Notification, error) {
 	query := r.db.WithContext(ctx).Model(&Notification{})
 
 	// Always require workspace scoping - callers must resolve workspaceID before calling.
-	if workspaceID != 0 {
+	if workspaceID != "" {
 		query = query.Where("workspace_id = ?", workspaceID)
 	} else {
 		// Safety: refuse to query without workspace scope to prevent cross-tenant access.
 		return nil, nil
 	}
 
-	// Show org-wide (user_id=0) and user-specific notifications
-	query = query.Where("user_id = ? OR user_id = 0", userID)
+	// Show org-wide (user_id='') and user-specific notifications
+	query = query.Where("user_id = ? OR user_id = ''", userID)
 
 	if onlyUnread {
 		query = query.Where("is_read = ?", false)
@@ -62,14 +62,14 @@ func (r *NotificationRepo) FindByUserAndWorkspace(ctx context.Context, workspace
 	return result, nil
 }
 
-func (r *NotificationRepo) FindByUserAndWorkspaceIDs(ctx context.Context, workspaceIDs []uint, userID uint, onlyUnread bool) ([]entity.Notification, error) {
+func (r *NotificationRepo) FindByUserAndWorkspaceIDs(ctx context.Context, workspaceIDs []string, userID string, onlyUnread bool) ([]entity.Notification, error) {
 	if len(workspaceIDs) == 0 {
 		return nil, nil
 	}
 
 	query := r.db.WithContext(ctx).Model(&Notification{}).
 		Where("workspace_id IN ?", workspaceIDs).
-		Where("user_id = ? OR user_id = 0", userID)
+		Where("user_id = ? OR user_id = ''", userID)
 
 	if onlyUnread {
 		query = query.Where("is_read = ?", false)
@@ -88,9 +88,9 @@ func (r *NotificationRepo) FindByUserAndWorkspaceIDs(ctx context.Context, worksp
 	return result, nil
 }
 
-func (r *NotificationRepo) MarkRead(ctx context.Context, id, userID uint) (int64, error) {
+func (r *NotificationRepo) MarkRead(ctx context.Context, id, userID string) (int64, error) {
 	result := r.db.WithContext(ctx).Model(&Notification{}).
-		Where("id = ? AND (user_id = ? OR user_id = 0)", id, userID).
+		Where("id = ? AND (user_id = ? OR user_id = '')", id, userID).
 		Update("is_read", true)
 	if result.Error != nil {
 		return 0, fmt.Errorf("marking notification as read: %w", result.Error)
@@ -98,13 +98,13 @@ func (r *NotificationRepo) MarkRead(ctx context.Context, id, userID uint) (int64
 	return result.RowsAffected, nil
 }
 
-func (r *NotificationRepo) CountUnread(ctx context.Context, workspaceID, userID uint) (int64, error) {
+func (r *NotificationRepo) CountUnread(ctx context.Context, workspaceID, userID string) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&Notification{}).
 		Where("is_read = ?", false).
-		Where("user_id = ? OR user_id = 0", userID)
+		Where("user_id = ? OR user_id = ''", userID)
 
 	// Always require workspace scoping - callers must resolve workspaceID before calling.
-	if workspaceID != 0 {
+	if workspaceID != "" {
 		query = query.Where("workspace_id = ?", workspaceID)
 	} else {
 		// Safety: refuse to count without workspace scope to prevent cross-tenant access.
@@ -118,7 +118,7 @@ func (r *NotificationRepo) CountUnread(ctx context.Context, workspaceID, userID 
 	return count, nil
 }
 
-func (r *NotificationRepo) CountUnreadByWorkspaceIDs(ctx context.Context, workspaceIDs []uint, userID uint) (int64, error) {
+func (r *NotificationRepo) CountUnreadByWorkspaceIDs(ctx context.Context, workspaceIDs []string, userID string) (int64, error) {
 	if len(workspaceIDs) == 0 {
 		return 0, nil
 	}
@@ -127,7 +127,7 @@ func (r *NotificationRepo) CountUnreadByWorkspaceIDs(ctx context.Context, worksp
 	err := r.db.WithContext(ctx).Model(&Notification{}).
 		Where("is_read = ?", false).
 		Where("workspace_id IN ?", workspaceIDs).
-		Where("user_id = ? OR user_id = 0", userID).
+		Where("user_id = ? OR user_id = ''", userID).
 		Count(&count).Error
 	if err != nil {
 		return 0, fmt.Errorf("counting unread notifications by workspace IDs: %w", err)
@@ -135,13 +135,13 @@ func (r *NotificationRepo) CountUnreadByWorkspaceIDs(ctx context.Context, worksp
 	return count, nil
 }
 
-func (r *NotificationRepo) MarkAllRead(ctx context.Context, workspaceID, userID uint) (int64, error) {
+func (r *NotificationRepo) MarkAllRead(ctx context.Context, workspaceID, userID string) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&Notification{}).
 		Where("is_read = ?", false).
-		Where("user_id = ? OR user_id = 0", userID)
+		Where("user_id = ? OR user_id = ''", userID)
 
 	// Always require workspace scoping - callers must resolve workspaceID before calling.
-	if workspaceID != 0 {
+	if workspaceID != "" {
 		query = query.Where("workspace_id = ?", workspaceID)
 	} else {
 		// Safety: refuse to update without workspace scope to prevent cross-tenant access.
@@ -155,7 +155,7 @@ func (r *NotificationRepo) MarkAllRead(ctx context.Context, workspaceID, userID 
 	return result.RowsAffected, nil
 }
 
-func (r *NotificationRepo) MarkAllReadByWorkspaceIDs(ctx context.Context, workspaceIDs []uint, userID uint) (int64, error) {
+func (r *NotificationRepo) MarkAllReadByWorkspaceIDs(ctx context.Context, workspaceIDs []string, userID string) (int64, error) {
 	if len(workspaceIDs) == 0 {
 		return 0, nil
 	}
@@ -163,7 +163,7 @@ func (r *NotificationRepo) MarkAllReadByWorkspaceIDs(ctx context.Context, worksp
 	result := r.db.WithContext(ctx).Model(&Notification{}).
 		Where("is_read = ?", false).
 		Where("workspace_id IN ?", workspaceIDs).
-		Where("user_id = ? OR user_id = 0", userID).
+		Where("user_id = ? OR user_id = ''", userID).
 		Update("is_read", true)
 	if result.Error != nil {
 		return 0, fmt.Errorf("marking all notifications as read by workspace IDs: %w", result.Error)
@@ -171,11 +171,11 @@ func (r *NotificationRepo) MarkAllReadByWorkspaceIDs(ctx context.Context, worksp
 	return result.RowsAffected, nil
 }
 
-func (r *NotificationRepo) DeleteByID(ctx context.Context, id, workspaceID, userID uint) (int64, error) {
-	query := r.db.WithContext(ctx).Where("id = ? AND (user_id = ? OR user_id = 0)", id, userID)
+func (r *NotificationRepo) DeleteByID(ctx context.Context, id, workspaceID, userID string) (int64, error) {
+	query := r.db.WithContext(ctx).Where("id = ? AND (user_id = ? OR user_id = '')", id, userID)
 
 	// Always require workspace scoping - callers must resolve workspaceID before calling.
-	if workspaceID != 0 {
+	if workspaceID != "" {
 		query = query.Where("workspace_id = ?", workspaceID)
 	} else {
 		// Safety: refuse to delete without workspace scope to prevent cross-tenant access.
@@ -189,11 +189,11 @@ func (r *NotificationRepo) DeleteByID(ctx context.Context, id, workspaceID, user
 	return result.RowsAffected, nil
 }
 
-func (r *NotificationRepo) DeleteAll(ctx context.Context, workspaceID, userID uint) (int64, error) {
-	query := r.db.WithContext(ctx).Where("user_id = ? OR user_id = 0", userID)
+func (r *NotificationRepo) DeleteAll(ctx context.Context, workspaceID, userID string) (int64, error) {
+	query := r.db.WithContext(ctx).Where("user_id = ? OR user_id = ''", userID)
 
 	// Always require workspace scoping - callers must resolve workspaceID before calling.
-	if workspaceID != 0 {
+	if workspaceID != "" {
 		query = query.Where("workspace_id = ?", workspaceID)
 	} else {
 		// Safety: refuse to delete without workspace scope to prevent cross-tenant access.
@@ -207,14 +207,14 @@ func (r *NotificationRepo) DeleteAll(ctx context.Context, workspaceID, userID ui
 	return result.RowsAffected, nil
 }
 
-func (r *NotificationRepo) DeleteAllByWorkspaceIDs(ctx context.Context, workspaceIDs []uint, userID uint) (int64, error) {
+func (r *NotificationRepo) DeleteAllByWorkspaceIDs(ctx context.Context, workspaceIDs []string, userID string) (int64, error) {
 	if len(workspaceIDs) == 0 {
 		return 0, nil
 	}
 
 	result := r.db.WithContext(ctx).
 		Where("workspace_id IN ?", workspaceIDs).
-		Where("user_id = ? OR user_id = 0", userID).
+		Where("user_id = ? OR user_id = ''", userID).
 		Delete(&Notification{})
 	if result.Error != nil {
 		return 0, fmt.Errorf("deleting all notifications by workspace IDs: %w", result.Error)
@@ -222,15 +222,15 @@ func (r *NotificationRepo) DeleteAllByWorkspaceIDs(ctx context.Context, workspac
 	return result.RowsAffected, nil
 }
 
-func (r *NotificationRepo) DeleteBatch(ctx context.Context, ids []uint, workspaceID, userID uint) (int64, error) {
+func (r *NotificationRepo) DeleteBatch(ctx context.Context, ids []string, workspaceID, userID string) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
 
-	query := r.db.WithContext(ctx).Where("id IN ? AND (user_id = ? OR user_id = 0)", ids, userID)
+	query := r.db.WithContext(ctx).Where("id IN ? AND (user_id = ? OR user_id = '')", ids, userID)
 
 	// Always require workspace scoping - callers must resolve workspaceID before calling.
-	if workspaceID != 0 {
+	if workspaceID != "" {
 		query = query.Where("workspace_id = ?", workspaceID)
 	} else {
 		// Safety: refuse to delete without workspace scope to prevent cross-tenant access.
@@ -244,7 +244,7 @@ func (r *NotificationRepo) DeleteBatch(ctx context.Context, ids []uint, workspac
 	return result.RowsAffected, nil
 }
 
-func (r *NotificationRepo) FindByID(ctx context.Context, id uint) (*entity.Notification, error) {
+func (r *NotificationRepo) FindByID(ctx context.Context, id string) (*entity.Notification, error) {
 	var m Notification
 	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
 		return nil, fmt.Errorf("finding notification by ID: %w", err)
@@ -252,13 +252,13 @@ func (r *NotificationRepo) FindByID(ctx context.Context, id uint) (*entity.Notif
 	return notifToDomain(&m), nil
 }
 
-func (r *NotificationRepo) DeleteBatchByWorkspaceIDs(ctx context.Context, ids []uint, workspaceIDs []uint, userID uint) (int64, error) {
+func (r *NotificationRepo) DeleteBatchByWorkspaceIDs(ctx context.Context, ids []string, workspaceIDs []string, userID string) (int64, error) {
 	if len(ids) == 0 || len(workspaceIDs) == 0 {
 		return 0, nil
 	}
 
 	result := r.db.WithContext(ctx).
-		Where("id IN ? AND workspace_id IN ? AND (user_id = ? OR user_id = 0)", ids, workspaceIDs, userID).
+		Where("id IN ? AND workspace_id IN ? AND (user_id = ? OR user_id = '')", ids, workspaceIDs, userID).
 		Delete(&Notification{})
 	if result.Error != nil {
 		return 0, fmt.Errorf("batch deleting notifications by workspace IDs: %w", result.Error)

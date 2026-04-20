@@ -8,8 +8,8 @@ import (
 
 // ReleaseResponse is the JSON representation of a package release.
 type ReleaseResponse struct {
-	ID           uint      `json:"id"`
-	PackageID    uint      `json:"packageId"`
+	ID           string    `json:"id"`
+	PackageID    string    `json:"packageId"`
 	Version      string    `json:"version"`
 	PublishedAt  time.Time `json:"publishedAt"`
 	TarballURL   string    `json:"tarballUrl"`
@@ -45,9 +45,9 @@ func ReleasesFromEntities(rs []entity.Release) []ReleaseResponse {
 
 // DiffResponse is the JSON representation of a release diff.
 type DiffResponse struct {
-	ID               uint      `json:"id"`
-	ReleaseID        uint      `json:"releaseId"`
-	PrevReleaseID    uint      `json:"prevReleaseId"`
+	ID               string    `json:"id"`
+	ReleaseID        string    `json:"releaseId"`
+	PrevReleaseID    string    `json:"prevReleaseId"`
 	DiffContent      string    `json:"diffContent"`
 	FileChangesCount int       `json:"fileChangesCount"`
 	LinesAdded       int       `json:"linesAdded"`
@@ -74,8 +74,8 @@ func DiffFromEntity(d *entity.Diff) *DiffResponse {
 
 // AnalysisResponse is the JSON representation of an LLM analysis result.
 type AnalysisResponse struct {
-	ID             uint      `json:"id"`
-	DiffID         uint      `json:"diffId"`
+	ID             string    `json:"id"`
+	DiffID         string    `json:"diffId"`
 	Classification string    `json:"classification"`
 	Confidence     float64   `json:"confidence"`
 	Reasoning      string    `json:"reasoning"`
@@ -154,7 +154,7 @@ func RecentReleasesFromEntities(rs []entity.ReleaseWithDetails) []RecentReleaseR
 
 // AnalysisHistoryEntryResponse is the JSON representation of a single analysis history entry.
 type AnalysisHistoryEntryResponse struct {
-	ReleaseID      uint    `json:"releaseId"`
+	ReleaseID      string  `json:"releaseId"`
 	Version        string  `json:"version"`
 	Classification string  `json:"classification"`
 	Confidence     float64 `json:"confidence"`

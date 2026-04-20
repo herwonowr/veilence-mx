@@ -23,9 +23,9 @@ export const AlertDetailView = ({
   params: Promise<{ id: string }>
 }) => {
   const { id } = use(params)
-  const alertId = parseInt(id, 10)
+  const alertId = id
 
-  if (isNaN(alertId) || alertId <= 0) {
+  if (!alertId) {
     notFound()
   }
 

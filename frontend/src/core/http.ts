@@ -10,7 +10,7 @@ export interface ApiResponse<T> {
 }
 
 interface TokenRefreshResponse {
-  user: { id: number }
+  user: { id: string }
   accessToken: string
   refreshToken: string
 }
@@ -48,16 +48,14 @@ export const clearTokens = () => {
   document.cookie = "vmx_authenticated=; path=/; SameSite=Lax; max-age=0"
 }
 
-export const getStoredWorkspaceId = (): number | null => {
+export const getStoredWorkspaceId = (): string | null => {
   if (typeof window === "undefined") return null
   const v = localStorage.getItem(WORKSPACE_ID_KEY)
-  if (!v) return null
-  const n = parseInt(v, 10)
-  return isNaN(n) ? null : n
+  return v || null
 }
 
-export const storeWorkspaceId = (workspaceId: number) => {
-  localStorage.setItem(WORKSPACE_ID_KEY, String(workspaceId))
+export const storeWorkspaceId = (workspaceId: string) => {
+  localStorage.setItem(WORKSPACE_ID_KEY, workspaceId)
 }
 
 export const clearWorkspaceId = () => {

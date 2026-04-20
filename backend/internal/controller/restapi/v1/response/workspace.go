@@ -6,11 +6,11 @@ import "time"
 // Mapped from persistent.Workspace at the handler level because the RBAC
 // service currently returns persistent types (pre-existing arch compromise).
 type WorkspaceResponse struct {
-	ID          uint      `json:"id"`
+	ID          string    `json:"id"`
 	Name        string    `json:"name"`
 	Slug        string    `json:"slug"`
 	Description string    `json:"description"`
-	OwnerID     uint      `json:"ownerId"`
+	OwnerID     string    `json:"ownerId"`
 	IsActive    bool      `json:"isActive"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`

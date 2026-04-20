@@ -19,7 +19,7 @@ import { sanitizeErrorMessage } from "@/core"
 export const apiKeyKeys = {
   all: ["api-keys"] as const,
   list: () => [...apiKeyKeys.all, "list"] as const,
-  currentRole: (workspaceId: number) => [...apiKeyKeys.all, "current-role", workspaceId] as const,
+  currentRole: (workspaceId: string) => [...apiKeyKeys.all, "current-role", workspaceId] as const,
 }
 
 export const useApiKeys = (
@@ -58,7 +58,7 @@ export const useDeleteApiKey = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: number) => apiDeleteApiKey(id),
+    mutationFn: (id: string) => apiDeleteApiKey(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: apiKeyKeys.list() })
       toast.success("API key deleted")

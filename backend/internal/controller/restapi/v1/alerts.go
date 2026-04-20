@@ -5,9 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
-
-	"github.com/go-chi/chi/v5"
 
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
 	"github.com/veilence/veilence-mx/backend/internal/entity"
@@ -65,13 +62,13 @@ func (h *AlertHandlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
 func (h *AlertHandlers) GetAlert(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	id, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid alert ID"))
 		return
 	}
 
-	alert, pkg, err := h.AlertSvc.GetAlert(r.Context(), workspaceID, uint(id))
+	alert, pkg, err := h.AlertSvc.GetAlert(r.Context(), workspaceID, id)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("alert"))
@@ -93,8 +90,8 @@ type updateAlertRequest struct {
 func (h *AlertHandlers) UpdateAlert(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	id, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid alert ID"))
 		return
 	}
@@ -115,7 +112,7 @@ func (h *AlertHandlers) UpdateAlert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	alert, err := h.AlertSvc.UpdateAlertStatus(r.Context(), workspaceID, uint(id), entity.AlertStatus(req.Status))
+	alert, err := h.AlertSvc.UpdateAlertStatus(r.Context(), workspaceID, id, entity.AlertStatus(req.Status))
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("alert"))
@@ -132,13 +129,13 @@ func (h *AlertHandlers) UpdateAlert(w http.ResponseWriter, r *http.Request) {
 func (h *AlertHandlers) ListAlertNotes(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	alertID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	alertID, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid alert ID"))
 		return
 	}
 
-	notes, err := h.Notes.ListByAlert(r.Context(), workspaceID, uint(alertID))
+	notes, err := h.Notes.ListByAlert(r.Context(), workspaceID, alertID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("alert"))
@@ -161,8 +158,8 @@ func (h *AlertHandlers) CreateAlertNote(w http.ResponseWriter, r *http.Request) 
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	userID := rbac.UserIDFromContext(r.Context())
 
-	alertID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	alertID, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid alert ID"))
 		return
 	}
@@ -183,7 +180,7 @@ func (h *AlertHandlers) CreateAlertNote(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	note, err := h.Notes.Create(r.Context(), workspaceID, uint(alertID), userID, req.Content)
+	note, err := h.Notes.Create(r.Context(), workspaceID, alertID, userID, req.Content)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("alert"))
@@ -194,7 +191,7 @@ func (h *AlertHandlers) CreateAlertNote(w http.ResponseWriter, r *http.Request) 
 	}
 
 	h.Audit.LogAction(r.Context(), "create", "alert_note", note.ID,
-		fmt.Sprintf("added note on alert %d", alertID))
+		fmt.Sprintf("added note on alert %s", alertID))
 
 	respondJSON(w, http.StatusCreated, response.AlertNoteFromEntity(note), nil)
 }
@@ -209,14 +206,14 @@ func (h *AlertHandlers) UpdateAlertNote(w http.ResponseWriter, r *http.Request) 
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	userID := rbac.UserIDFromContext(r.Context())
 
-	alertID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	alertID, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid alert ID"))
 		return
 	}
 
-	noteID, err := strconv.ParseUint(chi.URLParam(r, "noteId"), 10, 64)
-	if err != nil {
+	noteID, ok := parseUUID(r, "noteId")
+	if !ok {
 		respondAppError(w, BadRequest("invalid note ID"))
 		return
 	}
@@ -237,7 +234,7 @@ func (h *AlertHandlers) UpdateAlertNote(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	note, err := h.Notes.Update(r.Context(), workspaceID, uint(alertID), uint(noteID), userID, req.Content)
+	note, err := h.Notes.Update(r.Context(), workspaceID, alertID, noteID, userID, req.Content)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("alert note"))
@@ -252,7 +249,7 @@ func (h *AlertHandlers) UpdateAlertNote(w http.ResponseWriter, r *http.Request) 
 	}
 
 	h.Audit.LogAction(r.Context(), "update", "alert_note", note.ID,
-		fmt.Sprintf("edited note on alert %d", alertID))
+		fmt.Sprintf("edited note on alert %s", alertID))
 
 	respondJSON(w, http.StatusOK, response.AlertNoteFromEntity(note), nil)
 }
@@ -262,19 +259,19 @@ func (h *AlertHandlers) DeleteAlertNote(w http.ResponseWriter, r *http.Request) 
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	userID := rbac.UserIDFromContext(r.Context())
 
-	alertID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	alertID, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid alert ID"))
 		return
 	}
 
-	noteID, err := strconv.ParseUint(chi.URLParam(r, "noteId"), 10, 64)
-	if err != nil {
+	noteID, ok := parseUUID(r, "noteId")
+	if !ok {
 		respondAppError(w, BadRequest("invalid note ID"))
 		return
 	}
 
-	if err := h.Notes.Delete(r.Context(), workspaceID, uint(alertID), uint(noteID), userID); err != nil {
+	if err := h.Notes.Delete(r.Context(), workspaceID, alertID, noteID, userID); err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("alert note"))
 			return
@@ -287,8 +284,8 @@ func (h *AlertHandlers) DeleteAlertNote(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "delete", "alert_note", uint(noteID),
-		fmt.Sprintf("deleted note on alert %d", alertID))
+	h.Audit.LogAction(r.Context(), "delete", "alert_note", noteID,
+		fmt.Sprintf("deleted note on alert %s", alertID))
 
 	w.WriteHeader(http.StatusNoContent)
 }

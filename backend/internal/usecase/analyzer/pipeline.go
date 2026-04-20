@@ -33,10 +33,10 @@ func (p *Pipeline) ProcessJob(ctx context.Context, job *queue.Job) error {
 }
 
 // processDiff runs all configured analyzers on a diff.
-func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
+func (p *Pipeline) processDiff(ctx context.Context, diffID string) error {
 	diff, release, pkg, err := p.repo.FindDiffWithRelease(ctx, diffID)
 	if err != nil {
-		return fmt.Errorf("loading diff %d: %w", diffID, err)
+		return fmt.Errorf("loading diff %s: %w", diffID, err)
 	}
 
 	// Find previous release version
@@ -159,7 +159,7 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID uint) error {
 				ReferenceType: "release",
 			})
 		}
-		return fmt.Errorf("all analyzers failed for diff %d: %w", diffID, lastErr)
+		return fmt.Errorf("all analyzers failed for diff %s: %w", diffID, lastErr)
 	}
 
 	// Update release status to completed

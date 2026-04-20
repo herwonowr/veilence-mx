@@ -18,7 +18,7 @@ export const releaseKeys = {
   all: ["releases"] as const,
   list: (params?: Record<string, unknown>) =>
     [...releaseKeys.all, "list", params] as const,
-  detail: (id: number) => [...releaseKeys.all, "detail", id] as const,
+  detail: (id: string) => [...releaseKeys.all, "detail", id] as const,
 }
 
 export const useRecentReleases = (
@@ -43,17 +43,17 @@ export const useRecentReleases = (
   })
 
 export const useRelease = (
-  id: number,
+  id: string,
   options?: Partial<UseQueryOptions<ApiResponse<ReleaseDetail>>>
 ) =>
   useQuery({
     queryKey: releaseKeys.detail(id),
     queryFn: () => getRelease(id),
-    enabled: id > 0,
+    enabled: !!id,
     ...options,
   })
 
-export const useReanalyzeRelease = (releaseId: number) => {
+export const useReanalyzeRelease = (releaseId: string) => {
   const queryClient = useQueryClient()
 
   return useMutation({

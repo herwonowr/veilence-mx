@@ -122,7 +122,7 @@ export const ApiKeysView = () => {
 
   // Delete confirmation state
   const [deleteTarget, setDeleteTarget] = useState<{
-    id: number
+    id: string
     details: ConfirmDialogDetail[]
   } | null>(null)
 

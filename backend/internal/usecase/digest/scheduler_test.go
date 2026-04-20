@@ -43,7 +43,7 @@ func TestGenerateDigest_Empty(t *testing.T) {
 	db := setupTestDB(t)
 	s := newTestScheduler(db)
 
-	digest, err := s.GenerateDigest(context.Background(), 1, "daily", time.Now())
+	digest, err := s.GenerateDigest(context.Background(), "01935d5a-0000-7000-8000-000000000001","daily", time.Now())
 	require.NoError(t, err)
 
 	assert.Equal(t, "last 24 hours", digest.Period)
@@ -59,7 +59,7 @@ func TestGenerateDigest_WithData(t *testing.T) {
 	now := time.Now()
 
 	// Create test data for org 1
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 1}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: "01935d5a-0000-7000-8000-000000000001"}
 	db.Create(&pkg)
 
 	rel1 := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
@@ -73,12 +73,12 @@ func TestGenerateDigest_WithData(t *testing.T) {
 	analysis := persistent.Analysis{DiffID: diff.ID, Classification: "malicious", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
 	db.Create(&analysis)
 
-	alert1 := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: 1, Severity: "critical", Status: "new", Message: "Critical alert"}
+	alert1 := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Severity: "critical", Status: "new", Message: "Critical alert"}
 	db.Create(&alert1)
-	alert2 := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: 1, Severity: "medium", Status: "new", Message: "Medium alert"}
+	alert2 := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Severity: "medium", Status: "new", Message: "Medium alert"}
 	db.Create(&alert2)
 
-	digest, err := s.GenerateDigest(context.Background(), 1, "daily", now)
+	digest, err := s.GenerateDigest(context.Background(), "01935d5a-0000-7000-8000-000000000001","daily", now)
 	require.NoError(t, err)
 
 	assert.Equal(t, "last 24 hours", digest.Period)
@@ -96,7 +96,7 @@ func TestGenerateDigest_WeeklyPeriod(t *testing.T) {
 	db := setupTestDB(t)
 	s := newTestScheduler(db)
 
-	digest, err := s.GenerateDigest(context.Background(), 1, "weekly", time.Now())
+	digest, err := s.GenerateDigest(context.Background(), "01935d5a-0000-7000-8000-000000000001","weekly", time.Now())
 	require.NoError(t, err)
 
 	assert.Equal(t, "last 7 days", digest.Period)
@@ -108,9 +108,9 @@ func TestGenerateDigest_WorkspaceScoping(t *testing.T) {
 	now := time.Now()
 
 	// Create alerts for org 1 and org 2
-	pkg1 := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 1}
+	pkg1 := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: "01935d5a-0000-7000-8000-000000000001"}
 	db.Create(&pkg1)
-	pkg2 := persistent.Package{Name: "express", Ecosystem: "npm", WorkspaceID: 2}
+	pkg2 := persistent.Package{Name: "express", Ecosystem: "npm", WorkspaceID: "01935d5a-0000-7000-8000-000000000002"}
 	db.Create(&pkg2)
 
 	rel1 := persistent.Release{PackageID: pkg1.ID, Version: "1.0.0", Status: "completed"}
@@ -128,17 +128,17 @@ func TestGenerateDigest_WorkspaceScoping(t *testing.T) {
 	analysis2 := persistent.Analysis{DiffID: diff2.ID, Classification: "benign", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
 	db.Create(&analysis2)
 
-	db.Create(&persistent.Alert{AnalysisID: analysis1.ID, PackageID: pkg1.ID, WorkspaceID: 1, Severity: "critical", Status: "new", Message: "Org 1 alert"})
-	db.Create(&persistent.Alert{AnalysisID: analysis2.ID, PackageID: pkg2.ID, WorkspaceID: 2, Severity: "low", Status: "new", Message: "Org 2 alert"})
+	db.Create(&persistent.Alert{AnalysisID: analysis1.ID, PackageID: pkg1.ID, WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Severity: "critical", Status: "new", Message: "Org 1 alert"})
+	db.Create(&persistent.Alert{AnalysisID: analysis2.ID, PackageID: pkg2.ID, WorkspaceID: "01935d5a-0000-7000-8000-000000000002", Severity: "low", Status: "new", Message: "Org 2 alert"})
 
 	// Digest for org 1 should only see org 1's data
-	digest1, err := s.GenerateDigest(context.Background(), 1, "daily", now)
+	digest1, err := s.GenerateDigest(context.Background(), "01935d5a-0000-7000-8000-000000000001","daily", now)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), digest1.NewAlertsCount)
 	assert.Equal(t, "critical", digest1.TopAlerts[0].Severity)
 
 	// Digest for org 2 should only see org 2's data
-	digest2, err := s.GenerateDigest(context.Background(), 2, "daily", now)
+	digest2, err := s.GenerateDigest(context.Background(), "01935d5a-0000-7000-8000-000000000002", "daily", now)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), digest2.NewAlertsCount)
 	assert.Equal(t, "low", digest2.TopAlerts[0].Severity)
@@ -148,7 +148,7 @@ func TestGenerateDigest_TopAlertsLimit(t *testing.T) {
 	db := setupTestDB(t)
 	s := newTestScheduler(db)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 1}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: "01935d5a-0000-7000-8000-000000000001"}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -163,10 +163,10 @@ func TestGenerateDigest_TopAlertsLimit(t *testing.T) {
 		if i < 3 {
 			severity = "critical"
 		}
-		db.Create(&persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: 1, Severity: persistent.AlertSeverity(severity), Status: "new", Message: "Alert"})
+		db.Create(&persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Severity: persistent.AlertSeverity(severity), Status: "new", Message: "Alert"})
 	}
 
-	digest, err := s.GenerateDigest(context.Background(), 1, "daily", time.Now())
+	digest, err := s.GenerateDigest(context.Background(), "01935d5a-0000-7000-8000-000000000001","daily", time.Now())
 	require.NoError(t, err)
 	assert.Equal(t, int64(7), digest.NewAlertsCount)
 	assert.Len(t, digest.TopAlerts, 5) // Limited to 5
@@ -182,8 +182,8 @@ func TestFormatDigestText(t *testing.T) {
 			"suspicious": 2,
 		},
 		TopAlerts: []entity.DigestTopAlert{
-			{ID: 1, PackageName: "requests", Severity: "critical", Message: "Malicious code detected", CreatedAt: time.Now()},
-			{ID: 2, PackageName: "flask", Severity: "medium", Message: "Suspicious pattern found", CreatedAt: time.Now()},
+			{ID: "01935d5a-0000-7000-8000-000000000001", PackageName: "requests", Severity: "critical", Message: "Malicious code detected", CreatedAt: time.Now()},
+			{ID: "01935d5a-0000-7000-8000-000000000002", PackageName: "flask", Severity: "medium", Message: "Suspicious pattern found", CreatedAt: time.Now()},
 		},
 	}
 
@@ -217,24 +217,26 @@ func TestIsDue(t *testing.T) {
 	s := newTestScheduler(db)
 	now := time.Now()
 
+	wsID := "01935d5a-0000-7000-8000-000000000001"
+
 	// Never sent - should be due
-	assert.True(t, s.isDue(1, "daily", now))
-	assert.True(t, s.isDue(1, "weekly", now))
+	assert.True(t, s.isDue(wsID, "daily", now))
+	assert.True(t, s.isDue(wsID, "weekly", now))
 
 	// Sent 12 hours ago - daily should not be due, weekly should not be due
-	s.lastSentAt[1] = now.Add(-12 * time.Hour)
-	assert.False(t, s.isDue(1, "daily", now))
-	assert.False(t, s.isDue(1, "weekly", now))
+	s.lastSentAt[wsID] = now.Add(-12 * time.Hour)
+	assert.False(t, s.isDue(wsID, "daily", now))
+	assert.False(t, s.isDue(wsID, "weekly", now))
 
 	// Sent 25 hours ago - daily should be due, weekly should not be due
-	s.lastSentAt[1] = now.Add(-25 * time.Hour)
-	assert.True(t, s.isDue(1, "daily", now))
-	assert.False(t, s.isDue(1, "weekly", now))
+	s.lastSentAt[wsID] = now.Add(-25 * time.Hour)
+	assert.True(t, s.isDue(wsID, "daily", now))
+	assert.False(t, s.isDue(wsID, "weekly", now))
 
 	// Sent 8 days ago - both should be due
-	s.lastSentAt[1] = now.Add(-8 * 24 * time.Hour)
-	assert.True(t, s.isDue(1, "daily", now))
-	assert.True(t, s.isDue(1, "weekly", now))
+	s.lastSentAt[wsID] = now.Add(-8 * 24 * time.Hour)
+	assert.True(t, s.isDue(wsID, "daily", now))
+	assert.True(t, s.isDue(wsID, "weekly", now))
 }
 
 func TestParseRecipients(t *testing.T) {

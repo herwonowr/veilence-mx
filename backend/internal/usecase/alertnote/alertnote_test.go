@@ -29,14 +29,14 @@ type mockNoteRepo struct {
 	deleteErr error
 }
 
-func (m *mockNoteRepo) FindByAlertID(_ context.Context, _ uint, _ uint) ([]entity.AlertNote, error) {
+func (m *mockNoteRepo) FindByAlertID(_ context.Context, _ string, _ string) ([]entity.AlertNote, error) {
 	if m.findByAlertIDErr != nil {
 		return nil, m.findByAlertIDErr
 	}
 	return m.findByAlertIDResult, nil
 }
 
-func (m *mockNoteRepo) FindByID(_ context.Context, _ uint, _ uint) (*entity.AlertNote, error) {
+func (m *mockNoteRepo) FindByID(_ context.Context, _ string, _ string) (*entity.AlertNote, error) {
 	if m.findByIDErr != nil {
 		return nil, m.findByIDErr
 	}
@@ -45,7 +45,7 @@ func (m *mockNoteRepo) FindByID(_ context.Context, _ uint, _ uint) (*entity.Aler
 
 func (m *mockNoteRepo) Create(_ context.Context, _ *entity.AlertNote) error { return m.createErr }
 func (m *mockNoteRepo) Update(_ context.Context, _ *entity.AlertNote) error { return m.updateErr }
-func (m *mockNoteRepo) Delete(_ context.Context, _ uint, _ uint) error              { return m.deleteErr }
+func (m *mockNoteRepo) Delete(_ context.Context, _ string, _ string) error  { return m.deleteErr }
 
 // ---------------------------------------------------------------------------
 // Mock AlertRepository (for ownership checks)
@@ -56,14 +56,14 @@ type mockAlertRepo struct {
 	findByIDErr    error
 }
 
-func (m *mockAlertRepo) FindByID(_ context.Context, _ uint) (*entity.Alert, error) {
+func (m *mockAlertRepo) FindByID(_ context.Context, _ string) (*entity.Alert, error) {
 	if m.findByIDErr != nil {
 		return nil, m.findByIDErr
 	}
 	return m.findByIDResult, nil
 }
 
-func (m *mockAlertRepo) FindByIDAndWorkspaceID(_ context.Context, _ uint, _ uint) (*entity.Alert, error) {
+func (m *mockAlertRepo) FindByIDAndWorkspaceID(_ context.Context, _ string, _ string) (*entity.Alert, error) {
 	if m.findByIDErr != nil {
 		return nil, m.findByIDErr
 	}
@@ -73,19 +73,21 @@ func (m *mockAlertRepo) FindByIDAndWorkspaceID(_ context.Context, _ uint, _ uint
 	return nil, entity.ErrNotFound
 }
 
-func (m *mockAlertRepo) FindByIDWithPackage(context.Context, uint, uint) (*entity.Alert, *entity.Package, error) {
+func (m *mockAlertRepo) FindByIDWithPackage(context.Context, string, string) (*entity.Alert, *entity.Package, error) {
 	return nil, nil, nil
 }
-func (m *mockAlertRepo) FindByWorkspaceID(context.Context, uint, int, int, string, entity.AlertFilters) ([]entity.Alert, int64, error) {
+func (m *mockAlertRepo) FindByWorkspaceID(context.Context, string, int, int, string, entity.AlertFilters) ([]entity.Alert, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockAlertRepo) FindByWorkspaceIDWithPackage(context.Context, uint, int, int, string, entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
+func (m *mockAlertRepo) FindByWorkspaceIDWithPackage(context.Context, string, int, int, string, entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockAlertRepo) Create(context.Context, *entity.Alert) error                          { return nil }
-func (m *mockAlertRepo) Update(context.Context, *entity.Alert) error                          { return nil }
-func (m *mockAlertRepo) UpdateStatus(context.Context, uint, uint, entity.AlertStatus) error         { return nil }
-func (m *mockAlertRepo) CountByWorkspaceAndStatus(context.Context, uint) (map[entity.AlertStatus]int64, error) {
+func (m *mockAlertRepo) Create(context.Context, *entity.Alert) error { return nil }
+func (m *mockAlertRepo) Update(context.Context, *entity.Alert) error { return nil }
+func (m *mockAlertRepo) UpdateStatus(context.Context, string, string, entity.AlertStatus) error {
+	return nil
+}
+func (m *mockAlertRepo) CountByWorkspaceAndStatus(context.Context, string) (map[entity.AlertStatus]int64, error) {
 	return nil, nil
 }
 
@@ -98,7 +100,7 @@ type mockUserRepo struct {
 	findByIDErr    error
 }
 
-func (m *mockUserRepo) FindByID(_ context.Context, _ uint) (*entity.User, error) {
+func (m *mockUserRepo) FindByID(_ context.Context, _ string) (*entity.User, error) {
 	if m.findByIDErr != nil {
 		return nil, m.findByIDErr
 	}
@@ -114,10 +116,10 @@ func (m *mockUserRepo) Update(context.Context, *entity.User) error              
 // ---------------------------------------------------------------------------
 
 const (
-	workspaceID = uint(10)
-	alertID = uint(1)
-	noteID  = uint(100)
-	userID  = uint(42)
+	workspaceID = "01935d5a-0000-7000-8000-00000000000a"
+	alertID     = "01935d5a-0000-7000-8000-000000000001"
+	noteID      = "01935d5a-0000-7000-8000-000000000064"
+	userID      = "01935d5a-0000-7000-8000-00000000002a"
 )
 
 func wsAlert() *entity.Alert {
@@ -126,11 +128,11 @@ func wsAlert() *entity.Alert {
 
 func ownedNote() *entity.AlertNote {
 	return &entity.AlertNote{
-		ID:      noteID,
-		AlertID: alertID,
-		WorkspaceID:   workspaceID,
-		UserID:  userID,
-		Content: "original",
+		ID:          noteID,
+		AlertID:     alertID,
+		WorkspaceID: workspaceID,
+		UserID:      userID,
+		Content:     "original",
 	}
 }
 
@@ -139,7 +141,7 @@ func ownedNote() *entity.AlertNote {
 // ---------------------------------------------------------------------------
 
 func TestListByAlert_Success(t *testing.T) {
-	notes := []entity.AlertNote{{ID: 1}, {ID: 2}}
+	notes := []entity.AlertNote{{ID: "01935d5a-0000-7000-8000-000000000001"}, {ID: "01935d5a-0000-7000-8000-000000000002"}}
 	uc := alertnote.New(
 		&mockNoteRepo{findByAlertIDResult: notes},
 		&mockAlertRepo{findByIDResult: wsAlert()},
@@ -332,7 +334,7 @@ func TestUpdate_NoteNotFound(t *testing.T) {
 
 func TestUpdate_NoteWrongOrg(t *testing.T) {
 	wrongWsNote := ownedNote()
-	wrongWsNote.WorkspaceID = 999
+	wrongWsNote.WorkspaceID = "01935d5a-0000-7000-8000-0000000003e7"
 
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDResult: wrongWsNote},
@@ -347,7 +349,7 @@ func TestUpdate_NoteWrongOrg(t *testing.T) {
 
 func TestUpdate_NoteWrongAlert(t *testing.T) {
 	wrongAlertNote := ownedNote()
-	wrongAlertNote.AlertID = 999
+	wrongAlertNote.AlertID = "01935d5a-0000-7000-8000-0000000003e7"
 
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDResult: wrongAlertNote},
@@ -362,7 +364,7 @@ func TestUpdate_NoteWrongAlert(t *testing.T) {
 
 func TestUpdate_NotAuthor(t *testing.T) {
 	otherUserNote := ownedNote()
-	otherUserNote.UserID = 999
+	otherUserNote.UserID = "01935d5a-0000-7000-8000-0000000003e7"
 
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDResult: otherUserNote},
@@ -428,7 +430,7 @@ func TestDelete_NoteNotFound(t *testing.T) {
 
 func TestDelete_NoteWrongOrg(t *testing.T) {
 	wrongWsNote := ownedNote()
-	wrongWsNote.WorkspaceID = 999
+	wrongWsNote.WorkspaceID = "01935d5a-0000-7000-8000-0000000003e7"
 
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDResult: wrongWsNote},
@@ -443,7 +445,7 @@ func TestDelete_NoteWrongOrg(t *testing.T) {
 
 func TestDelete_NoteWrongAlert(t *testing.T) {
 	wrongAlertNote := ownedNote()
-	wrongAlertNote.AlertID = 999
+	wrongAlertNote.AlertID = "01935d5a-0000-7000-8000-0000000003e7"
 
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDResult: wrongAlertNote},
@@ -458,7 +460,7 @@ func TestDelete_NoteWrongAlert(t *testing.T) {
 
 func TestDelete_NotAuthor(t *testing.T) {
 	otherUserNote := ownedNote()
-	otherUserNote.UserID = 999
+	otherUserNote.UserID = "01935d5a-0000-7000-8000-0000000003e7"
 
 	uc := alertnote.New(
 		&mockNoteRepo{findByIDResult: otherUserNote},

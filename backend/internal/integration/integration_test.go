@@ -445,7 +445,7 @@ func TestIntegration_WorkspaceLifecycle(t *testing.T) {
 	resp, result = ts.jsonRequestWithCSRF(t, "POST", "/api/workspaces", wsBody, accessToken)
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 	wsData := result["data"].(map[string]any)
-	wsID := wsData["id"].(float64)
+	wsID := wsData["id"].(string)
 	assert.NotZero(t, wsID)
 	assert.Equal(t, "Test Workspace", wsData["name"])
 	assert.Equal(t, "test-workspace", wsData["slug"])
@@ -457,7 +457,7 @@ func TestIntegration_WorkspaceLifecycle(t *testing.T) {
 	assert.Len(t, orgs, 1)
 
 	// 3. Get workspace
-	wsPath := fmt.Sprintf("/api/workspaces/%.0f", wsID)
+	wsPath := fmt.Sprintf("/api/workspaces/%s", wsID)
 	resp, result = ts.jsonRequestWithCSRF(t, "GET", wsPath, nil, accessToken)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -534,7 +534,7 @@ func TestIntegration_APIKeyFlow(t *testing.T) {
 	wsBody := map[string]string{"name": "Test Workspace", "slug": "test-ws-apikey"}
 	resp, result = ts.jsonRequestWithCSRF(t, "POST", "/api/workspaces", wsBody, accessToken)
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
-	wsID := result["data"].(map[string]any)["id"].(float64)
+	wsID := result["data"].(map[string]any)["id"].(string)
 
 	// Create API key (with workspace context via X-Workspace-ID header)
 	keyBody := map[string]string{"name": "test-key", "role": "viewer"}
@@ -544,7 +544,7 @@ func TestIntegration_APIKeyFlow(t *testing.T) {
 	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Workspace-ID", fmt.Sprintf("%.0f", wsID))
+	req.Header.Set("X-Workspace-ID", wsID)
 	req.Header.Set("X-CSRF-Token", csrfToken)
 	req.Header.Set("Origin", "http://localhost:3000")
 	for _, c := range cookies {
@@ -559,14 +559,14 @@ func TestIntegration_APIKeyFlow(t *testing.T) {
 	assert.NotEmpty(t, rawKey)
 
 	apiKeyObj := keyData["apiKey"].(map[string]any)
-	keyID := apiKeyObj["id"].(float64)
+	keyID := apiKeyObj["id"].(string)
 
 	// List API keys (must include workspace context)
 	csrfToken, cookies = ts.getCSRFToken(t)
 	req, err = http.NewRequest("GET", ts.server.URL+"/api/auth/api-keys", nil)
 	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("X-Workspace-ID", fmt.Sprintf("%.0f", wsID))
+	req.Header.Set("X-Workspace-ID", wsID)
 	req.Header.Set("X-CSRF-Token", csrfToken)
 	req.Header.Set("Origin", "http://localhost:3000")
 	for _, c := range cookies {
@@ -598,10 +598,10 @@ func TestIntegration_APIKeyFlow(t *testing.T) {
 
 	// Revoke the API key (must include workspace context)
 	csrfToken, cookies = ts.getCSRFToken(t)
-	req, err = http.NewRequest("DELETE", ts.server.URL+fmt.Sprintf("/api/auth/api-keys/%.0f", keyID), nil)
+	req, err = http.NewRequest("DELETE", ts.server.URL+"/api/auth/api-keys/"+keyID, nil)
 	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("X-Workspace-ID", fmt.Sprintf("%.0f", wsID))
+	req.Header.Set("X-Workspace-ID", wsID)
 	req.Header.Set("X-CSRF-Token", csrfToken)
 	req.Header.Set("Origin", "http://localhost:3000")
 	for _, c := range cookies {
@@ -616,7 +616,7 @@ func TestIntegration_APIKeyFlow(t *testing.T) {
 	req, err = http.NewRequest("GET", ts.server.URL+"/api/auth/api-keys", nil)
 	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("X-Workspace-ID", fmt.Sprintf("%.0f", wsID))
+	req.Header.Set("X-Workspace-ID", wsID)
 	req.Header.Set("X-CSRF-Token", csrfToken)
 	req.Header.Set("Origin", "http://localhost:3000")
 	for _, c := range cookies {
@@ -672,6 +672,7 @@ func TestIntegration_RBAC_ViewerCannotWrite(t *testing.T) {
 	resp, result := ts.jsonRequestWithCSRF(t, "POST", "/api/auth/register", ownerBody, "")
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
 	ownerToken := result["data"].(map[string]any)["accessToken"].(string)
+	ownerID := result["data"].(map[string]any)["user"].(map[string]any)["id"].(string)
 
 	// Register viewer
 	viewerBody := map[string]string{
@@ -682,18 +683,18 @@ func TestIntegration_RBAC_ViewerCannotWrite(t *testing.T) {
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
 	viewerToken := result["data"].(map[string]any)["accessToken"].(string)
 	viewerUser := result["data"].(map[string]any)["user"].(map[string]any)
-	viewerID := uint(viewerUser["id"].(float64))
+	viewerID := viewerUser["id"].(string)
 
 	// Owner creates org
 	wsBody := map[string]string{"name": "RBAC Workspace", "slug": "rbac-workspace", "description": ""}
 	resp, result = ts.jsonRequestWithCSRF(t, "POST", "/api/workspaces", wsBody, ownerToken)
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
-	wsID := result["data"].(map[string]any)["id"].(float64)
+	wsID := result["data"].(map[string]any)["id"].(string)
 
 	// Get viewer role ID
-	roles, err := ts.rbacSvc.GetWorkspaceRoles(uint(wsID))
+	roles, err := ts.rbacSvc.GetWorkspaceRoles(wsID)
 	require.NoError(t, err)
-	var viewerRoleID uint
+	var viewerRoleID string
 	for _, r := range roles {
 		if r.Name == persistent.RoleViewer {
 			viewerRoleID = r.ID
@@ -703,14 +704,14 @@ func TestIntegration_RBAC_ViewerCannotWrite(t *testing.T) {
 	require.NotZero(t, viewerRoleID)
 
 	// Invite viewer via service (since invite endpoint needs RBAC)
-	_, rawToken, err := ts.rbacSvc.InviteMember(uint(wsID), "rbac-viewer@example.com", viewerRoleID, 1)
+	_, rawToken, err := ts.rbacSvc.InviteMember(wsID, "rbac-viewer@example.com", viewerRoleID, ownerID)
 	require.NoError(t, err)
 	_, err = ts.rbacSvc.AcceptInvitation(rawToken, viewerID, "rbac-viewer@example.com")
 	require.NoError(t, err)
 
 	// Viewer tries to update the org (requires workspace:write) - should be denied
 	updateBody := map[string]string{"name": "Hacked", "slug": "rbac-workspace", "description": "Viewer wrote this"}
-	wsPath := fmt.Sprintf("/api/workspaces/%.0f", wsID)
+	wsPath := fmt.Sprintf("/api/workspaces/%s", wsID)
 	resp, _ = ts.jsonRequestWithCSRF(t, "PUT", wsPath, updateBody, viewerToken)
 	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 
@@ -719,7 +720,7 @@ func TestIntegration_RBAC_ViewerCannotWrite(t *testing.T) {
 	req, err := http.NewRequest("GET", ts.server.URL+"/api/packages", nil)
 	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer "+viewerToken)
-	req.Header.Set("X-Workspace-ID", fmt.Sprintf("%.0f", wsID))
+	req.Header.Set("X-Workspace-ID", wsID)
 	req.Header.Set("X-CSRF-Token", csrfToken)
 	req.Header.Set("Origin", "http://localhost:3000")
 	for _, c := range cookies {
@@ -795,7 +796,7 @@ func TestIntegration_PackageCRUD_WorkspaceScoped(t *testing.T) {
 	wsBody := map[string]string{"name": "Pkg Workspace", "slug": "pkg-workspace", "description": ""}
 	resp, result = ts.jsonRequestWithCSRF(t, "POST", "/api/workspaces", wsBody, accessToken)
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
-	wsID := result["data"].(map[string]any)["id"].(float64)
+	wsID := result["data"].(map[string]any)["id"].(string)
 
 	// Create package (using X-Workspace-ID header for workspace scoping)
 	pkgBody := map[string]string{"name": "django", "ecosystem": "python"}
@@ -805,7 +806,7 @@ func TestIntegration_PackageCRUD_WorkspaceScoped(t *testing.T) {
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("X-Workspace-ID", fmt.Sprintf("%.0f", wsID))
+	req.Header.Set("X-Workspace-ID", wsID)
 	req.Header.Set("X-CSRF-Token", csrfToken)
 	req.Header.Set("Origin", "http://localhost:3000")
 	for _, c := range cookies {
@@ -816,7 +817,7 @@ func TestIntegration_PackageCRUD_WorkspaceScoped(t *testing.T) {
 	pkgResult := parseResponse(t, pkgResp)
 	assert.Equal(t, http.StatusCreated, pkgResp.StatusCode)
 	pkgData := pkgResult["data"].(map[string]any)
-	pkgID := pkgData["id"].(float64)
+	pkgID := pkgData["id"].(string)
 	assert.NotZero(t, pkgID)
 
 	// List packages
@@ -824,7 +825,7 @@ func TestIntegration_PackageCRUD_WorkspaceScoped(t *testing.T) {
 	req, err = http.NewRequest("GET", ts.server.URL+"/api/packages", nil)
 	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("X-Workspace-ID", fmt.Sprintf("%.0f", wsID))
+	req.Header.Set("X-Workspace-ID", wsID)
 	req.Header.Set("X-CSRF-Token", csrfToken)
 	req.Header.Set("Origin", "http://localhost:3000")
 	for _, c := range cookies {
@@ -865,12 +866,12 @@ func TestIntegration_InvitationFlow(t *testing.T) {
 		"name": "Inv Workspace", "slug": "inv-workspace", "description": "",
 	}, ownerToken)
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
-	wsID := uint(result["data"].(map[string]any)["id"].(float64))
+	wsID := result["data"].(map[string]any)["id"].(string)
 
 	// Get the member role ID
 	roles, err := ts.rbacSvc.GetWorkspaceRoles(wsID)
 	require.NoError(t, err)
-	var memberRoleID uint
+	var memberRoleID string
 	for _, r := range roles {
 		if r.Name == persistent.RoleMember {
 			memberRoleID = r.ID
@@ -884,7 +885,7 @@ func TestIntegration_InvitationFlow(t *testing.T) {
 		"email":  "inv-member@example.com",
 		"roleId": memberRoleID,
 	}
-	wsPath := fmt.Sprintf("/api/workspaces/%d", wsID)
+	wsPath := "/api/workspaces/" + wsID
 	resp, result = ts.jsonRequestWithCSRF(t, "POST", wsPath+"/invitations", inviteBody, ownerToken)
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 	invData := result["data"].(map[string]any)
@@ -909,7 +910,7 @@ func TestIntegration_InvitationFlow(t *testing.T) {
 	memberToken := result["data"].(map[string]any)["accessToken"].(string)
 
 	// Accept invitation
-	acceptPath := fmt.Sprintf("/api/workspaces/%d/invitations/%s/accept", wsID, rawToken)
+	acceptPath := fmt.Sprintf("/api/workspaces/%s/invitations/%s/accept", wsID, rawToken)
 	resp, _ = ts.jsonRequestWithCSRF(t, "POST", acceptPath, nil, memberToken)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -939,7 +940,7 @@ func TestIntegration_AuditLogsCreated(t *testing.T) {
 		"name": "Audit Org", "slug": "audit-org", "description": "",
 	}, accessToken)
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
-	wsID := result["data"].(map[string]any)["id"].(float64)
+	wsID := result["data"].(map[string]any)["id"].(string)
 
 	// Perform an org-scoped action that creates an audit log (create a package)
 	csrfToken, cookies := ts.getCSRFToken(t)
@@ -948,7 +949,7 @@ func TestIntegration_AuditLogsCreated(t *testing.T) {
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("X-Workspace-ID", fmt.Sprintf("%.0f", wsID))
+	req.Header.Set("X-Workspace-ID", wsID)
 	req.Header.Set("X-CSRF-Token", csrfToken)
 	req.Header.Set("Origin", "http://localhost:3000")
 	for _, c := range cookies {
@@ -960,7 +961,7 @@ func TestIntegration_AuditLogsCreated(t *testing.T) {
 	require.Equal(t, http.StatusCreated, pkgResp.StatusCode)
 
 	// Check audit logs exist for the org
-	wsPath := fmt.Sprintf("/api/workspaces/%.0f", wsID)
+	wsPath := fmt.Sprintf("/api/workspaces/%s", wsID)
 	resp, result = ts.jsonRequestWithCSRF(t, "GET", wsPath+"/audit-logs", nil, accessToken)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	// There should be at least the package creation audit log
@@ -988,7 +989,7 @@ func TestIntegration_EmailVerification(t *testing.T) {
 
 	// Get the token from the DB directly (in real flow this would be sent via email)
 	user := result["data"].(map[string]any)["user"].(map[string]any)
-	userID := uint(user["id"].(float64))
+	userID := user["id"].(string)
 
 	rawToken, err := ts.authSvc.GenerateEmailVerificationToken(userID)
 	require.NoError(t, err)
@@ -1134,7 +1135,7 @@ func TestIntegration_SettingsCRUD(t *testing.T) {
 		"name": "Settings Org", "slug": "settings-org", "description": "",
 	}, accessToken)
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
-	wsID := result["data"].(map[string]any)["id"].(float64)
+	wsID := result["data"].(map[string]any)["id"].(string)
 
 	// Update settings via org-scoped endpoint
 	csrfToken, cookies := ts.getCSRFToken(t)
@@ -1143,7 +1144,7 @@ func TestIntegration_SettingsCRUD(t *testing.T) {
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("X-Workspace-ID", fmt.Sprintf("%.0f", wsID))
+	req.Header.Set("X-Workspace-ID", wsID)
 	req.Header.Set("X-CSRF-Token", csrfToken)
 	req.Header.Set("Origin", "http://localhost:3000")
 	for _, c := range cookies {

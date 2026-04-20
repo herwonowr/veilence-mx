@@ -20,7 +20,7 @@ func NewWorkspaceMemberRepo(db *gorm.DB) *WorkspaceMemberRepo {
 	return &WorkspaceMemberRepo{db: db}
 }
 
-func (r *WorkspaceMemberRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.WorkspaceMember, error) {
+func (r *WorkspaceMemberRepo) FindByWorkspaceID(ctx context.Context, workspaceID string) ([]entity.WorkspaceMember, error) {
 	var ms []WorkspaceMember
 	err := r.db.WithContext(ctx).
 		Preload("Role").
@@ -36,7 +36,7 @@ func (r *WorkspaceMemberRepo) FindByWorkspaceID(ctx context.Context, workspaceID
 	return result, nil
 }
 
-func (r *WorkspaceMemberRepo) FindByUserAndWorkspace(ctx context.Context, userID, workspaceID uint) (*entity.WorkspaceMember, error) {
+func (r *WorkspaceMemberRepo) FindByUserAndWorkspace(ctx context.Context, userID, workspaceID string) (*entity.WorkspaceMember, error) {
 	var m WorkspaceMember
 	err := r.db.WithContext(ctx).
 		Preload("Role").
@@ -51,7 +51,7 @@ func (r *WorkspaceMemberRepo) FindByUserAndWorkspace(ctx context.Context, userID
 	return workspaceMemberToDomain(&m), nil
 }
 
-func (r *WorkspaceMemberRepo) CountByUserAndWorkspace(ctx context.Context, userID, workspaceID uint) (int64, error) {
+func (r *WorkspaceMemberRepo) CountByUserAndWorkspace(ctx context.Context, userID, workspaceID string) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&WorkspaceMember{}).
@@ -86,7 +86,7 @@ func (r *WorkspaceMemberRepo) Update(ctx context.Context, member *entity.Workspa
 	return nil
 }
 
-func (r *WorkspaceMemberRepo) DeleteByUserAndWorkspace(ctx context.Context, userID, workspaceID uint) error {
+func (r *WorkspaceMemberRepo) DeleteByUserAndWorkspace(ctx context.Context, userID, workspaceID string) error {
 	result := r.db.WithContext(ctx).Where("workspace_id = ? AND user_id = ?", workspaceID, userID).Delete(&WorkspaceMember{})
 	if result.Error != nil {
 		return fmt.Errorf("removing member: %w", result.Error)
@@ -99,8 +99,8 @@ func (r *WorkspaceMemberRepo) DeleteByUserAndWorkspace(ctx context.Context, user
 
 // FindWorkspaceIDsByUserID returns the workspace IDs the user is a member of.
 // Implements usecase.UserWorkspaceLister.
-func (r *WorkspaceMemberRepo) FindWorkspaceIDsByUserID(ctx context.Context, userID uint) ([]uint, error) {
-	var ids []uint
+func (r *WorkspaceMemberRepo) FindWorkspaceIDsByUserID(ctx context.Context, userID string) ([]string, error) {
+	var ids []string
 	err := r.db.WithContext(ctx).Model(&WorkspaceMember{}).
 		Where("user_id = ?", userID).
 		Pluck("workspace_id", &ids).Error
@@ -122,7 +122,7 @@ func workspaceMemberToDomain(m *WorkspaceMember) *entity.WorkspaceMember {
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
 	}
-	if m.Role.ID != 0 {
+	if m.Role.ID != "" {
 		r := roleToDomain(&m.Role)
 		d.Role = r
 	}

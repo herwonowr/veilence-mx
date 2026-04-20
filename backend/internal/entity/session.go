@@ -4,8 +4,8 @@ import "time"
 
 // Session represents an active user session with metadata for session management.
 type Session struct {
-	ID             uint
-	UserID         uint
+	ID             string
+	UserID         string
 	TokenHash      string
 	IPAddress      string
 	UserAgent      string

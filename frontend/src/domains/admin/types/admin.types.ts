@@ -1,19 +1,19 @@
 export interface Workspace {
-  id: number
+  id: string
   name: string
   slug: string
   description: string
-  ownerId: number
+  ownerId: string
   isActive: boolean
   createdAt: string
   updatedAt: string
 }
 
 export interface WorkspaceMember {
-  id: number
-  workspaceId: number
-  userId: number
-  roleId: number
+  id: string
+  workspaceId: string
+  userId: string
+  roleId: string
   role: Role
   joinedAt: string
   email?: string
@@ -22,8 +22,8 @@ export interface WorkspaceMember {
 }
 
 export interface Role {
-  id: number
-  workspaceId: number
+  id: string
+  workspaceId: string
   name: string
   description: string
   isSystem: boolean
@@ -31,18 +31,18 @@ export interface Role {
 }
 
 export interface Permission {
-  id: number
+  id: string
   resource: string
   action: string
 }
 
 export interface AuditLog {
-  id: number
-  userId: number
-  workspaceId: number
+  id: string
+  userId: string
+  workspaceId: string
   action: string
   resource: string
-  resourceId: number
+  resourceId: string
   details: string
   ipAddress: string
   userAgent: string

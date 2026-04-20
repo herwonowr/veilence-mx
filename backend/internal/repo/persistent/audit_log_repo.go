@@ -30,7 +30,7 @@ func (r *AuditLogRepo) Create(ctx context.Context, entry *entity.AuditLog) error
 	return nil
 }
 
-func (r *AuditLogRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, filters entity.AuditLogFilters, page, limit int) ([]entity.AuditLog, int64, error) {
+func (r *AuditLogRepo) FindByWorkspaceID(ctx context.Context, workspaceID string, filters entity.AuditLogFilters, page, limit int) ([]entity.AuditLog, int64, error) {
 	query := r.db.WithContext(ctx).Model(&AuditLog{}).Where("workspace_id = ?", workspaceID)
 
 	if filters.Action != "" {
@@ -39,7 +39,7 @@ func (r *AuditLogRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, 
 	if filters.Resource != "" {
 		query = query.Where("resource = ?", filters.Resource)
 	}
-	if filters.UserID != 0 {
+	if filters.UserID != "" {
 		query = query.Where("user_id = ?", filters.UserID)
 	}
 	if filters.FromDate != nil {
@@ -71,7 +71,7 @@ func (r *AuditLogRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, 
 	return result, total, nil
 }
 
-func (r *AuditLogRepo) FindByID(ctx context.Context, id uint) (*entity.AuditLog, error) {
+func (r *AuditLogRepo) FindByID(ctx context.Context, id string) (*entity.AuditLog, error) {
 	var m AuditLog
 	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

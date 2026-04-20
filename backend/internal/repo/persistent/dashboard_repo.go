@@ -20,7 +20,7 @@ func NewDashboardRepo(db *gorm.DB) *DashboardRepo {
 	return &DashboardRepo{db: db}
 }
 
-func (r *DashboardRepo) GetStats(ctx context.Context, workspaceID uint) (*entity.DashboardStats, error) {
+func (r *DashboardRepo) GetStats(ctx context.Context, workspaceID string) (*entity.DashboardStats, error) {
 	var stats entity.DashboardStats
 
 	if err := r.db.WithContext(ctx).Model(&Package{}).
@@ -61,7 +61,7 @@ func (r *DashboardRepo) GetStats(ctx context.Context, workspaceID uint) (*entity
 	return &stats, nil
 }
 
-func (r *DashboardRepo) GetReleaseActivity(ctx context.Context, workspaceID uint, from, to time.Time) ([]entity.ReleaseActivityPoint, error) {
+func (r *DashboardRepo) GetReleaseActivity(ctx context.Context, workspaceID string, from, to time.Time) ([]entity.ReleaseActivityPoint, error) {
 	var rows []struct {
 		Date  time.Time
 		Count int64
@@ -85,7 +85,7 @@ func (r *DashboardRepo) GetReleaseActivity(ctx context.Context, workspaceID uint
 	return result, nil
 }
 
-func (r *DashboardRepo) GetClassificationDistribution(ctx context.Context, workspaceID uint, from, to time.Time) ([]entity.ClassificationCount, error) {
+func (r *DashboardRepo) GetClassificationDistribution(ctx context.Context, workspaceID string, from, to time.Time) ([]entity.ClassificationCount, error) {
 	var rows []struct {
 		Classification string
 		Count          int64
@@ -110,7 +110,7 @@ func (r *DashboardRepo) GetClassificationDistribution(ctx context.Context, works
 	return result, nil
 }
 
-func (r *DashboardRepo) GetBaselineCount(ctx context.Context, workspaceID uint, from, to time.Time) (int64, error) {
+func (r *DashboardRepo) GetBaselineCount(ctx context.Context, workspaceID string, from, to time.Time) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&Release{}).
 		Joins("JOIN packages ON packages.id = releases.package_id").
@@ -123,7 +123,7 @@ func (r *DashboardRepo) GetBaselineCount(ctx context.Context, workspaceID uint, 
 	return count, nil
 }
 
-func (r *DashboardRepo) GetEcosystemDistribution(ctx context.Context, workspaceID uint) ([]entity.EcosystemCount, error) {
+func (r *DashboardRepo) GetEcosystemDistribution(ctx context.Context, workspaceID string) ([]entity.EcosystemCount, error) {
 	var rows []struct {
 		Ecosystem string
 		Count     int64
@@ -145,7 +145,7 @@ func (r *DashboardRepo) GetEcosystemDistribution(ctx context.Context, workspaceI
 	return result, nil
 }
 
-func (r *DashboardRepo) GetAlertsBySeverity(ctx context.Context, workspaceID uint, from, to time.Time) ([]entity.AlertSeverityCount, error) {
+func (r *DashboardRepo) GetAlertsBySeverity(ctx context.Context, workspaceID string, from, to time.Time) ([]entity.AlertSeverityCount, error) {
 	var rows []struct {
 		Severity string
 		Count    int64
@@ -167,7 +167,7 @@ func (r *DashboardRepo) GetAlertsBySeverity(ctx context.Context, workspaceID uin
 	return result, nil
 }
 
-func (r *DashboardRepo) GetReleaseStatusDistribution(ctx context.Context, workspaceID uint, from, to time.Time) ([]entity.ReleaseStatusCount, error) {
+func (r *DashboardRepo) GetReleaseStatusDistribution(ctx context.Context, workspaceID string, from, to time.Time) ([]entity.ReleaseStatusCount, error) {
 	var rows []struct {
 		Status string
 		Count  int64
@@ -190,8 +190,8 @@ func (r *DashboardRepo) GetReleaseStatusDistribution(ctx context.Context, worksp
 	return result, nil
 }
 
-func (r *DashboardRepo) GetUnanalyzedDiffIDs(ctx context.Context, workspaceID uint) ([]uint, error) {
-	var ids []uint
+func (r *DashboardRepo) GetUnanalyzedDiffIDs(ctx context.Context, workspaceID string) ([]string, error) {
+	var ids []string
 	err := r.db.WithContext(ctx).Model(&Diff{}).
 		Select("diffs.id").
 		Joins("JOIN releases ON releases.id = diffs.release_id").

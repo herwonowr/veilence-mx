@@ -21,7 +21,7 @@ func NewSessionRepo(db *gorm.DB) *SessionRepo {
 	return &SessionRepo{db: db}
 }
 
-func (r *SessionRepo) FindByID(ctx context.Context, id uint) (*entity.Session, error) {
+func (r *SessionRepo) FindByID(ctx context.Context, id string) (*entity.Session, error) {
 	var m Session
 	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -32,7 +32,7 @@ func (r *SessionRepo) FindByID(ctx context.Context, id uint) (*entity.Session, e
 	return sessionToDomain(&m), nil
 }
 
-func (r *SessionRepo) FindByUserID(ctx context.Context, userID uint) ([]entity.Session, error) {
+func (r *SessionRepo) FindByUserID(ctx context.Context, userID string) ([]entity.Session, error) {
 	var ms []Session
 	if err := r.db.WithContext(ctx).Where("user_id = ? AND expires_at > ?", userID, time.Now()).
 		Order("last_active DESC").Find(&ms).Error; err != nil {
@@ -66,7 +66,7 @@ func (r *SessionRepo) Create(ctx context.Context, session *entity.Session) error
 	return nil
 }
 
-func (r *SessionRepo) UpdateLastActive(ctx context.Context, id uint, lastActive time.Time) error {
+func (r *SessionRepo) UpdateLastActive(ctx context.Context, id string, lastActive time.Time) error {
 	result := r.db.WithContext(ctx).Model(&Session{}).Where("id = ?", id).Update("last_active", lastActive)
 	if result.Error != nil {
 		return fmt.Errorf("updating session last_active: %w", result.Error)
@@ -74,7 +74,7 @@ func (r *SessionRepo) UpdateLastActive(ctx context.Context, id uint, lastActive 
 	return nil
 }
 
-func (r *SessionRepo) UpdateTokenHash(ctx context.Context, id uint, tokenHash string) error {
+func (r *SessionRepo) UpdateTokenHash(ctx context.Context, id string, tokenHash string) error {
 	result := r.db.WithContext(ctx).Model(&Session{}).Where("id = ?", id).Update("token_hash", tokenHash)
 	if result.Error != nil {
 		return fmt.Errorf("updating session token_hash: %w", result.Error)
@@ -82,7 +82,7 @@ func (r *SessionRepo) UpdateTokenHash(ctx context.Context, id uint, tokenHash st
 	return nil
 }
 
-func (r *SessionRepo) Delete(ctx context.Context, id uint) error {
+func (r *SessionRepo) Delete(ctx context.Context, id string) error {
 	if err := r.db.WithContext(ctx).Delete(&Session{}, id).Error; err != nil {
 		return fmt.Errorf("deleting session: %w", err)
 	}
@@ -97,7 +97,7 @@ func (r *SessionRepo) DeleteExpired(ctx context.Context) (int64, error) {
 	return result.RowsAffected, nil
 }
 
-func (r *SessionRepo) CountByUserID(ctx context.Context, userID uint) (int64, error) {
+func (r *SessionRepo) CountByUserID(ctx context.Context, userID string) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&Session{}).
 		Where("user_id = ? AND expires_at > ?", userID, time.Now()).
@@ -107,7 +107,7 @@ func (r *SessionRepo) CountByUserID(ctx context.Context, userID uint) (int64, er
 	return count, nil
 }
 
-func (r *SessionRepo) DeleteOldestByUserID(ctx context.Context, userID uint) error {
+func (r *SessionRepo) DeleteOldestByUserID(ctx context.Context, userID string) error {
 	// Find the oldest session for the user
 	var oldest Session
 	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).
@@ -123,14 +123,14 @@ func (r *SessionRepo) DeleteOldestByUserID(ctx context.Context, userID uint) err
 	return nil
 }
 
-func (r *SessionRepo) DeleteByUserID(ctx context.Context, userID uint) error {
+func (r *SessionRepo) DeleteByUserID(ctx context.Context, userID string) error {
 	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&Session{}).Error; err != nil {
 		return fmt.Errorf("deleting sessions by user: %w", err)
 	}
 	return nil
 }
 
-func (r *SessionRepo) DeleteByUserIDExceptTokenHash(ctx context.Context, userID uint, exceptTokenHash string) error {
+func (r *SessionRepo) DeleteByUserIDExceptTokenHash(ctx context.Context, userID string, exceptTokenHash string) error {
 	if err := r.db.WithContext(ctx).Where("user_id = ? AND token_hash != ?", userID, exceptTokenHash).Delete(&Session{}).Error; err != nil {
 		return fmt.Errorf("deleting sessions by user except current: %w", err)
 	}

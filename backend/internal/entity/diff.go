@@ -4,9 +4,9 @@ import "time"
 
 // Diff represents the unified diff between two consecutive releases.
 type Diff struct {
-	ID             uint
-	ReleaseID      uint
-	PrevReleaseID  uint
+	ID             string
+	ReleaseID      string
+	PrevReleaseID  string
 	DiffContent    string
 	FileChangesCount int
 	LinesAdded     int

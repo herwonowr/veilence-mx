@@ -32,10 +32,10 @@ export const PackageDetailView = ({
 }) => {
   const { id } = use(params)
   const router = useRouter()
-  const packageId = parseInt(id, 10)
+  const packageId = id
 
-  // NaN validation: show 404 for non-numeric IDs
-  if (isNaN(packageId) || packageId <= 0) {
+  // Validation: show 404 for empty IDs
+  if (!packageId) {
     notFound()
   }
 

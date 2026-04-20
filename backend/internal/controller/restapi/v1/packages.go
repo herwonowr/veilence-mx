@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
 	"github.com/veilence/veilence-mx/backend/internal/entity"
@@ -84,13 +83,13 @@ func (h *PackageHandlers) ListPackages(w http.ResponseWriter, r *http.Request) {
 func (h *PackageHandlers) GetPackage(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	id, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid package ID"))
 		return
 	}
 
-	pkg, err := h.PkgSvc.GetPackage(r.Context(), workspaceID, uint(id))
+	pkg, err := h.PkgSvc.GetPackage(r.Context(), workspaceID, id)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("package"))
@@ -148,13 +147,13 @@ func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) 
 func (h *PackageHandlers) DeletePackage(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	id, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid package ID"))
 		return
 	}
 
-	if err := h.PkgSvc.RemovePackage(r.Context(), workspaceID, uint(id)); err != nil {
+	if err := h.PkgSvc.RemovePackage(r.Context(), workspaceID, id); err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("package"))
 			return
@@ -175,8 +174,8 @@ type blockPackageRequest struct {
 func (h *PackageHandlers) BlockPackage(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	id, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid package ID"))
 		return
 	}
@@ -189,7 +188,7 @@ func (h *PackageHandlers) BlockPackage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	pkg, err := h.PkgSvc.BlockPackage(r.Context(), workspaceID, uint(id), req.Reason)
+	pkg, err := h.PkgSvc.BlockPackage(r.Context(), workspaceID, id, req.Reason)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("package"))
@@ -206,13 +205,13 @@ func (h *PackageHandlers) BlockPackage(w http.ResponseWriter, r *http.Request) {
 func (h *PackageHandlers) UnblockPackage(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	id, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid package ID"))
 		return
 	}
 
-	pkg, err := h.PkgSvc.UnblockPackage(r.Context(), workspaceID, uint(id))
+	pkg, err := h.PkgSvc.UnblockPackage(r.Context(), workspaceID, id)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("package"))
@@ -429,7 +428,7 @@ func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request)
 	// Merge handler-level validation errors with usecase-level errors
 	result.Errors = append(importErrors, result.Errors...)
 
-	h.Audit.LogAction(r.Context(), "import", "package", 0,
+	h.Audit.LogAction(r.Context(), "import", "package", "",
 		fmt.Sprintf("bulk imported %d packages (%d created, %d skipped, %d errors, format=%s)",
 			len(entries), result.Imported, result.Skipped, len(result.Errors), req.Format))
 
@@ -471,13 +470,13 @@ func (h *PackageHandlers) ListSuggestions(w http.ResponseWriter, r *http.Request
 func (h *PackageHandlers) ApprovePackage(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	id, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid package ID"))
 		return
 	}
 
-	pkg, err := h.PkgSvc.ApprovePackage(r.Context(), workspaceID, uint(id))
+	pkg, err := h.PkgSvc.ApprovePackage(r.Context(), workspaceID, id)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("package"))
@@ -495,13 +494,13 @@ func (h *PackageHandlers) ApprovePackage(w http.ResponseWriter, r *http.Request)
 func (h *PackageHandlers) RejectPackage(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	id, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid package ID"))
 		return
 	}
 
-	if err := h.PkgSvc.RejectPackage(r.Context(), workspaceID, uint(id)); err != nil {
+	if err := h.PkgSvc.RejectPackage(r.Context(), workspaceID, id); err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("package"))
 			return
@@ -515,7 +514,7 @@ func (h *PackageHandlers) RejectPackage(w http.ResponseWriter, r *http.Request) 
 
 // bulkApproveRequest is the request body for bulk-approving suggested packages.
 type bulkApproveRequest struct {
-	PackageIDs []uint `json:"packageIds"`
+	PackageIDs []string `json:"packageIds"`
 	Ecosystem  string `json:"ecosystem"`
 	ApproveAll bool   `json:"approveAll"`
 }
@@ -542,7 +541,7 @@ func (h *PackageHandlers) BulkApprovePackages(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var pkgIDs []uint
+	var pkgIDs []string
 
 	if len(req.PackageIDs) > 0 {
 		const maxBulkApprove = 1000

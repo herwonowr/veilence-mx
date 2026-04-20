@@ -29,7 +29,7 @@ func New(notes usecase.AlertNoteRepository, alerts usecase.AlertRepository, user
 
 // ListByAlert returns all notes for an alert, verifying that the alert
 // belongs to the given org for tenant isolation.
-func (uc *UseCase) ListByAlert(ctx context.Context, workspaceID, alertID uint) ([]entity.AlertNote, error) {
+func (uc *UseCase) ListByAlert(ctx context.Context, workspaceID, alertID string) ([]entity.AlertNote, error) {
 	// Verify alert exists and belongs to the org
 	_, err := uc.alerts.FindByIDAndWorkspaceID(ctx, alertID, workspaceID)
 	if err != nil {
@@ -41,7 +41,7 @@ func (uc *UseCase) ListByAlert(ctx context.Context, workspaceID, alertID uint) (
 
 	notes, err := uc.notes.FindByAlertID(ctx, alertID, workspaceID)
 	if err != nil {
-		return nil, fmt.Errorf("listing notes for alert %d: %w", alertID, err)
+		return nil, fmt.Errorf("listing notes for alert %s: %w", alertID, err)
 	}
 
 	return notes, nil
@@ -49,7 +49,7 @@ func (uc *UseCase) ListByAlert(ctx context.Context, workspaceID, alertID uint) (
 
 // Create adds a new note to an alert. It verifies org ownership, validates
 // the content, resolves the user's email, and persists the note.
-func (uc *UseCase) Create(ctx context.Context, workspaceID, alertID, userID uint, content string) (*entity.AlertNote, error) {
+func (uc *UseCase) Create(ctx context.Context, workspaceID, alertID, userID string, content string) (*entity.AlertNote, error) {
 	// Validate content
 	if content == "" {
 		return nil, fmt.Errorf("content is required")
@@ -87,7 +87,7 @@ func (uc *UseCase) Create(ctx context.Context, workspaceID, alertID, userID uint
 
 // resolveUserEmail looks up a user's email by ID. Returns an empty string
 // if the user is not found (non-fatal - the note is still created).
-func (uc *UseCase) resolveUserEmail(ctx context.Context, userID uint) string {
+func (uc *UseCase) resolveUserEmail(ctx context.Context, userID string) string {
 	user, err := uc.users.FindByID(ctx, userID)
 	if err != nil {
 		slog.Warn("failed to resolve user email for alert note",
@@ -106,7 +106,7 @@ func (uc *UseCase) resolveUserEmail(ctx context.Context, userID uint) string {
 // 4. Note belongs to org (belt-and-suspenders tenant check)
 // 5. Note belongs to the given alert (URL consistency)
 // 6. Calling user is the note's author (owner verification)
-func (uc *UseCase) Update(ctx context.Context, workspaceID, alertID, noteID, userID uint, content string) (*entity.AlertNote, error) {
+func (uc *UseCase) Update(ctx context.Context, workspaceID, alertID, noteID, userID string, content string) (*entity.AlertNote, error) {
 	// Validate content
 	if content == "" {
 		return nil, fmt.Errorf("content is required")
@@ -163,7 +163,7 @@ func (uc *UseCase) Update(ctx context.Context, workspaceID, alertID, noteID, use
 // 3. Note belongs to org (belt-and-suspenders tenant check)
 // 4. Note belongs to the given alert (URL consistency)
 // 5. Calling user is the note's author (owner verification)
-func (uc *UseCase) Delete(ctx context.Context, workspaceID, alertID, noteID, userID uint) error {
+func (uc *UseCase) Delete(ctx context.Context, workspaceID, alertID, noteID, userID string) error {
 	// Verify alert exists and belongs to the org
 	_, err := uc.alerts.FindByIDAndWorkspaceID(ctx, alertID, workspaceID)
 	if err != nil {

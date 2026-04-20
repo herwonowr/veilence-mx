@@ -50,7 +50,7 @@ func TestGetWorkspaceMembers_EmptyOrg(t *testing.T) {
 	svc := rbac.NewService(persistent.NewRBACRepo(db))
 
 	// Query members for a non-existent org - should return empty, not error
-	members, err := svc.GetWorkspaceMembers(99999)
+	members, err := svc.GetWorkspaceMembers("01935d5a-0000-7000-8000-00000001869f")
 	require.NoError(t, err)
 	assert.Empty(t, members)
 }
@@ -206,7 +206,7 @@ func TestRevokeInvitation_NotFound(t *testing.T) {
 	db := setupRBACTestDB(t)
 	svc := rbac.NewService(persistent.NewRBACRepo(db))
 
-	err := svc.RevokeInvitation(1, 99999)
+	err := svc.RevokeInvitation("01935d5a-0000-7000-8000-000000000001", "01935d5a-0000-7000-8000-00000001869f")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, rbac.ErrInvitationNotFound)
 }
@@ -411,7 +411,7 @@ func TestUpdateMemberRole_RoleNotFound(t *testing.T) {
 	require.NoError(t, err)
 
 	// Try to update to a non-existent role
-	_, err = svc.UpdateMemberRole(org.ID, member.ID, 99999)
+	_, err = svc.UpdateMemberRole(org.ID, member.ID, "01935d5a-0000-7000-8000-00000001869f")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, rbac.ErrRoleNotFound)
 }
@@ -424,7 +424,7 @@ func TestDeleteWorkspace_NotFound(t *testing.T) {
 	db := setupRBACTestDB(t)
 	svc := rbac.NewService(persistent.NewRBACRepo(db))
 
-	err := svc.DeleteWorkspace(99999)
+	err := svc.DeleteWorkspace("01935d5a-0000-7000-8000-00000001869f")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, rbac.ErrWorkspaceNotFound)
 }
@@ -441,7 +441,7 @@ func TestRemoveMember_NotFound(t *testing.T) {
 	org, err := svc.CreateWorkspace(owner.ID, "RM NF Org", "rm-nf-org", "")
 	require.NoError(t, err)
 
-	err = svc.RemoveMember(org.ID, 99999)
+	err = svc.RemoveMember(org.ID, "01935d5a-0000-7000-8000-00000001869f")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, rbac.ErrMemberNotFound)
 }
@@ -470,7 +470,7 @@ func TestGetUserMembership_NotFound(t *testing.T) {
 	db := setupRBACTestDB(t)
 	svc := rbac.NewService(persistent.NewRBACRepo(db))
 
-	_, err := svc.GetUserMembership(99999, 99999)
+	_, err := svc.GetUserMembership("01935d5a-0000-7000-8000-00000001869f", "01935d5a-0000-7000-8000-00000001869e")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, rbac.ErrMemberNotFound)
 }

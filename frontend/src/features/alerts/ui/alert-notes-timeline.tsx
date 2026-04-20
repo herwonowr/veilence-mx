@@ -155,7 +155,7 @@ const NoteItem = ({
 
 // ─── Notes Timeline ───────────────────────────────────────────────────
 
-export const AlertNotesTimeline = ({ alertId }: { alertId: number }) => {
+export const AlertNotesTimeline = ({ alertId }: { alertId: string }) => {
   const { user } = useAuth()
   const { data: notesRes, isLoading } = useAlertNotes(alertId)
   const createNoteMutation = useCreateAlertNote(alertId)
@@ -165,7 +165,7 @@ export const AlertNotesTimeline = ({ alertId }: { alertId: number }) => {
   const [noteContent, setNoteContent] = useState("")
 
   // Edit state - only one note can be edited at a time
-  const [editingNoteId, setEditingNoteId] = useState<number | null>(null)
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState("")
 
   // Delete state - controlled ConfirmDialog

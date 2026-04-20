@@ -121,7 +121,7 @@ const ChannelsSection = ({
   channels,
   loading,
 }: {
-  workspaceId: number
+  workspaceId: string
   channels: NotificationChannel[]
   loading: boolean
 }) => {
@@ -434,13 +434,13 @@ const RulesSection = ({
   channels,
   loading,
 }: {
-  workspaceId: number
-  rules: Array<{ id: number; channelId: number; severity: string; isActive: boolean; createdAt: string }>
+  workspaceId: string
+  rules: Array<{ id: string; channelId: string; severity: string; isActive: boolean; createdAt: string }>
   channels: NotificationChannel[]
   loading: boolean
 }) => {
   const [createOpen, setCreateOpen] = useState(false)
-  const [ruleChannel, setRuleChannel] = useState<number | null>(null)
+  const [ruleChannel, setRuleChannel] = useState<string | null>(null)
   const [ruleSeverity, setRuleSeverity] = useState("")
 
   const createMutation = useCreateRule(workspaceId)
@@ -460,12 +460,12 @@ const RulesSection = ({
     )
   }
 
-  const getChannelName = (channelId: number) => {
+  const getChannelName = (channelId: string) => {
     const ch = channels.find((c) => c.id === channelId)
     return ch ? ch.name : `Channel #${channelId}`
   }
 
-  const getChannelType = (channelId: number): NotificationChannelType => {
+  const getChannelType = (channelId: string): NotificationChannelType => {
     const ch = channels.find((c) => c.id === channelId)
     return ch?.type ?? "email"
   }
@@ -529,7 +529,7 @@ const RulesSection = ({
                   <Select
                     value={ruleChannel ? String(ruleChannel) : ""}
                     onValueChange={(v) => {
-                      if (v) setRuleChannel(Number(v))
+                      if (v) setRuleChannel(v)
                     }}
                   >
                     <SelectTrigger className="w-full">

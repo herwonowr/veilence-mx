@@ -35,7 +35,7 @@ export const SessionsView = () => {
 
   // Revoke confirmation state
   const [revokeTarget, setRevokeTarget] = useState<{
-    id: number
+    id: string
     details: ConfirmDialogDetail[]
   } | null>(null)
 

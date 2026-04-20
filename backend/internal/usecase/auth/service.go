@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -57,7 +56,7 @@ const (
 
 // Claims represents the JWT claims used for authentication tokens.
 type Claims struct {
-	UserID    uint   `json:"user_id"`
+	UserID    string `json:"user_id"`
 	Email     string `json:"email"`
 	TokenType string `json:"token_type"`
 	jwt.RegisteredClaims
@@ -380,7 +379,7 @@ func (s *Service) validateTokenWithSecret(tokenString string, secret []byte) (*C
 }
 
 // GetUserByID retrieves a user by their ID.
-func (s *Service) GetUserByID(id uint) (*entity.User, error) {
+func (s *Service) GetUserByID(id string) (*entity.User, error) {
 	ctx := context.Background()
 
 	user, err := s.users.FindByID(ctx, id)
@@ -403,11 +402,11 @@ func (s *Service) GetUserByEmail(email string) (*entity.User, error) {
 
 // ValidateAPIKey validates an API key string and returns the associated user ID, email, role, and workspace ID.
 // It also updates the last_used_at timestamp for the key.
-func (s *Service) ValidateAPIKey(rawKey string) (uint, string, entity.APIKeyRole, uint, error) {
+func (s *Service) ValidateAPIKey(rawKey string) (string, string, entity.APIKeyRole, string, error) {
 	ctx := context.Background()
 
 	if len(rawKey) < 10 {
-		return 0, "", "", 0, errors.New("invalid API key format")
+		return "", "", "", "", errors.New("invalid API key format")
 	}
 
 	// Prefix-based O(1) lookup: the DB has a partial index on key_prefix
@@ -416,14 +415,14 @@ func (s *Service) ValidateAPIKey(rawKey string) (uint, string, entity.APIKeyRole
 	prefix := rawKey[:10]
 	keys, err := s.apiKeys.FindActiveByPrefix(ctx, prefix)
 	if err != nil {
-		return 0, "", "", 0, fmt.Errorf("finding api keys: %w", err)
+		return "", "", "", "", fmt.Errorf("finding api keys: %w", err)
 	}
 
 	for _, key := range keys {
 		if checkAPIKeyHash(rawKey, key.KeyHash) {
 			// Check expiration
 			if key.ExpiresAt != nil && time.Now().After(*key.ExpiresAt) {
-				return 0, "", "", 0, errors.New("API key expired")
+				return "", "", "", "", errors.New("API key expired")
 			}
 
 			// Update last used
@@ -434,18 +433,18 @@ func (s *Service) ValidateAPIKey(rawKey string) (uint, string, entity.APIKeyRole
 			// Get user email
 			user, err := s.users.FindByID(ctx, key.UserID)
 			if err != nil {
-				return 0, "", "", 0, fmt.Errorf("finding API key user: %w", err)
+				return "", "", "", "", fmt.Errorf("finding API key user: %w", err)
 			}
 
 			if !user.IsActive {
-				return 0, "", "", 0, errors.New("account is deactivated")
+				return "", "", "", "", errors.New("account is deactivated")
 			}
 
 			return key.UserID, user.Email, key.Role, key.WorkspaceID, nil
 		}
 	}
 
-	return 0, "", "", 0, errors.New("invalid API key")
+	return "", "", "", "", errors.New("invalid API key")
 }
 
 // generateTokenPair creates a new access/refresh token pair for the given user.
@@ -459,7 +458,7 @@ func (s *Service) generateTokenPair(ctx context.Context, user *entity.User) (*To
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(AccessTokenDuration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "veilence-mx",
-			Subject:   strconv.FormatUint(uint64(user.ID), 10),
+			Subject:   user.ID,
 			Audience:  jwt.ClaimStrings{"veilence-mx-api"},
 		},
 	}
@@ -518,7 +517,7 @@ func checkAPIKeyHash(rawKey, hash string) bool {
 // The userRole parameter is the requesting user's current role in the workspace.
 // The requested API key role must not exceed the user's own workspace role.
 // The raw key is returned only once and cannot be retrieved again.
-func (s *Service) CreateAPIKey(userID uint, workspaceID uint, name string, role entity.APIKeyRole, userRole string, expiresAt *time.Time) (*entity.APIKey, string, error) {
+func (s *Service) CreateAPIKey(userID string, workspaceID string, name string, role entity.APIKeyRole, userRole string, expiresAt *time.Time) (*entity.APIKey, string, error) {
 	ctx := context.Background()
 
 	// Default to viewer role if not specified
@@ -560,7 +559,7 @@ func (s *Service) CreateAPIKey(userID uint, workspaceID uint, name string, role 
 }
 
 // ListAPIKeys returns all active API keys for a user in a specific workspace.
-func (s *Service) ListAPIKeys(userID, workspaceID uint) ([]entity.APIKey, error) {
+func (s *Service) ListAPIKeys(userID, workspaceID string) ([]entity.APIKey, error) {
 	ctx := context.Background()
 
 	keys, err := s.apiKeys.FindByUserIDAndWorkspaceID(ctx, userID, workspaceID)
@@ -571,7 +570,7 @@ func (s *Service) ListAPIKeys(userID, workspaceID uint) ([]entity.APIKey, error)
 }
 
 // RevokeAPIKey soft-deletes an API key if it belongs to the given user and workspace.
-func (s *Service) RevokeAPIKey(userID, workspaceID, keyID uint) error {
+func (s *Service) RevokeAPIKey(userID, workspaceID, keyID string) error {
 	ctx := context.Background()
 
 	if err := s.apiKeys.SoftDeleteScoped(ctx, userID, workspaceID, keyID); err != nil {
@@ -712,12 +711,12 @@ func (s *Service) ResetPassword(rawToken, newPassword string) error {
 
 // GenerateEmailVerificationToken creates a verification token for the given user.
 // Returns the raw token to be sent via email.
-func (s *Service) GenerateEmailVerificationToken(userID uint) (string, error) {
+func (s *Service) GenerateEmailVerificationToken(userID string) (string, error) {
 	ctx := context.Background()
 
 	// Rate limit: one verification email per user per cooldown period.
 	if s.rateLimiter != nil {
-		key := fmt.Sprintf("verify_email:%d", userID)
+		key := fmt.Sprintf("verify_email:%s", userID)
 		allowed, err := s.rateLimiter.Allow(ctx, key, VerificationEmailCooldown)
 		if err != nil {
 			slog.Error("rate limiter error during email verification", "user_id", userID, "error", err)
@@ -805,7 +804,7 @@ func (s *Service) VerifyEmail(rawToken string) error {
 
 // CreateSession creates a new session for the user, enforcing a max of MaxSessionsPerUser.
 // If the limit is exceeded, the oldest session is deleted.
-func (s *Service) CreateSession(userID uint, tokenHash, ipAddress, userAgent string) (*entity.Session, error) {
+func (s *Service) CreateSession(userID string, tokenHash, ipAddress, userAgent string) (*entity.Session, error) {
 	ctx := context.Background()
 
 	// Enforce max concurrent sessions
@@ -844,7 +843,7 @@ func (s *Service) CreateSession(userID uint, tokenHash, ipAddress, userAgent str
 }
 
 // ListSessions returns all active sessions for the given user.
-func (s *Service) ListSessions(userID uint) ([]entity.Session, error) {
+func (s *Service) ListSessions(userID string) ([]entity.Session, error) {
 	ctx := context.Background()
 
 	sessions, err := s.sessions.FindByUserID(ctx, userID)
@@ -860,7 +859,7 @@ var ErrCannotRevokeCurrentSession = errors.New("cannot revoke the current sessio
 // GuardCurrentSession checks whether the given session ID corresponds to the
 // caller's current session (identified by currentTokenHash). Returns an error
 // if it is, preventing the caller from accidentally logging themselves out.
-func (s *Service) GuardCurrentSession(userID, sessionID uint, currentTokenHash string) error {
+func (s *Service) GuardCurrentSession(userID, sessionID string, currentTokenHash string) error {
 	ctx := context.Background()
 
 	session, err := s.sessions.FindByID(ctx, sessionID)
@@ -880,7 +879,7 @@ func (s *Service) GuardCurrentSession(userID, sessionID uint, currentTokenHash s
 }
 
 // RevokeSession deletes a specific session, verifying it belongs to the user.
-func (s *Service) RevokeSession(userID, sessionID uint) error {
+func (s *Service) RevokeSession(userID, sessionID string) error {
 	ctx := context.Background()
 
 	session, err := s.sessions.FindByID(ctx, sessionID)
@@ -923,7 +922,7 @@ func (s *Service) CleanExpiredSessions() (int64, error) {
 }
 
 // UpdateProfile updates the user's first and last name.
-func (s *Service) UpdateProfile(userID uint, firstName, lastName string) (*entity.User, error) {
+func (s *Service) UpdateProfile(userID string, firstName, lastName string) (*entity.User, error) {
 	ctx := context.Background()
 
 	user, err := s.users.FindByID(ctx, userID)
@@ -948,7 +947,7 @@ var ErrInvalidPassword = errors.New("current password is incorrect")
 // ChangePassword validates the current password and updates to a new one.
 // currentTokenHash identifies the caller's active session so it is preserved;
 // all other sessions and refresh tokens are invalidated. Pass "" to invalidate all.
-func (s *Service) ChangePassword(userID uint, currentPassword, newPassword, currentTokenHash string) error {
+func (s *Service) ChangePassword(userID string, currentPassword, newPassword, currentTokenHash string) error {
 	ctx := context.Background()
 
 	user, err := s.users.FindByID(ctx, userID)

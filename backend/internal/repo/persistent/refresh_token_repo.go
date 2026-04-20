@@ -41,7 +41,7 @@ func (r *RefreshTokenRepo) Create(ctx context.Context, token *entity.RefreshToke
 	return nil
 }
 
-func (r *RefreshTokenRepo) Delete(ctx context.Context, id uint) error {
+func (r *RefreshTokenRepo) Delete(ctx context.Context, id string) error {
 	if err := r.db.WithContext(ctx).Delete(&RefreshToken{}, id).Error; err != nil {
 		return fmt.Errorf("deleting refresh token: %w", err)
 	}
@@ -55,14 +55,14 @@ func (r *RefreshTokenRepo) DeleteByTokenHash(ctx context.Context, tokenHash stri
 	return nil
 }
 
-func (r *RefreshTokenRepo) DeleteByUserID(ctx context.Context, userID uint) error {
+func (r *RefreshTokenRepo) DeleteByUserID(ctx context.Context, userID string) error {
 	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&RefreshToken{}).Error; err != nil {
 		return fmt.Errorf("deleting refresh tokens by user: %w", err)
 	}
 	return nil
 }
 
-func (r *RefreshTokenRepo) DeleteByUserIDExceptTokenHash(ctx context.Context, userID uint, exceptTokenHash string) error {
+func (r *RefreshTokenRepo) DeleteByUserIDExceptTokenHash(ctx context.Context, userID string, exceptTokenHash string) error {
 	if err := r.db.WithContext(ctx).Where("user_id = ? AND token_hash != ?", userID, exceptTokenHash).Delete(&RefreshToken{}).Error; err != nil {
 		return fmt.Errorf("deleting refresh tokens by user except current: %w", err)
 	}

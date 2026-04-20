@@ -22,7 +22,7 @@ func NewPackageRepo(db *gorm.DB) *PackageRepo {
 	return &PackageRepo{db: db}
 }
 
-func (r *PackageRepo) FindByID(ctx context.Context, id uint) (*entity.Package, error) {
+func (r *PackageRepo) FindByID(ctx context.Context, id string) (*entity.Package, error) {
 	var m Package
 	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -33,7 +33,7 @@ func (r *PackageRepo) FindByID(ctx context.Context, id uint) (*entity.Package, e
 	return packageToDomain(&m), nil
 }
 
-func (r *PackageRepo) FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID uint) (*entity.Package, error) {
+func (r *PackageRepo) FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID string) (*entity.Package, error) {
 	var m Package
 	if err := r.db.WithContext(ctx).Where("id = ? AND workspace_id = ?", id, workspaceID).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -44,7 +44,7 @@ func (r *PackageRepo) FindByIDAndWorkspaceID(ctx context.Context, id, workspaceI
 	return packageToDomain(&m), nil
 }
 
-func (r *PackageRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
+func (r *PackageRepo) FindByWorkspaceID(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Package{}).Where("workspace_id = ?", workspaceID)
 
@@ -86,7 +86,7 @@ func (r *PackageRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint, p
 	return result, total, nil
 }
 
-func (r *PackageRepo) FindActiveByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.Package, error) {
+func (r *PackageRepo) FindActiveByWorkspaceID(ctx context.Context, workspaceID string) ([]entity.Package, error) {
 	var ms []Package
 	err := r.db.WithContext(ctx).
 		Where("workspace_id = ? AND status = ?", workspaceID, PackageStatusActive).
@@ -102,7 +102,7 @@ func (r *PackageRepo) FindActiveByWorkspaceID(ctx context.Context, workspaceID u
 	return result, nil
 }
 
-func (r *PackageRepo) FindByWorkspaceAndName(ctx context.Context, workspaceID uint, name string, ecosystem entity.Ecosystem) (*entity.Package, error) {
+func (r *PackageRepo) FindByWorkspaceAndName(ctx context.Context, workspaceID string, name string, ecosystem entity.Ecosystem) (*entity.Package, error) {
 	var m Package
 	err := r.db.WithContext(ctx).
 		Where("workspace_id = ? AND name = ? AND ecosystem = ?", workspaceID, name, string(ecosystem)).
@@ -136,7 +136,7 @@ func (r *PackageRepo) Update(ctx context.Context, pkg *entity.Package) error {
 	return nil
 }
 
-func (r *PackageRepo) BlockPackage(ctx context.Context, workspaceID, pkgID uint, reason string) error {
+func (r *PackageRepo) BlockPackage(ctx context.Context, workspaceID, pkgID string, reason string) error {
 	now := time.Now()
 	result := r.db.WithContext(ctx).
 		Model(&Package{}).
@@ -155,7 +155,7 @@ func (r *PackageRepo) BlockPackage(ctx context.Context, workspaceID, pkgID uint,
 	return nil
 }
 
-func (r *PackageRepo) UnblockPackage(ctx context.Context, workspaceID, pkgID uint) error {
+func (r *PackageRepo) UnblockPackage(ctx context.Context, workspaceID, pkgID string) error {
 	result := r.db.WithContext(ctx).
 		Model(&Package{}).
 		Where("id = ? AND workspace_id = ? AND status = ?", pkgID, workspaceID, PackageStatusBlocked).
@@ -173,7 +173,7 @@ func (r *PackageRepo) UnblockPackage(ctx context.Context, workspaceID, pkgID uin
 	return nil
 }
 
-func (r *PackageRepo) RemovePackage(ctx context.Context, workspaceID, pkgID uint) error {
+func (r *PackageRepo) RemovePackage(ctx context.Context, workspaceID, pkgID string) error {
 	result := r.db.WithContext(ctx).
 		Model(&Package{}).
 		Where("id = ? AND workspace_id = ? AND status IN ?", pkgID, workspaceID,
@@ -188,7 +188,7 @@ func (r *PackageRepo) RemovePackage(ctx context.Context, workspaceID, pkgID uint
 	return nil
 }
 
-func (r *PackageRepo) CountByWorkspace(ctx context.Context, workspaceID uint, ecosystem *entity.Ecosystem) (int64, error) {
+func (r *PackageRepo) CountByWorkspace(ctx context.Context, workspaceID string, ecosystem *entity.Ecosystem) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&Package{}).Where("workspace_id = ? AND status = ?", workspaceID, PackageStatusActive)
 	if ecosystem != nil {
 		query = query.Where("ecosystem = ?", string(*ecosystem))
@@ -200,7 +200,7 @@ func (r *PackageRepo) CountByWorkspace(ctx context.Context, workspaceID uint, ec
 	return count, nil
 }
 
-func (r *PackageRepo) ExistsByWorkspaceAndName(ctx context.Context, workspaceID uint, name string, ecosystem entity.Ecosystem) (bool, error) {
+func (r *PackageRepo) ExistsByWorkspaceAndName(ctx context.Context, workspaceID string, name string, ecosystem entity.Ecosystem) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&Package{}).
 		Where("workspace_id = ? AND name = ? AND ecosystem = ?", workspaceID, name, string(ecosystem)).
@@ -211,7 +211,7 @@ func (r *PackageRepo) ExistsByWorkspaceAndName(ctx context.Context, workspaceID 
 	return count > 0, nil
 }
 
-func (r *PackageRepo) FindSuggestionsByWorkspaceID(ctx context.Context, workspaceID uint, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
+func (r *PackageRepo) FindSuggestionsByWorkspaceID(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Package{}).
 		Where("workspace_id = ? AND status = ?", workspaceID, PackageStatusSuggested)
@@ -250,7 +250,7 @@ func (r *PackageRepo) FindSuggestionsByWorkspaceID(ctx context.Context, workspac
 	return result, total, nil
 }
 
-func (r *PackageRepo) ApprovePackage(ctx context.Context, workspaceID, pkgID uint) error {
+func (r *PackageRepo) ApprovePackage(ctx context.Context, workspaceID, pkgID string) error {
 	result := r.db.WithContext(ctx).
 		Model(&Package{}).
 		Where("id = ? AND workspace_id = ? AND status = ?", pkgID, workspaceID, PackageStatusSuggested).
@@ -264,7 +264,7 @@ func (r *PackageRepo) ApprovePackage(ctx context.Context, workspaceID, pkgID uin
 	return nil
 }
 
-func (r *PackageRepo) RejectPackage(ctx context.Context, workspaceID, pkgID uint) error {
+func (r *PackageRepo) RejectPackage(ctx context.Context, workspaceID, pkgID string) error {
 	result := r.db.WithContext(ctx).
 		Model(&Package{}).
 		Where("id = ? AND workspace_id = ? AND status = ?", pkgID, workspaceID, PackageStatusSuggested).
@@ -278,7 +278,7 @@ func (r *PackageRepo) RejectPackage(ctx context.Context, workspaceID, pkgID uint
 	return nil
 }
 
-func (r *PackageRepo) BulkApprovePackages(ctx context.Context, workspaceID uint, pkgIDs []uint) (int, error) {
+func (r *PackageRepo) BulkApprovePackages(ctx context.Context, workspaceID string, pkgIDs []string) (int, error) {
 	if len(pkgIDs) == 0 {
 		return 0, nil
 	}
@@ -293,7 +293,7 @@ func (r *PackageRepo) BulkApprovePackages(ctx context.Context, workspaceID uint,
 }
 
 // BulkApproveAllSuggestions approves all suggested packages for a workspace in a single query.
-func (r *PackageRepo) BulkApproveAllSuggestions(ctx context.Context, workspaceID uint) (int, error) {
+func (r *PackageRepo) BulkApproveAllSuggestions(ctx context.Context, workspaceID string) (int, error) {
 	result := r.db.WithContext(ctx).
 		Model(&Package{}).
 		Where("workspace_id = ? AND status = ?", workspaceID, PackageStatusSuggested).
@@ -304,7 +304,7 @@ func (r *PackageRepo) BulkApproveAllSuggestions(ctx context.Context, workspaceID
 	return int(result.RowsAffected), nil
 }
 
-func (r *PackageRepo) UpdateDownloadCounts(ctx context.Context, workspaceID uint, updates []entity.PackageDownloadUpdate) error {
+func (r *PackageRepo) UpdateDownloadCounts(ctx context.Context, workspaceID string, updates []entity.PackageDownloadUpdate) error {
 	if len(updates) == 0 {
 		return nil
 	}
@@ -318,13 +318,13 @@ func (r *PackageRepo) UpdateDownloadCounts(ctx context.Context, workspaceID uint
 				"download_count_updated_at": now,
 			})
 		if result.Error != nil {
-			return fmt.Errorf("updating download count for package %d: %w", u.PackageID, result.Error)
+			return fmt.Errorf("updating download count for package %s: %w", u.PackageID, result.Error)
 		}
 	}
 	return nil
 }
 
-func (r *PackageRepo) FindStaleByWorkspaceID(ctx context.Context, workspaceID uint, staleBefore time.Time) ([]entity.Package, error) {
+func (r *PackageRepo) FindStaleByWorkspaceID(ctx context.Context, workspaceID string, staleBefore time.Time) ([]entity.Package, error) {
 	var ms []Package
 	err := r.db.WithContext(ctx).
 		Where("workspace_id = ? AND status = ? AND (download_count_updated_at < ? OR download_count_updated_at IS NULL)", workspaceID, PackageStatusActive, staleBefore).
@@ -340,7 +340,7 @@ func (r *PackageRepo) FindStaleByWorkspaceID(ctx context.Context, workspaceID ui
 	return result, nil
 }
 
-func (r *PackageRepo) RemoveStaleByWorkspaceID(ctx context.Context, workspaceID uint, staleBefore time.Time) (int, error) {
+func (r *PackageRepo) RemoveStaleByWorkspaceID(ctx context.Context, workspaceID string, staleBefore time.Time) (int, error) {
 	result := r.db.WithContext(ctx).
 		Model(&Package{}).
 		Where("workspace_id = ? AND status = ? AND updated_at < ?", workspaceID, PackageStatusActive, staleBefore).

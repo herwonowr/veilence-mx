@@ -46,9 +46,9 @@ func RoleLevel(role string) int {
 
 // APIKey represents a long-lived API key for programmatic access.
 type APIKey struct {
-	ID          uint
-	UserID      uint
-	WorkspaceID uint
+	ID          string
+	UserID      string
+	WorkspaceID string
 	Name        string
 	KeyHash     string
 	KeyPrefix   string

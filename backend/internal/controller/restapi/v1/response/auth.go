@@ -9,7 +9,7 @@ import (
 // UserResponse is the JSON representation of a user.
 // Replaces direct serialization of entity.User.
 type UserResponse struct {
-	ID            uint       `json:"id"`
+	ID            string     `json:"id"`
 	Email         string     `json:"email"`
 	FirstName     string     `json:"firstName"`
 	LastName      string     `json:"lastName"`
@@ -39,9 +39,9 @@ func UserFromEntity(u *entity.User) UserResponse {
 // APIKeyResponse is the JSON representation of an API key.
 // Replaces direct serialization of entity.APIKey.
 type APIKeyResponse struct {
-	ID          uint              `json:"id"`
-	UserID      uint              `json:"userId"`
-	WorkspaceID uint              `json:"workspaceId"`
+	ID          string            `json:"id"`
+	UserID      string            `json:"userId"`
+	WorkspaceID string            `json:"workspaceId"`
 	Name        string            `json:"name"`
 	KeyPrefix   string            `json:"keyPrefix"`
 	Role        entity.APIKeyRole `json:"role"`

@@ -148,8 +148,8 @@ func (rl *RateLimiter) Limit(next http.Handler) http.Handler {
 // rateLimitIdentity determines the identity key for rate limiting.
 // Uses "user:<id>" for authenticated users, "ip:<addr>" for anonymous requests.
 func rateLimitIdentity(r *http.Request) string {
-	if userID := auth.UserIDFromContext(r.Context()); userID != 0 {
-		return fmt.Sprintf("user:%d", userID)
+	if userID := auth.UserIDFromContext(r.Context()); userID != "" {
+		return fmt.Sprintf("user:%s", userID)
 	}
 	return "ip:" + extractIP(r)
 }

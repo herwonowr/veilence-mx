@@ -17,18 +17,18 @@ export const alertKeys = {
   lists: () => [...alertKeys.all, "list"] as const,
   list: (params?: Record<string, unknown>) =>
     [...alertKeys.lists(), params] as const,
-  detail: (id: number) => [...alertKeys.all, "detail", id] as const,
-  notes: (alertId: number) => [...alertKeys.all, "notes", alertId] as const,
+  detail: (id: string) => [...alertKeys.all, "detail", id] as const,
+  notes: (alertId: string) => [...alertKeys.all, "notes", alertId] as const,
 }
 
 export const useAlert = (
-  id: number,
+  id: string,
   options?: Partial<UseQueryOptions<ApiResponse<Alert>>>
 ) =>
   useQuery({
     queryKey: alertKeys.detail(id),
     queryFn: () => getAlert(id),
-    enabled: id > 0,
+    enabled: !!id,
     ...options,
   })
 
@@ -54,7 +54,7 @@ export const useUpdateAlert = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, status }: { id: number; status: string }) =>
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
       updateAlertStatus(id, status),
     onMutate: async ({ id, status }) => {
       // Cancel in-flight queries
@@ -102,17 +102,17 @@ export const useUpdateAlert = () => {
 // ─── Alert Notes ──────────────────────────────────────────────
 
 export const useAlertNotes = (
-  alertId: number,
+  alertId: string,
   options?: Partial<UseQueryOptions<ApiResponse<AlertNote[]>>>
 ) =>
   useQuery({
     queryKey: alertKeys.notes(alertId),
     queryFn: () => getAlertNotes(alertId),
-    enabled: alertId > 0,
+    enabled: !!alertId,
     ...options,
   })
 
-export const useCreateAlertNote = (alertId: number) => {
+export const useCreateAlertNote = (alertId: string) => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -127,11 +127,11 @@ export const useCreateAlertNote = (alertId: number) => {
   })
 }
 
-export const useUpdateAlertNote = (alertId: number) => {
+export const useUpdateAlertNote = (alertId: string) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ noteId, content }: { noteId: number; content: string }) =>
+    mutationFn: ({ noteId, content }: { noteId: string; content: string }) =>
       updateAlertNote(alertId, noteId, content),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: alertKeys.notes(alertId) })
@@ -143,11 +143,11 @@ export const useUpdateAlertNote = (alertId: number) => {
   })
 }
 
-export const useDeleteAlertNote = (alertId: number) => {
+export const useDeleteAlertNote = (alertId: string) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (noteId: number) => deleteAlertNote(alertId, noteId),
+    mutationFn: (noteId: string) => deleteAlertNote(alertId, noteId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: alertKeys.notes(alertId) })
       toast.success("Note deleted")

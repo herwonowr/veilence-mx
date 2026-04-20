@@ -100,7 +100,7 @@ export const NotificationsListView = () => {
 
   // Multi-select state
   const [selectMode, setSelectMode] = useState(false)
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false)
   const [showDeleteSelectedDialog, setShowDeleteSelectedDialog] = useState(false)
 
@@ -120,7 +120,7 @@ export const NotificationsListView = () => {
     [currentPageIds, selectedIds],
   )
 
-  const handleToggleSelect = useCallback((id: number) => {
+  const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) {

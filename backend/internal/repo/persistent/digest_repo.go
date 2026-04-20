@@ -68,7 +68,7 @@ func (r *DigestRepo) FindEnabledDigestConfigs(ctx context.Context) ([]entity.Dig
 }
 
 // CountAlertsSince counts alerts for a workspace created since the given time.
-func (r *DigestRepo) CountAlertsSince(ctx context.Context, workspaceID uint, since time.Time) (int64, error) {
+func (r *DigestRepo) CountAlertsSince(ctx context.Context, workspaceID string, since time.Time) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&Alert{}).
@@ -80,7 +80,7 @@ func (r *DigestRepo) CountAlertsSince(ctx context.Context, workspaceID uint, sin
 }
 
 // CountPackagesAnalyzedSince counts distinct packages with releases created since the given time.
-func (r *DigestRepo) CountPackagesAnalyzedSince(ctx context.Context, workspaceID uint, since time.Time) (int64, error) {
+func (r *DigestRepo) CountPackagesAnalyzedSince(ctx context.Context, workspaceID string, since time.Time) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&Release{}).
@@ -94,7 +94,7 @@ func (r *DigestRepo) CountPackagesAnalyzedSince(ctx context.Context, workspaceID
 }
 
 // GetClassificationBreakdownSince returns classification -> count for analyses since the given time.
-func (r *DigestRepo) GetClassificationBreakdownSince(ctx context.Context, workspaceID uint, since time.Time) (map[string]int64, error) {
+func (r *DigestRepo) GetClassificationBreakdownSince(ctx context.Context, workspaceID string, since time.Time) (map[string]int64, error) {
 	type classCount struct {
 		Classification string
 		Count          int64
@@ -120,9 +120,9 @@ func (r *DigestRepo) GetClassificationBreakdownSince(ctx context.Context, worksp
 }
 
 // GetTopAlertsSince returns the top N alerts by severity for a workspace since the given time.
-func (r *DigestRepo) GetTopAlertsSince(ctx context.Context, workspaceID uint, since time.Time, limit int) ([]entity.DigestTopAlert, error) {
+func (r *DigestRepo) GetTopAlertsSince(ctx context.Context, workspaceID string, since time.Time, limit int) ([]entity.DigestTopAlert, error) {
 	type alertRow struct {
-		ID          uint
+		ID          string
 		PackageName string
 		Severity    string
 		Message     string

@@ -5,10 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/http"
-	"strconv"
 	"time"
-
-	"github.com/go-chi/chi/v5"
 
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 )
@@ -21,8 +18,8 @@ type SessionHandlers struct {
 // SessionResponse is the response DTO for a session, including a flag
 // indicating whether it is the caller's current session.
 type SessionResponse struct {
-	ID         uint      `json:"id"`
-	UserID     uint      `json:"userId"`
+	ID         string    `json:"id"`
+	UserID     string    `json:"userId"`
 	IPAddress  string    `json:"ipAddress"`
 	UserAgent  string    `json:"userAgent"`
 	CreatedAt  time.Time `json:"createdAt"`
@@ -37,7 +34,7 @@ type SessionResponse struct {
 // GET /api/v1/sessions
 func (h *SessionHandlers) ListSessions(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
-	if userID == 0 {
+	if userID == "" {
 		respondError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
@@ -77,13 +74,13 @@ func (h *SessionHandlers) ListSessions(w http.ResponseWriter, r *http.Request) {
 // DELETE /api/v1/sessions/:id
 func (h *SessionHandlers) RevokeSession(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
-	if userID == 0 {
+	if userID == "" {
 		respondError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
 
-	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	id, ok := parseUUID(r, "id")
+	if !ok {
 		respondError(w, http.StatusBadRequest, "invalid session ID")
 		return
 	}
@@ -92,13 +89,13 @@ func (h *SessionHandlers) RevokeSession(w http.ResponseWriter, r *http.Request) 
 	if rt := r.Header.Get("X-Refresh-Token"); rt != "" {
 		rtHash := sha256.Sum256([]byte(rt))
 		currentTokenHash := hex.EncodeToString(rtHash[:])
-		if err := h.Auth.GuardCurrentSession(userID, uint(id), currentTokenHash); err != nil {
+		if err := h.Auth.GuardCurrentSession(userID, id, currentTokenHash); err != nil {
 			respondError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 	}
 
-	if err := h.Auth.RevokeSession(userID, uint(id)); err != nil {
+	if err := h.Auth.RevokeSession(userID, id); err != nil {
 		if errors.Is(err, auth.ErrSessionNotFound) {
 			respondAppError(w, NotFound("session"))
 			return

@@ -34,11 +34,11 @@ import { sanitizeErrorMessage } from "@/core"
 export const workspaceKeys = {
   all: ["workspaces"] as const,
   lists: () => [...workspaceKeys.all, "list"] as const,
-  detail: (id: number) => [...workspaceKeys.all, "detail", id] as const,
-  members: (workspaceId: number) => [...workspaceKeys.all, "members", workspaceId] as const,
-  roles: (workspaceId: number) => [...workspaceKeys.all, "roles", workspaceId] as const,
+  detail: (id: string) => [...workspaceKeys.all, "detail", id] as const,
+  members: (workspaceId: string) => [...workspaceKeys.all, "members", workspaceId] as const,
+  roles: (workspaceId: string) => [...workspaceKeys.all, "roles", workspaceId] as const,
   permissions: () => [...workspaceKeys.all, "permissions"] as const,
-  auditLogs: (workspaceId: number, params?: Record<string, unknown>) =>
+  auditLogs: (workspaceId: string, params?: Record<string, unknown>) =>
     [...workspaceKeys.all, "audit-logs", workspaceId, params] as const,
 }
 
@@ -53,13 +53,13 @@ export const useWorkspaces = (
 }
 
 export const useWorkspace = (
-  id: number,
+  id: string,
   options?: Partial<UseQueryOptions<ApiResponse<Workspace>>>
 ) => {
   return useQuery({
     queryKey: workspaceKeys.detail(id),
     queryFn: () => apiGetWorkspace(id),
-    enabled: id > 0,
+    enabled: !!id,
     ...options,
   })
 }
@@ -87,7 +87,7 @@ export const useUpdateWorkspace = () => {
       id,
       data,
     }: {
-      id: number
+      id: string
       data: { name?: string; description?: string }
     }) => apiUpdateWorkspace(id, data),
     onSuccess: (_result, variables) => {
@@ -105,7 +105,7 @@ export const useDeleteWorkspace = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: number) => apiDeleteWorkspace(id),
+    mutationFn: (id: string) => apiDeleteWorkspace(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: workspaceKeys.lists() })
       toast.success("Workspace deleted")
@@ -117,25 +117,25 @@ export const useDeleteWorkspace = () => {
 }
 
 export const useWorkspaceMembers = (
-  workspaceId: number,
+  workspaceId: string,
   options?: Partial<UseQueryOptions<ApiResponse<WorkspaceMember[]>>>
 ) => {
   return useQuery({
     queryKey: workspaceKeys.members(workspaceId),
     queryFn: () => apiGetWorkspaceMembers(workspaceId),
-    enabled: workspaceId > 0,
+    enabled: !!workspaceId,
     ...options,
   })
 }
 
 export const useWorkspaceRoles = (
-  workspaceId: number,
+  workspaceId: string,
   options?: Partial<UseQueryOptions<ApiResponse<Role[]>>>
 ) => {
   return useQuery({
     queryKey: workspaceKeys.roles(workspaceId),
     queryFn: () => apiGetWorkspaceRoles(workspaceId),
-    enabled: workspaceId > 0,
+    enabled: !!workspaceId,
     ...options,
   })
 }
@@ -158,8 +158,8 @@ export const useInviteMember = () => {
       workspaceId,
       data,
     }: {
-      workspaceId: number
-      data: { email: string; roleId: number }
+      workspaceId: string
+      data: { email: string; roleId: string }
     }) => apiInviteMember(workspaceId, data),
     onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({
@@ -176,7 +176,7 @@ export const useRemoveMember = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ workspaceId, userId }: { workspaceId: number; userId: number }) =>
+    mutationFn: ({ workspaceId, userId }: { workspaceId: string; userId: string }) =>
       apiRemoveMember(workspaceId, userId),
     onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({
@@ -199,9 +199,9 @@ export const useUpdateMemberRole = () => {
       userId,
       roleId,
     }: {
-      workspaceId: number
-      userId: number
-      roleId: number
+      workspaceId: string
+      userId: string
+      roleId: string
     }) => apiUpdateMemberRole(workspaceId, userId, roleId),
     onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({
@@ -216,7 +216,7 @@ export const useUpdateMemberRole = () => {
 }
 
 export const useAuditLogs = (
-  workspaceId: number,
+  workspaceId: string,
   params?: {
     action?: string
     resource?: string
@@ -230,7 +230,7 @@ export const useAuditLogs = (
   return useQuery({
     queryKey: workspaceKeys.auditLogs(workspaceId, params as Record<string, unknown>),
     queryFn: () => apiGetAuditLogs(workspaceId, params),
-    enabled: workspaceId > 0,
+    enabled: !!workspaceId,
     ...options,
   })
 }

@@ -17,7 +17,7 @@ export type WorkspaceRole = "owner" | "admin" | "member" | "viewer"
 
 export const workspaceRoleKeys = {
   all: ["workspace-role"] as const,
-  current: (workspaceId: number) =>
+  current: (workspaceId: string) =>
     [...workspaceRoleKeys.all, "current", workspaceId] as const,
 }
 
@@ -47,7 +47,7 @@ export const useCurrentWorkspaceRole = (): {
   const { currentWorkspace } = useAuth()
 
   const { data, isLoading } = useQuery({
-    queryKey: workspaceRoleKeys.current(currentWorkspace?.id ?? 0),
+    queryKey: workspaceRoleKeys.current(currentWorkspace?.id ?? ""),
     queryFn: () =>
       fetchApi<{ role: string }>(
         `/api/workspaces/${currentWorkspace!.id}/members/me/role`,

@@ -56,11 +56,11 @@ export const ReleaseDetailView = ({
   params: Promise<{ id: string }>
 }) => {
   const { id } = use(params)
-  const releaseId = parseInt(id, 10)
+  const releaseId = id
   const [wordWrap, setWordWrap] = useState(false)
 
-  // NaN validation: show 404 for non-numeric IDs
-  if (isNaN(releaseId) || releaseId <= 0) {
+  // Validation: show 404 for empty IDs
+  if (!releaseId) {
     notFound()
   }
 

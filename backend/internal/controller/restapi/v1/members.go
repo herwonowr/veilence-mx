@@ -5,13 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
-
-	"github.com/go-chi/chi/v5"
 
 	validation "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/request"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
@@ -19,21 +18,21 @@ import (
 
 type inviteMemberRequest struct {
 	Email  string `json:"email"`
-	RoleID uint   `json:"roleId"`
+	RoleID string `json:"roleId"`
 }
 
 type updateMemberRoleRequest struct {
-	RoleID uint `json:"roleId"`
+	RoleID string `json:"roleId"`
 }
 
 // flatMember is the flattened response shape for workspace members.
 // The frontend expects email, firstName, and lastName at the top level
 // instead of nested under a "user" object.
 type flatMember struct {
-	ID          uint        `json:"id"`
-	WorkspaceID uint        `json:"workspaceId"`
-	UserID      uint        `json:"userId"`
-	RoleID      uint        `json:"roleId"`
+	ID          string      `json:"id"`
+	WorkspaceID string      `json:"workspaceId"`
+	UserID      string      `json:"userId"`
+	RoleID      string      `json:"roleId"`
 	Role        entity.Role `json:"role"`
 	JoinedAt    time.Time   `json:"joinedAt"`
 	Email       string      `json:"email"`
@@ -44,7 +43,7 @@ type flatMember struct {
 // ListMembers handles GET /api/workspaces/{workspaceId}/members - lists workspace members.
 func (h *WorkspaceHandlers) ListMembers(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
-	if workspaceID == 0 {
+	if workspaceID == "" {
 		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
@@ -90,7 +89,7 @@ func (h *WorkspaceHandlers) ListMembers(w http.ResponseWriter, r *http.Request) 
 func (h *WorkspaceHandlers) InviteMember(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	userID := rbac.UserIDFromContext(r.Context())
-	if workspaceID == 0 || userID == 0 {
+	if workspaceID == "" || userID == "" {
 		respondError(w, http.StatusBadRequest, "workspace and user context required")
 		return
 	}
@@ -109,7 +108,7 @@ func (h *WorkspaceHandlers) InviteMember(w http.ResponseWriter, r *http.Request)
 		respondAppError(w, Validation(err.Error()))
 		return
 	}
-	if req.RoleID == 0 {
+	if req.RoleID == "" {
 		respondAppError(w, Validation("roleId is required"))
 		return
 	}
@@ -124,7 +123,7 @@ func (h *WorkspaceHandlers) InviteMember(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "invite", "member", invitation.ID, fmt.Sprintf("invited %s with role %d", req.Email, req.RoleID))
+	h.Audit.LogAction(r.Context(), "invite", "member", invitation.ID, fmt.Sprintf("invited %s with role %s", req.Email, req.RoleID))
 
 	// Return the invitation with the raw token so the caller can construct the invitation URL.
 	// The token is not stored in the model (only the hash is), so we include it explicitly.
@@ -149,7 +148,7 @@ func (h *WorkspaceHandlers) AcceptInvitation(w http.ResponseWriter, r *http.Requ
 	}
 
 	userID := rbac.UserIDFromContext(r.Context())
-	if userID == 0 {
+	if userID == "" {
 		respondError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
@@ -186,7 +185,7 @@ func (h *WorkspaceHandlers) AcceptInvitation(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "accept", "member", member.ID, fmt.Sprintf("accepted invitation for user %d", userID))
+	h.Audit.LogAction(r.Context(), "accept", "member", member.ID, fmt.Sprintf("accepted invitation for user %s", userID))
 
 	respondJSON(w, http.StatusOK, member, nil)
 }
@@ -226,7 +225,7 @@ func (h *WorkspaceHandlers) GetInvitationInfo(w http.ResponseWriter, r *http.Req
 // pending invitations for the workspace.
 func (h *WorkspaceHandlers) ListPendingInvitations(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
-	if workspaceID == 0 {
+	if workspaceID == "" {
 		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
@@ -244,19 +243,18 @@ func (h *WorkspaceHandlers) ListPendingInvitations(w http.ResponseWriter, r *htt
 // a pending invitation.
 func (h *WorkspaceHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
-	if workspaceID == 0 {
+	if workspaceID == "" {
 		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil {
+	id, ok := parseUUID(r, "id")
+	if !ok {
 		respondError(w, http.StatusBadRequest, "invalid invitation ID")
 		return
 	}
 
-	if err := h.RBAC.RevokeInvitation(workspaceID, uint(id)); err != nil {
+	if err := h.RBAC.RevokeInvitation(workspaceID, id); err != nil {
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
 			respondError(w, http.StatusNotFound, "invitation not found or already accepted")
 			return
@@ -265,7 +263,7 @@ func (h *WorkspaceHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "revoke", "invitation", uint(id), fmt.Sprintf("revoked invitation %d", id))
+	h.Audit.LogAction(r.Context(), "revoke", "invitation", id, fmt.Sprintf("revoked invitation %s", id))
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "invitation revoked"}, nil)
 }
@@ -273,19 +271,18 @@ func (h *WorkspaceHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Requ
 // RemoveMember handles DELETE /api/workspaces/{workspaceId}/members/{userId} - removes a member.
 func (h *WorkspaceHandlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
-	if workspaceID == 0 {
+	if workspaceID == "" {
 		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
-	targetUserIDStr := chi.URLParam(r, "userId")
-	targetUserID, err := strconv.ParseUint(targetUserIDStr, 10, 64)
-	if err != nil {
+	targetUserID, ok := parseUUID(r, "userId")
+	if !ok {
 		respondError(w, http.StatusBadRequest, "invalid user ID")
 		return
 	}
 
-	if err := h.RBAC.RemoveMember(workspaceID, uint(targetUserID)); err != nil {
+	if err := h.RBAC.RemoveMember(workspaceID, targetUserID); err != nil {
 		if errors.Is(err, rbac.ErrCannotRemoveOwner) {
 			respondError(w, http.StatusForbidden, "cannot remove the workspace owner")
 			return
@@ -298,7 +295,7 @@ func (h *WorkspaceHandlers) RemoveMember(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "remove", "member", uint(targetUserID), fmt.Sprintf("removed member (user %d) from workspace", targetUserID))
+	h.Audit.LogAction(r.Context(), "remove", "member", targetUserID, fmt.Sprintf("removed member (user %s) from workspace", targetUserID))
 
 	respondJSON(w, http.StatusOK, nil, nil)
 }
@@ -318,14 +315,13 @@ func (h *WorkspaceHandlers) GetCurrentMemberRole(w http.ResponseWriter, r *http.
 // UpdateMemberRole handles PUT /api/workspaces/{workspaceId}/members/{userId}/role - changes a member's role.
 func (h *WorkspaceHandlers) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
-	if workspaceID == 0 {
+	if workspaceID == "" {
 		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
-	targetUserIDStr := chi.URLParam(r, "userId")
-	targetUserID, err := strconv.ParseUint(targetUserIDStr, 10, 64)
-	if err != nil {
+	targetUserID := chi.URLParam(r, "userId")
+	if _, err := uuid.Parse(targetUserID); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid user ID")
 		return
 	}
@@ -336,12 +332,12 @@ func (h *WorkspaceHandlers) UpdateMemberRole(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if req.RoleID == 0 {
+	if req.RoleID == "" {
 		respondAppError(w, Validation("roleId is required"))
 		return
 	}
 
-	member, err := h.RBAC.UpdateMemberRole(workspaceID, uint(targetUserID), req.RoleID)
+	member, err := h.RBAC.UpdateMemberRole(workspaceID, targetUserID, req.RoleID)
 	if err != nil {
 		if errors.Is(err, rbac.ErrCannotChangeOwner) {
 			respondError(w, http.StatusForbidden, "cannot change the owner's role")
@@ -359,7 +355,7 @@ func (h *WorkspaceHandlers) UpdateMemberRole(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "update", "member", member.ID, fmt.Sprintf("updated role for user %d to role %d", targetUserID, req.RoleID))
+	h.Audit.LogAction(r.Context(), "update", "member", member.ID, fmt.Sprintf("updated role for user %s to role %s", targetUserID, req.RoleID))
 
 	respondJSON(w, http.StatusOK, member, nil)
 }

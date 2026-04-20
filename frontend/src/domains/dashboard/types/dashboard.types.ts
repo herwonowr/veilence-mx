@@ -17,8 +17,8 @@ export interface ChartData {
 }
 
 export interface RecentRelease {
-  id: number
-  packageId: number
+  id: string
+  packageId: string
   version: string
   publishedAt: string
   tarballUrl: string

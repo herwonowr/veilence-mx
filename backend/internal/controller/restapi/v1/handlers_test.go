@@ -49,8 +49,8 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-func idStr(id uint) string {
-	return fmt.Sprintf("%d", id)
+func idStr(id string) string {
+	return id
 }
 
 // newDashboardHandlers creates a DashboardHandlers for testing.
@@ -114,11 +114,11 @@ type mockEnqueuer struct {
 
 type enqueueCall struct {
 	jobType     string
-	workspaceID uint
-	referenceID uint
+	workspaceID string
+	referenceID string
 }
 
-func (m *mockEnqueuer) Enqueue(_ context.Context, jobType string, workspaceID, referenceID uint) (string, error) {
+func (m *mockEnqueuer) Enqueue(_ context.Context, jobType string, workspaceID, referenceID string) (string, error) {
 	m.calls = append(m.calls, enqueueCall{jobType: jobType, workspaceID: workspaceID, referenceID: referenceID})
 	if m.err != nil {
 		return "", m.err
@@ -684,7 +684,7 @@ func TestGetAlert(t *testing.T) {
 	db := setupTestDB(t)
 	h := newAlertHandlers(db)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 1}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: "01935d5a-0000-7000-8000-000000000001"}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -692,7 +692,7 @@ func TestGetAlert(t *testing.T) {
 	db.Create(&diff)
 	analysis := persistent.Analysis{DiffID: diff.ID, Classification: "malicious", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
 	db.Create(&analysis)
-	alert := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: 0, Severity: "critical", Status: "new", Message: "Malicious detected"}
+	alert := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: "", Severity: "critical", Status: "new", Message: "Malicious detected"}
 	db.Create(&alert)
 
 	r := chi.NewRouter()
@@ -742,7 +742,7 @@ func TestGetAlert_WorkspaceScoping(t *testing.T) {
 	db := setupTestDB(t)
 	h := newAlertHandlers(db)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 5}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: "01935d5a-0000-7000-8000-000000000005"}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -751,7 +751,7 @@ func TestGetAlert_WorkspaceScoping(t *testing.T) {
 	analysis := persistent.Analysis{DiffID: diff.ID, Classification: "malicious", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
 	db.Create(&analysis)
 	// Alert belongs to workspace 5 - request context has workspaceID=0 (default), so it should not be found
-	alert := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: 5, Severity: "high", Status: "new", Message: "Other org alert"}
+	alert := persistent.Alert{AnalysisID: analysis.ID, PackageID: pkg.ID, WorkspaceID: "01935d5a-0000-7000-8000-000000000005", Severity: "high", Status: "new", Message: "Other org alert"}
 	db.Create(&alert)
 
 	r := chi.NewRouter()
@@ -1172,8 +1172,8 @@ func TestListAlertNotes(t *testing.T) {
 	db.Create(&alert)
 
 	// Create some notes
-	db.Create(&persistent.AlertNote{AlertID: alert.ID, WorkspaceID: 0, UserID: 1, UserEmail: "user@example.com", Content: "First note"})
-	db.Create(&persistent.AlertNote{AlertID: alert.ID, WorkspaceID: 0, UserID: 2, UserEmail: "other@example.com", Content: "Second note"})
+	db.Create(&persistent.AlertNote{AlertID: alert.ID, WorkspaceID: "", UserID: "01935d5a-0000-7000-8000-000000000001", UserEmail: "user@example.com", Content: "First note"})
+	db.Create(&persistent.AlertNote{AlertID: alert.ID, WorkspaceID: "", UserID: "01935d5a-0000-7000-8000-000000000002", UserEmail: "other@example.com", Content: "Second note"})
 
 	r := chi.NewRouter()
 	r.Get("/api/alerts/{id}/notes", h.ListAlertNotes)
@@ -1486,7 +1486,7 @@ func TestReanalyzeRelease_NoQueue(t *testing.T) {
 	db := setupTestDB(t)
 	h := newPackageHandlers(db) // Queue is nil
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 0}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: ""}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -1521,7 +1521,7 @@ func TestReanalyzeRelease_SuccessNoDiff(t *testing.T) {
 	mq := &mockEnqueuer{}
 	h := newPackageHandlersWithQueue(db, mq)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 0}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: ""}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -1557,7 +1557,7 @@ func TestReanalyzeRelease_SuccessWithDiff(t *testing.T) {
 	mq := &mockEnqueuer{}
 	h := newPackageHandlersWithQueue(db, mq)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 0}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: ""}
 	db.Create(&pkg)
 	rel1 := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel1)
@@ -1598,7 +1598,7 @@ func TestReanalyzeRelease_WorkspaceScoping(t *testing.T) {
 	h := newPackageHandlersWithQueue(db, mq)
 
 	// Create a release belonging to workspace 5; request context has workspaceID=0 (default, no middleware)
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 5}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: "01935d5a-0000-7000-8000-000000000005"}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -1619,7 +1619,7 @@ func TestReanalyzeRelease_EnqueueError(t *testing.T) {
 	mq := &mockEnqueuer{err: fmt.Errorf("redis connection refused")}
 	h := newPackageHandlersWithQueue(db, mq)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 0}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: ""}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -1958,7 +1958,7 @@ func TestBulkApprovePackages_ByIDs(t *testing.T) {
 	pkg3 := persistent.Package{Name: "pkg-3", Ecosystem: "npm", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceManual}
 	db.Create(&pkg3)
 
-	body := fmt.Sprintf(`{"packageIds":[%d,%d]}`, pkg1.ID, pkg2.ID)
+	body := fmt.Sprintf(`{"packageIds":["%s","%s"]}`, pkg1.ID, pkg2.ID)
 	req := httptest.NewRequest(http.MethodPost, "/api/packages/bulk-approve", strings.NewReader(body))
 	w := httptest.NewRecorder()
 	h.BulkApprovePackages(w, req)

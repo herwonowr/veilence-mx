@@ -4,12 +4,12 @@ import "time"
 
 // Invitation represents a pending invitation for a user to join a workspace.
 type Invitation struct {
-	ID             uint
-	WorkspaceID    uint
+	ID             string
+	WorkspaceID    string
 	Email          string
-	RoleID         uint
+	RoleID         string
 	TokenHash      string
-	InvitedBy      uint
+	InvitedBy      string
 	ExpiresAt      time.Time
 	AcceptedAt     *time.Time
 	CreatedAt      time.Time

@@ -19,7 +19,7 @@ func NewNotificationRuleRepo(db *gorm.DB) *NotificationRuleRepo {
 	return &NotificationRuleRepo{db: db}
 }
 
-func (r *NotificationRuleRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.NotificationRule, error) {
+func (r *NotificationRuleRepo) FindByWorkspaceID(ctx context.Context, workspaceID string) ([]entity.NotificationRule, error) {
 	var ms []NotificationRule
 	if err := r.db.WithContext(ctx).Where("workspace_id = ?", workspaceID).Find(&ms).Error; err != nil {
 		return nil, fmt.Errorf("listing notification rules: %w", err)
@@ -31,7 +31,7 @@ func (r *NotificationRuleRepo) FindByWorkspaceID(ctx context.Context, workspaceI
 	return result, nil
 }
 
-func (r *NotificationRuleRepo) FindActiveByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.NotificationRule, error) {
+func (r *NotificationRuleRepo) FindActiveByWorkspaceID(ctx context.Context, workspaceID string) ([]entity.NotificationRule, error) {
 	var ms []NotificationRule
 	if err := r.db.WithContext(ctx).Where("workspace_id = ? AND is_active = ?", workspaceID, true).Find(&ms).Error; err != nil {
 		return nil, fmt.Errorf("listing active notification rules: %w", err)
@@ -54,7 +54,7 @@ func (r *NotificationRuleRepo) Create(ctx context.Context, rule *entity.Notifica
 	return nil
 }
 
-func (r *NotificationRuleRepo) DeleteByIDAndWorkspace(ctx context.Context, id, workspaceID uint) (int64, error) {
+func (r *NotificationRuleRepo) DeleteByIDAndWorkspace(ctx context.Context, id, workspaceID string) (int64, error) {
 	result := r.db.WithContext(ctx).Where("id = ? AND workspace_id = ?", id, workspaceID).Delete(&NotificationRule{})
 	if result.Error != nil {
 		return 0, fmt.Errorf("deleting notification rule: %w", result.Error)

@@ -20,7 +20,7 @@ func NewWorkspaceRepo(db *gorm.DB) *WorkspaceRepo {
 	return &WorkspaceRepo{db: db}
 }
 
-func (r *WorkspaceRepo) FindByID(ctx context.Context, id uint) (*entity.Workspace, error) {
+func (r *WorkspaceRepo) FindByID(ctx context.Context, id string) (*entity.Workspace, error) {
 	var m Workspace
 	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -42,7 +42,7 @@ func (r *WorkspaceRepo) FindBySlug(ctx context.Context, slug string) (*entity.Wo
 	return workspaceToDomain(&m), nil
 }
 
-func (r *WorkspaceRepo) CountBySlug(ctx context.Context, slug string, excludeID *uint) (int64, error) {
+func (r *WorkspaceRepo) CountBySlug(ctx context.Context, slug string, excludeID *string) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&Workspace{}).Where("slug = ?", slug)
 	if excludeID != nil {
 		query = query.Where("id != ?", *excludeID)
@@ -74,7 +74,7 @@ func (r *WorkspaceRepo) Update(ctx context.Context, ws *entity.Workspace) error 
 	return nil
 }
 
-func (r *WorkspaceRepo) SoftDelete(ctx context.Context, id uint) error {
+func (r *WorkspaceRepo) SoftDelete(ctx context.Context, id string) error {
 	result := r.db.WithContext(ctx).Delete(&Workspace{}, id)
 	if result.Error != nil {
 		return fmt.Errorf("deleting workspace: %w", result.Error)
@@ -85,7 +85,7 @@ func (r *WorkspaceRepo) SoftDelete(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (r *WorkspaceRepo) FindByUserID(ctx context.Context, userID uint) ([]entity.Workspace, error) {
+func (r *WorkspaceRepo) FindByUserID(ctx context.Context, userID string) ([]entity.Workspace, error) {
 	var ms []Workspace
 	err := r.db.WithContext(ctx).
 		Joins("JOIN workspace_members ON workspace_members.workspace_id = workspaces.id").

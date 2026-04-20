@@ -276,7 +276,7 @@ func TestValidateAPIKey_ExpiredKey(t *testing.T) {
 
 	// Create key with expiry in the past
 	past := time.Now().Add(-24 * time.Hour)
-	_, rawKey, err := svc.CreateAPIKey(user.ID, 1, "expired-key", entity.APIKeyRoleViewer, "owner", &past)
+	_, rawKey, err := svc.CreateAPIKey(user.ID, testWorkspaceID, "expired-key", entity.APIKeyRoleViewer, "owner", &past)
 	require.NoError(t, err)
 
 	_, _, _, _, err = svc.ValidateAPIKey(rawKey)
@@ -291,7 +291,7 @@ func TestValidateAPIKey_DeactivatedUser(t *testing.T) {
 	user, err := svc.Register("deact-api@example.com", "Password123", "Deact", "API")
 	require.NoError(t, err)
 
-	_, rawKey, err := svc.CreateAPIKey(user.ID, 1, "deact-key", entity.APIKeyRoleAdmin, "owner", nil)
+	_, rawKey, err := svc.CreateAPIKey(user.ID, testWorkspaceID, "deact-key", entity.APIKeyRoleAdmin, "owner", nil)
 	require.NoError(t, err)
 
 	// Deactivate the user
@@ -318,7 +318,7 @@ func TestValidateAPIKey_UpdatesLastUsedAt(t *testing.T) {
 	user, err := svc.Register("lastused@example.com", "Password123", "Last", "Used")
 	require.NoError(t, err)
 
-	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, 1, "track-key", entity.APIKeyRoleViewer, "owner", nil)
+	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, testWorkspaceID, "track-key", entity.APIKeyRoleViewer, "owner", nil)
 	require.NoError(t, err)
 	assert.Nil(t, apiKey.LastUsedAt)
 

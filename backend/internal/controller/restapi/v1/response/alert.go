@@ -8,11 +8,11 @@ import (
 
 // AlertResponse is the JSON representation of a security alert.
 type AlertResponse struct {
-	ID         uint      `json:"id"`
-	WorkspaceID      uint      `json:"workspaceId"`
-	AnalysisID uint      `json:"analysisId"`
-	ReleaseID  uint      `json:"releaseId"`
-	PackageID  uint      `json:"packageId"`
+	ID         string    `json:"id"`
+	WorkspaceID      string    `json:"workspaceId"`
+	AnalysisID string    `json:"analysisId"`
+	ReleaseID  string    `json:"releaseId"`
+	PackageID  string    `json:"packageId"`
 	Severity   string    `json:"severity"`
 	Status     string    `json:"status"`
 	Message    string    `json:"message"`
@@ -72,10 +72,10 @@ func AlertDetailFromEntity(a *entity.Alert, pkg *entity.Package) AlertWithPackag
 
 // AlertNoteResponse is the JSON representation of an alert note.
 type AlertNoteResponse struct {
-	ID        uint      `json:"id"`
-	AlertID   uint      `json:"alertId"`
-	WorkspaceID     uint      `json:"workspaceId"`
-	UserID    uint      `json:"userId"`
+	ID        string    `json:"id"`
+	AlertID   string    `json:"alertId"`
+	WorkspaceID     string    `json:"workspaceId"`
+	UserID    string    `json:"userId"`
 	UserEmail string    `json:"userEmail"`
 	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"createdAt"`

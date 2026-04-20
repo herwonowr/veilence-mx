@@ -106,7 +106,7 @@ export const apiGetSessions = async (): Promise<ApiResponse<Session[]>> => {
 }
 
 export const apiRevokeSession = async (
-  id: number
+  id: string
 ): Promise<ApiResponse<{ message: string }>> =>
   fetchApi<{ message: string }>(`/api/auth/sessions/${id}`, {
     method: "DELETE",
@@ -135,6 +135,6 @@ export const apiVerifyEmail = async (
   })
 
 export const apiDeleteApiKey = async (
-  id: number
+  id: string
 ): Promise<ApiResponse<null>> =>
   fetchApi<null>(`/api/auth/api-keys/${id}`, { method: "DELETE" })

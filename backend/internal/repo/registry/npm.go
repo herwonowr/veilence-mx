@@ -189,7 +189,7 @@ func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pac
 			allRankings = append(allRankings, entity.PackageRanking{
 				Name:            obj.Package.Name,
 				DownloadCount:   obj.Downloads.Monthly,
-				Rank:            uint(fetched + len(allRankings) - len(allRankings) + len(allRankings) + 1),
+				Rank:            fetched + len(allRankings) - len(allRankings) + len(allRankings) + 1,
 			})
 		}
 
@@ -201,7 +201,7 @@ func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pac
 
 	// Fix rank values after collection
 	for i := range allRankings {
-		allRankings[i].Rank = uint(i + 1)
+		allRankings[i].Rank = i + 1
 	}
 
 	slog.Info("fetched top npm packages", "count", len(allRankings))

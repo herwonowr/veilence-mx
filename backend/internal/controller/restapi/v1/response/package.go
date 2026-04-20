@@ -10,8 +10,8 @@ import (
 
 // PackageResponse is the JSON representation of a monitored package.
 type PackageResponse struct {
-	ID                     uint       `json:"id"`
-	WorkspaceID                  uint       `json:"workspaceId"`
+	ID                     string     `json:"id"`
+	WorkspaceID                  string     `json:"workspaceId"`
 	Name                   string     `json:"name"`
 	Ecosystem              string     `json:"ecosystem"`
 	LatestVersion          string     `json:"latestVersion"`

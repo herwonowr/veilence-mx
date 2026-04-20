@@ -20,7 +20,7 @@ func NewDiffRepo(db *gorm.DB) *DiffRepo {
 	return &DiffRepo{db: db}
 }
 
-func (r *DiffRepo) FindByID(ctx context.Context, id uint) (*entity.Diff, error) {
+func (r *DiffRepo) FindByID(ctx context.Context, id string) (*entity.Diff, error) {
 	var m Diff
 	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -31,7 +31,7 @@ func (r *DiffRepo) FindByID(ctx context.Context, id uint) (*entity.Diff, error) 
 	return diffToDomain(&m), nil
 }
 
-func (r *DiffRepo) FindByIDAndWorkspace(ctx context.Context, id, workspaceID uint) (*entity.Diff, error) {
+func (r *DiffRepo) FindByIDAndWorkspace(ctx context.Context, id, workspaceID string) (*entity.Diff, error) {
 	var m Diff
 	err := r.db.WithContext(ctx).
 		Joins("JOIN releases ON releases.id = diffs.release_id").
@@ -48,7 +48,7 @@ func (r *DiffRepo) FindByIDAndWorkspace(ctx context.Context, id, workspaceID uin
 	return diffToDomain(&m), nil
 }
 
-func (r *DiffRepo) FindByReleaseID(ctx context.Context, releaseID uint) ([]entity.Diff, error) {
+func (r *DiffRepo) FindByReleaseID(ctx context.Context, releaseID string) ([]entity.Diff, error) {
 	var ms []Diff
 	if err := r.db.WithContext(ctx).Where("release_id = ?", releaseID).Find(&ms).Error; err != nil {
 		return nil, fmt.Errorf("finding diffs by release: %w", err)
@@ -60,7 +60,7 @@ func (r *DiffRepo) FindByReleaseID(ctx context.Context, releaseID uint) ([]entit
 	return result, nil
 }
 
-func (r *DiffRepo) FindByReleaseIDAndWorkspace(ctx context.Context, releaseID, workspaceID uint) ([]entity.Diff, error) {
+func (r *DiffRepo) FindByReleaseIDAndWorkspace(ctx context.Context, releaseID, workspaceID string) ([]entity.Diff, error) {
 	var ms []Diff
 	err := r.db.WithContext(ctx).
 		Joins("JOIN releases ON releases.id = diffs.release_id").
@@ -88,7 +88,7 @@ func (r *DiffRepo) Create(ctx context.Context, diff *entity.Diff) error {
 	return nil
 }
 
-func (r *DiffRepo) FindFirstByReleaseID(ctx context.Context, releaseID uint) (*entity.Diff, error) {
+func (r *DiffRepo) FindFirstByReleaseID(ctx context.Context, releaseID string) (*entity.Diff, error) {
 	var ms []Diff
 	err := r.db.WithContext(ctx).
 		Where("release_id = ?", releaseID).
@@ -104,7 +104,7 @@ func (r *DiffRepo) FindFirstByReleaseID(ctx context.Context, releaseID uint) (*e
 	return diffToDomain(&ms[0]), nil
 }
 
-func (r *DiffRepo) FindByReleaseIDs(ctx context.Context, releaseIDs []uint) ([]entity.Diff, error) {
+func (r *DiffRepo) FindByReleaseIDs(ctx context.Context, releaseIDs []string) ([]entity.Diff, error) {
 	if len(releaseIDs) == 0 {
 		return []entity.Diff{}, nil
 	}

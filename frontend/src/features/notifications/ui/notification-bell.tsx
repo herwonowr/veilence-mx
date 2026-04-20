@@ -93,14 +93,14 @@ export const NotificationBell = () => {
   )
 
   const handleMarkRead = useCallback(
-    (id: number) => {
+    (id: string) => {
       markReadMutation.mutate(id)
     },
     [markReadMutation],
   )
 
   const handleDelete = useCallback(
-    (id: number) => {
+    (id: string) => {
       deleteMutation.mutate(id)
     },
     [deleteMutation],

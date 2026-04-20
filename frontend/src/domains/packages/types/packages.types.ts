@@ -4,7 +4,7 @@ export type PackageSource = "manual" | "discovered" | "imported"
 export type PackageStatus = "active" | "suggested" | "blocked" | "removed"
 
 export interface Package {
-  id: number
+  id: string
   name: string
   ecosystem: Ecosystem
   latestVersion: string
@@ -12,7 +12,7 @@ export interface Package {
   source: PackageSource
   status: PackageStatus
   downloadCount: number
-  workspaceId: number
+  workspaceId: string
   downloadCountUpdatedAt: string | null
   blockedAt: string | null
   blockedReason: string | null
@@ -37,7 +37,7 @@ export interface BulkImportResult {
 }
 
 export interface AnalysisHistoryEntry {
-  releaseId: number
+  releaseId: string
   version: string
   classification: Classification
   confidence: number
@@ -49,8 +49,8 @@ export interface AnalysisHistoryEntry {
 }
 
 export interface Release {
-  id: number
-  packageId: number
+  id: string
+  packageId: string
   version: string
   publishedAt: string
   tarballUrl: string

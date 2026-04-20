@@ -13,7 +13,7 @@ export interface QueueStatsResponse {
 export interface QueueJob {
   id: string
   type: string
-  referenceId: number
+  referenceId: string
   status: string
   attempts: number
   maxAttempts: number

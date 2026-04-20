@@ -7,6 +7,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+
 	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/notifications"
@@ -229,4 +232,14 @@ func escapeLike(s string) string {
 	s = strings.ReplaceAll(s, "%", "\\%")
 	s = strings.ReplaceAll(s, "_", "\\_")
 	return s
+}
+
+// parseUUID extracts a URL parameter by name and validates it as a UUID.
+// Returns the UUID string and true on success, or empty string and false on failure.
+func parseUUID(r *http.Request, param string) (string, bool) {
+	raw := chi.URLParam(r, param)
+	if _, err := uuid.Parse(raw); err != nil {
+		return "", false
+	}
+	return raw, true
 }

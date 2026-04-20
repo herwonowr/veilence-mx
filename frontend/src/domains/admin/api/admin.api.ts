@@ -13,7 +13,7 @@ export const apiGetWorkspaces = async (): Promise<ApiResponse<Workspace[]>> =>
   fetchApi<Workspace[]>("/api/workspaces")
 
 export const apiGetWorkspace = async (
-  id: number
+  id: string
 ): Promise<ApiResponse<Workspace>> =>
   fetchApi<Workspace>(`/api/workspaces/${id}`)
 
@@ -28,7 +28,7 @@ export const apiCreateWorkspace = async (data: {
   })
 
 export const apiUpdateWorkspace = async (
-  id: number,
+  id: string,
   data: { name?: string; description?: string }
 ): Promise<ApiResponse<Workspace>> =>
   fetchApi<Workspace>(`/api/workspaces/${id}`, {
@@ -37,18 +37,18 @@ export const apiUpdateWorkspace = async (
   })
 
 export const apiDeleteWorkspace = async (
-  id: number
+  id: string
 ): Promise<ApiResponse<null>> =>
   fetchApi<null>(`/api/workspaces/${id}`, { method: "DELETE" })
 
 export const apiGetWorkspaceMembers = async (
-  workspaceId: number
+  workspaceId: string
 ): Promise<ApiResponse<WorkspaceMember[]>> =>
   fetchApi<WorkspaceMember[]>(`/api/workspaces/${workspaceId}/members`)
 
 export const apiInviteMember = async (
-  workspaceId: number,
-  data: { email: string; roleId: number }
+  workspaceId: string,
+  data: { email: string; roleId: string }
 ): Promise<ApiResponse<{ token: string }>> =>
   fetchApi<{ token: string }>(`/api/workspaces/${workspaceId}/invitations`, {
     method: "POST",
@@ -56,17 +56,17 @@ export const apiInviteMember = async (
   })
 
 export const apiRemoveMember = async (
-  workspaceId: number,
-  userId: number
+  workspaceId: string,
+  userId: string
 ): Promise<ApiResponse<null>> =>
   fetchApi<null>(`/api/workspaces/${workspaceId}/members/${userId}`, {
     method: "DELETE",
   })
 
 export const apiUpdateMemberRole = async (
-  workspaceId: number,
-  userId: number,
-  roleId: number
+  workspaceId: string,
+  userId: string,
+  roleId: string
 ): Promise<ApiResponse<null>> =>
   fetchApi<null>(`/api/workspaces/${workspaceId}/members/${userId}/role`, {
     method: "PUT",
@@ -74,7 +74,7 @@ export const apiUpdateMemberRole = async (
   })
 
 export const apiGetWorkspaceRoles = async (
-  workspaceId: number
+  workspaceId: string
 ): Promise<ApiResponse<Role[]>> =>
   fetchApi<Role[]>(`/api/workspaces/${workspaceId}/roles`)
 
@@ -82,7 +82,7 @@ export const apiGetPermissions = async (): Promise<ApiResponse<Permission[]>> =>
   fetchApi<Permission[]>("/api/permissions")
 
 export const apiGetAuditLogs = async (
-  workspaceId: number,
+  workspaceId: string,
   params?: AuditLogParams
 ): Promise<ApiResponse<AuditLog[]>> => {
   const searchParams = new URLSearchParams()

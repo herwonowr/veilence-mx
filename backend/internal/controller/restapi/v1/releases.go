@@ -3,9 +3,6 @@ package v1
 import (
 	"errors"
 	"net/http"
-	"strconv"
-
-	"github.com/go-chi/chi/v5"
 
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
 	"github.com/veilence/veilence-mx/backend/internal/entity"
@@ -16,15 +13,15 @@ import (
 func (h *PackageHandlers) ListPackageReleases(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	packageID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	packageID, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid package ID"))
 		return
 	}
 
 	page, limit := parsePagination(r)
 
-	releases, total, err := h.ReleaseSvc.ListByPackage(r.Context(), workspaceID, uint(packageID), page, limit)
+	releases, total, err := h.ReleaseSvc.ListByPackage(r.Context(), workspaceID, packageID, page, limit)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("package"))
@@ -41,13 +38,13 @@ func (h *PackageHandlers) ListPackageReleases(w http.ResponseWriter, r *http.Req
 func (h *PackageHandlers) GetRelease(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	id, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid release ID"))
 		return
 	}
 
-	detail, err := h.ReleaseSvc.GetRelease(r.Context(), workspaceID, uint(id))
+	detail, err := h.ReleaseSvc.GetRelease(r.Context(), workspaceID, id)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("release"))
@@ -65,13 +62,13 @@ func (h *PackageHandlers) GetRelease(w http.ResponseWriter, r *http.Request) {
 func (h *PackageHandlers) ReanalyzeRelease(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	id, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid release ID"))
 		return
 	}
 
-	message, jobID, err := h.ReleaseSvc.ReanalyzeRelease(r.Context(), workspaceID, uint(id))
+	message, jobID, err := h.ReleaseSvc.ReanalyzeRelease(r.Context(), workspaceID, id)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("release"))
@@ -92,13 +89,13 @@ func (h *PackageHandlers) ReanalyzeRelease(w http.ResponseWriter, r *http.Reques
 func (h *PackageHandlers) GetAnalysisHistory(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
-	packageID, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	packageID, ok := parseUUID(r, "id")
+	if !ok {
 		respondAppError(w, BadRequest("invalid package ID"))
 		return
 	}
 
-	entries, err := h.ReleaseSvc.GetAnalysisHistory(r.Context(), workspaceID, uint(packageID))
+	entries, err := h.ReleaseSvc.GetAnalysisHistory(r.Context(), workspaceID, packageID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("package"))

@@ -39,8 +39,8 @@ const (
 type Job struct {
 	ID          string `json:"id"`
 	Type        string `json:"type"`
-	WorkspaceID uint   `json:"workspaceId"`
-	ReferenceID uint   `json:"referenceId"`
+	WorkspaceID string `json:"workspaceId"`
+	ReferenceID string `json:"referenceId"`
 	Status      string `json:"status"`
 	Attempts    int    `json:"attempts"`
 	MaxAttempts int    `json:"maxAttempts"`
@@ -60,7 +60,7 @@ type QueueStats struct {
 // Enqueuer is the minimal interface needed by handlers that only enqueue jobs.
 // This allows test code to supply a mock without requiring a live Redis connection.
 type Enqueuer interface {
-	Enqueue(ctx context.Context, jobType string, workspaceID, referenceID uint) (string, error)
+	Enqueue(ctx context.Context, jobType string, workspaceID, referenceID string) (string, error)
 }
 
 type Queue struct {
@@ -116,7 +116,7 @@ func (q *Queue) Ping(ctx context.Context) error {
 	return q.rdb.Ping(ctx).Err()
 }
 
-func (q *Queue) Enqueue(ctx context.Context, jobType string, workspaceID, referenceID uint) (string, error) {
+func (q *Queue) Enqueue(ctx context.Context, jobType string, workspaceID, referenceID string) (string, error) {
 	id, err := q.rdb.Incr(ctx, jobIDCounter).Result()
 	if err != nil {
 		return "", fmt.Errorf("generating job ID: %w", err)
@@ -193,7 +193,7 @@ func (q *Queue) Complete(ctx context.Context, job *Job) error {
 	pipe.Set(ctx, jobHash+job.ID, data, 1*time.Hour)
 	pipe.ZRem(ctx, processingSet+job.Type, job.ID)
 	pipe.HIncrBy(ctx, statsHash, "total_completed", 1)
-	pipe.HIncrBy(ctx, statsHash, fmt.Sprintf("completed:%d", job.WorkspaceID), 1)
+	pipe.HIncrBy(ctx, statsHash, fmt.Sprintf("completed:%s", job.WorkspaceID), 1)
 	_, err := pipe.Exec(ctx)
 	return err
 }
@@ -599,7 +599,7 @@ func (q *Queue) saveJob(ctx context.Context, job *Job) error {
 }
 
 // filterJobsByWorkspace returns only jobs belonging to the given workspace.
-func filterJobsByWorkspace(jobs []Job, workspaceID uint) []Job {
+func filterJobsByWorkspace(jobs []Job, workspaceID string) []Job {
 	filtered := make([]Job, 0, len(jobs))
 	for _, j := range jobs {
 		if j.WorkspaceID == workspaceID {
@@ -611,7 +611,7 @@ func filterJobsByWorkspace(jobs []Job, workspaceID uint) []Job {
 
 // StatsForWorkspace returns queue statistics scoped to a single workspace.
 // It loads all jobs from each status set and counts only those matching the workspace.
-func (q *Queue) StatsForWorkspace(ctx context.Context, jobType string, workspaceID uint) (*QueueStats, error) {
+func (q *Queue) StatsForWorkspace(ctx context.Context, jobType string, workspaceID string) (*QueueStats, error) {
 	q.cleanStaleSortedSetMembers(ctx, processingSet+jobType)
 	q.cleanStaleSortedSetMembers(ctx, deadSet+jobType)
 
@@ -663,13 +663,13 @@ func (q *Queue) StatsForWorkspace(ctx context.Context, jobType string, workspace
 	}
 
 	// Read workspace-scoped completed counter
-	stats.Completed, _ = q.rdb.HGet(ctx, statsHash, fmt.Sprintf("completed:%d", workspaceID)).Int64()
+	stats.Completed, _ = q.rdb.HGet(ctx, statsHash, fmt.Sprintf("completed:%s", workspaceID)).Int64()
 
 	return &stats, nil
 }
 
 // PendingJobsForWorkspace returns pending jobs filtered by workspace.
-func (q *Queue) PendingJobsForWorkspace(ctx context.Context, jobType string, workspaceID uint, offset, limit int) ([]Job, int64, error) {
+func (q *Queue) PendingJobsForWorkspace(ctx context.Context, jobType string, workspaceID string, offset, limit int) ([]Job, int64, error) {
 	jobs, _, err := q.PendingJobs(ctx, jobType, 0, 10000)
 	if err != nil {
 		return nil, 0, err
@@ -687,7 +687,7 @@ func (q *Queue) PendingJobsForWorkspace(ctx context.Context, jobType string, wor
 }
 
 // ProcessingJobsForWorkspace returns processing jobs filtered by workspace.
-func (q *Queue) ProcessingJobsForWorkspace(ctx context.Context, jobType string, workspaceID uint, offset, limit int) ([]Job, int64, error) {
+func (q *Queue) ProcessingJobsForWorkspace(ctx context.Context, jobType string, workspaceID string, offset, limit int) ([]Job, int64, error) {
 	jobs, _, err := q.ProcessingJobs(ctx, jobType, 0, 10000)
 	if err != nil {
 		return nil, 0, err
@@ -705,7 +705,7 @@ func (q *Queue) ProcessingJobsForWorkspace(ctx context.Context, jobType string, 
 }
 
 // DeadJobsForWorkspace returns dead jobs filtered by workspace.
-func (q *Queue) DeadJobsForWorkspace(ctx context.Context, jobType string, workspaceID uint, offset, limit int) ([]Job, int64, error) {
+func (q *Queue) DeadJobsForWorkspace(ctx context.Context, jobType string, workspaceID string, offset, limit int) ([]Job, int64, error) {
 	jobs, _, err := q.DeadJobs(ctx, jobType, 0, 10000)
 	if err != nil {
 		return nil, 0, err
@@ -723,7 +723,7 @@ func (q *Queue) DeadJobsForWorkspace(ctx context.Context, jobType string, worksp
 }
 
 // RequeueAllDeadForWorkspace requeues all dead jobs for a given type and workspace.
-func (q *Queue) RequeueAllDeadForWorkspace(ctx context.Context, jobType string, workspaceID uint) (int, error) {
+func (q *Queue) RequeueAllDeadForWorkspace(ctx context.Context, jobType string, workspaceID string) (int, error) {
 	deadIDs, err := q.rdb.ZRange(ctx, deadSet+jobType, 0, -1).Result()
 	if err != nil {
 		return 0, fmt.Errorf("listing dead jobs: %w", err)

@@ -40,15 +40,15 @@ const (
 
 // Package represents a monitored package from Python (PyPI) or npm.
 type Package struct {
-	ID                     uint
-	WorkspaceID            uint
+	ID                     string
+	WorkspaceID            string
 	Name                   string
 	Ecosystem              Ecosystem
 	LatestVersion          string
 	Description            string
 	Source                 PackageSource
 	Status                 PackageStatus
-	Rank                   *uint
+	Rank                   *int
 	DownloadCount          int64
 	DownloadCountUpdatedAt *time.Time
 	BlockedAt              *time.Time
@@ -87,7 +87,7 @@ type ImportResult struct {
 
 // PackageDownloadUpdate holds download metrics for a single package.
 type PackageDownloadUpdate struct {
-	PackageID       uint
+	PackageID       string
 	DownloadCount   int64
 }
 
@@ -95,5 +95,5 @@ type PackageDownloadUpdate struct {
 type PackageRanking struct {
 	Name            string
 	DownloadCount   int64
-	Rank            uint
+	Rank            int
 }

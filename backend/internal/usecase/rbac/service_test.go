@@ -373,7 +373,7 @@ func TestGetWorkspace_NotFound(t *testing.T) {
 	db := setupRBACTestDB(t)
 	svc := rbac.NewService(persistent.NewRBACRepo(db))
 
-	_, err := svc.GetWorkspace(99999)
+	_, err := svc.GetWorkspace("01935d5a-0000-7000-8000-00000001869f")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, rbac.ErrWorkspaceNotFound)
 }

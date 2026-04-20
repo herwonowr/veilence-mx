@@ -45,7 +45,7 @@ func setupOrgTestDB(t *testing.T) *gorm.DB {
 
 // withWorkspaceID returns an HTTP request with the given workspaceID injected into its context
 // via the rbac context helper, matching how the RequireOrg middleware works.
-func withWorkspaceID(r *http.Request, workspaceID uint) *http.Request {
+func withWorkspaceID(r *http.Request, workspaceID string) *http.Request {
 	ctx := rbac.WithWorkspaceID(r.Context(), workspaceID)
 	return r.WithContext(ctx)
 }
@@ -57,15 +57,15 @@ func TestGetSettings_WorkspaceScoped(t *testing.T) {
 	h := newSettingsHandlers(db)
 
 	// Create settings for org 1
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: "monitoring_interval", Value: "5m"})
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: "discovery_interval", Value: "10m"})
+	db.Create(&persistent.Setting{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Key: "monitoring_interval", Value: "5m"})
+	db.Create(&persistent.Setting{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Key: "discovery_interval", Value: "10m"})
 
 	// Create settings for org 2
-	db.Create(&persistent.Setting{WorkspaceID: 2, Key: "monitoring_interval", Value: "30m"})
+	db.Create(&persistent.Setting{WorkspaceID: "01935d5a-0000-7000-8000-000000000002", Key: "monitoring_interval", Value: "30m"})
 
 	// Org 1 should see its own settings
 	req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
-	req = withWorkspaceID(req, 1)
+	req = withWorkspaceID(req, "01935d5a-0000-7000-8000-000000000001")
 	w := httptest.NewRecorder()
 	h.GetSettings(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -78,7 +78,7 @@ func TestGetSettings_WorkspaceScoped(t *testing.T) {
 
 	// Org 2 should see only its own setting
 	req = httptest.NewRequest(http.MethodGet, "/api/settings", nil)
-	req = withWorkspaceID(req, 2)
+	req = withWorkspaceID(req, "01935d5a-0000-7000-8000-000000000002")
 	w = httptest.NewRecorder()
 	h.GetSettings(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -94,11 +94,11 @@ func TestGetSettings_CrossOrg_ReturnsEmpty(t *testing.T) {
 	h := newSettingsHandlers(db)
 
 	// Create settings for org 1 only
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: "python_poll_interval", Value: "5m"})
+	db.Create(&persistent.Setting{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Key: "python_poll_interval", Value: "5m"})
 
 	// Org 99 should see nothing (cross-org)
 	req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
-	req = withWorkspaceID(req, 99)
+	req = withWorkspaceID(req, "01935d5a-0000-7000-8000-000000000063")
 	w := httptest.NewRecorder()
 	h.GetSettings(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -116,7 +116,7 @@ func TestUpdateSettings_WorkspaceScoped(t *testing.T) {
 	// Update settings for org 1
 	body := `{"monitoring_interval":"15m"}`
 	req := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(body))
-	req = withWorkspaceID(req, 1)
+	req = withWorkspaceID(req, "01935d5a-0000-7000-8000-000000000001")
 	w := httptest.NewRecorder()
 	h.UpdateSettings(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -140,7 +140,7 @@ func TestGetRelease_CrossOrg_Returns404(t *testing.T) {
 	h := newPackageHandlers(db)
 
 	// Create a package for org 1
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 1}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: "01935d5a-0000-7000-8000-000000000001"}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -148,11 +148,11 @@ func TestGetRelease_CrossOrg_Returns404(t *testing.T) {
 	// Try to access the release as org 2 - should get 404
 	r := chi.NewRouter()
 	r.Get("/api/releases/{id}", func(w http.ResponseWriter, req *http.Request) {
-		req = withWorkspaceID(req, 2)
+		req = withWorkspaceID(req, "01935d5a-0000-7000-8000-000000000002")
 		h.GetRelease(w, req)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/releases/"+fmt.Sprintf("%d", rel.ID), nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/releases/"+rel.ID, nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusNotFound, w.Code)
@@ -163,7 +163,7 @@ func TestGetRelease_SameOrg_ReturnsData(t *testing.T) {
 	h := newPackageHandlers(db)
 
 	// Create a package for org 1
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 1}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: "01935d5a-0000-7000-8000-000000000001"}
 	db.Create(&pkg)
 	rel := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel)
@@ -171,11 +171,11 @@ func TestGetRelease_SameOrg_ReturnsData(t *testing.T) {
 	// Access as org 1 - should succeed
 	r := chi.NewRouter()
 	r.Get("/api/releases/{id}", func(w http.ResponseWriter, req *http.Request) {
-		req = withWorkspaceID(req, 1)
+		req = withWorkspaceID(req, "01935d5a-0000-7000-8000-000000000001")
 		h.GetRelease(w, req)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/releases/"+fmt.Sprintf("%d", rel.ID), nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/releases/"+rel.ID, nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -191,18 +191,18 @@ func TestListPackageReleases_CrossOrg_Returns404(t *testing.T) {
 	h := newPackageHandlers(db)
 
 	// Create a package for org 1
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 1}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: "01935d5a-0000-7000-8000-000000000001"}
 	db.Create(&pkg)
 	db.Create(&persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"})
 
 	// Try to list releases as org 2 - should get 404 (package not found for org 2)
 	r := chi.NewRouter()
 	r.Get("/api/packages/{id}/releases", func(w http.ResponseWriter, req *http.Request) {
-		req = withWorkspaceID(req, 2)
+		req = withWorkspaceID(req, "01935d5a-0000-7000-8000-000000000002")
 		h.ListPackageReleases(w, req)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/packages/"+fmt.Sprintf("%d", pkg.ID)+"/releases", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/packages/"+pkg.ID+"/releases", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusNotFound, w.Code)
@@ -215,9 +215,9 @@ func TestListAlerts_WorkspaceScoped(t *testing.T) {
 	h := newAlertHandlers(db)
 
 	// Create packages for different orgs
-	pkg1 := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 1}
+	pkg1 := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: "01935d5a-0000-7000-8000-000000000001"}
 	db.Create(&pkg1)
-	pkg2 := persistent.Package{Name: "express", Ecosystem: "npm", WorkspaceID: 2}
+	pkg2 := persistent.Package{Name: "express", Ecosystem: "npm", WorkspaceID: "01935d5a-0000-7000-8000-000000000002"}
 	db.Create(&pkg2)
 
 	// Create releases and analyses for setting up alerts
@@ -240,12 +240,12 @@ func TestListAlerts_WorkspaceScoped(t *testing.T) {
 	db.Create(&analysis2)
 
 	// Create alerts for different orgs
-	db.Create(&persistent.Alert{WorkspaceID: 1, AnalysisID: analysis1.ID, PackageID: pkg1.ID, Severity: "critical", Status: "new", Message: "Alert for org 1"})
-	db.Create(&persistent.Alert{WorkspaceID: 2, AnalysisID: analysis2.ID, PackageID: pkg2.ID, Severity: "medium", Status: "new", Message: "Alert for org 2"})
+	db.Create(&persistent.Alert{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", AnalysisID: analysis1.ID, PackageID: pkg1.ID, Severity: "critical", Status: "new", Message: "Alert for org 1"})
+	db.Create(&persistent.Alert{WorkspaceID: "01935d5a-0000-7000-8000-000000000002", AnalysisID: analysis2.ID, PackageID: pkg2.ID, Severity: "medium", Status: "new", Message: "Alert for org 2"})
 
 	// Org 1 should see only its own alert
 	req := httptest.NewRequest(http.MethodGet, "/api/alerts", nil)
-	req = withWorkspaceID(req, 1)
+	req = withWorkspaceID(req, "01935d5a-0000-7000-8000-000000000001")
 	w := httptest.NewRecorder()
 	h.ListAlerts(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -259,7 +259,7 @@ func TestListAlerts_WorkspaceScoped(t *testing.T) {
 
 	// Org 2 should see only its own alert
 	req = httptest.NewRequest(http.MethodGet, "/api/alerts", nil)
-	req = withWorkspaceID(req, 2)
+	req = withWorkspaceID(req, "01935d5a-0000-7000-8000-000000000002")
 	w = httptest.NewRecorder()
 	h.ListAlerts(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -275,7 +275,7 @@ func TestListAlerts_CrossOrg_ReturnsEmpty(t *testing.T) {
 	db := setupOrgTestDB(t)
 	h := newAlertHandlers(db)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 1}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: "01935d5a-0000-7000-8000-000000000001"}
 	db.Create(&pkg)
 	rel1 := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel1)
@@ -286,11 +286,11 @@ func TestListAlerts_CrossOrg_ReturnsEmpty(t *testing.T) {
 	analysis := persistent.Analysis{DiffID: diff.ID, Classification: "malicious", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
 	db.Create(&analysis)
 
-	db.Create(&persistent.Alert{WorkspaceID: 1, AnalysisID: analysis.ID, PackageID: pkg.ID, Severity: "critical", Status: "new", Message: "Org 1 only"})
+	db.Create(&persistent.Alert{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", AnalysisID: analysis.ID, PackageID: pkg.ID, Severity: "critical", Status: "new", Message: "Org 1 only"})
 
 	// Org 99 should see nothing
 	req := httptest.NewRequest(http.MethodGet, "/api/alerts", nil)
-	req = withWorkspaceID(req, 99)
+	req = withWorkspaceID(req, "01935d5a-0000-7000-8000-000000000063")
 	w := httptest.NewRecorder()
 	h.ListAlerts(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -305,7 +305,7 @@ func TestUpdateAlert_CrossOrg_Returns404(t *testing.T) {
 	db := setupOrgTestDB(t)
 	h := newAlertHandlers(db)
 
-	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: 1}
+	pkg := persistent.Package{Name: "requests", Ecosystem: "python", WorkspaceID: "01935d5a-0000-7000-8000-000000000001"}
 	db.Create(&pkg)
 	rel1 := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel1)
@@ -316,17 +316,17 @@ func TestUpdateAlert_CrossOrg_Returns404(t *testing.T) {
 	analysis := persistent.Analysis{DiffID: diff.ID, Classification: "malicious", Confidence: 0.95, ModelUsed: "test", AnalyzerType: "copilot"}
 	db.Create(&analysis)
 
-	alert := persistent.Alert{WorkspaceID: 1, AnalysisID: analysis.ID, PackageID: pkg.ID, Severity: "critical", Status: "new", Message: "Org 1 alert"}
+	alert := persistent.Alert{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", AnalysisID: analysis.ID, PackageID: pkg.ID, Severity: "critical", Status: "new", Message: "Org 1 alert"}
 	db.Create(&alert)
 
 	// Org 2 tries to update org 1's alert - should get 404
 	r := chi.NewRouter()
 	r.Patch("/api/alerts/{id}", func(w http.ResponseWriter, req *http.Request) {
-		req = withWorkspaceID(req, 2)
+		req = withWorkspaceID(req, "01935d5a-0000-7000-8000-000000000002")
 		h.UpdateAlert(w, req)
 	})
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/alerts/"+fmt.Sprintf("%d", alert.ID), strings.NewReader(`{"status":"acknowledged"}`))
+	req := httptest.NewRequest(http.MethodPatch, "/api/alerts/"+alert.ID, strings.NewReader(`{"status":"acknowledged"}`))
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusNotFound, w.Code)
@@ -343,7 +343,7 @@ func TestAlertWorkspaceID_SetFromPackage(t *testing.T) {
 	db := setupOrgTestDB(t)
 
 	// Simulate what the pipeline does: create a package with WorkspaceID, then an alert referencing it
-	pkg := persistent.Package{Name: "evil-pkg", Ecosystem: "python", WorkspaceID: 42}
+	pkg := persistent.Package{Name: "evil-pkg", Ecosystem: "python", WorkspaceID: "01935d5a-0000-7000-8000-00000000002a"}
 	db.Create(&pkg)
 	rel1 := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
 	db.Create(&rel1)
@@ -378,7 +378,7 @@ func TestPipelineProcessDiff_SetsAlertWorkspaceID(t *testing.T) {
 	db := setupOrgTestDB(t)
 
 	// Set up the full chain: pkg (workspaceID=7) -> release -> diff -> analysis -> alert
-	pkg := persistent.Package{Name: "backdoor-lib", Ecosystem: "npm", WorkspaceID: 7}
+	pkg := persistent.Package{Name: "backdoor-lib", Ecosystem: "npm", WorkspaceID: "01935d5a-0000-7000-8000-000000000007"}
 	db.Create(&pkg)
 
 	rel1 := persistent.Release{PackageID: pkg.ID, Version: "1.0.0", Status: "completed"}
@@ -425,19 +425,19 @@ func TestFullOrgIsolation(t *testing.T) {
 	ah := newAlertHandlers(db)
 
 	// Set up org 1 data
-	pkg1 := persistent.Package{Name: "safe-lib", Ecosystem: "python", WorkspaceID: 1}
+	pkg1 := persistent.Package{Name: "safe-lib", Ecosystem: "python", WorkspaceID: "01935d5a-0000-7000-8000-000000000001"}
 	db.Create(&pkg1)
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: "python_poll_interval", Value: "5m"})
+	db.Create(&persistent.Setting{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Key: "python_poll_interval", Value: "5m"})
 
 	// Set up org 2 data
-	pkg2 := persistent.Package{Name: "another-lib", Ecosystem: "npm", WorkspaceID: 2}
+	pkg2 := persistent.Package{Name: "another-lib", Ecosystem: "npm", WorkspaceID: "01935d5a-0000-7000-8000-000000000002"}
 	db.Create(&pkg2)
-	db.Create(&persistent.Setting{WorkspaceID: 2, Key: "python_poll_interval", Value: "20m"})
+	db.Create(&persistent.Setting{WorkspaceID: "01935d5a-0000-7000-8000-000000000002", Key: "python_poll_interval", Value: "20m"})
 
 	// Verify settings isolation
 	t.Run("settings isolation", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
-		req = withWorkspaceID(req, 1)
+		req = withWorkspaceID(req, "01935d5a-0000-7000-8000-000000000001")
 		w := httptest.NewRecorder()
 		sh.GetSettings(w, req)
 
@@ -453,11 +453,11 @@ func TestFullOrgIsolation(t *testing.T) {
 
 		r := chi.NewRouter()
 		r.Get("/api/packages/{id}/releases", func(w http.ResponseWriter, req *http.Request) {
-			req = withWorkspaceID(req, 2) // org 2 trying to access org 1's package
+			req = withWorkspaceID(req, "01935d5a-0000-7000-8000-000000000002") // org 2 trying to access org 1's package
 			ph.ListPackageReleases(w, req)
 		})
 
-		req := httptest.NewRequest(http.MethodGet, "/api/packages/"+fmt.Sprintf("%d", pkg1.ID)+"/releases", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/packages/"+pkg1.ID+"/releases", nil)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusNotFound, w.Code)
@@ -473,11 +473,11 @@ func TestFullOrgIsolation(t *testing.T) {
 		db.Create(&diff)
 		analysis := persistent.Analysis{DiffID: diff.ID, Classification: "suspicious", Confidence: 0.7, ModelUsed: "test", AnalyzerType: "copilot"}
 		db.Create(&analysis)
-		db.Create(&persistent.Alert{WorkspaceID: 1, AnalysisID: analysis.ID, PackageID: pkg1.ID, Severity: "medium", Status: "new", Message: "test"})
+		db.Create(&persistent.Alert{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", AnalysisID: analysis.ID, PackageID: pkg1.ID, Severity: "medium", Status: "new", Message: "test"})
 
 		// Org 2 should see no alerts
 		req := httptest.NewRequest(http.MethodGet, "/api/alerts", nil)
-		req = withWorkspaceID(req, 2)
+		req = withWorkspaceID(req, "01935d5a-0000-7000-8000-000000000002")
 		w := httptest.NewRecorder()
 		ah.ListAlerts(w, req)
 
@@ -496,13 +496,13 @@ func TestFullOrgIsolation(t *testing.T) {
 func TestAppErrorTypes_Exist(t *testing.T) {
 	// Verify the apperror package provides the expected error types
 	// by ensuring the models compile with proper WorkspaceID fields
-	pkg := persistent.Package{WorkspaceID: 1}
+	pkg := persistent.Package{WorkspaceID: "01935d5a-0000-7000-8000-000000000001"}
 	assert.Equal(t, uint(1), pkg.WorkspaceID)
 
-	alert := persistent.Alert{WorkspaceID: 1}
+	alert := persistent.Alert{WorkspaceID: "01935d5a-0000-7000-8000-000000000001"}
 	assert.Equal(t, uint(1), alert.WorkspaceID)
 
-	setting := persistent.Setting{WorkspaceID: 1}
+	setting := persistent.Setting{WorkspaceID: "01935d5a-0000-7000-8000-000000000001"}
 	assert.Equal(t, uint(1), setting.WorkspaceID)
 }
 
@@ -512,11 +512,11 @@ func TestWorkspaceIDFromContext_DefaultsToZero(t *testing.T) {
 	// When no org ID is set, it should return 0
 	ctx := context.Background()
 	workspaceID := rbac.WorkspaceIDFromContext(ctx)
-	assert.Equal(t, uint(0), workspaceID)
+	assert.Equal(t, "", workspaceID)
 }
 
 func TestWorkspaceIDFromContext_ReturnsSetValue(t *testing.T) {
-	ctx := rbac.WithWorkspaceID(context.Background(), 42)
+	ctx := rbac.WithWorkspaceID(context.Background(), "01935d5a-0000-7000-8000-00000000002a")
 	workspaceID := rbac.WorkspaceIDFromContext(ctx)
-	assert.Equal(t, uint(42), workspaceID)
+	assert.Equal(t, "01935d5a-0000-7000-8000-00000000002a", workspaceID)
 }

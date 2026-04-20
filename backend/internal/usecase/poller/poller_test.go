@@ -390,7 +390,7 @@ func TestDiscoverPackages_NewPackages(t *testing.T) {
 
 	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	p.discoverPackages(context.Background(), mock, 3, 1, false)
+	p.discoverPackages(context.Background(), mock, 3, "01935d5a-0000-7000-8000-000000000001", false)
 
 	var packages []persistent.Package
 	db.Find(&packages)
@@ -414,8 +414,8 @@ func TestDiscoverPackages_NewPackages(t *testing.T) {
 func TestDiscoverPackages_UpdateExistingRank(t *testing.T) {
 	db := setupTestDB(t)
 
-	rank := uint(10)
-	db.Create(&persistent.Package{WorkspaceID: 1, Name: "requests", Ecosystem: "python", Rank: &rank, Source: persistent.PackageSourceDiscovered, Status: persistent.PackageStatusActive})
+	rank := int(10)
+	db.Create(&persistent.Package{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Name: "requests", Ecosystem: "python", Rank: &rank, Source: persistent.PackageSourceDiscovered, Status: persistent.PackageStatusActive})
 
 	mock := &mockRegistry{
 		name: "python",
@@ -426,7 +426,7 @@ func TestDiscoverPackages_UpdateExistingRank(t *testing.T) {
 
 	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	p.discoverPackages(context.Background(), mock, 1, 1, false)
+	p.discoverPackages(context.Background(), mock, 1, "01935d5a-0000-7000-8000-000000000001", false)
 
 	var pkg persistent.Package
 	db.Where("name = ?", "requests").First(&pkg)
@@ -444,9 +444,9 @@ func TestDiscoverPackages_SkipsBlockedPackages(t *testing.T) {
 	db := setupTestDB(t)
 
 	now := time.Now()
-	rank := uint(10)
+	rank := int(10)
 	db.Create(&persistent.Package{
-		WorkspaceID:   1,
+		WorkspaceID:   "01935d5a-0000-7000-8000-000000000001",
 		Name:          "malicious-pkg",
 		Ecosystem:     "python",
 		Rank:          &rank,
@@ -465,7 +465,7 @@ func TestDiscoverPackages_SkipsBlockedPackages(t *testing.T) {
 
 	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	p.discoverPackages(context.Background(), mock, 1, 1, false)
+	p.discoverPackages(context.Background(), mock, 1, "01935d5a-0000-7000-8000-000000000001", false)
 
 	var pkg persistent.Package
 	db.Where("name = ?", "malicious-pkg").First(&pkg)
@@ -478,9 +478,9 @@ func TestDiscoverPackages_SkipsBlockedPackages(t *testing.T) {
 func TestDiscoverPackages_ReAddsRemovedPackages(t *testing.T) {
 	db := setupTestDB(t)
 
-	rank := uint(5)
+	rank := int(5)
 	db.Create(&persistent.Package{
-		WorkspaceID: 1,
+		WorkspaceID: "01935d5a-0000-7000-8000-000000000001",
 		Name:        "requests",
 		Ecosystem:   "python",
 		Rank:        &rank,
@@ -497,7 +497,7 @@ func TestDiscoverPackages_ReAddsRemovedPackages(t *testing.T) {
 
 	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	p.discoverPackages(context.Background(), mock, 1, 1, false)
+	p.discoverPackages(context.Background(), mock, 1, "01935d5a-0000-7000-8000-000000000001", false)
 
 	var pkg persistent.Package
 	db.Where("name = ?", "requests").First(&pkg)
@@ -519,7 +519,7 @@ func TestDiscoverPackages_RegistryError(t *testing.T) {
 	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
 	// Should not panic - just logs the error
-	p.discoverPackages(context.Background(), mock, 10, 1, false)
+	p.discoverPackages(context.Background(), mock, 10, "01935d5a-0000-7000-8000-000000000001", false)
 
 	var count int64
 	db.Model(&persistent.Package{}).Count(&count)
@@ -530,8 +530,8 @@ func TestDiscoverPackages_AdditiveOnly(t *testing.T) {
 	db := setupTestDB(t)
 
 	// Pre-existing packages that are NOT in the new top list
-	rank := uint(1)
-	db.Create(&persistent.Package{WorkspaceID: 1, Name: "old-pkg", Ecosystem: "python", Rank: &rank, Source: persistent.PackageSourceDiscovered, Status: persistent.PackageStatusActive})
+	rank := int(1)
+	db.Create(&persistent.Package{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Name: "old-pkg", Ecosystem: "python", Rank: &rank, Source: persistent.PackageSourceDiscovered, Status: persistent.PackageStatusActive})
 
 	mock := &mockRegistry{
 		name: "python",
@@ -542,7 +542,7 @@ func TestDiscoverPackages_AdditiveOnly(t *testing.T) {
 
 	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	p.discoverPackages(context.Background(), mock, 1, 1, false)
+	p.discoverPackages(context.Background(), mock, 1, "01935d5a-0000-7000-8000-000000000001", false)
 
 	var count int64
 	db.Model(&persistent.Package{}).Count(&count)
@@ -574,7 +574,7 @@ func TestSyncTopPackages_BackwardCompat(t *testing.T) {
 
 	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	err := p.SyncTopPackages(context.Background(), mock, 2, 1)
+	err := p.SyncTopPackages(context.Background(), mock, 2, "01935d5a-0000-7000-8000-000000000001")
 	require.NoError(t, err)
 
 	var count int64
@@ -599,20 +599,20 @@ func TestGetWorkspaceMonitoringInterval_DefaultFallback(t *testing.T) {
 		Concurrency:        1,
 	}, nil, nil)
 
-	interval := p.getWorkspaceMonitoringInterval(1)
+	interval := p.getWorkspaceMonitoringInterval("01935d5a-0000-7000-8000-000000000001")
 	assert.Equal(t, 15*time.Minute, interval)
 }
 
 func TestGetWorkspaceMonitoringInterval_WorkspaceOverride(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: entity.SettingMonitoringInterval, Value: "30m"})
+	db.Create(&persistent.Setting{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Key: entity.SettingMonitoringInterval, Value: "30m"})
 
 	p := New(persistent.NewPollerRepo(db), nil, nil, Config{
 		MonitoringInterval: 15 * time.Minute,
 		Concurrency:        1,
 	}, nil, nil)
 
-	interval := p.getWorkspaceMonitoringInterval(1)
+	interval := p.getWorkspaceMonitoringInterval("01935d5a-0000-7000-8000-000000000001")
 	assert.Equal(t, 30*time.Minute, interval)
 }
 
@@ -624,20 +624,20 @@ func TestGetWorkspaceDiscoveryInterval_DefaultFallback(t *testing.T) {
 		Concurrency:       1,
 	}, nil, nil)
 
-	interval := p.getWorkspaceDiscoveryInterval(1)
+	interval := p.getWorkspaceDiscoveryInterval("01935d5a-0000-7000-8000-000000000001")
 	assert.Equal(t, 24*time.Hour, interval)
 }
 
 func TestGetWorkspaceDiscoveryInterval_WorkspaceOverride(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: entity.SettingDiscoveryInterval, Value: "12h"})
+	db.Create(&persistent.Setting{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Key: entity.SettingDiscoveryInterval, Value: "12h"})
 
 	p := New(persistent.NewPollerRepo(db), nil, nil, Config{
 		DiscoveryInterval: 24 * time.Hour,
 		Concurrency:       1,
 	}, nil, nil)
 
-	interval := p.getWorkspaceDiscoveryInterval(1)
+	interval := p.getWorkspaceDiscoveryInterval("01935d5a-0000-7000-8000-000000000001")
 	assert.Equal(t, 12*time.Hour, interval)
 }
 
@@ -646,27 +646,27 @@ func TestGetDiscoveryScanDepth_Default(t *testing.T) {
 
 	p := New(persistent.NewPollerRepo(db), nil, nil, Config{Concurrency: 1}, nil, nil)
 
-	depth := p.getDiscoveryScanDepth(1)
+	depth := p.getDiscoveryScanDepth("01935d5a-0000-7000-8000-000000000001")
 	assert.Equal(t, 50, depth)
 }
 
 func TestGetDiscoveryScanDepth_WorkspaceOverride(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: entity.SettingDiscoveryScanDepth, Value: "200"})
+	db.Create(&persistent.Setting{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Key: entity.SettingDiscoveryScanDepth, Value: "200"})
 
 	p := New(persistent.NewPollerRepo(db), nil, nil, Config{Concurrency: 1}, nil, nil)
 
-	depth := p.getDiscoveryScanDepth(1)
+	depth := p.getDiscoveryScanDepth("01935d5a-0000-7000-8000-000000000001")
 	assert.Equal(t, 200, depth)
 }
 
 func TestGetDiscoveryScanDepth_InvalidValue(t *testing.T) {
 	db := setupTestDB(t)
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: entity.SettingDiscoveryScanDepth, Value: "invalid"})
+	db.Create(&persistent.Setting{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Key: entity.SettingDiscoveryScanDepth, Value: "invalid"})
 
 	p := New(persistent.NewPollerRepo(db), nil, nil, Config{Concurrency: 1}, nil, nil)
 
-	depth := p.getDiscoveryScanDepth(1)
+	depth := p.getDiscoveryScanDepth("01935d5a-0000-7000-8000-000000000001")
 	assert.Equal(t, 50, depth) // Falls back to default
 }
 
@@ -677,22 +677,22 @@ func TestGetDiscoveryScanDepth_InvalidValue(t *testing.T) {
 func TestIsWorkspaceDue_NeverPolled(t *testing.T) {
 	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
 	// Never polled - should be immediately due
-	assert.True(t, p.isWorkspaceDue(1, "monitor", 5*time.Minute))
+	assert.True(t, p.isWorkspaceDue("01935d5a-0000-7000-8000-000000000001", "monitor", 5*time.Minute))
 }
 
 func TestIsWorkspaceDue_RecentlyPolled(t *testing.T) {
 	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
-	p.markWorkspacePolled(1, "monitor")
+	p.markWorkspacePolled("01935d5a-0000-7000-8000-000000000001", "monitor")
 	// Just polled - should NOT be due yet
-	assert.False(t, p.isWorkspaceDue(1, "monitor", 5*time.Minute))
+	assert.False(t, p.isWorkspaceDue("01935d5a-0000-7000-8000-000000000001", "monitor", 5*time.Minute))
 }
 
 func TestIsWorkspaceDue_SeparatePurposes(t *testing.T) {
 	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
-	p.markWorkspacePolled(1, "monitor")
+	p.markWorkspacePolled("01935d5a-0000-7000-8000-000000000001", "monitor")
 	// Monitor is marked, but discover is never polled - should be due
-	assert.True(t, p.isWorkspaceDue(1, "discover", 5*time.Minute))
-	assert.False(t, p.isWorkspaceDue(1, "monitor", 5*time.Minute))
+	assert.True(t, p.isWorkspaceDue("01935d5a-0000-7000-8000-000000000001", "discover", 5*time.Minute))
+	assert.False(t, p.isWorkspaceDue("01935d5a-0000-7000-8000-000000000001", "monitor", 5*time.Minute))
 }
 
 // ---------------------------------------------------------------------------
@@ -702,25 +702,25 @@ func TestIsWorkspaceDue_SeparatePurposes(t *testing.T) {
 func TestTriggerDiscovery_MakesWorkspaceDue(t *testing.T) {
 	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
 	// Mark workspace as recently discovered
-	p.markWorkspacePolled(1, "discover")
-	assert.False(t, p.isWorkspaceDue(1, "discover", 24*time.Hour))
+	p.markWorkspacePolled("01935d5a-0000-7000-8000-000000000001", "discover")
+	assert.False(t, p.isWorkspaceDue("01935d5a-0000-7000-8000-000000000001", "discover", 24*time.Hour))
 
 	// Trigger discovery resets the timer
-	p.TriggerDiscovery(1)
-	assert.True(t, p.isWorkspaceDue(1, "discover", 24*time.Hour))
+	p.TriggerDiscovery("01935d5a-0000-7000-8000-000000000001")
+	assert.True(t, p.isWorkspaceDue("01935d5a-0000-7000-8000-000000000001", "discover", 24*time.Hour))
 }
 
 func TestTriggerDiscovery_DoesNotAffectMonitor(t *testing.T) {
 	p := New(nil, nil, nil, Config{Concurrency: 1}, nil, nil)
-	p.markWorkspacePolled(1, "monitor")
-	p.markWorkspacePolled(1, "discover")
+	p.markWorkspacePolled("01935d5a-0000-7000-8000-000000000001", "monitor")
+	p.markWorkspacePolled("01935d5a-0000-7000-8000-000000000001", "discover")
 
-	p.TriggerDiscovery(1)
+	p.TriggerDiscovery("01935d5a-0000-7000-8000-000000000001")
 
 	// Monitor should still be "not due"
-	assert.False(t, p.isWorkspaceDue(1, "monitor", 24*time.Hour))
+	assert.False(t, p.isWorkspaceDue("01935d5a-0000-7000-8000-000000000001", "monitor", 24*time.Hour))
 	// Discover should be due after trigger
-	assert.True(t, p.isWorkspaceDue(1, "discover", 24*time.Hour))
+	assert.True(t, p.isWorkspaceDue("01935d5a-0000-7000-8000-000000000001", "discover", 24*time.Hour))
 }
 
 // ---------------------------------------------------------------------------
@@ -765,17 +765,17 @@ func TestMonitorWorkspacePackages_ChecksActivePackages(t *testing.T) {
 	p := New(persistent.NewPollerRepo(db), pyMock, npmMock, Config{Concurrency: 5}, nil, nil)
 
 	// Active packages - both ecosystems in same workspace
-	db.Create(&persistent.Package{WorkspaceID: 1, Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
-	db.Create(&persistent.Package{WorkspaceID: 1, Name: "express", Ecosystem: "npm", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Name: "express", Ecosystem: "npm", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
 
 	// Blocked package - should NOT be loaded
 	blockedAt := time.Now()
-	db.Create(&persistent.Package{WorkspaceID: 1, Name: "blocked-pkg", Ecosystem: "python", Status: persistent.PackageStatusBlocked, Source: persistent.PackageSourceDiscovered, BlockedAt: &blockedAt})
+	db.Create(&persistent.Package{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Name: "blocked-pkg", Ecosystem: "python", Status: persistent.PackageStatusBlocked, Source: persistent.PackageSourceDiscovered, BlockedAt: &blockedAt})
 
 	// Removed package - should NOT be loaded
-	db.Create(&persistent.Package{WorkspaceID: 1, Name: "removed-pkg", Ecosystem: "python", Status: persistent.PackageStatusRemoved, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Name: "removed-pkg", Ecosystem: "python", Status: persistent.PackageStatusRemoved, Source: persistent.PackageSourceDiscovered})
 
-	checked := p.monitorWorkspacePackages(context.Background(), 1)
+	checked := p.monitorWorkspacePackages(context.Background(), "01935d5a-0000-7000-8000-000000000001")
 	// Only active packages are checked
 	assert.Equal(t, 2, checked)
 }
@@ -802,7 +802,7 @@ func TestRunMonitorCycle_SkipsNonDueWorkspaces(t *testing.T) {
 	}, nil, nil)
 
 	// Create an active package so the workspace shows up
-	db.Create(&persistent.Package{WorkspaceID: 1, Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Name: "requests", Ecosystem: "python", Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
 
 	// First cycle - workspace is due (never polled)
 	p.runMonitorCycle(context.Background())
@@ -848,7 +848,7 @@ func TestRunDiscoveryCycle_DiscoversForDueWorkspaces(t *testing.T) {
 	}, nil, nil)
 
 	// Create a setting so workspace 1 shows up
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: entity.SettingDiscoveryScanDepth, Value: "2"})
+	db.Create(&persistent.Setting{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Key: entity.SettingDiscoveryScanDepth, Value: "2"})
 
 	p.runDiscoveryCycle(context.Background())
 
@@ -879,7 +879,7 @@ func TestRunDiscoveryCycle_ZeroScanDepth_Skips(t *testing.T) {
 	}, nil, nil)
 
 	// Set scan depth to 0 - should skip discovery
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: entity.SettingDiscoveryScanDepth, Value: "0"})
+	db.Create(&persistent.Setting{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Key: entity.SettingDiscoveryScanDepth, Value: "0"})
 
 	p.runDiscoveryCycle(context.Background())
 
@@ -941,9 +941,9 @@ func TestDiscoverPackages_SuggestedPackagesGetUpdated(t *testing.T) {
 	db := setupTestDB(t)
 
 	// Pre-existing suggested package with outdated metrics
-	rank := uint(10)
+	rank := int(10)
 	db.Create(&persistent.Package{
-		WorkspaceID:   1,
+		WorkspaceID:   "01935d5a-0000-7000-8000-000000000001",
 		Name:          "requests",
 		Ecosystem:     "python",
 		Rank:          &rank,
@@ -961,7 +961,7 @@ func TestDiscoverPackages_SuggestedPackagesGetUpdated(t *testing.T) {
 
 	p := New(persistent.NewPollerRepo(db), mock, nil, Config{Concurrency: 1}, nil, nil)
 
-	p.discoverPackages(context.Background(), mock, 1, 1, false)
+	p.discoverPackages(context.Background(), mock, 1, "01935d5a-0000-7000-8000-000000000001", false)
 
 	var pkg persistent.Package
 	db.Where("name = ?", "requests").First(&pkg)
@@ -988,9 +988,9 @@ func TestDiscoverPackages_SuggestedNotMonitored(t *testing.T) {
 	p := New(persistent.NewPollerRepo(db), pyMock, nil, Config{Concurrency: 5}, nil, nil)
 
 	// Suggested package - should NOT be loaded for monitoring
-	db.Create(&persistent.Package{WorkspaceID: 1, Name: "suggested-pkg", Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Name: "suggested-pkg", Ecosystem: "python", Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
 
-	checked := p.monitorWorkspacePackages(context.Background(), 1)
+	checked := p.monitorWorkspacePackages(context.Background(), "01935d5a-0000-7000-8000-000000000001")
 	// Suggested packages are not monitored - only active ones
 	assert.Equal(t, 0, checked)
 
@@ -1004,16 +1004,16 @@ func TestUpsertDiscoveredPackages_MixedStatuses(t *testing.T) {
 	db := setupTestDB(t)
 
 	now := time.Now()
-	rank1, rank5, rank10 := uint(1), uint(5), uint(10)
+	rank1, rank5, rank10 := int(1), int(5), int(10)
 
 	// Active package
-	db.Create(&persistent.Package{WorkspaceID: 1, Name: "active-pkg", Ecosystem: "python", Rank: &rank1, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Name: "active-pkg", Ecosystem: "python", Rank: &rank1, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered})
 	// Suggested package
-	db.Create(&persistent.Package{WorkspaceID: 1, Name: "suggested-pkg", Ecosystem: "python", Rank: &rank5, Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Name: "suggested-pkg", Ecosystem: "python", Rank: &rank5, Status: persistent.PackageStatusSuggested, Source: persistent.PackageSourceDiscovered})
 	// Blocked package
-	db.Create(&persistent.Package{WorkspaceID: 1, Name: "blocked-pkg", Ecosystem: "python", Rank: &rank10, Status: persistent.PackageStatusBlocked, Source: persistent.PackageSourceDiscovered, BlockedAt: &now, BlockedReason: "malware"})
+	db.Create(&persistent.Package{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Name: "blocked-pkg", Ecosystem: "python", Rank: &rank10, Status: persistent.PackageStatusBlocked, Source: persistent.PackageSourceDiscovered, BlockedAt: &now, BlockedReason: "malware"})
 	// Removed package
-	db.Create(&persistent.Package{WorkspaceID: 1, Name: "removed-pkg", Ecosystem: "python", Rank: &rank10, Status: persistent.PackageStatusRemoved, Source: persistent.PackageSourceDiscovered})
+	db.Create(&persistent.Package{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Name: "removed-pkg", Ecosystem: "python", Rank: &rank10, Status: persistent.PackageStatusRemoved, Source: persistent.PackageSourceDiscovered})
 
 	rankings := []entity.PackageRanking{
 		{Name: "active-pkg", Rank: 2, DownloadCount: 100},
@@ -1025,7 +1025,7 @@ func TestUpsertDiscoveredPackages_MixedStatuses(t *testing.T) {
 
 	p := New(persistent.NewPollerRepo(db), nil, nil, Config{Concurrency: 1}, nil, nil)
 
-	p.upsertDiscoveredPackages(context.Background(), 1, rankings, entity.EcosystemPython, false)
+	p.upsertDiscoveredPackages(context.Background(), "01935d5a-0000-7000-8000-000000000001", rankings, entity.EcosystemPython, false)
 
 	tests := []struct {
 		name           string
@@ -1054,9 +1054,9 @@ func TestUpsertDiscoveredPackages_MixedStatuses(t *testing.T) {
 func TestUpsertDiscoveredPackages_DownloadCountBatchUpdate(t *testing.T) {
 	db := setupTestDB(t)
 
-	rank1, rank2 := uint(1), uint(2)
-	db.Create(&persistent.Package{WorkspaceID: 1, Name: "pkg-a", Ecosystem: "python", Rank: &rank1, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered, DownloadCount: 10})
-	db.Create(&persistent.Package{WorkspaceID: 1, Name: "pkg-b", Ecosystem: "python", Rank: &rank2, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered, DownloadCount: 20})
+	rank1, rank2 := int(1), int(2)
+	db.Create(&persistent.Package{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Name: "pkg-a", Ecosystem: "python", Rank: &rank1, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered, DownloadCount: 10})
+	db.Create(&persistent.Package{WorkspaceID: "01935d5a-0000-7000-8000-000000000001", Name: "pkg-b", Ecosystem: "python", Rank: &rank2, Status: persistent.PackageStatusActive, Source: persistent.PackageSourceDiscovered, DownloadCount: 20})
 
 	rankings := []entity.PackageRanking{
 		{Name: "pkg-a", Rank: 1, DownloadCount: 500000},
@@ -1064,7 +1064,7 @@ func TestUpsertDiscoveredPackages_DownloadCountBatchUpdate(t *testing.T) {
 	}
 
 	p := New(persistent.NewPollerRepo(db), nil, nil, Config{Concurrency: 1}, nil, nil)
-	p.upsertDiscoveredPackages(context.Background(), 1, rankings, entity.EcosystemPython, false)
+	p.upsertDiscoveredPackages(context.Background(), "01935d5a-0000-7000-8000-000000000001", rankings, entity.EcosystemPython, false)
 
 	var pkgA, pkgB persistent.Package
 	db.Where("name = ?", "pkg-a").First(&pkgA)
@@ -1085,7 +1085,7 @@ func TestDiscoverPackages_DiscoveryImmediateForNewWorkspace(t *testing.T) {
 	}, nil, nil)
 
 	// Workspace 99 has never been polled
-	assert.True(t, p.isWorkspaceDue(99, "discover", 24*time.Hour))
+	assert.True(t, p.isWorkspaceDue("01935d5a-0000-7000-8000-000000000063", "discover", 24*time.Hour))
 }
 
 func TestDiscoverPackages_MultiEcosystem(t *testing.T) {
@@ -1107,8 +1107,8 @@ func TestDiscoverPackages_MultiEcosystem(t *testing.T) {
 	p := New(persistent.NewPollerRepo(db), pyMock, npmMock, Config{Concurrency: 1}, nil, nil)
 
 	// Discover both ecosystems
-	p.discoverPackages(context.Background(), pyMock, 1, 1, false)
-	p.discoverPackages(context.Background(), npmMock, 1, 1, false)
+	p.discoverPackages(context.Background(), pyMock, 1, "01935d5a-0000-7000-8000-000000000001", false)
+	p.discoverPackages(context.Background(), npmMock, 1, "01935d5a-0000-7000-8000-000000000001", false)
 
 	var packages []persistent.Package
 	db.Where("workspace_id = ?", 1).Find(&packages)

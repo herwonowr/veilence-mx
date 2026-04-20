@@ -31,16 +31,16 @@ func newMockRepo() *mockSettingRepo {
 	return &mockSettingRepo{store: make(map[string]entity.Setting)}
 }
 
-func storeKey(workspaceID uint, key string) string {
-	return fmt.Sprintf("%d:%s", workspaceID, key)
+func storeKey(workspaceID string, key string) string {
+	return fmt.Sprintf("%s:%s", workspaceID, key)
 }
 
-func (m *mockSettingRepo) FindByWorkspaceID(_ context.Context, workspaceID uint) ([]entity.Setting, error) {
+func (m *mockSettingRepo) FindByWorkspaceID(_ context.Context, workspaceID string) ([]entity.Setting, error) {
 	if m.findByWorkspaceIDErr != nil {
 		return nil, m.findByWorkspaceIDErr
 	}
 	var result []entity.Setting
-	prefix := fmt.Sprintf("%d:", workspaceID)
+	prefix := workspaceID + ":"
 	for k, v := range m.store {
 		if len(k) >= len(prefix) && k[:len(prefix)] == prefix {
 			result = append(result, v)
@@ -49,7 +49,7 @@ func (m *mockSettingRepo) FindByWorkspaceID(_ context.Context, workspaceID uint)
 	return result, nil
 }
 
-func (m *mockSettingRepo) FindByKey(_ context.Context, workspaceID uint, key string) (*entity.Setting, error) {
+func (m *mockSettingRepo) FindByKey(_ context.Context, workspaceID string, key string) (*entity.Setting, error) {
 	s, ok := m.store[storeKey(workspaceID, key)]
 	if !ok {
 		return nil, entity.ErrNotFound
@@ -62,7 +62,7 @@ func (m *mockSettingRepo) Upsert(_ context.Context, setting *entity.Setting) err
 	return nil
 }
 
-func (m *mockSettingRepo) UpsertByWorkspaceAndKey(_ context.Context, workspaceID uint, key, value string) error {
+func (m *mockSettingRepo) UpsertByWorkspaceAndKey(_ context.Context, workspaceID string, key, value string) error {
 	if m.upsertByOrgKeyErr != nil {
 		return m.upsertByOrgKeyErr
 	}
@@ -75,12 +75,13 @@ func (m *mockSettingRepo) UpsertByWorkspaceAndKey(_ context.Context, workspaceID
 // ---------------------------------------------------------------------------
 
 func TestGetSettings_ReturnsKeyValueMap(t *testing.T) {
+	wsID := "01935d5a-0000-7000-8000-000000000001"
 	repo := newMockRepo()
-	repo.store[storeKey(1, "monitoring_interval")] = entity.Setting{WorkspaceID: 1, Key: "monitoring_interval", Value: "5m"}
-	repo.store[storeKey(1, "discovery_scan_depth")] = entity.Setting{WorkspaceID: 1, Key: "discovery_scan_depth", Value: "100"}
+	repo.store[storeKey(wsID, "monitoring_interval")] = entity.Setting{WorkspaceID: wsID, Key: "monitoring_interval", Value: "5m"}
+	repo.store[storeKey(wsID, "discovery_scan_depth")] = entity.Setting{WorkspaceID: wsID, Key: "discovery_scan_depth", Value: "100"}
 
 	uc := settinguc.New(repo)
-	result, err := uc.GetSettings(context.Background(), 1)
+	result, err := uc.GetSettings(context.Background(), wsID)
 	require.NoError(t, err)
 	assert.Equal(t, "5m", result["monitoring_interval"])
 	assert.Equal(t, "100", result["discovery_scan_depth"])
@@ -92,7 +93,7 @@ func TestGetSettings_RepoError(t *testing.T) {
 	repo.findByWorkspaceIDErr = fmt.Errorf("db connection lost")
 
 	uc := settinguc.New(repo)
-	_, err := uc.GetSettings(context.Background(), 1)
+	_, err := uc.GetSettings(context.Background(), "01935d5a-0000-7000-8000-000000000001")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "db connection lost")
 }
@@ -100,7 +101,7 @@ func TestGetSettings_RepoError(t *testing.T) {
 func TestGetSettings_EmptyOrg(t *testing.T) {
 	repo := newMockRepo()
 	uc := settinguc.New(repo)
-	result, err := uc.GetSettings(context.Background(), 99)
+	result, err := uc.GetSettings(context.Background(), "01935d5a-0000-7000-8000-000000000063")
 	require.NoError(t, err)
 	assert.Empty(t, result)
 }
@@ -113,7 +114,7 @@ func TestUpdateSettings_InvalidKey(t *testing.T) {
 	repo := newMockRepo()
 	uc := settinguc.New(repo)
 
-	_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+	_, err := uc.UpdateSettings(context.Background(), "01935d5a-0000-7000-8000-000000000001", map[string]string{
 		"totally_invalid_key": "value",
 	})
 	require.Error(t, err)
@@ -145,7 +146,7 @@ func TestUpdateSettings_DiscoveryScanDepth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockRepo()
 			uc := settinguc.New(repo)
-			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+			_, err := uc.UpdateSettings(context.Background(), "01935d5a-0000-7000-8000-000000000001", map[string]string{
 				entity.SettingDiscoveryScanDepth: tt.value,
 			})
 			if tt.wantErr {
@@ -188,7 +189,7 @@ func TestUpdateSettings_MonitoringInterval(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockRepo()
 			uc := settinguc.New(repo)
-			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+			_, err := uc.UpdateSettings(context.Background(), "01935d5a-0000-7000-8000-000000000001", map[string]string{
 				entity.SettingMonitoringInterval: tt.value,
 			})
 			if tt.wantErr {
@@ -224,7 +225,7 @@ func TestUpdateSettings_DiscoveryInterval(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockRepo()
 			uc := settinguc.New(repo)
-			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+			_, err := uc.UpdateSettings(context.Background(), "01935d5a-0000-7000-8000-000000000001", map[string]string{
 				entity.SettingDiscoveryInterval: tt.value,
 			})
 			if tt.wantErr {
@@ -259,7 +260,7 @@ func TestUpdateSettings_EmailDigestEnabled(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockRepo()
 			uc := settinguc.New(repo)
-			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+			_, err := uc.UpdateSettings(context.Background(), "01935d5a-0000-7000-8000-000000000001", map[string]string{
 				entity.SettingEmailDigestEnabled: tt.value,
 			})
 			if tt.wantErr {
@@ -294,7 +295,7 @@ func TestUpdateSettings_EmailDigestFrequency(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockRepo()
 			uc := settinguc.New(repo)
-			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+			_, err := uc.UpdateSettings(context.Background(), "01935d5a-0000-7000-8000-000000000001", map[string]string{
 				entity.SettingEmailDigestFrequency: tt.value,
 			})
 			if tt.wantErr {
@@ -332,7 +333,7 @@ func TestUpdateSettings_EmailDigestRecipients(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockRepo()
 			uc := settinguc.New(repo)
-			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+			_, err := uc.UpdateSettings(context.Background(), "01935d5a-0000-7000-8000-000000000001", map[string]string{
 				entity.SettingEmailDigestRecipients: tt.value,
 			})
 			if tt.wantErr {
@@ -353,7 +354,7 @@ func TestUpdateSettings_PersistsValidSettings(t *testing.T) {
 	repo := newMockRepo()
 	uc := settinguc.New(repo)
 
-	result, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+	result, err := uc.UpdateSettings(context.Background(), "01935d5a-0000-7000-8000-000000000001", map[string]string{
 		entity.SettingMonitoringInterval:    "10m",
 		entity.SettingEmailDigestEnabled:    "true",
 		entity.SettingEmailDigestFrequency:  "daily",
@@ -377,7 +378,7 @@ func TestUpdateSettings_RepoUpsertError(t *testing.T) {
 	repo.upsertByOrgKeyErr = fmt.Errorf("database write failed")
 
 	uc := settinguc.New(repo)
-	_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+	_, err := uc.UpdateSettings(context.Background(), "01935d5a-0000-7000-8000-000000000001", map[string]string{
 		entity.SettingMonitoringInterval: "5m",
 	})
 	require.Error(t, err)
@@ -406,7 +407,7 @@ func TestUpdateSettings_DiscoveryAutoApprove(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockRepo()
 			uc := settinguc.New(repo)
-			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+			_, err := uc.UpdateSettings(context.Background(), "01935d5a-0000-7000-8000-000000000001", map[string]string{
 				entity.SettingDiscoveryAutoApprove: tt.value,
 			})
 			if tt.wantErr {
@@ -445,7 +446,7 @@ func TestUpdateSettings_StaleAutoRemoveMonths(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockRepo()
 			uc := settinguc.New(repo)
-			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+			_, err := uc.UpdateSettings(context.Background(), "01935d5a-0000-7000-8000-000000000001", map[string]string{
 				entity.SettingStaleAutoRemoveMonths: tt.value,
 			})
 			if tt.wantErr {
@@ -484,7 +485,7 @@ func TestUpdateSettings_PackageCountWarningThreshold(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockRepo()
 			uc := settinguc.New(repo)
-			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+			_, err := uc.UpdateSettings(context.Background(), "01935d5a-0000-7000-8000-000000000001", map[string]string{
 				entity.SettingPackageCountWarningThreshold: tt.value,
 			})
 			if tt.wantErr {
@@ -523,7 +524,7 @@ func TestUpdateSettings_ValidationErrorsWrapErrValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockRepo()
 			uc := settinguc.New(repo)
-			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+			_, err := uc.UpdateSettings(context.Background(), "01935d5a-0000-7000-8000-000000000001", map[string]string{
 				tt.key: tt.val,
 			})
 			require.Error(t, err)
@@ -542,7 +543,7 @@ func TestUpdateSettings_RepoErrorsNotValidation(t *testing.T) {
 	repo.upsertByOrgKeyErr = fmt.Errorf("database write failed")
 
 	uc := settinguc.New(repo)
-	_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
+	_, err := uc.UpdateSettings(context.Background(), "01935d5a-0000-7000-8000-000000000001", map[string]string{
 		entity.SettingMonitoringInterval: "5m",
 	})
 	require.Error(t, err)

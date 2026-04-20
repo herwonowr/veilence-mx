@@ -20,7 +20,7 @@ func NewPipelineRepo(db *gorm.DB) *PipelineRepo {
 }
 
 // FindDiffWithRelease loads a diff by ID along with its release and package.
-func (r *PipelineRepo) FindDiffWithRelease(ctx context.Context, diffID uint) (*entity.Diff, *entity.Release, *entity.Package, error) {
+func (r *PipelineRepo) FindDiffWithRelease(ctx context.Context, diffID string) (*entity.Diff, *entity.Release, *entity.Package, error) {
 	var model Diff
 	if err := r.db.WithContext(ctx).Preload("Release.Package").First(&model, diffID).Error; err != nil {
 		return nil, nil, nil, fmt.Errorf("PipelineRepo.FindDiffWithRelease: %w", err)
@@ -60,7 +60,7 @@ func (r *PipelineRepo) FindDiffWithRelease(ctx context.Context, diffID uint) (*e
 }
 
 // FindReleaseByID returns a release by its ID.
-func (r *PipelineRepo) FindReleaseByID(ctx context.Context, id uint) (*entity.Release, error) {
+func (r *PipelineRepo) FindReleaseByID(ctx context.Context, id string) (*entity.Release, error) {
 	var model Release
 	if err := r.db.WithContext(ctx).First(&model, id).Error; err != nil {
 		return nil, fmt.Errorf("PipelineRepo.FindReleaseByID: %w", err)
@@ -115,7 +115,7 @@ func (r *PipelineRepo) CreateAlert(ctx context.Context, alert *entity.Alert) err
 }
 
 // UpdateReleaseStatus updates the status of a release.
-func (r *PipelineRepo) UpdateReleaseStatus(ctx context.Context, id uint, status entity.ReleaseStatus) error {
+func (r *PipelineRepo) UpdateReleaseStatus(ctx context.Context, id string, status entity.ReleaseStatus) error {
 	if err := r.db.WithContext(ctx).Model(&Release{}).Where("id = ?", id).Update("status", string(status)).Error; err != nil {
 		return fmt.Errorf("PipelineRepo.UpdateReleaseStatus: %w", err)
 	}

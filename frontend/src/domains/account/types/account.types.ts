@@ -3,9 +3,9 @@ export type APIKeyRole = "owner" | "admin" | "member" | "viewer"
 export const API_KEY_ROLE_HIERARCHY: APIKeyRole[] = ["owner", "admin", "member", "viewer"]
 
 export interface ApiKeyInfo {
-  id: number
-  userId: number
-  workspaceId: number
+  id: string
+  userId: string
+  workspaceId: string
   name: string
   keyPrefix: string
   role: APIKeyRole

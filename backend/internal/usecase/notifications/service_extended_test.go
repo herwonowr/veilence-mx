@@ -26,22 +26,22 @@ func TestMarkAllRead_Success(t *testing.T) {
 	svc := newService(db)
 
 	// Create channel + in-app notifications
-	ch := createTestChannel(t, svc, 1, "email-ch", entity.NotificationChannelEmail, "{}")
+	ch := createTestChannel(t, svc, wsID1,"email-ch", entity.NotificationChannelEmail, "{}")
 
 	// Seed multiple unread notifications
-	seedNotification(t, db, 1, 10, ch.ID, "Alert 1", "body 1", false)
-	seedNotification(t, db, 1, 10, ch.ID, "Alert 2", "body 2", false)
-	seedNotification(t, db, 1, 10, ch.ID, "Alert 3", "body 3", false)
+	seedNotification(t, db, wsID1, uID10,ch.ID, "Alert 1", "body 1", false)
+	seedNotification(t, db, wsID1, uID10,ch.ID, "Alert 2", "body 2", false)
+	seedNotification(t, db, wsID1, uID10,ch.ID, "Alert 3", "body 3", false)
 
 	// Also seed a read notification (should not be affected)
-	seedNotification(t, db, 1, 10, ch.ID, "Already Read", "body read", true)
+	seedNotification(t, db, wsID1, uID10,ch.ID, "Already Read", "body read", true)
 
-	affected, err := svc.MarkAllRead(1, 10)
+	affected, err := svc.MarkAllRead(wsID1, uID10)
 	require.NoError(t, err)
 	assert.Equal(t, int64(3), affected, "should mark 3 unread as read")
 
 	// Verify unread count is now 0
-	count, err := svc.GetUnreadCount(1, 10)
+	count, err := svc.GetUnreadCount(wsID1, uID10)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), count)
 }
@@ -50,10 +50,10 @@ func TestMarkAllRead_NoUnread(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newService(db)
 
-	ch := createTestChannel(t, svc, 1, "email-ch-2", entity.NotificationChannelEmail, "{}")
-	seedNotification(t, db, 1, 10, ch.ID, "Already Read", "body", true)
+	ch := createTestChannel(t, svc, wsID1,"email-ch-2", entity.NotificationChannelEmail, "{}")
+	seedNotification(t, db, wsID1, uID10,ch.ID, "Already Read", "body", true)
 
-	affected, err := svc.MarkAllRead(1, 10)
+	affected, err := svc.MarkAllRead(wsID1, uID10)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), affected, "no unread to mark")
 }
@@ -62,20 +62,20 @@ func TestMarkAllRead_WorkspaceScoped(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newService(db)
 
-	ch1 := createTestChannel(t, svc, 1, "org1-ch", entity.NotificationChannelEmail, "{}")
-	ch2 := createTestChannel(t, svc, 2, "org2-ch", entity.NotificationChannelEmail, "{}")
+	ch1 := createTestChannel(t, svc, wsID1,"org1-ch", entity.NotificationChannelEmail, "{}")
+	ch2 := createTestChannel(t, svc, wsID2,"org2-ch", entity.NotificationChannelEmail, "{}")
 
 	// Seed notifications for user 10 in org 1 and org 2
-	seedNotification(t, db, 1, 10, ch1.ID, "Org1 Alert", "body", false)
-	seedNotification(t, db, 2, 10, ch2.ID, "Org2 Alert", "body", false)
+	seedNotification(t, db, wsID1, uID10,ch1.ID, "Org1 Alert", "body", false)
+	seedNotification(t, db, wsID2, uID10,ch2.ID, "Org2 Alert", "body", false)
 
 	// Mark all read only for org 1
-	affected, err := svc.MarkAllRead(1, 10)
+	affected, err := svc.MarkAllRead(wsID1, uID10)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), affected, "should only mark org 1 notifications")
 
 	// Org 2 should still have unread
-	count, err := svc.GetUnreadCount(2, 10)
+	count, err := svc.GetUnreadCount(wsID2, uID10)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), count, "org 2 notifications should remain unread")
 }
@@ -119,7 +119,7 @@ func TestListChannels_EmptyOrg(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newService(db)
 
-	channels, err := svc.ListChannels(99999)
+	channels, err := svc.ListChannels(nfID99999)
 	require.NoError(t, err)
 	assert.Empty(t, channels)
 }
@@ -132,7 +132,7 @@ func TestListRules_EmptyOrg(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newService(db)
 
-	rules, err := svc.ListRules(99999)
+	rules, err := svc.ListRules(nfID99999)
 	require.NoError(t, err)
 	assert.Empty(t, rules)
 }
@@ -147,11 +147,11 @@ func TestDispatch_EmailChannel_SMTPNotConfigured(t *testing.T) {
 	svc := newService(db)
 
 	config := `{"recipients":"test@example.com"}`
-	ch := createTestChannel(t, svc, 1, "Email Ch", entity.NotificationChannelEmail, config)
-	createTestRule(t, svc, 1, ch.ID, "low")
+	ch := createTestChannel(t, svc, wsID1,"Email Ch", entity.NotificationChannelEmail, config)
+	createTestRule(t, svc, wsID1,ch.ID, "low")
 
 	// Dispatch - should create notification record but skip email (SMTP not configured)
-	svc.Dispatch(context.Background(), 1, "critical", "Email Test", "Test body")
+	svc.Dispatch(context.Background(), wsID1,"critical", "Email Test", "Test body")
 
 	// Notification record should still be created
 	var notifs []persistent.Notification
@@ -164,11 +164,11 @@ func TestDispatch_EmailChannel_InvalidConfig(t *testing.T) {
 	svc := newService(db)
 
 	// Config is not valid JSON
-	ch := createTestChannel(t, svc, 1, "Bad Email", entity.NotificationChannelEmail, "not-json")
-	createTestRule(t, svc, 1, ch.ID, "low")
+	ch := createTestChannel(t, svc, wsID1,"Bad Email", entity.NotificationChannelEmail, "not-json")
+	createTestRule(t, svc, wsID1,ch.ID, "low")
 
 	// Should not panic, just log error
-	svc.Dispatch(context.Background(), 1, "critical", "Bad Config", "Invalid config")
+	svc.Dispatch(context.Background(), wsID1,"critical", "Bad Config", "Invalid config")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -180,11 +180,11 @@ func TestDispatch_EmailChannel_EmptyRecipients(t *testing.T) {
 	svc := newService(db)
 
 	config := `{"recipients":""}`
-	ch := createTestChannel(t, svc, 1, "Empty Recip", entity.NotificationChannelEmail, config)
-	createTestRule(t, svc, 1, ch.ID, "low")
+	ch := createTestChannel(t, svc, wsID1,"Empty Recip", entity.NotificationChannelEmail, config)
+	createTestRule(t, svc, wsID1,ch.ID, "low")
 
 	// Should not panic
-	svc.Dispatch(context.Background(), 1, "critical", "Empty Recipients", "No recipients")
+	svc.Dispatch(context.Background(), wsID1,"critical", "Empty Recipients", "No recipients")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -210,11 +210,11 @@ func TestDispatch_EmailChannel_SMTPConfiguredButUnreachable(t *testing.T) {
 	svc.AllowLocalURLs = true // Tests use localhost
 
 	config := `{"recipients":"test@example.com"}`
-	ch := createTestChannel(t, svc, 1, "SMTP Email", entity.NotificationChannelEmail, config)
-	createTestRule(t, svc, 1, ch.ID, "low")
+	ch := createTestChannel(t, svc, wsID1,"SMTP Email", entity.NotificationChannelEmail, config)
+	createTestRule(t, svc, wsID1,ch.ID, "low")
 
 	// Should not panic, just log error about unreachable SMTP server
-	svc.Dispatch(context.Background(), 1, "critical", "SMTP Unreachable", "Testing unreachable SMTP")
+	svc.Dispatch(context.Background(), wsID1,"critical", "SMTP Unreachable", "Testing unreachable SMTP")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -235,11 +235,11 @@ func TestDispatch_EmailChannel_MultipleRecipients(t *testing.T) {
 	svc.AllowLocalURLs = true // Tests use localhost
 
 	config := `{"recipients":"a@test.com, b@test.com, c@test.com"}`
-	ch := createTestChannel(t, svc, 1, "Multi Recip", entity.NotificationChannelEmail, config)
-	createTestRule(t, svc, 1, ch.ID, "low")
+	ch := createTestChannel(t, svc, wsID1,"Multi Recip", entity.NotificationChannelEmail, config)
+	createTestRule(t, svc, wsID1,ch.ID, "low")
 
 	// Should not panic - will fail on SMTP connect but exercises the email path
-	svc.Dispatch(context.Background(), 1, "critical", "Multi Recipients", "Testing multiple recipients")
+	svc.Dispatch(context.Background(), wsID1,"critical", "Multi Recipients", "Testing multiple recipients")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -262,10 +262,10 @@ func TestDispatch_SlackChannel_Success(t *testing.T) {
 	defer server.Close()
 
 	config := fmt.Sprintf(`{"webhookUrl":"%s"}`, server.URL)
-	ch := createTestChannel(t, svc, 1, "Slack Ch", entity.NotificationChannelSlack, config)
-	createTestRule(t, svc, 1, ch.ID, "low")
+	ch := createTestChannel(t, svc, wsID1,"Slack Ch", entity.NotificationChannelSlack, config)
+	createTestRule(t, svc, wsID1,ch.ID, "low")
 
-	svc.Dispatch(context.Background(), 1, "high", "Slack Alert", "Something happened")
+	svc.Dispatch(context.Background(), wsID1,"high", "Slack Alert", "Something happened")
 
 	// Should have received the Slack payload
 	assert.NotEmpty(t, receivedBody)
@@ -279,11 +279,11 @@ func TestDispatch_SlackChannel_InvalidConfig(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newService(db)
 
-	ch := createTestChannel(t, svc, 1, "Bad Slack", entity.NotificationChannelSlack, "not-json")
-	createTestRule(t, svc, 1, ch.ID, "low")
+	ch := createTestChannel(t, svc, wsID1,"Bad Slack", entity.NotificationChannelSlack, "not-json")
+	createTestRule(t, svc, wsID1,ch.ID, "low")
 
 	// Should not panic
-	svc.Dispatch(context.Background(), 1, "critical", "Bad Slack Config", "Invalid")
+	svc.Dispatch(context.Background(), wsID1,"critical", "Bad Slack Config", "Invalid")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -294,11 +294,11 @@ func TestDispatch_SlackChannel_EmptyURL(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newService(db)
 
-	ch := createTestChannel(t, svc, 1, "Empty Slack", entity.NotificationChannelSlack, `{"webhookUrl":""}`)
-	createTestRule(t, svc, 1, ch.ID, "low")
+	ch := createTestChannel(t, svc, wsID1,"Empty Slack", entity.NotificationChannelSlack, `{"webhookUrl":""}`)
+	createTestRule(t, svc, wsID1,ch.ID, "low")
 
 	// Should not panic
-	svc.Dispatch(context.Background(), 1, "critical", "Empty Slack URL", "No URL")
+	svc.Dispatch(context.Background(), wsID1,"critical", "Empty Slack URL", "No URL")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -315,11 +315,11 @@ func TestDispatch_SlackChannel_ServerError(t *testing.T) {
 	defer server.Close()
 
 	config := fmt.Sprintf(`{"webhookUrl":"%s"}`, server.URL)
-	ch := createTestChannel(t, svc, 1, "Error Slack", entity.NotificationChannelSlack, config)
-	createTestRule(t, svc, 1, ch.ID, "low")
+	ch := createTestChannel(t, svc, wsID1,"Error Slack", entity.NotificationChannelSlack, config)
+	createTestRule(t, svc, wsID1,ch.ID, "low")
 
 	// Should not panic - logs the error
-	svc.Dispatch(context.Background(), 1, "critical", "Slack Error", "Server returns 500")
+	svc.Dispatch(context.Background(), wsID1,"critical", "Slack Error", "Server returns 500")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -331,11 +331,11 @@ func TestDispatch_SlackChannel_UnreachableURL(t *testing.T) {
 	svc := newService(db)
 
 	config := `{"webhookUrl":"http://127.0.0.1:1"}`
-	ch := createTestChannel(t, svc, 1, "Dead Slack", entity.NotificationChannelSlack, config)
-	createTestRule(t, svc, 1, ch.ID, "low")
+	ch := createTestChannel(t, svc, wsID1,"Dead Slack", entity.NotificationChannelSlack, config)
+	createTestRule(t, svc, wsID1,ch.ID, "low")
 
 	// Should not panic
-	svc.Dispatch(context.Background(), 1, "critical", "Slack Unreachable", "URL is dead")
+	svc.Dispatch(context.Background(), wsID1,"critical", "Slack Unreachable", "URL is dead")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)
@@ -352,7 +352,7 @@ func TestDispatch_UnknownChannelType(t *testing.T) {
 
 	// Create channel with unknown type directly in DB
 	ch := &persistent.NotificationChannel{
-		WorkspaceID: 1,
+		WorkspaceID: wsID1,
 		Name:        "Unknown Type",
 		Type:        "carrier_pigeon",
 		Config:      "{}",
@@ -362,7 +362,7 @@ func TestDispatch_UnknownChannelType(t *testing.T) {
 
 	// Create rule linked to this channel
 	rule := &persistent.NotificationRule{
-		WorkspaceID: 1,
+		WorkspaceID: wsID1,
 		ChannelID:   ch.ID,
 		Severity:    "low",
 		IsActive:    true,
@@ -370,7 +370,7 @@ func TestDispatch_UnknownChannelType(t *testing.T) {
 	require.NoError(t, db.Create(rule).Error)
 
 	// Should not panic - logs a warning
-	svc.Dispatch(context.Background(), 1, "critical", "Unknown Type", "Carrier pigeon channel")
+	svc.Dispatch(context.Background(), wsID1,"critical", "Unknown Type", "Carrier pigeon channel")
 
 	var notifs []persistent.Notification
 	db.Find(&notifs)

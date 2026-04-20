@@ -12,7 +12,7 @@ import (
 )
 
 // signToken creates a JWT signed with the given secret for testing.
-func signToken(t *testing.T, secret string, userID uint, email string) string {
+func signToken(t *testing.T, secret string, userID string, email string) string {
 	t.Helper()
 	claims := &auth.Claims{
 		UserID:    userID,
@@ -33,10 +33,10 @@ func signToken(t *testing.T, secret string, userID uint, email string) string {
 func TestValidateAccessToken_PrimarySecret(t *testing.T) {
 	svc := auth.NewService(nil, nil, nil, nil, nil, nil, nil, false, nil, "primary-secret")
 
-	tokenStr := signToken(t, "primary-secret", 1, "test@example.com")
+	tokenStr := signToken(t, "primary-secret", "01935d5a-0000-7000-8000-000000000001", "test@example.com")
 	claims, err := svc.ValidateAccessToken(tokenStr)
 	require.NoError(t, err)
-	assert.Equal(t, uint(1), claims.UserID)
+	assert.Equal(t, "01935d5a-0000-7000-8000-000000000001", claims.UserID)
 	assert.Equal(t, "test@example.com", claims.Email)
 }
 
@@ -47,10 +47,10 @@ func TestValidateAccessToken_PreviousSecret_Accepted(t *testing.T) {
 	)
 
 	// Token signed with old secret should still be valid
-	tokenStr := signToken(t, "old-secret-1", 2, "old@example.com")
+	tokenStr := signToken(t, "old-secret-1", "01935d5a-0000-7000-8000-000000000002", "old@example.com")
 	claims, err := svc.ValidateAccessToken(tokenStr)
 	require.NoError(t, err)
-	assert.Equal(t, uint(2), claims.UserID)
+	assert.Equal(t, "01935d5a-0000-7000-8000-000000000002", claims.UserID)
 }
 
 func TestValidateAccessToken_MultiplePreviousSecrets(t *testing.T) {
@@ -61,10 +61,10 @@ func TestValidateAccessToken_MultiplePreviousSecrets(t *testing.T) {
 	)
 
 	// Token signed with second previous secret should work
-	tokenStr := signToken(t, "prev-secret-2", 3, "user@example.com")
+	tokenStr := signToken(t, "prev-secret-2", "01935d5a-0000-7000-8000-000000000003", "user@example.com")
 	claims, err := svc.ValidateAccessToken(tokenStr)
 	require.NoError(t, err)
-	assert.Equal(t, uint(3), claims.UserID)
+	assert.Equal(t, "01935d5a-0000-7000-8000-000000000003", claims.UserID)
 }
 
 func TestValidateAccessToken_UnknownSecret_Rejected(t *testing.T) {
@@ -74,7 +74,7 @@ func TestValidateAccessToken_UnknownSecret_Rejected(t *testing.T) {
 	)
 
 	// Token signed with an unknown secret should be rejected
-	tokenStr := signToken(t, "unknown-secret", 4, "hacker@example.com")
+	tokenStr := signToken(t, "unknown-secret", "01935d5a-0000-7000-8000-000000000004", "hacker@example.com")
 	_, err := svc.ValidateAccessToken(tokenStr)
 	assert.Error(t, err)
 }
@@ -83,7 +83,7 @@ func TestValidateAccessToken_ExpiredToken_Rejected(t *testing.T) {
 	svc := auth.NewService(nil, nil, nil, nil, nil, nil, nil, false, nil, "test-secret")
 
 	claims := &auth.Claims{
-		UserID:    1,
+		UserID:    "01935d5a-0000-7000-8000-000000000001",
 		Email:     "test@example.com",
 		TokenType: "access",
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -104,13 +104,13 @@ func TestValidateAccessToken_NoPreviousSecrets(t *testing.T) {
 	// Service created without previous secrets should work normally
 	svc := auth.NewService(nil, nil, nil, nil, nil, nil, nil, false, nil, "only-secret")
 
-	tokenStr := signToken(t, "only-secret", 1, "test@example.com")
+	tokenStr := signToken(t, "only-secret", "01935d5a-0000-7000-8000-000000000001", "test@example.com")
 	claims, err := svc.ValidateAccessToken(tokenStr)
 	require.NoError(t, err)
-	assert.Equal(t, uint(1), claims.UserID)
+	assert.Equal(t, "01935d5a-0000-7000-8000-000000000001", claims.UserID)
 
 	// Wrong secret should fail
-	tokenStr = signToken(t, "wrong-secret", 1, "test@example.com")
+	tokenStr = signToken(t, "wrong-secret", "01935d5a-0000-7000-8000-000000000001", "test@example.com")
 	_, err = svc.ValidateAccessToken(tokenStr)
 	assert.Error(t, err)
 }
@@ -123,8 +123,8 @@ func TestValidateAccessToken_PrimarySecretPreferred(t *testing.T) {
 	)
 
 	// Token signed with primary should validate immediately
-	tokenStr := signToken(t, "primary", 1, "test@example.com")
+	tokenStr := signToken(t, "primary", "01935d5a-0000-7000-8000-000000000001", "test@example.com")
 	claims, err := svc.ValidateAccessToken(tokenStr)
 	require.NoError(t, err)
-	assert.Equal(t, uint(1), claims.UserID)
+	assert.Equal(t, "01935d5a-0000-7000-8000-000000000001", claims.UserID)
 }

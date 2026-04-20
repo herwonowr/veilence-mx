@@ -129,11 +129,3 @@ func ValidateOneOf(value, name string, allowed []string) error {
 	return fmt.Errorf("%s must be one of: %s", name, strings.Join(allowed, ", "))
 }
 
-// ValidateRequiredUint validates that the given uint field is non-zero.
-// The name parameter is used in the error message.
-func ValidateRequiredUint(value uint, name string) error {
-	if value == 0 {
-		return fmt.Errorf("%s %w", name, ErrRequired)
-	}
-	return nil
-}

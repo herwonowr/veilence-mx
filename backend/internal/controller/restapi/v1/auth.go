@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strconv"
+	
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	validation "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/request"
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
@@ -133,7 +134,7 @@ func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Log failed login attempt
-		h.Audit.LogAuthEvent(r.Context(), "login_failed", 0, fmt.Sprintf("failed login attempt for email %s", req.Email))
+		h.Audit.LogAuthEvent(r.Context(), "login_failed", "", fmt.Sprintf("failed login attempt for email %s", req.Email))
 		respondError(w, http.StatusUnauthorized, "invalid email or password")
 		return
 	}
@@ -198,7 +199,7 @@ func (h *AuthHandlers) Logout(w http.ResponseWriter, r *http.Request) {
 // GetMe returns the currently authenticated user.
 func (h *AuthHandlers) GetMe(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
-	if userID == 0 {
+	if userID == "" {
 		respondError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
@@ -217,13 +218,13 @@ func (h *AuthHandlers) GetMe(w http.ResponseWriter, r *http.Request) {
 // The API key's role cannot exceed the user's own workspace role.
 func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
-	if userID == 0 {
+	if userID == "" {
 		respondError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
 
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
-	if workspaceID == 0 {
+	if workspaceID == "" {
 		respondAppError(w, Validation("workspace context is required to create an API key"))
 		return
 	}
@@ -295,13 +296,13 @@ func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 // ListAPIKeys returns all API keys for the authenticated user in the current workspace.
 func (h *AuthHandlers) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
-	if userID == 0 {
+	if userID == "" {
 		respondError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
 
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
-	if workspaceID == 0 {
+	if workspaceID == "" {
 		respondAppError(w, Validation("workspace context is required to list API keys"))
 		return
 	}
@@ -318,24 +319,24 @@ func (h *AuthHandlers) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 // RevokeAPIKey deletes an API key belonging to the authenticated user in the current workspace.
 func (h *AuthHandlers) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
-	if userID == 0 {
+	if userID == "" {
 		respondError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
 
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
-	if workspaceID == 0 {
+	if workspaceID == "" {
 		respondAppError(w, Validation("workspace context is required to revoke an API key"))
 		return
 	}
 
-	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
+	id := chi.URLParam(r, "id")
+	if _, err := uuid.Parse(id); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid API key ID")
 		return
 	}
 
-	if err := h.Auth.RevokeAPIKey(userID, workspaceID, uint(id)); err != nil {
+	if err := h.Auth.RevokeAPIKey(userID, workspaceID, id); err != nil {
 		if errors.Is(err, auth.ErrAPIKeyNotFound) {
 			respondAppError(w, NotFound("API key"))
 			return
@@ -344,7 +345,7 @@ func (h *AuthHandlers) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "revoke", "api_key", uint(id), fmt.Sprintf("revoked API key %d", id))
+	h.Audit.LogAction(r.Context(), "revoke", "api_key", id, fmt.Sprintf("revoked API key %s", id))
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "API key revoked"}, nil)
 }
@@ -424,7 +425,7 @@ func (h *AuthHandlers) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "reset", "password", 0, "password reset via token")
+	h.Audit.LogAction(r.Context(), "reset", "password", "", "password reset via token")
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "password reset successfully"}, nil)
 }
@@ -462,7 +463,7 @@ func (h *AuthHandlers) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 // SendVerificationEmail handles POST /api/auth/send-verification - sends a new verification email.
 func (h *AuthHandlers) SendVerificationEmail(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
-	if userID == 0 {
+	if userID == "" {
 		respondError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
@@ -534,7 +535,7 @@ type updateProfileRequest struct {
 // UpdateProfile handles PUT /api/auth/me - updates the current user's profile.
 func (h *AuthHandlers) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
-	if userID == 0 {
+	if userID == "" {
 		respondError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
@@ -585,7 +586,7 @@ type changePasswordRequest struct {
 // ChangePassword handles POST /api/auth/change-password - changes the user's password.
 func (h *AuthHandlers) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
-	if userID == 0 {
+	if userID == "" {
 		respondError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}

@@ -133,15 +133,15 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
 export const getNotificationLink = (notification: Notification): string => {
   switch (notification.referenceType) {
     case "alert":
-      return notification.referenceId > 0
+      return notification.referenceId
         ? `/alerts/${notification.referenceId}`
         : "/alerts"
     case "release":
-      return notification.referenceId > 0
+      return notification.referenceId
         ? `/releases/${notification.referenceId}`
         : "/releases"
     case "package":
-      return notification.referenceId > 0
+      return notification.referenceId
         ? `/packages/${notification.referenceId}`
         : "/packages"
     default:

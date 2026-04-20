@@ -20,7 +20,7 @@ func NewUserRepo(db *gorm.DB) *UserRepo {
 	return &UserRepo{db: db}
 }
 
-func (r *UserRepo) FindByID(ctx context.Context, id uint) (*entity.User, error) {
+func (r *UserRepo) FindByID(ctx context.Context, id string) (*entity.User, error) {
 	var m User
 	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

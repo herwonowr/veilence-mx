@@ -165,7 +165,7 @@ func (c *PyPIClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pa
 		rankings = append(rankings, entity.PackageRanking{
 			Name:          row.Project,
 			DownloadCount: row.DownloadCount,
-			Rank:          uint(i + 1),
+			Rank:          i + 1,
 		})
 	}
 

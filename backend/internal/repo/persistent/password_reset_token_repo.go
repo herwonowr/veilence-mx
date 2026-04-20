@@ -42,7 +42,7 @@ func (r *PasswordResetTokenRepo) Create(ctx context.Context, token *entity.Passw
 	return nil
 }
 
-func (r *PasswordResetTokenRepo) MarkUsed(ctx context.Context, id uint) error {
+func (r *PasswordResetTokenRepo) MarkUsed(ctx context.Context, id string) error {
 	now := time.Now()
 	result := r.db.WithContext(ctx).Model(&PasswordResetToken{}).Where("id = ?", id).Update("used_at", &now)
 	if result.Error != nil {
@@ -54,7 +54,7 @@ func (r *PasswordResetTokenRepo) MarkUsed(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (r *PasswordResetTokenRepo) DeleteExpiredByUserID(ctx context.Context, userID uint) error {
+func (r *PasswordResetTokenRepo) DeleteExpiredByUserID(ctx context.Context, userID string) error {
 	if err := r.db.WithContext(ctx).
 		Where("user_id = ? AND (expires_at < ? OR used_at IS NOT NULL)", userID, time.Now()).
 		Delete(&PasswordResetToken{}).Error; err != nil {

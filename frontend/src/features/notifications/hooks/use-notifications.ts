@@ -56,7 +56,7 @@ export const useMarkNotificationRead = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: number) => apiMarkNotificationRead(id),
+    mutationFn: (id: string) => apiMarkNotificationRead(id),
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: notificationKeys.all })
 
@@ -177,7 +177,7 @@ export const useDeleteNotification = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: number) => apiDeleteNotification(id),
+    mutationFn: (id: string) => apiDeleteNotification(id),
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: notificationKeys.all })
 
@@ -287,7 +287,7 @@ export const useDeleteBatchNotifications = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (ids: number[]) => apiDeleteBatchNotifications(ids),
+    mutationFn: (ids: string[]) => apiDeleteBatchNotifications(ids),
     onMutate: async (ids) => {
       await queryClient.cancelQueries({ queryKey: notificationKeys.all })
 

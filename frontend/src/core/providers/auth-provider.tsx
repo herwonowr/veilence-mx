@@ -14,7 +14,7 @@ import { toast } from "sonner"
 // Core-local interfaces - auth-provider needs User/Workspace shapes but core/ cannot import domains/
 // These types are structurally identical to domains/auth and domains/admin equivalents.
 interface User {
-  id: number
+  id: string
   email: string
   firstName: string
   lastName: string
@@ -26,11 +26,11 @@ interface User {
 }
 
 interface Workspace {
-  id: number
+  id: string
   name: string
   slug: string
   description: string
-  ownerId: number
+  ownerId: string
   isActive: boolean
   createdAt: string
   updatedAt: string

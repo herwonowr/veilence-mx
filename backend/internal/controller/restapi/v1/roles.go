@@ -10,7 +10,7 @@ import (
 // ListRoles handles GET /api/workspaces/{workspaceId}/roles - lists workspace roles.
 func (h *WorkspaceHandlers) ListRoles(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
-	if workspaceID == 0 {
+	if workspaceID == "" {
 		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}

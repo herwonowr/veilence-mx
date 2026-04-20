@@ -125,7 +125,7 @@ export const PackagesListView = () => {
     pageSize: 20,
   })
   const [sorting, setSorting] = useSortParams()
-  const [removeTarget, setRemoveTarget] = useState<{ id: number; name: string } | null>(null)
+  const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null)
 
   // Sync filter state → URL search params
   // For packages, "active" is the default status - omit from URL when it matches
@@ -138,9 +138,9 @@ export const PackagesListView = () => {
     }), [ecosystemFilter, statusFilter, sourceFilter]),
     PACKAGES_FILTER_DEFAULTS,
   )
-  const [blockTarget, setBlockTarget] = useState<{ id: number; name: string } | null>(null)
+  const [blockTarget, setBlockTarget] = useState<{ id: string; name: string } | null>(null)
   const [blockReason, setBlockReason] = useState("")
-  const [unblockTarget, setUnblockTarget] = useState<{ id: number; name: string } | null>(null)
+  const [unblockTarget, setUnblockTarget] = useState<{ id: string; name: string } | null>(null)
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({})
 
   const packageColumnBreakpoints: ColumnBreakpoints = useMemo(() => ({
@@ -227,7 +227,7 @@ export const PackagesListView = () => {
   }
 
   const handleRemove = useCallback(
-    (id: number, name: string) => {
+    (id: string, name: string) => {
       setRemoveTarget({ id, name })
     },
     []
@@ -241,7 +241,7 @@ export const PackagesListView = () => {
   }, [removeTarget, deleteMutation])
 
   const handleBlock = useCallback(
-    (id: number, name: string) => {
+    (id: string, name: string) => {
       setBlockTarget({ id, name })
       setBlockReason("")
     },
@@ -257,7 +257,7 @@ export const PackagesListView = () => {
   }, [blockTarget, blockReason, blockMutation])
 
   const handleUnblock = useCallback(
-    (id: number, name: string) => {
+    (id: string, name: string) => {
       setUnblockTarget({ id, name })
     },
     []

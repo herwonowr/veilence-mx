@@ -23,7 +23,7 @@ func NewRBACRepo(db *gorm.DB) *RBACRepo {
 }
 
 // CountWorkspacesBySlug counts workspaces with the given slug, optionally excluding one.
-func (r *RBACRepo) CountWorkspacesBySlug(ctx context.Context, slug string, excludeID *uint) (int64, error) {
+func (r *RBACRepo) CountWorkspacesBySlug(ctx context.Context, slug string, excludeID *string) (int64, error) {
 	var count int64
 	q := r.db.WithContext(ctx).Model(&Workspace{}).Where("slug = ?", slug)
 	if excludeID != nil {
@@ -54,7 +54,7 @@ func (r *RBACRepo) CreateWorkspace(ctx context.Context, ws *entity.Workspace) er
 }
 
 // FindWorkspaceByID returns a workspace by ID.
-func (r *RBACRepo) FindWorkspaceByID(ctx context.Context, id uint) (*entity.Workspace, error) {
+func (r *RBACRepo) FindWorkspaceByID(ctx context.Context, id string) (*entity.Workspace, error) {
 	var model Workspace
 	if err := r.db.WithContext(ctx).First(&model, id).Error; err != nil {
 		return nil, fmt.Errorf("RBACRepo.FindWorkspaceByID: %w", err)
@@ -75,7 +75,7 @@ func (r *RBACRepo) UpdateWorkspace(ctx context.Context, ws *entity.Workspace) er
 }
 
 // SoftDeleteWorkspace soft-deletes a workspace.
-func (r *RBACRepo) SoftDeleteWorkspace(ctx context.Context, id uint) error {
+func (r *RBACRepo) SoftDeleteWorkspace(ctx context.Context, id string) error {
 	result := r.db.WithContext(ctx).Delete(&Workspace{}, id)
 	if result.Error != nil {
 		return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: %w", result.Error)
@@ -87,7 +87,7 @@ func (r *RBACRepo) SoftDeleteWorkspace(ctx context.Context, id uint) error {
 }
 
 // FindWorkspacesByUserID returns all workspaces the user is a member of.
-func (r *RBACRepo) FindWorkspacesByUserID(ctx context.Context, userID uint) ([]entity.Workspace, error) {
+func (r *RBACRepo) FindWorkspacesByUserID(ctx context.Context, userID string) ([]entity.Workspace, error) {
 	var models []Workspace
 	err := r.db.WithContext(ctx).
 		Joins("JOIN workspace_members ON workspace_members.workspace_id = workspaces.id").
@@ -143,7 +143,7 @@ func (r *RBACRepo) CreateRole(ctx context.Context, role *entity.Role) error {
 }
 
 // FindRoleByIDAndWorkspace returns a role by ID scoped to a workspace.
-func (r *RBACRepo) FindRoleByIDAndWorkspace(ctx context.Context, roleID, workspaceID uint) (*entity.Role, error) {
+func (r *RBACRepo) FindRoleByIDAndWorkspace(ctx context.Context, roleID, workspaceID string) (*entity.Role, error) {
 	var model Role
 	if err := r.db.WithContext(ctx).Where("id = ? AND workspace_id = ?", roleID, workspaceID).First(&model).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -155,7 +155,7 @@ func (r *RBACRepo) FindRoleByIDAndWorkspace(ctx context.Context, roleID, workspa
 }
 
 // FindRolesByWorkspaceID returns all roles for a workspace with permissions.
-func (r *RBACRepo) FindRolesByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.Role, error) {
+func (r *RBACRepo) FindRolesByWorkspaceID(ctx context.Context, workspaceID string) ([]entity.Role, error) {
 	var models []Role
 	err := r.db.WithContext(ctx).
 		Preload("Permissions").
@@ -189,7 +189,7 @@ func (r *RBACRepo) CreateMember(ctx context.Context, member *entity.WorkspaceMem
 }
 
 // FindMembersByWorkspaceID returns all members with their roles and user data.
-func (r *RBACRepo) FindMembersByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.WorkspaceMember, error) {
+func (r *RBACRepo) FindMembersByWorkspaceID(ctx context.Context, workspaceID string) ([]entity.WorkspaceMember, error) {
 	var models []WorkspaceMember
 	err := r.db.WithContext(ctx).
 		Preload("Role").
@@ -209,7 +209,7 @@ func (r *RBACRepo) FindMembersByWorkspaceID(ctx context.Context, workspaceID uin
 }
 
 // FindMemberByUserAndWorkspace returns a member by user and workspace.
-func (r *RBACRepo) FindMemberByUserAndWorkspace(ctx context.Context, userID, workspaceID uint) (*entity.WorkspaceMember, error) {
+func (r *RBACRepo) FindMemberByUserAndWorkspace(ctx context.Context, userID, workspaceID string) (*entity.WorkspaceMember, error) {
 	var model WorkspaceMember
 	err := r.db.WithContext(ctx).
 		Preload("Role").
@@ -227,7 +227,7 @@ func (r *RBACRepo) FindMemberByUserAndWorkspace(ctx context.Context, userID, wor
 }
 
 // CountMembersByUserAndWorkspace counts members.
-func (r *RBACRepo) CountMembersByUserAndWorkspace(ctx context.Context, userID, workspaceID uint) (int64, error) {
+func (r *RBACRepo) CountMembersByUserAndWorkspace(ctx context.Context, userID, workspaceID string) (int64, error) {
 	var count int64
 	r.db.WithContext(ctx).Model(&WorkspaceMember{}).
 		Where("workspace_id = ? AND user_id = ?", workspaceID, userID).
@@ -244,7 +244,7 @@ func (r *RBACRepo) UpdateMember(ctx context.Context, member *entity.WorkspaceMem
 }
 
 // DeleteMemberByUserAndWorkspace removes a member.
-func (r *RBACRepo) DeleteMemberByUserAndWorkspace(ctx context.Context, userID, workspaceID uint) error {
+func (r *RBACRepo) DeleteMemberByUserAndWorkspace(ctx context.Context, userID, workspaceID string) error {
 	result := r.db.WithContext(ctx).Where("workspace_id = ? AND user_id = ?", workspaceID, userID).Delete(&WorkspaceMember{})
 	if result.Error != nil {
 		return fmt.Errorf("RBACRepo.DeleteMemberByUserAndWorkspace: %w", result.Error)
@@ -296,7 +296,7 @@ func (r *RBACRepo) UpdateInvitation(ctx context.Context, invitation *entity.Invi
 }
 
 // FindPendingInvitations returns pending invitations for a workspace.
-func (r *RBACRepo) FindPendingInvitations(ctx context.Context, workspaceID uint) ([]entity.Invitation, error) {
+func (r *RBACRepo) FindPendingInvitations(ctx context.Context, workspaceID string) ([]entity.Invitation, error) {
 	var models []Invitation
 	err := r.db.WithContext(ctx).
 		Where("workspace_id = ? AND accepted_at IS NULL AND expires_at > ?", workspaceID, time.Now()).
@@ -314,7 +314,7 @@ func (r *RBACRepo) FindPendingInvitations(ctx context.Context, workspaceID uint)
 }
 
 // DeletePendingInvitation deletes a pending invitation.
-func (r *RBACRepo) DeletePendingInvitation(ctx context.Context, workspaceID, invitationID uint) error {
+func (r *RBACRepo) DeletePendingInvitation(ctx context.Context, workspaceID, invitationID string) error {
 	result := r.db.WithContext(ctx).
 		Where("id = ? AND workspace_id = ? AND accepted_at IS NULL", invitationID, workspaceID).
 		Delete(&Invitation{})
@@ -328,7 +328,7 @@ func (r *RBACRepo) DeletePendingInvitation(ctx context.Context, workspaceID, inv
 }
 
 // CheckUserPermission checks if a user has a permission in a workspace.
-func (r *RBACRepo) CheckUserPermission(ctx context.Context, userID, workspaceID uint, resource, action string) (bool, error) {
+func (r *RBACRepo) CheckUserPermission(ctx context.Context, userID, workspaceID string, resource, action string) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&Permission{}).
 		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
@@ -344,7 +344,7 @@ func (r *RBACRepo) CheckUserPermission(ctx context.Context, userID, workspaceID 
 }
 
 // CheckRolePermission checks if a role has a permission in a workspace.
-func (r *RBACRepo) CheckRolePermission(ctx context.Context, workspaceID uint, roleName, resource, action string) (bool, error) {
+func (r *RBACRepo) CheckRolePermission(ctx context.Context, workspaceID string, roleName, resource, action string) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&Permission{}).
 		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
@@ -419,12 +419,12 @@ func memberModelToEntity(m WorkspaceMember) entity.WorkspaceMember {
 		UpdatedAt:   m.UpdatedAt,
 	}
 	// Convert role
-	if m.Role.ID > 0 {
+	if m.Role.ID != "" {
 		role := roleModelToEntity(m.Role)
 		member.Role = role
 	}
 	// Convert user
-	if m.User.ID > 0 {
+	if m.User.ID != "" {
 		member.User = &entity.User{
 			ID:            m.User.ID,
 			Email:         m.User.Email,

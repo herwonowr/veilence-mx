@@ -42,7 +42,7 @@ func New(
 }
 
 // ListByPackage returns a paginated list of releases for a package, scoped to an org.
-func (uc *UseCase) ListByPackage(ctx context.Context, workspaceID, packageID uint, page, limit int) ([]entity.Release, int64, error) {
+func (uc *UseCase) ListByPackage(ctx context.Context, workspaceID, packageID string, page, limit int) ([]entity.Release, int64, error) {
 	// Verify package belongs to the requesting org
 	pkg, err := uc.packages.FindByIDAndWorkspaceID(ctx, packageID, workspaceID)
 	if err != nil {
@@ -61,7 +61,7 @@ func (uc *UseCase) ListByPackage(ctx context.Context, workspaceID, packageID uin
 }
 
 // GetRelease returns a single release with its diff, analysis, and package info.
-func (uc *UseCase) GetRelease(ctx context.Context, workspaceID, releaseID uint) (*entity.ReleaseDetail, error) {
+func (uc *UseCase) GetRelease(ctx context.Context, workspaceID, releaseID string) (*entity.ReleaseDetail, error) {
 	release, pkg, err := uc.releases.FindByIDWithPackageAndWorkspace(ctx, releaseID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
@@ -90,7 +90,7 @@ func (uc *UseCase) GetRelease(ctx context.Context, workspaceID, releaseID uint) 
 }
 
 // ReanalyzeRelease re-queues a single release for analysis. Returns the message and job ID.
-func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID uint) (string, string, error) {
+func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID string) (string, string, error) {
 	if uc.queue == nil {
 		return "", "", fmt.Errorf("ReleaseUseCase.ReanalyzeRelease: queue not configured")
 	}
@@ -129,7 +129,7 @@ func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID 
 }
 
 // GetAnalysisHistory returns the analysis history for a package across all its releases.
-func (uc *UseCase) GetAnalysisHistory(ctx context.Context, workspaceID, packageID uint) ([]entity.AnalysisHistoryEntry, error) {
+func (uc *UseCase) GetAnalysisHistory(ctx context.Context, workspaceID, packageID string) ([]entity.AnalysisHistoryEntry, error) {
 	// Verify package belongs to org
 	pkg, err := uc.packages.FindByIDAndWorkspaceID(ctx, packageID, workspaceID)
 	if err != nil {
@@ -151,7 +151,7 @@ func (uc *UseCase) GetAnalysisHistory(ctx context.Context, workspaceID, packageI
 	}
 
 	// Batch-load diffs
-	releaseIDs := make([]uint, len(releases))
+	releaseIDs := make([]string, len(releases))
 	for i, rel := range releases {
 		releaseIDs[i] = rel.ID
 	}
@@ -160,17 +160,17 @@ func (uc *UseCase) GetAnalysisHistory(ctx context.Context, workspaceID, packageI
 	if err != nil {
 		return nil, fmt.Errorf("ReleaseUseCase.GetAnalysisHistory: loading diffs: %w", err)
 	}
-	diffByRelease := make(map[uint]entity.Diff)
+	diffByRelease := make(map[string]entity.Diff)
 	for _, d := range diffs {
 		diffByRelease[d.ReleaseID] = d
 	}
 
 	// Batch-load analyses
-	diffIDs := make([]uint, 0, len(diffs))
+	diffIDs := make([]string, 0, len(diffs))
 	for _, d := range diffs {
 		diffIDs = append(diffIDs, d.ID)
 	}
-	analysisByDiff := make(map[uint]entity.Analysis)
+	analysisByDiff := make(map[string]entity.Analysis)
 	if len(diffIDs) > 0 {
 		analyses, err := uc.analyses.FindByDiffIDs(ctx, diffIDs)
 		if err != nil {

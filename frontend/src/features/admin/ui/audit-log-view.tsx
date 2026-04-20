@@ -53,8 +53,8 @@ const parseValidDate = (value: string | null): Date | undefined => {
 
 export const AuditLogView = () => {
   const params = useParams<{ id: string }>()
-  const workspaceId = parseInt(params.id, 10)
-  const validWorkspaceId = isNaN(workspaceId) ? 0 : workspaceId
+  const workspaceId = params.id
+  const validWorkspaceId = workspaceId ?? ""
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -136,7 +136,7 @@ export const AuditLogView = () => {
   const meta = logsRes?.meta ?? null
   const totalPages = meta ? Math.ceil(meta.total / meta.limit) : 1
 
-  if (isNaN(workspaceId)) {
+  if (!workspaceId) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <p className="text-lg font-medium text-destructive">Invalid workspace ID</p>

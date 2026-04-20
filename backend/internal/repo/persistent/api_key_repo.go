@@ -20,7 +20,7 @@ func NewAPIKeyRepo(db *gorm.DB) *APIKeyRepo {
 	return &APIKeyRepo{db: db}
 }
 
-func (r *APIKeyRepo) FindByID(ctx context.Context, id uint) (*entity.APIKey, error) {
+func (r *APIKeyRepo) FindByID(ctx context.Context, id string) (*entity.APIKey, error) {
 	var m APIKey
 	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -43,7 +43,7 @@ func (r *APIKeyRepo) FindActiveByPrefix(ctx context.Context, prefix string) ([]e
 	return result, nil
 }
 
-func (r *APIKeyRepo) FindByUserID(ctx context.Context, userID uint) ([]entity.APIKey, error) {
+func (r *APIKeyRepo) FindByUserID(ctx context.Context, userID string) ([]entity.APIKey, error) {
 	var ms []APIKey
 	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&ms).Error; err != nil {
 		return nil, fmt.Errorf("APIKeyRepo.FindByUserID: %w", err)
@@ -55,7 +55,7 @@ func (r *APIKeyRepo) FindByUserID(ctx context.Context, userID uint) ([]entity.AP
 	return result, nil
 }
 
-func (r *APIKeyRepo) FindByUserIDAndWorkspaceID(ctx context.Context, userID, workspaceID uint) ([]entity.APIKey, error) {
+func (r *APIKeyRepo) FindByUserIDAndWorkspaceID(ctx context.Context, userID, workspaceID string) ([]entity.APIKey, error) {
 	var ms []APIKey
 	if err := r.db.WithContext(ctx).Where("user_id = ? AND workspace_id = ?", userID, workspaceID).Find(&ms).Error; err != nil {
 		return nil, fmt.Errorf("APIKeyRepo.FindByUserIDAndWorkspaceID: %w", err)
@@ -85,7 +85,7 @@ func (r *APIKeyRepo) Update(ctx context.Context, key *entity.APIKey) error {
 	return nil
 }
 
-func (r *APIKeyRepo) SoftDelete(ctx context.Context, userID, keyID uint) error {
+func (r *APIKeyRepo) SoftDelete(ctx context.Context, userID, keyID string) error {
 	result := r.db.WithContext(ctx).Where("id = ? AND user_id = ?", keyID, userID).Delete(&APIKey{})
 	if result.Error != nil {
 		return fmt.Errorf("APIKeyRepo.SoftDelete: %w", result.Error)
@@ -96,7 +96,7 @@ func (r *APIKeyRepo) SoftDelete(ctx context.Context, userID, keyID uint) error {
 	return nil
 }
 
-func (r *APIKeyRepo) SoftDeleteScoped(ctx context.Context, userID, workspaceID, keyID uint) error {
+func (r *APIKeyRepo) SoftDeleteScoped(ctx context.Context, userID, workspaceID, keyID string) error {
 	result := r.db.WithContext(ctx).Where("id = ? AND user_id = ? AND workspace_id = ?", keyID, userID, workspaceID).Delete(&APIKey{})
 	if result.Error != nil {
 		return fmt.Errorf("APIKeyRepo.SoftDeleteScoped: %w", result.Error)

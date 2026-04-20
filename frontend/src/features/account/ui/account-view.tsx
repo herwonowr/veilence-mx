@@ -67,7 +67,7 @@ const ProfileSection = () => {
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [prevUserId, setPrevUserId] = useState<number | null>(null)
+  const [prevUserId, setPrevUserId] = useState<string | null>(null)
 
   // React-recommended "store previous props" pattern for syncing derived state
   if (user && prevUserId !== user.id) {

@@ -21,8 +21,8 @@ func NewPollerRepo(db *gorm.DB) *PollerRepo {
 }
 
 // DistinctActiveWorkspaceIDs returns workspace IDs that have at least one active package.
-func (r *PollerRepo) DistinctActiveWorkspaceIDs(ctx context.Context) ([]uint, error) {
-	var wsIDs []uint
+func (r *PollerRepo) DistinctActiveWorkspaceIDs(ctx context.Context) ([]string, error) {
+	var wsIDs []string
 	if err := r.db.WithContext(ctx).Model(&Package{}).
 		Where("status = ?", PackageStatusActive).
 		Distinct("workspace_id").
@@ -33,23 +33,23 @@ func (r *PollerRepo) DistinctActiveWorkspaceIDs(ctx context.Context) ([]uint, er
 }
 
 // DistinctWorkspaceIDs returns all workspace IDs from settings and packages (merged, unique).
-func (r *PollerRepo) DistinctWorkspaceIDs(ctx context.Context) ([]uint, error) {
-	var settingWsIDs []uint
+func (r *PollerRepo) DistinctWorkspaceIDs(ctx context.Context) ([]string, error) {
+	var settingWsIDs []string
 	if err := r.db.WithContext(ctx).Model(&Setting{}).
-		Where("workspace_id > 0").
+		Where("workspace_id != ''").
 		Distinct("workspace_id").
 		Pluck("workspace_id", &settingWsIDs).Error; err != nil {
 		return nil, fmt.Errorf("PollerRepo.DistinctWorkspaceIDs (settings): %w", err)
 	}
 
-	var pkgWsIDs []uint
+	var pkgWsIDs []string
 	if err := r.db.WithContext(ctx).Model(&Package{}).
 		Distinct("workspace_id").
 		Pluck("workspace_id", &pkgWsIDs).Error; err != nil {
 		return nil, fmt.Errorf("PollerRepo.DistinctWorkspaceIDs (packages): %w", err)
 	}
 
-	seen := make(map[uint]bool, len(settingWsIDs)+len(pkgWsIDs))
+	seen := make(map[string]bool, len(settingWsIDs)+len(pkgWsIDs))
 	for _, id := range settingWsIDs {
 		seen[id] = true
 	}
@@ -57,7 +57,7 @@ func (r *PollerRepo) DistinctWorkspaceIDs(ctx context.Context) ([]uint, error) {
 		seen[id] = true
 	}
 
-	var result []uint
+	var result []string
 	for id := range seen {
 		result = append(result, id)
 	}
@@ -65,7 +65,7 @@ func (r *PollerRepo) DistinctWorkspaceIDs(ctx context.Context) ([]uint, error) {
 }
 
 // FindActivePackagesByWorkspace loads all active packages for a workspace.
-func (r *PollerRepo) FindActivePackagesByWorkspace(ctx context.Context, workspaceID uint) ([]entity.Package, error) {
+func (r *PollerRepo) FindActivePackagesByWorkspace(ctx context.Context, workspaceID string) ([]entity.Package, error) {
 	var models []Package
 	if err := r.db.WithContext(ctx).
 		Where("workspace_id = ? AND status = ?", workspaceID, PackageStatusActive).
@@ -81,7 +81,7 @@ func (r *PollerRepo) FindActivePackagesByWorkspace(ctx context.Context, workspac
 }
 
 // UpdatePackageMetadata updates a package's latest version and description.
-func (r *PollerRepo) UpdatePackageMetadata(ctx context.Context, packageID uint, latestVersion, description string) error {
+func (r *PollerRepo) UpdatePackageMetadata(ctx context.Context, packageID string, latestVersion, description string) error {
 	return r.db.WithContext(ctx).Model(&Package{}).Where("id = ?", packageID).Updates(map[string]interface{}{
 		"latest_version": latestVersion,
 		"description":    description,
@@ -89,7 +89,7 @@ func (r *PollerRepo) UpdatePackageMetadata(ctx context.Context, packageID uint, 
 }
 
 // FindLatestRelease returns the most recent release for a package by publish time.
-func (r *PollerRepo) FindLatestRelease(ctx context.Context, packageID uint) (*entity.Release, error) {
+func (r *PollerRepo) FindLatestRelease(ctx context.Context, packageID string) (*entity.Release, error) {
 	var model Release
 	result := r.db.WithContext(ctx).Where("package_id = ?", packageID).Order("published_at DESC").Limit(1).Find(&model)
 	if result.Error != nil {
@@ -111,7 +111,7 @@ func (r *PollerRepo) FindLatestRelease(ctx context.Context, packageID uint) (*en
 }
 
 // FindReleaseByPackageAndVersion checks if a release already exists.
-func (r *PollerRepo) FindReleaseByPackageAndVersion(ctx context.Context, packageID uint, version string) (*entity.Release, error) {
+func (r *PollerRepo) FindReleaseByPackageAndVersion(ctx context.Context, packageID string, version string) (*entity.Release, error) {
 	var model Release
 	result := r.db.WithContext(ctx).Where("package_id = ? AND version = ?", packageID, version).Limit(1).Find(&model)
 	if result.Error != nil {
@@ -147,7 +147,7 @@ func (r *PollerRepo) CreateRelease(ctx context.Context, release *entity.Release)
 }
 
 // FindPackageByWorkspaceAndName looks up an existing package.
-func (r *PollerRepo) FindPackageByWorkspaceAndName(ctx context.Context, workspaceID uint, name string, ecosystem entity.Ecosystem) (*entity.Package, error) {
+func (r *PollerRepo) FindPackageByWorkspaceAndName(ctx context.Context, workspaceID string, name string, ecosystem entity.Ecosystem) (*entity.Package, error) {
 	var model Package
 	result := r.db.WithContext(ctx).Where("workspace_id = ? AND name = ? AND ecosystem = ?", workspaceID, name, string(ecosystem)).Limit(1).Find(&model)
 	if result.Error != nil {
@@ -181,17 +181,17 @@ func (r *PollerRepo) CreatePackage(ctx context.Context, pkg *entity.Package) err
 }
 
 // UpdatePackageRank updates a package's rank.
-func (r *PollerRepo) UpdatePackageRank(ctx context.Context, packageID uint, rank uint) error {
+func (r *PollerRepo) UpdatePackageRank(ctx context.Context, packageID string, rank int) error {
 	return r.db.WithContext(ctx).Model(&Package{}).Where("id = ?", packageID).Update("rank", &rank).Error
 }
 
 // UpdatePackageDiscoveryMetrics updates a suggested/removed package's metrics.
-func (r *PollerRepo) UpdatePackageDiscoveryMetrics(ctx context.Context, packageID uint, updates map[string]interface{}) error {
+func (r *PollerRepo) UpdatePackageDiscoveryMetrics(ctx context.Context, packageID string, updates map[string]interface{}) error {
 	return r.db.WithContext(ctx).Model(&Package{}).Where("id = ?", packageID).Updates(updates).Error
 }
 
 // UpdateDownloadCounts batch-updates download metrics for active packages in a workspace.
-func (r *PollerRepo) UpdateDownloadCounts(ctx context.Context, workspaceID uint, updates []entity.PackageDownloadUpdate) error {
+func (r *PollerRepo) UpdateDownloadCounts(ctx context.Context, workspaceID string, updates []entity.PackageDownloadUpdate) error {
 	now := time.Now()
 	for _, u := range updates {
 		if err := r.db.WithContext(ctx).Model(&Package{}).
@@ -200,14 +200,14 @@ func (r *PollerRepo) UpdateDownloadCounts(ctx context.Context, workspaceID uint,
 				"download_count":            u.DownloadCount,
 				"download_count_updated_at": now,
 			}).Error; err != nil {
-			return fmt.Errorf("PollerRepo.UpdateDownloadCounts: package %d: %w", u.PackageID, err)
+			return fmt.Errorf("PollerRepo.UpdateDownloadCounts: package %s: %w", u.PackageID, err)
 		}
 	}
 	return nil
 }
 
 // RemoveStalePackages marks active packages with no updates in the given period as removed.
-func (r *PollerRepo) RemoveStalePackages(ctx context.Context, workspaceID uint, staleBefore time.Time) (int64, error) {
+func (r *PollerRepo) RemoveStalePackages(ctx context.Context, workspaceID string, staleBefore time.Time) (int64, error) {
 	result := r.db.WithContext(ctx).Model(&Package{}).
 		Where("workspace_id = ? AND status = ? AND updated_at < ?", workspaceID, PackageStatusActive, staleBefore).
 		Update("status", PackageStatusRemoved)
@@ -218,7 +218,7 @@ func (r *PollerRepo) RemoveStalePackages(ctx context.Context, workspaceID uint, 
 }
 
 // GetSetting retrieves a setting value by workspace and key.
-func (r *PollerRepo) GetSetting(ctx context.Context, workspaceID uint, key string) (string, error) {
+func (r *PollerRepo) GetSetting(ctx context.Context, workspaceID string, key string) (string, error) {
 	var setting Setting
 	result := r.db.WithContext(ctx).Where("key = ? AND workspace_id = ?", key, workspaceID).Limit(1).Find(&setting)
 	if result.Error != nil {

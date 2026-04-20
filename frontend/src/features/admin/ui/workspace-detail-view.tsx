@@ -61,8 +61,8 @@ import {
 export const WorkspaceDetailView = () => {
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
   const params = useParams<{ id: string }>()
-  const workspaceId = parseInt(params.id, 10)
-  const validWorkspaceId = isNaN(workspaceId) ? 0 : workspaceId
+  const workspaceId = params.id
+  const validWorkspaceId = workspaceId ?? ""
   const router = useRouter()
   const { user, refreshWorkspaces } = useAuth()
 
@@ -90,7 +90,7 @@ export const WorkspaceDetailView = () => {
   // Edit form
   const [editName, setEditName] = useState("")
   const [editDescription, setEditDescription] = useState("")
-  const [prevWorkspaceId, setPrevWorkspaceId] = useState<number | null>(null)
+  const [prevWorkspaceId, setPrevWorkspaceId] = useState<string | null>(null)
 
   // React-recommended "store previous props" pattern for syncing derived state
   if (workspace && prevWorkspaceId !== workspace.id) {
@@ -102,12 +102,12 @@ export const WorkspaceDetailView = () => {
   // Invite form
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState("")
-  const [inviteRoleId, setInviteRoleId] = useState<number | null>(null)
+  const [inviteRoleId, setInviteRoleId] = useState<string | null>(null)
   const [inviteError, setInviteError] = useState("")
 
   // Remove member confirmation
   const [memberToRemove, setMemberToRemove] = useState<{
-    userId: number
+    userId: string
     name: string
     details: ConfirmDialogDetail[]
   } | null>(null)
@@ -151,12 +151,12 @@ export const WorkspaceDetailView = () => {
     }
   }
 
-  const handleRemoveMember = async (userId: number) => {
+  const handleRemoveMember = async (userId: string) => {
     await removeMutation.mutateAsync({ workspaceId: validWorkspaceId, userId })
     setMemberToRemove(null)
   }
 
-  const confirmRemoveMember = (userId: number, firstName?: string, lastName?: string, email?: string) => {
+  const confirmRemoveMember = (userId: string, firstName?: string, lastName?: string, email?: string) => {
     const name = [firstName, lastName].filter(Boolean).join(" ") || "this member"
     setMemberToRemove({
       userId,
@@ -169,11 +169,11 @@ export const WorkspaceDetailView = () => {
     })
   }
 
-  const handleUpdateRole = (userId: number, roleId: number) => {
+  const handleUpdateRole = (userId: string, roleId: string) => {
     updateRoleMutation.mutate({ workspaceId: validWorkspaceId, userId, roleId })
   }
 
-  if (isNaN(workspaceId)) {
+  if (!workspaceId) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <p className="text-lg font-medium text-destructive">Invalid workspace ID</p>
@@ -285,7 +285,7 @@ export const WorkspaceDetailView = () => {
                       <FieldLabel>Role</FieldLabel>
                       <Select
                         value={inviteRoleId != null ? String(inviteRoleId) : undefined}
-                        onValueChange={(v) => setInviteRoleId(v ? parseInt(String(v), 10) : null)}
+                        onValueChange={(v) => setInviteRoleId(v || null)}
                       >
                         <SelectTrigger className="w-full">
                           <SelectValue>{inviteRoleId != null ? capitalize(roles.find(r => r.id === inviteRoleId)?.name ?? "") : "Select a role"}</SelectValue>
@@ -344,7 +344,7 @@ export const WorkspaceDetailView = () => {
                         <Select
                           value={String(member.roleId)}
                           onValueChange={(v) =>
-                            handleUpdateRole(member.userId, parseInt(String(v), 10))
+                            handleUpdateRole(member.userId, String(v))
                           }
                           disabled={member.userId === user?.id || !canUpdateRole}
                         >

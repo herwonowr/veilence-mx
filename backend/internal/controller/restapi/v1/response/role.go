@@ -6,8 +6,8 @@ import "time"
 // Mapped from persistent.Role at the handler level because the RBAC
 // service currently returns persistent types (pre-existing arch compromise).
 type RoleResponse struct {
-	ID          uint                 `json:"id"`
-	WorkspaceID       uint                 `json:"workspaceId"`
+	ID          string               `json:"id"`
+	WorkspaceID       string               `json:"workspaceId"`
 	Name        string               `json:"name"`
 	Description string               `json:"description"`
 	IsSystem    bool                 `json:"isSystem"`
@@ -18,7 +18,7 @@ type RoleResponse struct {
 
 // PermissionResponse is the JSON representation of a permission.
 type PermissionResponse struct {
-	ID       uint   `json:"id"`
+	ID       string `json:"id"`
 	Resource string `json:"resource"`
 	Action   string `json:"action"`
 }

@@ -20,7 +20,7 @@ func NewSettingRepo(db *gorm.DB) *SettingRepo {
 	return &SettingRepo{db: db}
 }
 
-func (r *SettingRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.Setting, error) {
+func (r *SettingRepo) FindByWorkspaceID(ctx context.Context, workspaceID string) ([]entity.Setting, error) {
 	var ms []Setting
 	if err := r.db.WithContext(ctx).Where("workspace_id = ?", workspaceID).Find(&ms).Error; err != nil {
 		return nil, fmt.Errorf("listing settings: %w", err)
@@ -32,7 +32,7 @@ func (r *SettingRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint) (
 	return result, nil
 }
 
-func (r *SettingRepo) FindByKey(ctx context.Context, workspaceID uint, key string) (*entity.Setting, error) {
+func (r *SettingRepo) FindByKey(ctx context.Context, workspaceID string, key string) (*entity.Setting, error) {
 	var m Setting
 	err := r.db.WithContext(ctx).Where("workspace_id = ? AND key = ?", workspaceID, key).First(&m).Error
 	if err != nil {
@@ -59,7 +59,7 @@ func (r *SettingRepo) Upsert(ctx context.Context, setting *entity.Setting) error
 	return nil
 }
 
-func (r *SettingRepo) UpsertByWorkspaceAndKey(ctx context.Context, workspaceID uint, key, value string) error {
+func (r *SettingRepo) UpsertByWorkspaceAndKey(ctx context.Context, workspaceID string, key, value string) error {
 	m := &Setting{WorkspaceID: workspaceID, Key: key, Value: value}
 	result := r.db.WithContext(ctx).
 		Where("workspace_id = ? AND key = ?", workspaceID, key).

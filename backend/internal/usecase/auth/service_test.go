@@ -18,6 +18,8 @@ import (
 
 const testJWTSecret = "test-secret-key-for-jwt-signing-1234567890"
 
+const testWorkspaceID = "01935d5a-0000-7000-8000-000000000001"
+
 func setupAuthTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -56,7 +58,7 @@ func TestRegister_Success(t *testing.T) {
 
 	user, err := svc.Register("alice@example.com", "Password123", "Alice", "Smith")
 	require.NoError(t, err)
-	assert.NotZero(t, user.ID)
+	assert.NotEmpty(t, user.ID)
 	assert.Equal(t, "alice@example.com", user.Email)
 	assert.Equal(t, "Alice", user.FirstName)
 	assert.Equal(t, "Smith", user.LastName)
@@ -199,9 +201,9 @@ func TestCreateAndValidateAPIKey(t *testing.T) {
 	user, err := svc.Register("grace@example.com", "Password123", "Grace", "Blue")
 	require.NoError(t, err)
 
-	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, 1, "test-key", entity.APIKeyRoleViewer, "owner", nil)
+	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, testWorkspaceID, "test-key", entity.APIKeyRoleViewer, "owner", nil)
 	require.NoError(t, err)
-	assert.NotZero(t, apiKey.ID)
+	assert.NotEmpty(t, apiKey.ID)
 	assert.Equal(t, "test-key", apiKey.Name)
 	assert.NotEmpty(t, rawKey)
 	assert.True(t, apiKey.IsActive)
@@ -229,11 +231,11 @@ func TestRevokeAPIKey(t *testing.T) {
 	user, err := svc.Register("henry@example.com", "Password123", "Henry", "Red")
 	require.NoError(t, err)
 
-	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, 1, "to-revoke", entity.APIKeyRoleViewer, "owner", nil)
+	apiKey, rawKey, err := svc.CreateAPIKey(user.ID, testWorkspaceID, "to-revoke", entity.APIKeyRoleViewer, "owner", nil)
 	require.NoError(t, err)
 
 	// Revoke
-	err = svc.RevokeAPIKey(user.ID, 1, apiKey.ID)
+	err = svc.RevokeAPIKey(user.ID, testWorkspaceID, apiKey.ID)
 	require.NoError(t, err)
 
 	// Should no longer validate
@@ -248,7 +250,7 @@ func TestRevokeAPIKey_NotFound(t *testing.T) {
 	user, err := svc.Register("iris@example.com", "Password123", "Iris", "Pink")
 	require.NoError(t, err)
 
-	err = svc.RevokeAPIKey(user.ID, 1, 99999)
+	err = svc.RevokeAPIKey(user.ID, testWorkspaceID, "01935d5a-0000-7000-8000-00000001869f")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "API key not found")
 }
@@ -260,12 +262,12 @@ func TestListAPIKeys(t *testing.T) {
 	user, err := svc.Register("jack@example.com", "Password123", "Jack", "Orange")
 	require.NoError(t, err)
 
-	_, _, err = svc.CreateAPIKey(user.ID, 1, "key-1", entity.APIKeyRoleViewer, "owner", nil)
+	_, _, err = svc.CreateAPIKey(user.ID, testWorkspaceID, "key-1", entity.APIKeyRoleViewer, "owner", nil)
 	require.NoError(t, err)
-	_, _, err = svc.CreateAPIKey(user.ID, 1, "key-2", entity.APIKeyRoleMember, "owner", nil)
+	_, _, err = svc.CreateAPIKey(user.ID, testWorkspaceID, "key-2", entity.APIKeyRoleMember, "owner", nil)
 	require.NoError(t, err)
 
-	keys, err := svc.ListAPIKeys(user.ID, 1)
+	keys, err := svc.ListAPIKeys(user.ID, testWorkspaceID)
 	require.NoError(t, err)
 	assert.Len(t, keys, 2)
 }
@@ -278,7 +280,7 @@ func TestCreateAPIKey_WithExpiry(t *testing.T) {
 	require.NoError(t, err)
 
 	future := time.Now().Add(24 * time.Hour)
-	apiKey, _, err := svc.CreateAPIKey(user.ID, 1, "expiring-key", entity.APIKeyRoleViewer, "owner", &future)
+	apiKey, _, err := svc.CreateAPIKey(user.ID, testWorkspaceID, "expiring-key", entity.APIKeyRoleViewer, "owner", &future)
 	require.NoError(t, err)
 	assert.NotNil(t, apiKey.ExpiresAt)
 }
@@ -299,7 +301,7 @@ func TestGetUserByID_NotFound(t *testing.T) {
 	db := setupAuthTestDB(t)
 	svc := newAuthService(db)
 
-	_, err := svc.GetUserByID(99999)
+	_, err := svc.GetUserByID("01935d5a-0000-7000-8000-00000001869f")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "user not found")
 }
@@ -330,7 +332,7 @@ func BenchmarkValidateAPIKey(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	_, rawKey, err := svc.CreateAPIKey(user.ID, 1, "bench-key", entity.APIKeyRoleViewer, "owner", nil)
+	_, rawKey, err := svc.CreateAPIKey(user.ID, testWorkspaceID, "bench-key", entity.APIKeyRoleViewer, "owner", nil)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -341,7 +343,7 @@ func BenchmarkValidateAPIKey(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		if uid == 0 || email == "" {
+		if uid == "" || email == "" {
 			b.Fatal("expected valid response")
 		}
 	}
@@ -453,7 +455,7 @@ func TestCreateAPIKey_WithRole(t *testing.T) {
 			user, err := svc.Register("role-test@example.com", "Password123", "Role", "Test")
 			require.NoError(t, err)
 
-			apiKey, _, err := svc.CreateAPIKey(user.ID, 1, "test-key", tt.role, tt.userRole, nil)
+			apiKey, _, err := svc.CreateAPIKey(user.ID, testWorkspaceID, "test-key", tt.role, tt.userRole, nil)
 			if tt.expectError {
 				require.Error(t, err)
 				return
@@ -471,7 +473,7 @@ func TestValidateAPIKey_ReturnsRole(t *testing.T) {
 	user, err := svc.Register("role-val@example.com", "Password123", "Role", "Val")
 	require.NoError(t, err)
 
-	_, rawKey, err := svc.CreateAPIKey(user.ID, 1, "member-key", entity.APIKeyRoleMember, "owner", nil)
+	_, rawKey, err := svc.CreateAPIKey(user.ID, testWorkspaceID, "member-key", entity.APIKeyRoleMember, "owner", nil)
 	require.NoError(t, err)
 
 	userID, email, role, wsID, err := svc.ValidateAPIKey(rawKey)
@@ -479,7 +481,7 @@ func TestValidateAPIKey_ReturnsRole(t *testing.T) {
 	assert.Equal(t, user.ID, userID)
 	assert.Equal(t, "role-val@example.com", email)
 	assert.Equal(t, entity.APIKeyRoleMember, role)
-	assert.Equal(t, uint(1), wsID)
+	assert.Equal(t, testWorkspaceID, wsID)
 }
 
 // --- Session Management (S4-9) ---
@@ -493,7 +495,7 @@ func TestCreateSession_Success(t *testing.T) {
 
 	session, err := svc.CreateSession(user.ID, "token-hash-123", "192.168.1.1", "TestBrowser/1.0")
 	require.NoError(t, err)
-	assert.NotZero(t, session.ID)
+	assert.NotEmpty(t, session.ID)
 	assert.Equal(t, user.ID, session.UserID)
 	assert.Equal(t, "192.168.1.1", session.IPAddress)
 	assert.Equal(t, "TestBrowser/1.0", session.UserAgent)
@@ -541,7 +543,7 @@ func TestRevokeSession_NotFound(t *testing.T) {
 	user, err := svc.Register("revoke-nf@example.com", "Password123", "Revoke", "NF")
 	require.NoError(t, err)
 
-	err = svc.RevokeSession(user.ID, 99999)
+	err = svc.RevokeSession(user.ID, "01935d5a-0000-7000-8000-00000001869f")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, auth.ErrSessionNotFound)
 }

@@ -2,7 +2,6 @@ package v1
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
@@ -14,7 +13,7 @@ import (
 // list of audit logs for a workspace with optional filters.
 func (h *AuditHandlers) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
-	if workspaceID == 0 {
+	if workspaceID == "" {
 		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
@@ -27,10 +26,7 @@ func (h *AuditHandlers) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if userIDStr := r.URL.Query().Get("user_id"); userIDStr != "" {
-		uid, err := strconv.ParseUint(userIDStr, 10, 64)
-		if err == nil {
-			filters.UserID = uint(uid)
-		}
+		filters.UserID = userIDStr
 	}
 
 	if fromStr := r.URL.Query().Get("from_date"); fromStr != "" {

@@ -20,7 +20,7 @@ func NewNotificationChannelRepo(db *gorm.DB) *NotificationChannelRepo {
 	return &NotificationChannelRepo{db: db}
 }
 
-func (r *NotificationChannelRepo) FindByID(ctx context.Context, id uint) (*entity.NotificationChannel, error) {
+func (r *NotificationChannelRepo) FindByID(ctx context.Context, id string) (*entity.NotificationChannel, error) {
 	var m NotificationChannel
 	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -31,7 +31,7 @@ func (r *NotificationChannelRepo) FindByID(ctx context.Context, id uint) (*entit
 	return notifChannelToDomain(&m), nil
 }
 
-func (r *NotificationChannelRepo) FindByIDAndWorkspace(ctx context.Context, id, workspaceID uint) (*entity.NotificationChannel, error) {
+func (r *NotificationChannelRepo) FindByIDAndWorkspace(ctx context.Context, id, workspaceID string) (*entity.NotificationChannel, error) {
 	var m NotificationChannel
 	if err := r.db.WithContext(ctx).Where("id = ? AND workspace_id = ?", id, workspaceID).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -42,7 +42,7 @@ func (r *NotificationChannelRepo) FindByIDAndWorkspace(ctx context.Context, id, 
 	return notifChannelToDomain(&m), nil
 }
 
-func (r *NotificationChannelRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.NotificationChannel, error) {
+func (r *NotificationChannelRepo) FindByWorkspaceID(ctx context.Context, workspaceID string) ([]entity.NotificationChannel, error) {
 	var ms []NotificationChannel
 	if err := r.db.WithContext(ctx).Where("workspace_id = ?", workspaceID).Find(&ms).Error; err != nil {
 		return nil, fmt.Errorf("listing notification channels: %w", err)
@@ -74,7 +74,7 @@ func (r *NotificationChannelRepo) Update(ctx context.Context, channel *entity.No
 	return nil
 }
 
-func (r *NotificationChannelRepo) DeleteByIDAndWorkspace(ctx context.Context, id, workspaceID uint) (int64, error) {
+func (r *NotificationChannelRepo) DeleteByIDAndWorkspace(ctx context.Context, id, workspaceID string) (int64, error) {
 	result := r.db.WithContext(ctx).Where("id = ? AND workspace_id = ?", id, workspaceID).Delete(&NotificationChannel{})
 	if result.Error != nil {
 		return 0, fmt.Errorf("deleting notification channel: %w", result.Error)

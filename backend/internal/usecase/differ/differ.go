@@ -54,10 +54,10 @@ func (d *Differ) ProcessJob(ctx context.Context, job *queue.Job) error {
 }
 
 // processRelease generates a diff for a new release.
-func (d *Differ) processRelease(ctx context.Context, releaseID uint) error {
+func (d *Differ) processRelease(ctx context.Context, releaseID string) error {
 	release, pkg, err := d.repo.FindReleaseByIDWithPackage(ctx, releaseID)
 	if err != nil {
-		return fmt.Errorf("loading release %d: %w", releaseID, err)
+		return fmt.Errorf("loading release %s: %w", releaseID, err)
 	}
 
 	// Update status to diffing
@@ -170,7 +170,7 @@ func (d *Differ) getRegistry(name string) usecase.Registry {
 
 func (d *Differ) markError(ctx context.Context, release *entity.Release, pkg *entity.Package, msg string) {
 	d.repo.UpdateReleaseError(ctx, release.ID, entity.ReleaseStatusError, msg)
-	if d.notifier != nil && pkg.ID > 0 {
+	if d.notifier != nil && pkg.ID != "" {
 		d.notifier.DispatchEvent(ctx, pkg.WorkspaceID, entity.NotificationEvent{
 			Severity:      "medium",
 			EventType:     entity.NotifEventDiffError,

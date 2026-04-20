@@ -50,7 +50,7 @@ func (r *PermissionRepo) FindOrCreate(ctx context.Context, perm *entity.Permissi
 	return nil
 }
 
-func (r *PermissionRepo) CheckUserPermission(ctx context.Context, userID, workspaceID uint, resource, action string) (bool, error) {
+func (r *PermissionRepo) CheckUserPermission(ctx context.Context, userID, workspaceID string, resource, action string) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&Permission{}).
 		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").

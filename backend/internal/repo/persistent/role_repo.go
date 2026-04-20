@@ -20,7 +20,7 @@ func NewRoleRepo(db *gorm.DB) *RoleRepo {
 	return &RoleRepo{db: db}
 }
 
-func (r *RoleRepo) FindByID(ctx context.Context, id uint) (*entity.Role, error) {
+func (r *RoleRepo) FindByID(ctx context.Context, id string) (*entity.Role, error) {
 	var m Role
 	if err := r.db.WithContext(ctx).Preload("Permissions").First(&m, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -31,7 +31,7 @@ func (r *RoleRepo) FindByID(ctx context.Context, id uint) (*entity.Role, error) 
 	return roleToDomain(&m), nil
 }
 
-func (r *RoleRepo) FindByIDAndWorkspace(ctx context.Context, id, workspaceID uint) (*entity.Role, error) {
+func (r *RoleRepo) FindByIDAndWorkspace(ctx context.Context, id, workspaceID string) (*entity.Role, error) {
 	var m Role
 	err := r.db.WithContext(ctx).
 		Preload("Permissions").
@@ -46,7 +46,7 @@ func (r *RoleRepo) FindByIDAndWorkspace(ctx context.Context, id, workspaceID uin
 	return roleToDomain(&m), nil
 }
 
-func (r *RoleRepo) FindByWorkspaceID(ctx context.Context, workspaceID uint) ([]entity.Role, error) {
+func (r *RoleRepo) FindByWorkspaceID(ctx context.Context, workspaceID string) ([]entity.Role, error) {
 	var ms []Role
 	err := r.db.WithContext(ctx).
 		Preload("Permissions").

@@ -60,7 +60,7 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 	for key := range req {
 		updatedKeys = append(updatedKeys, key)
 	}
-	h.Audit.LogAction(r.Context(), "update", "setting", 0, fmt.Sprintf("updated settings: %s", strings.Join(updatedKeys, ", ")))
+	h.Audit.LogAction(r.Context(), "update", "setting", "", fmt.Sprintf("updated settings: %s", strings.Join(updatedKeys, ", ")))
 
 	// Invalidate the poller settings cache so changes take effect immediately
 	if h.Poller != nil {
@@ -103,7 +103,7 @@ func (h *SettingsHandlers) DiscoverPackages(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "discover", "package", 0,
+	h.Audit.LogAction(r.Context(), "discover", "package", "",
 		fmt.Sprintf("triggered discovery for org (scan_depth=%d)", scanDepth))
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "discovery triggered"}, nil)

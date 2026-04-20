@@ -39,12 +39,12 @@ const SeverityBadge = ({ severity }: { severity: string }) => {
 
 type NotificationPageItemProps = {
   notification: Notification
-  onMarkRead: (id: number) => void
-  onDelete: (id: number) => void
+  onMarkRead: (id: string) => void
+  onDelete: (id: string) => void
   isMarkingRead: boolean
   isDeleting: boolean
   isSelected?: boolean
-  onToggleSelect?: (id: number) => void
+  onToggleSelect?: (id: string) => void
   selectMode?: boolean
 }
 

@@ -24,7 +24,7 @@ export const getPackages = async (params?: {
   return fetchApi<Package[]>(`/api/packages?${searchParams.toString()}`)
 }
 
-export const getPackage = async (id: number): Promise<ApiResponse<Package>> =>
+export const getPackage = async (id: string): Promise<ApiResponse<Package>> =>
   fetchApi<Package>(`/api/packages/${id}`)
 
 export const createPackage = async (
@@ -36,11 +36,11 @@ export const createPackage = async (
     body: JSON.stringify({ name, ecosystem }),
   })
 
-export const deletePackage = async (id: number): Promise<ApiResponse<null>> =>
+export const deletePackage = async (id: string): Promise<ApiResponse<null>> =>
   fetchApi<null>(`/api/packages/${id}`, { method: "DELETE" })
 
 export const blockPackage = async (
-  id: number,
+  id: string,
   reason?: string
 ): Promise<ApiResponse<Package>> =>
   fetchApi<Package>(`/api/packages/${id}/block`, {
@@ -49,14 +49,14 @@ export const blockPackage = async (
   })
 
 export const unblockPackage = async (
-  id: number
+  id: string
 ): Promise<ApiResponse<Package>> =>
   fetchApi<Package>(`/api/packages/${id}/unblock`, {
     method: "POST",
   })
 
 export const getPackageReleases = async (
-  packageId: number,
+  packageId: string,
   page = 1,
   limit = 20
 ): Promise<ApiResponse<Release[]>> =>
@@ -83,7 +83,7 @@ export const bulkImportPackages = async (
   })
 
 export const getAnalysisHistory = async (
-  packageId: number
+  packageId: string
 ): Promise<ApiResponse<AnalysisHistoryEntry[]>> =>
   fetchApi<AnalysisHistoryEntry[]>(
     `/api/packages/${packageId}/analysis-history`
@@ -107,14 +107,14 @@ export const getPackageSuggestions = async (params?: {
   return fetchApi<Package[]>(`/api/packages/suggestions?${searchParams.toString()}`)
 }
 
-export const approvePackage = async (id: number): Promise<ApiResponse<Package>> =>
+export const approvePackage = async (id: string): Promise<ApiResponse<Package>> =>
   fetchApi<Package>(`/api/packages/${id}/approve`, { method: "POST" })
 
-export const rejectPackage = async (id: number): Promise<ApiResponse<null>> =>
+export const rejectPackage = async (id: string): Promise<ApiResponse<null>> =>
   fetchApi<null>(`/api/packages/${id}/reject`, { method: "POST" })
 
 export const bulkApprovePackages = async (
-  params: { packageIds: number[] } | { ecosystem: string } | { approveAll: true }
+  params: { packageIds: string[] } | { ecosystem: string } | { approveAll: true }
 ): Promise<ApiResponse<{ approved: number }>> =>
   fetchApi<{ approved: number }>("/api/packages/bulk-approve", {
     method: "POST",
