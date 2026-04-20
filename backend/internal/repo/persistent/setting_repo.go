@@ -59,14 +59,6 @@ func (r *SettingRepo) Upsert(ctx context.Context, setting *entity.Setting) error
 	return nil
 }
 
-func (r *SettingRepo) FindOrCreateByKey(ctx context.Context, key, defaultValue string) (*entity.Setting, error) {
-	m := &Setting{Key: key, Value: defaultValue}
-	if err := r.db.WithContext(ctx).Where("key = ?", key).FirstOrCreate(m).Error; err != nil {
-		return nil, fmt.Errorf("find or create setting: %w", err)
-	}
-	return settingToDomain(m), nil
-}
-
 func (r *SettingRepo) UpsertByWorkspaceAndKey(ctx context.Context, workspaceID uint, key, value string) error {
 	m := &Setting{WorkspaceID: workspaceID, Key: key, Value: value}
 	result := r.db.WithContext(ctx).
@@ -77,17 +69,6 @@ func (r *SettingRepo) UpsertByWorkspaceAndKey(ctx context.Context, workspaceID u
 		return fmt.Errorf("upserting setting by org and key: %w", result.Error)
 	}
 	return nil
-}
-
-// GetSettingValue implements usecase.SettingGetter. It returns the value of a
-// single setting by workspaceID and key. Returns entity.ErrNotFound if the key does
-// not exist.
-func (r *SettingRepo) GetSettingValue(ctx context.Context, workspaceID uint, key string) (string, error) {
-	setting, err := r.FindByKey(ctx, workspaceID, key)
-	if err != nil {
-		return "", err
-	}
-	return setting.Value, nil
 }
 
 // --- Converters ---

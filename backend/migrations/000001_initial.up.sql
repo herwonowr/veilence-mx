@@ -198,7 +198,6 @@ CREATE TABLE packages (
     blocked_at TIMESTAMPTZ,
     blocked_reason TEXT,
     download_count BIGINT NOT NULL DEFAULT 0,
-    popularity_score DOUBLE PRECISION NOT NULL DEFAULT 0,
     download_count_updated_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

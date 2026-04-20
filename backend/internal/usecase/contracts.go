@@ -130,7 +130,6 @@ type SettingRepository interface {
 	FindByKey(ctx context.Context, workspaceID uint, key string) (*entity.Setting, error)
 	Upsert(ctx context.Context, setting *entity.Setting) error
 	UpsertByWorkspaceAndKey(ctx context.Context, workspaceID uint, key, value string) error
-	FindOrCreateByKey(ctx context.Context, key, defaultValue string) (*entity.Setting, error)
 }
 
 // WorkspaceRepository defines persistence operations for Workspace entities.
@@ -352,13 +351,6 @@ type Registry interface {
 type AuthEmailSender interface {
 	SendPasswordResetEmail(ctx context.Context, email, token string) error
 	SendVerificationEmail(ctx context.Context, email, token string) error
-}
-
-// SettingGetter defines a minimal read-only interface for retrieving a single
-// setting value. Used by the auth service to check settings (e.g. email
-// verification toggle) without depending on the full SettingRepository.
-type SettingGetter interface {
-	GetSettingValue(ctx context.Context, workspaceID uint, key string) (string, error)
 }
 
 // UserWorkspaceLister returns the workspace IDs a user belongs to.

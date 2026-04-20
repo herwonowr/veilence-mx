@@ -70,16 +70,6 @@ func (m *mockSettingRepo) UpsertByWorkspaceAndKey(_ context.Context, workspaceID
 	return nil
 }
 
-func (m *mockSettingRepo) FindOrCreateByKey(_ context.Context, key, defaultValue string) (*entity.Setting, error) {
-	sk := storeKey(0, key)
-	s, ok := m.store[sk]
-	if !ok {
-		s = entity.Setting{Key: key, Value: defaultValue}
-		m.store[sk] = s
-	}
-	return &s, nil
-}
-
 // ---------------------------------------------------------------------------
 // GetSettings
 // ---------------------------------------------------------------------------
