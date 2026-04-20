@@ -318,6 +318,9 @@ func seedSettingsDefaults(cfg *config.Config, db *gorm.DB) {
 		entity.SettingDiscoveryAutoApprove:         fmt.Sprintf("%t", cfg.DiscoveryAutoApprove),
 		entity.SettingStaleAutoRemoveMonths:        fmt.Sprintf("%d", cfg.StaleAutoRemoveMonths),
 		entity.SettingPackageCountWarningThreshold: fmt.Sprintf("%d", cfg.PackageCountWarningThreshold),
+		entity.SettingEmailDigestEnabled:            "false",
+		entity.SettingEmailDigestFrequency:          "daily",
+		entity.SettingEmailDigestRecipients:         "",
 	}
 	for key, value := range seedDefaults {
 		db.Where("key = ?", key).FirstOrCreate(&persistent.Setting{Key: key, Value: value})
