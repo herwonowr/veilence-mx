@@ -1,15 +1,14 @@
 /**
- * Tests for useQueueStats, useDeadJobs, useRetryDeadJobs hooks.
+ * Tests for useQueueStats, useRetryDeadJobs hooks.
  *
- * Covers: queue stats fetch, dead jobs fetch with type filter,
- * retry mutation and cache invalidation, error handling.
+ * Covers: queue stats fetch, retry mutation and cache invalidation, error handling.
  */
 
 import { renderHook, waitFor, act } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { http, HttpResponse } from "msw"
 import { server } from "@/__tests__/msw-server"
-import { useQueueStats, useDeadJobs, useRetryDeadJobs, queueKeys } from "@/features/settings"
+import { useQueueStats, useRetryDeadJobs, queueKeys } from "@/features/settings"
 
 vi.mock("@/core/providers/auth-provider", () => ({
   useAuth: vi.fn(() => ({
@@ -78,51 +77,6 @@ describe("useQueueStats", () => {
   })
 })
 
-describe("useDeadJobs", () => {
-  it("fetches dead jobs without type filter", async () => {
-    server.use(
-      http.get("http://localhost:8080/api/queue/dead", () => {
-        return HttpResponse.json({
-          data: [
-            { id: "1", type: "diff", payload: "{}", error: "timeout", failedAt: "2026-04-01T00:00:00Z" },
-          ],
-          error: null,
-        })
-      })
-    )
-
-    const { result } = renderHook(() => useDeadJobs(), {
-      wrapper: createWrapper(),
-    })
-
-    await waitFor(() => {
-      expect(result.current.isSuccess).toBe(true)
-    })
-
-    expect(result.current.data?.data).toHaveLength(1)
-  })
-
-  it("passes type filter parameter", async () => {
-    let capturedUrl = ""
-    server.use(
-      http.get("http://localhost:8080/api/queue/dead", ({ request }) => {
-        capturedUrl = request.url
-        return HttpResponse.json({ data: [], error: null })
-      })
-    )
-
-    const { result } = renderHook(() => useDeadJobs("analyze"), {
-      wrapper: createWrapper(),
-    })
-
-    await waitFor(() => {
-      expect(result.current.isSuccess).toBe(true)
-    })
-
-    expect(capturedUrl).toContain("type=analyze")
-  })
-})
-
 describe("useRetryDeadJobs", () => {
   it("retries dead jobs successfully", async () => {
     server.use(
@@ -179,7 +133,5 @@ describe("queueKeys", () => {
   it("generates correct key structure", () => {
     expect(queueKeys.all).toEqual(["queue"])
     expect(queueKeys.stats()).toEqual(["queue", "stats"])
-    expect(queueKeys.dead("diff")).toEqual(["queue", "dead", "diff"])
-    expect(queueKeys.dead()).toEqual(["queue", "dead", undefined])
   })
 })

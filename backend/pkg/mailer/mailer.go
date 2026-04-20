@@ -80,6 +80,25 @@ func (m *Mailer) SendVerificationEmail(_ context.Context, email, token string) e
 	return m.sendEmail([]string{email}, subject, body)
 }
 
+// SendInvitationEmail sends a workspace invitation email with a link to accept.
+func (m *Mailer) SendInvitationEmail(_ context.Context, email, token, workspaceName, inviterEmail string) error {
+	acceptLink := fmt.Sprintf("%s/invite/%s", m.frontendURL, token)
+
+	subject := fmt.Sprintf("[Veilence-MX] You've been invited to %s", workspaceName)
+	body := fmt.Sprintf(
+		"%s has invited you to join the workspace \"%s\" on Veilence-MX.\r\n\r\n"+
+			"Click the link below to accept the invitation:\r\n\r\n"+
+			"%s\r\n\r\n"+
+			"This invitation expires in 7 days.\r\n\r\n"+
+			"If you don't have an account yet, you'll be able to create one after clicking the link.\r\n\r\n"+
+			"If you did not expect this invitation, you can safely ignore this email.\r\n\r\n"+
+			"---\r\nSent by Veilence-MX",
+		inviterEmail, workspaceName, acceptLink,
+	)
+
+	return m.sendEmail([]string{email}, subject, body)
+}
+
 // sendEmail builds an RFC 2822 message and sends it via SMTP.
 func (m *Mailer) sendEmail(recipients []string, subject, body string) error {
 	if !m.smtp.IsConfigured() {

@@ -19,6 +19,9 @@ import {
   apiRemoveMember,
   apiUpdateMemberRole,
   apiGetAuditLogs,
+  apiGetPendingInvitations,
+  apiRevokeInvitation,
+  apiResendInvitation,
 } from "@/domains/admin"
 import type { ApiResponse } from "@/domains/common"
 import type {
@@ -27,6 +30,7 @@ import type {
   Role,
   Permission,
   AuditLog,
+  Invitation,
 } from "@/domains/admin"
 import { toast } from "sonner"
 import { sanitizeErrorMessage } from "@/core"
@@ -36,6 +40,7 @@ export const workspaceKeys = {
   lists: () => [...workspaceKeys.all, "list"] as const,
   detail: (id: string) => [...workspaceKeys.all, "detail", id] as const,
   members: (workspaceId: string) => [...workspaceKeys.all, "members", workspaceId] as const,
+  invitations: (workspaceId: string) => [...workspaceKeys.all, "invitations", workspaceId] as const,
   roles: (workspaceId: string) => [...workspaceKeys.all, "roles", workspaceId] as const,
   permissions: () => [...workspaceKeys.all, "permissions"] as const,
   auditLogs: (workspaceId: string, params?: Record<string, unknown>) =>
@@ -165,9 +170,71 @@ export const useInviteMember = () => {
       queryClient.invalidateQueries({
         queryKey: workspaceKeys.members(variables.workspaceId),
       })
+      queryClient.invalidateQueries({
+        queryKey: workspaceKeys.invitations(variables.workspaceId),
+      })
+      toast.success("Invitation sent")
     },
     onError: (error: Error) => {
       toast.error(sanitizeErrorMessage(error, "Failed to send invitation"))
+    },
+  })
+}
+
+export const usePendingInvitations = (
+  workspaceId: string,
+  options?: Partial<UseQueryOptions<ApiResponse<Invitation[]>>>
+) => {
+  return useQuery({
+    queryKey: workspaceKeys.invitations(workspaceId),
+    queryFn: () => apiGetPendingInvitations(workspaceId),
+    enabled: !!workspaceId,
+    ...options,
+  })
+}
+
+export const useRevokeInvitation = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      workspaceId,
+      invitationId,
+    }: {
+      workspaceId: string
+      invitationId: string
+    }) => apiRevokeInvitation(workspaceId, invitationId),
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: workspaceKeys.invitations(variables.workspaceId),
+      })
+      toast.success("Invitation revoked")
+    },
+    onError: (error: Error) => {
+      toast.error(sanitizeErrorMessage(error, "Failed to revoke invitation"))
+    },
+  })
+}
+
+export const useResendInvitation = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      workspaceId,
+      invitationId,
+    }: {
+      workspaceId: string
+      invitationId: string
+    }) => apiResendInvitation(workspaceId, invitationId),
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: workspaceKeys.invitations(variables.workspaceId),
+      })
+      toast.success("Invitation resent")
+    },
+    onError: (error: Error) => {
+      toast.error(sanitizeErrorMessage(error, "Failed to resend invitation"))
     },
   })
 }

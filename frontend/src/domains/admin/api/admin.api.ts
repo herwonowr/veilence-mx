@@ -7,6 +7,9 @@ import type {
   Permission,
   AuditLog,
   AuditLogParams,
+  Invitation,
+  InvitationInfo,
+  MyInvitation,
 } from "@/domains/admin/types/admin.types"
 
 export const apiGetWorkspaces = async (): Promise<ApiResponse<Workspace[]>> =>
@@ -81,6 +84,19 @@ export const apiGetWorkspaceRoles = async (
 export const apiGetPermissions = async (): Promise<ApiResponse<Permission[]>> =>
   fetchApi<Permission[]>("/api/permissions")
 
+export const apiGetPendingInvitations = async (
+  workspaceId: string
+): Promise<ApiResponse<Invitation[]>> =>
+  fetchApi<Invitation[]>(`/api/workspaces/${workspaceId}/invitations`)
+
+export const apiRevokeInvitation = async (
+  workspaceId: string,
+  invitationId: string
+): Promise<ApiResponse<null>> =>
+  fetchApi<null>(`/api/workspaces/${workspaceId}/invitations/${invitationId}`, {
+    method: "DELETE",
+  })
+
 export const apiGetAuditLogs = async (
   workspaceId: string,
   params?: AuditLogParams
@@ -97,3 +113,47 @@ export const apiGetAuditLogs = async (
     `/api/workspaces/${workspaceId}/audit-logs${query ? `?${query}` : ""}`
   )
 }
+
+export const apiGetInvitationByToken = async (
+  token: string
+): Promise<ApiResponse<InvitationInfo>> =>
+  fetchApi<InvitationInfo>(`/api/invitations/${token}`, { skipAuth: true })
+
+export const apiResendInvitation = async (
+  workspaceId: string,
+  invitationId: string
+): Promise<ApiResponse<null>> =>
+  fetchApi<null>(`/api/workspaces/${workspaceId}/invitations/${invitationId}/resend`, {
+    method: "POST",
+  })
+
+export const apiAcceptInvitation = async (
+  workspaceId: string,
+  token: string
+): Promise<ApiResponse<WorkspaceMember>> =>
+  fetchApi<WorkspaceMember>(
+    `/api/workspaces/${workspaceId}/invitations/${token}/accept`,
+    { method: "POST" }
+  )
+
+export const apiDeclineInvitationByToken = async (
+  workspaceId: string,
+  token: string
+): Promise<ApiResponse<null>> =>
+  fetchApi<null>(
+    `/api/workspaces/${workspaceId}/invitations/${token}/decline`,
+    { method: "POST" }
+  )
+
+export const apiGetMyInvitations = async (): Promise<ApiResponse<MyInvitation[]>> =>
+  fetchApi<MyInvitation[]>("/api/invitations/mine")
+
+export const apiAcceptInvitationById = async (
+  id: string
+): Promise<ApiResponse<null>> =>
+  fetchApi<null>(`/api/invitations/${id}/accept`, { method: "POST" })
+
+export const apiDeclineInvitationById = async (
+  id: string
+): Promise<ApiResponse<null>> =>
+  fetchApi<null>(`/api/invitations/${id}/decline`, { method: "POST" })

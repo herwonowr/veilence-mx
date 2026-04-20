@@ -83,6 +83,11 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 			// Permissions (global, not org-scoped)
 			r.Get("/permissions", h.Workspace.ListPermissions)
 
+			// User-facing invitation management (not workspace-scoped)
+			r.Get("/invitations/mine", h.Workspace.ListMyInvitations)
+			r.Post("/invitations/{id}/accept", h.Workspace.AcceptInvitationByID)
+			r.Post("/invitations/{id}/decline", h.Workspace.DeclineInvitationByID)
+
 			// Workspace-scoped flat routes (org ID from X-Workspace-ID header or workspace_id query param)
 			r.Group(func(r chi.Router) {
 				r.Use(rbac.RequireWorkspace(rbacService))
@@ -192,6 +197,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 					r.With(rbac.RequirePermission(rbacService, "members", "invite")).Post("/invitations", h.Workspace.InviteMember)
 					r.With(rbac.RequirePermission(rbacService, "members", "read")).Get("/invitations", h.Workspace.ListPendingInvitations)
 					r.With(rbac.RequirePermission(rbacService, "members", "invite")).Delete("/invitations/{id}", h.Workspace.RevokeInvitation)
+					r.With(rbac.RequirePermission(rbacService, "members", "invite")).Post("/invitations/{id}/resend", h.Workspace.ResendInvitation)
 					r.With(rbac.RequirePermission(rbacService, "members", "remove")).Delete("/members/{userId}", h.Workspace.RemoveMember)
 					r.With(rbac.RequirePermission(rbacService, "members", "remove")).Put("/members/{userId}/role", h.Workspace.UpdateMemberRole)
 

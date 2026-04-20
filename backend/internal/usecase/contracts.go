@@ -168,13 +168,6 @@ type PermissionRepository interface {
 	CheckUserPermission(ctx context.Context, userID, workspaceID string, resource, action string) (bool, error)
 }
 
-// InvitationRepository defines persistence operations for Invitation entities.
-type InvitationRepository interface {
-	FindByTokenHash(ctx context.Context, tokenHash string) (*entity.Invitation, error)
-	Create(ctx context.Context, invitation *entity.Invitation) error
-	Update(ctx context.Context, invitation *entity.Invitation) error
-}
-
 // AuditLogRepository defines persistence operations for AuditLog entities.
 type AuditLogRepository interface {
 	Create(ctx context.Context, entry *entity.AuditLog) error
@@ -354,6 +347,18 @@ type AuthEmailSender interface {
 	SendVerificationEmail(ctx context.Context, email, token string) error
 }
 
+// InvitationEmailSender defines the interface for sending workspace invitation emails.
+// Implementations live in the outer layer (pkg/mailer).
+type InvitationEmailSender interface {
+	SendInvitationEmail(ctx context.Context, email, token, workspaceName, inviterEmail string) error
+}
+
+// UserEmailResolver resolves a user ID to their email address.
+// Used by the RBAC service to display inviter identity in invitation emails.
+type UserEmailResolver interface {
+	FindByID(ctx context.Context, id string) (*entity.User, error)
+}
+
 // UserWorkspaceLister returns the workspace IDs a user belongs to.
 // Used by the notification service to scope cross-workspace queries.
 type UserWorkspaceLister interface {
@@ -399,6 +404,9 @@ type RBACRepository interface {
 	FindInvitationByTokenHash(ctx context.Context, tokenHash string) (*entity.Invitation, error)
 	UpdateInvitation(ctx context.Context, invitation *entity.Invitation) error
 	FindPendingInvitations(ctx context.Context, workspaceID string) ([]entity.Invitation, error)
+	FindInvitationByID(ctx context.Context, workspaceID, invitationID string) (*entity.Invitation, error)
+	FindInvitationByIDGlobal(ctx context.Context, invitationID string) (*entity.Invitation, error)
+	FindPendingInvitationsByEmail(ctx context.Context, email string) ([]entity.Invitation, error)
 	DeletePendingInvitation(ctx context.Context, workspaceID, invitationID string) error
 
 	// Permission check

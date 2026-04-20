@@ -104,7 +104,7 @@ func setupIntegrationServer(t *testing.T) *testServer {
 	sessionRepo := persistent.NewSessionRepo(db)
 
 	authSvc := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, nil, false, nil, testJWTSecret)
-	rbacSvc := rbac.NewService(persistent.NewRBACRepo(db))
+	rbacSvc := rbac.NewService(persistent.NewRBACRepo(db), nil)
 	auditSvc := audit.NewService(persistent.NewAuditLogRepo(db))
 
 	channelRepo := persistent.NewNotificationChannelRepo(db)

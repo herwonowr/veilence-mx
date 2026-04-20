@@ -168,8 +168,9 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	rateLimiter := cache.NewRateLimiter(redisClient)
 
 	var authEmailSender usecase.AuthEmailSender
+	var invitationEmailSender usecase.InvitationEmailSender
 	if smtpConfig.IsConfigured() {
-		authEmailSender = mailer.New(mailer.SMTPConfig{
+		m := mailer.New(mailer.SMTPConfig{
 			Host:     smtpConfig.Host,
 			Port:     smtpConfig.Port,
 			Username: smtpConfig.Username,
@@ -177,6 +178,8 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 			From:     smtpConfig.From,
 			SkipTLS:  !smtpConfig.UseTLS,
 		}, cfg.FrontendURL)
+		authEmailSender = m
+		invitationEmailSender = m
 	}
 
 	var previousSecrets []string
@@ -192,7 +195,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	if err := rbac.SeedPermissions(rbacRepo); err != nil {
 		return nil, fmt.Errorf("seeding permissions: %w", err)
 	}
-	rbacService := rbac.NewService(rbacRepo)
+	rbacService := rbac.NewService(rbacRepo, invitationEmailSender, rbac.WithUserEmailResolver(userRepo), rbac.WithNotificationDispatcher(notificationService))
 	auditService := audit.NewService(auditLogRepo)
 	dashboardRepo := persistent.NewDashboardRepo(db)
 	alertNoteRepo := persistent.NewAlertNoteRepo(db)

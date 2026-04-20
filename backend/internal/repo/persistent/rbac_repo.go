@@ -287,19 +287,33 @@ func (r *RBACRepo) FindInvitationByTokenHash(ctx context.Context, tokenHash stri
 
 // UpdateInvitation updates an invitation.
 func (r *RBACRepo) UpdateInvitation(ctx context.Context, invitation *entity.Invitation) error {
-	if err := r.db.WithContext(ctx).Model(&Invitation{}).Where("id = ?", invitation.ID).Updates(map[string]interface{}{
+	if err := r.db.WithContext(ctx).Model(&Invitation{}).Where("id = ? AND workspace_id = ?", invitation.ID, invitation.WorkspaceID).Updates(map[string]interface{}{
 		"accepted_at": invitation.AcceptedAt,
+		"declined_at": invitation.DeclinedAt,
+		"token_hash":  invitation.TokenHash,
+		"expires_at":  invitation.ExpiresAt,
 	}).Error; err != nil {
 		return fmt.Errorf("RBACRepo.UpdateInvitation: %w", err)
 	}
 	return nil
 }
 
+// FindInvitationByID returns a single invitation by ID scoped to a workspace.
+func (r *RBACRepo) FindInvitationByID(ctx context.Context, workspaceID, invitationID string) (*entity.Invitation, error) {
+	var m Invitation
+	if err := r.db.WithContext(ctx).
+		Where("id = ? AND workspace_id = ?", invitationID, workspaceID).
+		First(&m).Error; err != nil {
+		return nil, fmt.Errorf("RBACRepo.FindInvitationByID: %w", err)
+	}
+	return invitationModelToEntity(m), nil
+}
+
 // FindPendingInvitations returns pending invitations for a workspace.
 func (r *RBACRepo) FindPendingInvitations(ctx context.Context, workspaceID string) ([]entity.Invitation, error) {
 	var models []Invitation
 	err := r.db.WithContext(ctx).
-		Where("workspace_id = ? AND accepted_at IS NULL AND expires_at > ?", workspaceID, time.Now()).
+		Where("workspace_id = ? AND accepted_at IS NULL AND declined_at IS NULL AND expires_at > ?", workspaceID, time.Now()).
 		Order("created_at DESC").
 		Find(&models).Error
 	if err != nil {
@@ -316,7 +330,7 @@ func (r *RBACRepo) FindPendingInvitations(ctx context.Context, workspaceID strin
 // DeletePendingInvitation deletes a pending invitation.
 func (r *RBACRepo) DeletePendingInvitation(ctx context.Context, workspaceID, invitationID string) error {
 	result := r.db.WithContext(ctx).
-		Where("id = ? AND workspace_id = ? AND accepted_at IS NULL", invitationID, workspaceID).
+		Where("id = ? AND workspace_id = ? AND accepted_at IS NULL AND declined_at IS NULL", invitationID, workspaceID).
 		Delete(&Invitation{})
 	if result.Error != nil {
 		return fmt.Errorf("RBACRepo.DeletePendingInvitation: %w", result.Error)
@@ -374,6 +388,69 @@ func (r *RBACRepo) WithTransaction(ctx context.Context, fn func(tx usecase.RBACR
 		txRepo := &RBACRepo{db: gormTx}
 		return fn(txRepo)
 	})
+}
+
+// FindInvitationByIDGlobal returns an invitation by ID without workspace scoping.
+func (r *RBACRepo) FindInvitationByIDGlobal(ctx context.Context, invitationID string) (*entity.Invitation, error) {
+	var m Invitation
+	if err := r.db.WithContext(ctx).Where("id = ?", invitationID).First(&m).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("RBACRepo.FindInvitationByIDGlobal: %w", err)
+	}
+	return invitationModelToEntity(m), nil
+}
+
+// FindPendingInvitationsByEmail returns all pending (not accepted, not declined,
+// not expired) invitations for a given email address, with workspace name and
+// inviter email joined.
+func (r *RBACRepo) FindPendingInvitationsByEmail(ctx context.Context, email string) ([]entity.Invitation, error) {
+	var models []Invitation
+	err := r.db.WithContext(ctx).
+		Where("invitations.email = ? AND invitations.accepted_at IS NULL AND invitations.declined_at IS NULL AND invitations.expires_at > ?", email, time.Now()).
+		Order("invitations.created_at DESC").
+		Find(&models).Error
+	if err != nil {
+		return nil, fmt.Errorf("RBACRepo.FindPendingInvitationsByEmail: %w", err)
+	}
+
+	// Collect workspace IDs and inviter IDs for batch lookups
+	wsIDs := make([]string, 0, len(models))
+	inviterIDs := make([]string, 0, len(models))
+	for _, m := range models {
+		wsIDs = append(wsIDs, m.WorkspaceID)
+		inviterIDs = append(inviterIDs, m.InvitedBy)
+	}
+
+	// Batch load workspace names
+	wsNameMap := make(map[string]string)
+	if len(wsIDs) > 0 {
+		var workspaces []Workspace
+		r.db.WithContext(ctx).Where("id IN ?", wsIDs).Find(&workspaces)
+		for _, ws := range workspaces {
+			wsNameMap[ws.ID] = ws.Name
+		}
+	}
+
+	// Batch load inviter emails
+	inviterEmailMap := make(map[string]string)
+	if len(inviterIDs) > 0 {
+		var users []User
+		r.db.WithContext(ctx).Where("id IN ?", inviterIDs).Find(&users)
+		for _, u := range users {
+			inviterEmailMap[u.ID] = u.Email
+		}
+	}
+
+	invitations := make([]entity.Invitation, len(models))
+	for i, m := range models {
+		inv := invitationModelToEntity(m)
+		inv.WorkspaceName = wsNameMap[m.WorkspaceID]
+		inv.InvitedByEmail = inviterEmailMap[m.InvitedBy]
+		invitations[i] = *inv
+	}
+	return invitations, nil
 }
 
 // --- Conversion helpers ---
@@ -447,6 +524,7 @@ func invitationModelToEntity(m Invitation) *entity.Invitation {
 		InvitedBy:   m.InvitedBy,
 		ExpiresAt:   m.ExpiresAt,
 		AcceptedAt:  m.AcceptedAt,
+		DeclinedAt:  m.DeclinedAt,
 		CreatedAt:   m.CreatedAt,
 	}
 }

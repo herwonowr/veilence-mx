@@ -18,13 +18,6 @@ export const getQueueJobs = async (
   return fetchApi<QueueJob[]>(`/api/queue/jobs?${searchParams}`)
 }
 
-export const getDeadJobs = async (
-  type?: string
-): Promise<ApiResponse<QueueJob[]>> => {
-  const query = type ? `?type=${type}` : ""
-  return fetchApi<QueueJob[]>(`/api/queue/dead${query}`)
-}
-
 export const retryDeadJobs = async (
   type?: string
 ): Promise<ApiResponse<{ message: string; count: number }>> => {

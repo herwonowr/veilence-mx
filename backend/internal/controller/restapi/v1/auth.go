@@ -464,6 +464,8 @@ func (h *AuthHandlers) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.Audit.LogAuthEvent(r.Context(), "verify_email", "", "email verified via token")
+
 	respondJSON(w, http.StatusOK, map[string]string{"message": "email verified successfully"}, nil)
 }
 

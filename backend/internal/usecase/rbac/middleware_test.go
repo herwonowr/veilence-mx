@@ -64,7 +64,7 @@ func setupMiddlewareEnv(t *testing.T) *middlewareTestEnv {
 	return &middlewareTestEnv{
 		DB:      db,
 		AuthSvc: auth.NewService(persistent.NewUserRepo(db), persistent.NewRefreshTokenRepo(db), persistent.NewAPIKeyRepo(db), persistent.NewPasswordResetTokenRepo(db), persistent.NewEmailVerificationTokenRepo(db), persistent.NewSessionRepo(db), nil, false, nil, testJWTSecret),
-		RBACSvc: rbac.NewService(persistent.NewRBACRepo(db)),
+		RBACSvc: rbac.NewService(persistent.NewRBACRepo(db), nil),
 	}
 }
 

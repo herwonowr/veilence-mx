@@ -30,16 +30,37 @@ var (
 	ErrSlugTaken            = errors.New("workspace slug is already taken")
 	ErrInvitationEmailMismatch = errors.New("invitation email does not match accepting user")
 	ErrInvitationRevoked    = errors.New("invitation has been revoked")
+	ErrInvitationDeclined   = errors.New("invitation has been declined")
 )
 
 // Service provides RBAC and workspace management operations.
 type Service struct {
-	repo RBACRepository
+	repo          RBACRepository
+	emailSender   InvitationEmailSender // nil = no email delivery (dev mode)
+	userResolver  UserEmailResolver     // nil = falls back to user ID in emails
+	notifier      NotificationDispatcher // nil = no in-app notifications
 }
 
 // NewService creates a new RBAC service.
-func NewService(repo RBACRepository) *Service {
-	return &Service{repo: repo}
+func NewService(repo RBACRepository, emailSender InvitationEmailSender, opts ...ServiceOption) *Service {
+	s := &Service{repo: repo, emailSender: emailSender}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+// ServiceOption configures optional dependencies for the RBAC service.
+type ServiceOption func(*Service)
+
+// WithUserEmailResolver sets the user email resolver for invitation emails.
+func WithUserEmailResolver(r UserEmailResolver) ServiceOption {
+	return func(s *Service) { s.userResolver = r }
+}
+
+// WithNotificationDispatcher sets the notification dispatcher for invitation events.
+func WithNotificationDispatcher(d NotificationDispatcher) ServiceOption {
+	return func(s *Service) { s.notifier = d }
 }
 
 // CreateWorkspace creates a new workspace, seeds default roles, and assigns
@@ -248,7 +269,7 @@ func (s *Service) GetWorkspaceMembers(workspaceID string) ([]entity.WorkspaceMem
 // InviteMember creates an invitation for a user to join a workspace.
 // Returns the invitation and the raw token (for inclusion in the invitation URL).
 // Only the SHA-256 hash of the token is stored in the database.
-func (s *Service) InviteMember(workspaceID string, email string, roleID string, invitedBy string) (*entity.Invitation, string, error) {
+func (s *Service) InviteMember(workspaceID string, email string, roleID string, invitedBy string, inviterEmail string) (*entity.Invitation, string, error) {
 	ctx := ctx_bg()
 
 	// Verify the role exists and belongs to this org
@@ -281,7 +302,35 @@ func (s *Service) InviteMember(workspaceID string, email string, roleID string, 
 		return nil, "", fmt.Errorf("creating invitation: %w", err)
 	}
 
+	// Send invitation email (best-effort - don't fail the invitation if email fails)
+	if s.emailSender != nil {
+		wsName := workspaceID // fallback
+		if ws, err := s.repo.FindWorkspaceByID(ctx, workspaceID); err == nil && ws != nil {
+			wsName = ws.Name
+		}
+		if err := s.emailSender.SendInvitationEmail(ctx, email, rawToken, wsName, inviterEmail); err != nil {
+			slog.Error("failed to send invitation email", "email", email, "workspace_id", workspaceID, "error", err)
+		}
+	}
+
 	slog.Info("invitation created", "workspace_id", workspaceID, "email", email, "invited_by", invitedBy)
+
+	// Dispatch in-app notification to the invited user (if they exist in the system)
+	if s.notifier != nil {
+		wsName := workspaceID
+		if ws, wsErr := s.repo.FindWorkspaceByID(ctx, workspaceID); wsErr == nil && ws != nil {
+			wsName = ws.Name
+		}
+		s.notifier.DispatchEvent(ctx, workspaceID, entity.NotificationEvent{
+			Severity:      "low",
+			EventType:     "invitation_received",
+			Title:         "Workspace Invitation",
+			Message:       fmt.Sprintf("You've been invited to join %s", wsName),
+			ReferenceID:   invitation.ID,
+			ReferenceType: "invitation",
+		})
+	}
+
 	return invitation, rawToken, nil
 }
 
@@ -300,6 +349,10 @@ func (s *Service) AcceptInvitation(token string, userID string, userEmail string
 		return nil, ErrInvitationAccepted
 	}
 
+	if invitation.DeclinedAt != nil {
+		return nil, ErrInvitationDeclined
+	}
+
 	if time.Now().After(invitation.ExpiresAt) {
 		return nil, ErrInvitationExpired
 	}
@@ -309,14 +362,16 @@ func (s *Service) AcceptInvitation(token string, userID string, userEmail string
 		return nil, ErrInvitationEmailMismatch
 	}
 
-	// Check if user is already a member
-	existingCount, _ := s.repo.CountMembersByUserAndWorkspace(ctx, userID, invitation.WorkspaceID)
-	if existingCount > 0 {
-		return nil, ErrAlreadyMember
-	}
-
 	var member *entity.WorkspaceMember
 	err = s.repo.WithTransaction(ctx, func(tx RBACRepository) error {
+		// Check membership inside the transaction to prevent race conditions.
+		// The workspace_members table also has a unique index on (workspace_id, user_id)
+		// as a safety net, but we check first for a clear error message.
+		existingCount, _ := tx.CountMembersByUserAndWorkspace(ctx, userID, invitation.WorkspaceID)
+		if existingCount > 0 {
+			return ErrAlreadyMember
+		}
+
 		now := time.Now()
 		invitation.AcceptedAt = &now
 		if err := tx.UpdateInvitation(ctx, invitation); err != nil {
@@ -368,6 +423,157 @@ func (s *Service) RevokeInvitation(workspaceID, invitationID string) error {
 	}
 	slog.Info("invitation revoked", "invitation_id", invitationID, "workspace_id", workspaceID)
 	return nil
+}
+
+// ResendInvitation generates a new token, extends the expiry, and resends the
+// invitation email. Only pending (not accepted, not expired) invitations can
+// be resent. Returns the invitation and the new raw token.
+func (s *Service) ResendInvitation(workspaceID, invitationID string) (*entity.Invitation, string, error) {
+	ctx := ctx_bg()
+
+	invitation, err := s.repo.FindInvitationByID(ctx, workspaceID, invitationID)
+	if err != nil || invitation == nil {
+		return nil, "", ErrInvitationNotFound
+	}
+
+	if invitation.AcceptedAt != nil {
+		return nil, "", ErrInvitationAccepted
+	}
+
+	if invitation.DeclinedAt != nil {
+		return nil, "", ErrInvitationDeclined
+	}
+
+	if time.Now().After(invitation.ExpiresAt) {
+		return nil, "", ErrInvitationExpired
+	}
+
+	// Generate a new token and extend expiry
+	rawToken, err := generateToken()
+	if err != nil {
+		return nil, "", fmt.Errorf("generating invitation token: %w", err)
+	}
+
+	invitation.TokenHash = hashToken(rawToken)
+	invitation.ExpiresAt = time.Now().Add(7 * 24 * time.Hour)
+
+	if err := s.repo.UpdateInvitation(ctx, invitation); err != nil {
+		return nil, "", fmt.Errorf("updating invitation: %w", err)
+	}
+
+	// Send invitation email (best-effort)
+	if s.emailSender != nil {
+		wsName := workspaceID
+		if ws, err := s.repo.FindWorkspaceByID(ctx, workspaceID); err == nil && ws != nil {
+			wsName = ws.Name
+		}
+		if err := s.emailSender.SendInvitationEmail(ctx, invitation.Email, rawToken, wsName, s.resolveInviterEmail(ctx, invitation.InvitedBy)); err != nil {
+			slog.Error("failed to resend invitation email", "email", invitation.Email, "workspace_id", workspaceID, "error", err)
+		}
+	}
+
+	slog.Info("invitation resent", "invitation_id", invitationID, "workspace_id", workspaceID, "email", invitation.Email)
+	return invitation, rawToken, nil
+}
+
+// DeclineInvitationByID declines an invitation by ID. The userEmail must
+// match the invitation email. Only pending invitations can be declined.
+func (s *Service) DeclineInvitationByID(invitationID string, userEmail string) error {
+	ctx := ctx_bg()
+
+	invitation, err := s.repo.FindInvitationByIDGlobal(ctx, invitationID)
+	if err != nil || invitation == nil {
+		return ErrInvitationNotFound
+	}
+
+	if invitation.Email != userEmail {
+		return ErrInvitationEmailMismatch
+	}
+
+	if invitation.AcceptedAt != nil {
+		return ErrInvitationAccepted
+	}
+
+	if invitation.DeclinedAt != nil {
+		return ErrInvitationDeclined
+	}
+
+	if time.Now().After(invitation.ExpiresAt) {
+		return ErrInvitationExpired
+	}
+
+	now := time.Now()
+	invitation.DeclinedAt = &now
+	if err := s.repo.UpdateInvitation(ctx, invitation); err != nil {
+		return fmt.Errorf("declining invitation: %w", err)
+	}
+
+	slog.Info("invitation declined", "invitation_id", invitationID, "email", userEmail)
+	return nil
+}
+
+// AcceptInvitationByID accepts a pending invitation by ID and creates a membership.
+// The userEmail must match the invitation email.
+func (s *Service) AcceptInvitationByID(invitationID string, userID string, userEmail string) (*entity.WorkspaceMember, error) {
+	ctx := ctx_bg()
+
+	invitation, err := s.repo.FindInvitationByIDGlobal(ctx, invitationID)
+	if err != nil || invitation == nil {
+		return nil, ErrInvitationNotFound
+	}
+
+	if invitation.Email != userEmail {
+		return nil, ErrInvitationEmailMismatch
+	}
+
+	if invitation.AcceptedAt != nil {
+		return nil, ErrInvitationAccepted
+	}
+
+	if invitation.DeclinedAt != nil {
+		return nil, ErrInvitationDeclined
+	}
+
+	if time.Now().After(invitation.ExpiresAt) {
+		return nil, ErrInvitationExpired
+	}
+
+	var member *entity.WorkspaceMember
+	err = s.repo.WithTransaction(ctx, func(tx RBACRepository) error {
+		existingCount, _ := tx.CountMembersByUserAndWorkspace(ctx, userID, invitation.WorkspaceID)
+		if existingCount > 0 {
+			return ErrAlreadyMember
+		}
+
+		now := time.Now()
+		invitation.AcceptedAt = &now
+		if err := tx.UpdateInvitation(ctx, invitation); err != nil {
+			return fmt.Errorf("updating invitation: %w", err)
+		}
+
+		member = &entity.WorkspaceMember{
+			WorkspaceID: invitation.WorkspaceID,
+			UserID:      userID,
+			RoleID:      invitation.RoleID,
+			JoinedAt:    now,
+		}
+		if err := tx.CreateMember(ctx, member); err != nil {
+			return fmt.Errorf("creating membership: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	slog.Info("invitation accepted by ID", "invitation_id", invitationID, "workspace_id", invitation.WorkspaceID, "user_id", userID)
+	return member, nil
+}
+
+// ListMyInvitations returns all pending invitations for a given email address.
+func (s *Service) ListMyInvitations(email string) ([]entity.Invitation, error) {
+	return s.repo.FindPendingInvitationsByEmail(ctx_bg(), email)
 }
 
 // RemoveMember removes a user from a workspace. The owner cannot be removed.
@@ -512,4 +718,15 @@ func hashToken(token string) string {
 // a context parameter (legacy API), so we use background context internally.
 func ctx_bg() context.Context {
 	return context.Background()
+}
+
+// resolveInviterEmail looks up a user's email by ID. Falls back to the raw ID
+// if the resolver is not configured or the lookup fails.
+func (s *Service) resolveInviterEmail(ctx context.Context, userID string) string {
+	if s.userResolver != nil {
+		if user, err := s.userResolver.FindByID(ctx, userID); err == nil && user != nil {
+			return user.Email
+		}
+	}
+	return userID
 }

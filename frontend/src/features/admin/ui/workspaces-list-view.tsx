@@ -22,14 +22,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/ui"
-import { Building2, Plus, Loader2, Users, Package } from "lucide-react"
+import { Building2, Plus, Loader2, Users, Package, Mail } from "lucide-react"
 import Link from "next/link"
 import { useWorkspaces } from "@/features/admin/hooks/use-workspaces"
+import { useMyInvitations } from "@/features/admin/hooks/use-my-invitations"
 
 export const WorkspacesListView = () => {
   const { refreshWorkspaces, setCurrentWorkspace } = useAuth()
   const { data: workspacesRes } = useWorkspaces()
+  const { data: myInvitationsRes } = useMyInvitations()
   const workspaces = workspacesRes?.data ?? []
+  const pendingInvitationCount = (myInvitationsRes?.data ?? []).filter(
+    (inv) => inv.status === "pending"
+  ).length
   const router = useRouter()
   const searchParams = useSearchParams()
   const shouldCreateWorkspace = searchParams.get("create") === "true"
@@ -95,7 +100,19 @@ export const WorkspacesListView = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Workspaces</h1>
-        <Dialog open={dialogOpen} onOpenChange={(open) => setDialogOpen(open)}>
+        <div className="flex items-center gap-3">
+          <Link href="/workspaces/invitations">
+            <Button variant="outline">
+              <Mail className="mr-2 size-4" />
+              View Invitations
+              {pendingInvitationCount > 0 && (
+                <Badge variant="destructive" className="ml-2">
+                  {pendingInvitationCount}
+                </Badge>
+              )}
+            </Button>
+          </Link>
+          <Dialog open={dialogOpen} onOpenChange={(open) => setDialogOpen(open)}>
           <DialogTrigger
             render={
               <Button>
@@ -162,6 +179,7 @@ export const WorkspacesListView = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {workspaces.length === 0 ? (

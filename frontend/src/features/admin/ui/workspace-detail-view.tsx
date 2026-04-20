@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/core"
-import { Button, Input, Field, FieldLabel, Tabs, TabsContent, TabsList, TabsTrigger, Badge, Skeleton, ConfirmDialog, Alert, AlertDescription, type ConfirmDialogDetail } from "@/ui"
+import { Button, Input, Field, FieldLabel, Tabs, TabsContent, TabsList, TabsTrigger, Badge, Skeleton, ConfirmDialog, Alert, AlertDescription, TableEmptyState, type ConfirmDialogDetail } from "@/ui"
 import {
   Card,
   CardContent,
@@ -45,6 +45,7 @@ import {
   ShieldCheck,
   KeyRound,
   ScrollText,
+  Mail,
 } from "lucide-react"
 import Link from "next/link"
 import {
@@ -56,6 +57,9 @@ import {
   useInviteMember,
   useRemoveMember,
   useUpdateMemberRole,
+  usePendingInvitations,
+  useRevokeInvitation,
+  useResendInvitation,
 } from "@/features/admin/hooks/use-workspaces"
 
 export const WorkspaceDetailView = () => {
@@ -69,10 +73,12 @@ export const WorkspaceDetailView = () => {
   const { data: workspaceRes, isLoading: workspaceLoading } = useWorkspace(validWorkspaceId)
   const { data: membersRes } = useWorkspaceMembers(validWorkspaceId)
   const { data: rolesRes } = useWorkspaceRoles(validWorkspaceId)
+  const { data: invitationsRes } = usePendingInvitations(validWorkspaceId)
 
   const workspace = workspaceRes?.data ?? null
   const members = membersRes?.data ?? []
   const roles = rolesRes?.data ?? []
+  const invitations = invitationsRes?.data ?? []
 
   // SEC-S3-007: Determine current user's permissions in this workspace
   const currentMember = members.find((m) => m.userId === user?.id)
@@ -117,6 +123,8 @@ export const WorkspaceDetailView = () => {
   const inviteMutation = useInviteMember()
   const removeMutation = useRemoveMember()
   const updateRoleMutation = useUpdateMemberRole()
+  const revokeMutation = useRevokeInvitation()
+  const resendMutation = useResendInvitation()
 
   const handleSave = async () => {
     await updateMutation.mutateAsync({
@@ -361,7 +369,7 @@ export const WorkspaceDetailView = () => {
                         </Select>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {new Date(member.joinedAt).toLocaleDateString()}
+                        {new Date(member.joinedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </TableCell>
                       <TableCell className="text-right">
                         {member.userId !== user?.id && canRemove && (
@@ -398,6 +406,118 @@ export const WorkspaceDetailView = () => {
               </Table>
             </CardContent>
           </Card>
+
+          {/* Invitations */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Mail className="size-4" />
+              Invitations ({invitations.length})
+            </h3>
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Invited</TableHead>
+                      <TableHead>Expires</TableHead>
+                      <TableHead className="w-[1%] whitespace-nowrap text-right">
+                        <span className="sr-only">Actions</span>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {invitations.length === 0 && (
+                      <TableEmptyState
+                        colSpan={6}
+                        icon={<Mail className="size-8" />}
+                        title="No invitations"
+                        description="Invite members to join this workspace."
+                      />
+                    )}
+                    {invitations.map((invitation) => {
+                      const role = roles.find((r) => r.id === invitation.roleId)
+                      const status = invitation.status
+                      const statusVariant = status === "accepted"
+                        ? "default"
+                        : status === "expired"
+                          ? "destructive"
+                          : "secondary"
+                      const dateOptions: Intl.DateTimeFormatOptions = {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }
+                      return (
+                        <TableRow key={invitation.id}>
+                          <TableCell>
+                            <span className="font-medium">{invitation.email}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">
+                              {role ? capitalize(role.name) : "Unknown"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={statusVariant}>
+                              {capitalize(status)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {new Date(invitation.createdAt).toLocaleDateString("en-US", dateOptions)}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {new Date(invitation.expiresAt).toLocaleDateString("en-US", dateOptions)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {canInvite && status === "pending" && (
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="xs"
+                                  aria-label={`Resend invitation for ${invitation.email}`}
+                                  disabled={resendMutation.isPending}
+                                  onClick={() =>
+                                    resendMutation.mutate({
+                                      workspaceId: validWorkspaceId,
+                                      invitationId: invitation.id,
+                                    })
+                                  }
+                                >
+                                  {resendMutation.isPending ? (
+                                    <Loader2 className="mr-1 size-3 animate-spin" />
+                                  ) : null}
+                                  Resend
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="xs"
+                                  aria-label={`Revoke invitation for ${invitation.email}`}
+                                  disabled={revokeMutation.isPending}
+                                  onClick={() =>
+                                    revokeMutation.mutate({
+                                      workspaceId: validWorkspaceId,
+                                      invitationId: invitation.id,
+                                    })
+                                  }
+                                >
+                                  Revoke
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Remove Member Confirmation Dialog */}
           <ConfirmDialog

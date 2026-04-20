@@ -374,6 +374,7 @@ type Invitation struct {
 	InvitedBy  string     `gorm:"type:uuid;not null" json:"invitedBy"`
 	ExpiresAt  time.Time  `gorm:"not null" json:"expiresAt"`
 	AcceptedAt *time.Time `json:"acceptedAt,omitempty"`
+	DeclinedAt *time.Time `json:"declinedAt,omitempty"`
 	CreatedAt  time.Time  `json:"createdAt"`
 }
 

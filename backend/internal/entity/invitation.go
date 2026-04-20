@@ -12,5 +12,8 @@ type Invitation struct {
 	InvitedBy      string
 	ExpiresAt      time.Time
 	AcceptedAt     *time.Time
+	DeclinedAt     *time.Time
 	CreatedAt      time.Time
+	WorkspaceName  string // populated by joins, not persisted
+	InvitedByEmail string // populated by joins, not persisted
 }

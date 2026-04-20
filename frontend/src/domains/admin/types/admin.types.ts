@@ -53,6 +53,36 @@ export interface AuditLog {
 }
 
 
+export interface Invitation {
+  id: string
+  workspaceId: string
+  email: string
+  roleId: string
+  invitedBy: string
+  status: string
+  expiresAt: string
+  createdAt: string
+}
+
+export interface InvitationInfo {
+  email: string
+  workspaceId: string
+  expiresAt: string
+  accepted: boolean
+  expired: boolean
+}
+
+export interface MyInvitation {
+  id: string
+  workspaceId: string
+  workspaceName: string
+  email: string
+  invitedByEmail: string
+  status: string
+  createdAt: string
+  expiresAt: string
+}
+
 export interface AuditLogParams {
   action?: string
   resource?: string

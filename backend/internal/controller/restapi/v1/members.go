@@ -25,6 +25,41 @@ type updateMemberRoleRequest struct {
 	RoleID string `json:"roleId"`
 }
 
+// invitationResponse is the response shape for invitation records.
+// It provides camelCase JSON keys, a computed status field, and omits the token hash.
+type invitationResponse struct {
+	ID          string    `json:"id"`
+	WorkspaceID string    `json:"workspaceId"`
+	Email       string    `json:"email"`
+	RoleID      string    `json:"roleId"`
+	InvitedBy   string    `json:"invitedBy"`
+	Status      string    `json:"status"`
+	ExpiresAt   time.Time `json:"expiresAt"`
+	CreatedAt   time.Time `json:"createdAt"`
+}
+
+// toInvitationResponse converts an entity.Invitation to a response with computed status.
+func toInvitationResponse(inv entity.Invitation) invitationResponse {
+	status := "pending"
+	if inv.AcceptedAt != nil {
+		status = "accepted"
+	} else if inv.DeclinedAt != nil {
+		status = "declined"
+	} else if time.Now().After(inv.ExpiresAt) {
+		status = "expired"
+	}
+	return invitationResponse{
+		ID:          inv.ID,
+		WorkspaceID: inv.WorkspaceID,
+		Email:       inv.Email,
+		RoleID:      inv.RoleID,
+		InvitedBy:   inv.InvitedBy,
+		Status:      status,
+		ExpiresAt:   inv.ExpiresAt,
+		CreatedAt:   inv.CreatedAt,
+	}
+}
+
 // flatMember is the flattened response shape for workspace members.
 // The frontend expects email, firstName, and lastName at the top level
 // instead of nested under a "user" object.
@@ -117,7 +152,9 @@ func (h *WorkspaceHandlers) InviteMember(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	invitation, rawToken, err := h.RBAC.InviteMember(workspaceID, req.Email, req.RoleID, userID)
+	inviterEmail := auth.EmailFromContext(r.Context())
+
+	invitation, rawToken, err := h.RBAC.InviteMember(workspaceID, req.Email, req.RoleID, userID, inviterEmail)
 	if err != nil {
 		if errors.Is(err, rbac.ErrRoleNotFound) {
 			respondError(w, http.StatusBadRequest, "role not found in this workspace")
@@ -240,7 +277,12 @@ func (h *WorkspaceHandlers) ListPendingInvitations(w http.ResponseWriter, r *htt
 		return
 	}
 
-	respondJSON(w, http.StatusOK, invitations, nil)
+	resp := make([]invitationResponse, len(invitations))
+	for i, inv := range invitations {
+		resp[i] = toInvitationResponse(inv)
+	}
+
+	respondJSON(w, http.StatusOK, resp, nil)
 }
 
 // RevokeInvitation handles DELETE /api/workspaces/{workspaceId}/invitations/{id} - revokes
@@ -270,6 +312,44 @@ func (h *WorkspaceHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Requ
 	h.Audit.LogAction(r.Context(), "revoke", "invitation", id, fmt.Sprintf("revoked invitation %s", id))
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "invitation revoked"}, nil)
+}
+
+// ResendInvitation handles POST /api/workspaces/{workspaceId}/invitations/{id}/resend -
+// resends a pending invitation email with a fresh token and extended expiry.
+func (h *WorkspaceHandlers) ResendInvitation(w http.ResponseWriter, r *http.Request) {
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == "" {
+		respondError(w, http.StatusBadRequest, "workspace context required")
+		return
+	}
+
+	id, ok := parseUUID(r, "id")
+	if !ok {
+		respondError(w, http.StatusBadRequest, "invalid invitation ID")
+		return
+	}
+
+	invitation, _, err := h.RBAC.ResendInvitation(workspaceID, id)
+	if err != nil {
+		if errors.Is(err, rbac.ErrInvitationNotFound) {
+			respondError(w, http.StatusNotFound, "invitation not found")
+			return
+		}
+		if errors.Is(err, rbac.ErrInvitationExpired) {
+			respondError(w, http.StatusGone, "invitation has expired")
+			return
+		}
+		if errors.Is(err, rbac.ErrInvitationAccepted) {
+			respondError(w, http.StatusConflict, "invitation already accepted")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to resend invitation")
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "resend", "invitation", id, fmt.Sprintf("resent invitation to %s", invitation.Email))
+
+	respondJSON(w, http.StatusOK, toInvitationResponse(*invitation), nil)
 }
 
 // RemoveMember handles DELETE /api/workspaces/{workspaceId}/members/{userId} - removes a member.
@@ -366,4 +446,145 @@ func (h *WorkspaceHandlers) UpdateMemberRole(w http.ResponseWriter, r *http.Requ
 	h.Audit.LogAction(r.Context(), "update", "member", member.ID, fmt.Sprintf("updated role for user %s to role %s", targetUserID, req.RoleID))
 
 	respondJSON(w, http.StatusOK, member, nil)
+}
+
+// myInvitationResponse is the response shape for the user's own invitations.
+type myInvitationResponse struct {
+	ID             string    `json:"id"`
+	WorkspaceID    string    `json:"workspaceId"`
+	WorkspaceName  string    `json:"workspaceName"`
+	Email          string    `json:"email"`
+	InvitedByEmail string    `json:"invitedByEmail"`
+	Status         string    `json:"status"`
+	CreatedAt      time.Time `json:"createdAt"`
+	ExpiresAt      time.Time `json:"expiresAt"`
+}
+
+// ListMyInvitations handles GET /api/invitations/mine - returns all pending
+// invitations for the authenticated user's email.
+func (h *WorkspaceHandlers) ListMyInvitations(w http.ResponseWriter, r *http.Request) {
+	userEmail := auth.EmailFromContext(r.Context())
+	if userEmail == "" {
+		respondError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	invitations, err := h.RBAC.ListMyInvitations(userEmail)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to list invitations")
+		return
+	}
+
+	resp := make([]myInvitationResponse, len(invitations))
+	for i, inv := range invitations {
+		resp[i] = myInvitationResponse{
+			ID:             inv.ID,
+			WorkspaceID:    inv.WorkspaceID,
+			WorkspaceName:  inv.WorkspaceName,
+			Email:          inv.Email,
+			InvitedByEmail: inv.InvitedByEmail,
+			Status:         "pending",
+			CreatedAt:      inv.CreatedAt,
+			ExpiresAt:      inv.ExpiresAt,
+		}
+	}
+
+	respondJSON(w, http.StatusOK, resp, nil)
+}
+
+// AcceptInvitationByID handles POST /api/invitations/{id}/accept - accepts an
+// invitation by ID for the authenticated user.
+func (h *WorkspaceHandlers) AcceptInvitationByID(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseUUID(r, "id")
+	if !ok {
+		respondError(w, http.StatusBadRequest, "invalid invitation ID")
+		return
+	}
+
+	userID := rbac.UserIDFromContext(r.Context())
+	userEmail := auth.EmailFromContext(r.Context())
+	if userID == "" || userEmail == "" {
+		respondError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	member, err := h.RBAC.AcceptInvitationByID(id, userID, userEmail)
+	if err != nil {
+		if errors.Is(err, rbac.ErrInvitationNotFound) {
+			respondError(w, http.StatusNotFound, "invitation not found")
+			return
+		}
+		if errors.Is(err, rbac.ErrInvitationExpired) {
+			respondError(w, http.StatusGone, "invitation has expired")
+			return
+		}
+		if errors.Is(err, rbac.ErrInvitationAccepted) {
+			respondError(w, http.StatusConflict, "invitation already accepted")
+			return
+		}
+		if errors.Is(err, rbac.ErrInvitationDeclined) {
+			respondError(w, http.StatusConflict, "invitation has been declined")
+			return
+		}
+		if errors.Is(err, rbac.ErrAlreadyMember) {
+			respondError(w, http.StatusConflict, "already a member of this workspace")
+			return
+		}
+		if errors.Is(err, rbac.ErrInvitationEmailMismatch) {
+			respondError(w, http.StatusForbidden, "invitation was sent to a different email address")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to accept invitation")
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "accept", "member", member.ID, fmt.Sprintf("accepted invitation %s", id))
+
+	respondJSON(w, http.StatusOK, member, nil)
+}
+
+// DeclineInvitationByID handles POST /api/invitations/{id}/decline - declines
+// an invitation by ID for the authenticated user.
+func (h *WorkspaceHandlers) DeclineInvitationByID(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseUUID(r, "id")
+	if !ok {
+		respondError(w, http.StatusBadRequest, "invalid invitation ID")
+		return
+	}
+
+	userEmail := auth.EmailFromContext(r.Context())
+	if userEmail == "" {
+		respondError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	err := h.RBAC.DeclineInvitationByID(id, userEmail)
+	if err != nil {
+		if errors.Is(err, rbac.ErrInvitationNotFound) {
+			respondError(w, http.StatusNotFound, "invitation not found")
+			return
+		}
+		if errors.Is(err, rbac.ErrInvitationExpired) {
+			respondError(w, http.StatusGone, "invitation has expired")
+			return
+		}
+		if errors.Is(err, rbac.ErrInvitationAccepted) {
+			respondError(w, http.StatusConflict, "invitation already accepted")
+			return
+		}
+		if errors.Is(err, rbac.ErrInvitationDeclined) {
+			respondError(w, http.StatusConflict, "invitation already declined")
+			return
+		}
+		if errors.Is(err, rbac.ErrInvitationEmailMismatch) {
+			respondError(w, http.StatusForbidden, "invitation was sent to a different email address")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to decline invitation")
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "decline", "invitation", id, fmt.Sprintf("declined invitation %s", id))
+
+	respondJSON(w, http.StatusOK, map[string]string{"message": "invitation declined"}, nil)
 }
