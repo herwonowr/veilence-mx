@@ -80,21 +80,21 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 				r.Delete("/{id}", h.Sessions.RevokeSession)
 			})
 
-			// User notifications (not org-scoped, across all orgs)
-			r.Get("/notifications", h.Notifications.ListUserNotifications)
-			r.Get("/notifications/unread-count", h.Notifications.GetUnreadCount)
-			r.Put("/notifications/read-all", h.Notifications.MarkAllNotificationsRead)
-			r.Delete("/notifications/all", h.Notifications.DeleteAllNotifications)
-			r.Delete("/notifications", h.Notifications.DeleteBatchNotifications)
-			r.Put("/notifications/{id}/read", h.Notifications.MarkNotificationRead)
-			r.Delete("/notifications/{id}", h.Notifications.DeleteNotification)
-
 			// Permissions (global, not org-scoped)
 			r.Get("/permissions", h.Workspace.ListPermissions)
 
 			// Workspace-scoped flat routes (org ID from X-Workspace-ID header or workspace_id query param)
 			r.Group(func(r chi.Router) {
 				r.Use(rbac.RequireWorkspace(rbacService))
+
+				// User notifications (workspace-scoped)
+				r.Get("/notifications", h.Notifications.ListUserNotifications)
+				r.Get("/notifications/unread-count", h.Notifications.GetUnreadCount)
+				r.Put("/notifications/read-all", h.Notifications.MarkAllNotificationsRead)
+				r.Delete("/notifications/all", h.Notifications.DeleteAllNotifications)
+				r.Delete("/notifications", h.Notifications.DeleteBatchNotifications)
+				r.Put("/notifications/{id}/read", h.Notifications.MarkNotificationRead)
+				r.Delete("/notifications/{id}", h.Notifications.DeleteNotification)
 
 				// API keys (require workspace context)
 				r.Route("/auth/api-keys", func(r chi.Router) {

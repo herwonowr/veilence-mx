@@ -267,7 +267,7 @@ func (h *NotificationHandlers) DeleteNotificationRule(w http.ResponseWriter, r *
 }
 
 // ListUserNotifications handles GET /api/notifications - lists the current
-// user's notifications across all workspaces.
+// user's notifications scoped to the workspace from the authenticated context.
 func (h *NotificationHandlers) ListUserNotifications(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == 0 {
@@ -275,9 +275,15 @@ func (h *NotificationHandlers) ListUserNotifications(w http.ResponseWriter, r *h
 		return
 	}
 
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
+		return
+	}
+
 	onlyUnread := r.URL.Query().Get("unread") == "true"
 
-	notifications, err := h.Notifications.ListNotifications(0, userID, onlyUnread)
+	notifications, err := h.Notifications.ListNotifications(workspaceID, userID, onlyUnread)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to list notifications")
 		return
@@ -295,7 +301,13 @@ func (h *NotificationHandlers) GetUnreadCount(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	count, err := h.Notifications.GetUnreadCount(0, userID)
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
+		return
+	}
+
+	count, err := h.Notifications.GetUnreadCount(workspaceID, userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to get unread count")
 		return
@@ -329,7 +341,7 @@ func (h *NotificationHandlers) MarkNotificationRead(w http.ResponseWriter, r *ht
 }
 
 // MarkAllNotificationsRead handles PUT /api/notifications/read-all - marks all
-// unread notifications as read for the current user across all workspaces.
+// unread notifications as read for the current user in the current workspace.
 func (h *NotificationHandlers) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == 0 {
@@ -337,7 +349,13 @@ func (h *NotificationHandlers) MarkAllNotificationsRead(w http.ResponseWriter, r
 		return
 	}
 
-	affected, err := h.Notifications.MarkAllRead(0, userID)
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
+		return
+	}
+
+	affected, err := h.Notifications.MarkAllRead(workspaceID, userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to mark all notifications as read")
 		return
@@ -388,8 +406,14 @@ func (h *NotificationHandlers) DeleteNotification(w http.ResponseWriter, r *http
 		return
 	}
 
-	// Use workspaceID=0 to scope across all workspaces for the user
-	if _, err := h.Notifications.DeleteByID(r.Context(), uint(id), 0, userID); err != nil {
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
+		return
+	}
+
+	// Use workspace from authenticated context
+	if _, err := h.Notifications.DeleteByID(r.Context(), uint(id), workspaceID, userID); err != nil {
 		respondError(w, http.StatusNotFound, "notification not found")
 		return
 	}
@@ -408,7 +432,13 @@ func (h *NotificationHandlers) DeleteAllNotifications(w http.ResponseWriter, r *
 		return
 	}
 
-	affected, err := h.Notifications.DeleteAll(r.Context(), 0, userID)
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
+		return
+	}
+
+	affected, err := h.Notifications.DeleteAll(r.Context(), workspaceID, userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to delete notifications")
 		return
@@ -439,7 +469,13 @@ func (h *NotificationHandlers) DeleteBatchNotifications(w http.ResponseWriter, r
 		return
 	}
 
-	if _, err := h.Notifications.DeleteBatch(r.Context(), req.IDs, 0, userID); err != nil {
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
+		return
+	}
+
+	if _, err := h.Notifications.DeleteBatch(r.Context(), req.IDs, workspaceID, userID); err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
