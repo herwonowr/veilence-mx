@@ -68,7 +68,7 @@ func TestWorker_ProcessesJob(t *testing.T) {
 	})
 
 	// Enqueue a job
-	jobID, err := q.Enqueue(ctx, JobTypeDiff, 1)
+	jobID, err := q.Enqueue(ctx, JobTypeDiff, 1, 1)
 	require.NoError(t, err)
 
 	go w.Start(ctx)
@@ -105,7 +105,7 @@ func TestWorker_HandlesJobFailure(t *testing.T) {
 		Concurrency:  1,
 	})
 
-	jobID, err := q.Enqueue(ctx, JobTypeDiff, 1)
+	jobID, err := q.Enqueue(ctx, JobTypeDiff, 1, 1)
 	require.NoError(t, err)
 
 	go w.Start(ctx)
@@ -162,7 +162,7 @@ func TestWorker_RespectsConcurrencyLimit(t *testing.T) {
 
 	// Enqueue more jobs than the concurrency limit
 	for i := range 6 {
-		_, err := q.Enqueue(ctx, JobTypeDiff, uint(i+1))
+		_, err := q.Enqueue(ctx, JobTypeDiff, 1, uint(i+1))
 		require.NoError(t, err)
 	}
 
@@ -265,8 +265,8 @@ func TestWorker_ProcessesOnlyItsJobType(t *testing.T) {
 	})
 
 	// Enqueue jobs of both types
-	_, _ = q.Enqueue(ctx, JobTypeAnalyze, 1) // should be ignored by this worker
-	_, _ = q.Enqueue(ctx, JobTypeDiff, 2)
+	_, _ = q.Enqueue(ctx, JobTypeAnalyze, 1, 1) // should be ignored by this worker
+	_, _ = q.Enqueue(ctx, JobTypeDiff, 1, 2)
 
 	go w.Start(ctx)
 
@@ -334,7 +334,7 @@ func TestWorker_CompletesSuccessfulJob(t *testing.T) {
 		Concurrency:  1,
 	})
 
-	jobID, _ := q.Enqueue(ctx, JobTypeDiff, 42)
+	jobID, _ := q.Enqueue(ctx, JobTypeDiff, 1, 42)
 
 	go w.Start(ctx)
 
@@ -379,7 +379,7 @@ func TestWorker_ProcessesJobsEnqueuedWhileRunning(t *testing.T) {
 
 	// Enqueue after worker started
 	time.Sleep(50 * time.Millisecond)
-	_, err := q.Enqueue(ctx, JobTypeDiff, 99)
+	_, err := q.Enqueue(ctx, JobTypeDiff, 1, 99)
 	require.NoError(t, err)
 
 	waitFor(t, 2*time.Second, "late-enqueued job processed", func() bool {

@@ -330,7 +330,7 @@ type HealthService interface {
 // QueueEnqueuer defines the interface for enqueueing analysis jobs.
 // Implementations live in repo/queue or pkg/queue.
 type QueueEnqueuer interface {
-	Enqueue(ctx context.Context, jobType string, referenceID uint) (string, error)
+	Enqueue(ctx context.Context, jobType string, workspaceID, referenceID uint) (string, error)
 }
 
 // AuditLogger defines the interface for audit logging used by usecase layer.

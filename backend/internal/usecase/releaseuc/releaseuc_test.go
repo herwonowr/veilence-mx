@@ -221,7 +221,7 @@ type mockQueue struct {
 	enqueueErr    error
 }
 
-func (m *mockQueue) Enqueue(_ context.Context, jobType string, refID uint) (string, error) {
+func (m *mockQueue) Enqueue(_ context.Context, jobType string, _ uint, refID uint) (string, error) {
 	m.lastJobType = jobType
 	m.lastRefID = refID
 	if m.enqueueErr != nil {

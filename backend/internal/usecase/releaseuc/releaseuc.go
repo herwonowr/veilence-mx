@@ -110,7 +110,7 @@ func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID 
 		if err := uc.releases.UpdateStatus(ctx, release.ID, entity.ReleaseStatusPending); err != nil {
 			return "", "", fmt.Errorf("ReleaseUseCase.ReanalyzeRelease: updating status: %w", err)
 		}
-		jobID, err := uc.queue.Enqueue(ctx, jobTypeDiff, release.ID)
+		jobID, err := uc.queue.Enqueue(ctx, jobTypeDiff, workspaceID, release.ID)
 		if err != nil {
 			return "", "", fmt.Errorf("ReleaseUseCase.ReanalyzeRelease: enqueue diff: %w", err)
 		}
@@ -121,7 +121,7 @@ func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID 
 	if err := uc.releases.UpdateStatus(ctx, release.ID, entity.ReleaseStatusAnalyzing); err != nil {
 		return "", "", fmt.Errorf("ReleaseUseCase.ReanalyzeRelease: updating status: %w", err)
 	}
-	jobID, err := uc.queue.Enqueue(ctx, jobTypeAnalyze, diff.ID)
+	jobID, err := uc.queue.Enqueue(ctx, jobTypeAnalyze, workspaceID, diff.ID)
 	if err != nil {
 		return "", "", fmt.Errorf("ReleaseUseCase.ReanalyzeRelease: enqueue analyze: %w", err)
 	}

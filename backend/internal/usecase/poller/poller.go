@@ -340,7 +340,7 @@ func (p *Poller) checkPackageForNewReleases(ctx context.Context, reg usecase.Reg
 
 		// Enqueue diff job via Redis queue
 		if p.queue != nil {
-			jobID, err := p.queue.Enqueue(ctx, JobTypeDiff, release.ID)
+			jobID, err := p.queue.Enqueue(ctx, JobTypeDiff, pkg.WorkspaceID, release.ID)
 			if err != nil {
 				slog.Error("failed to enqueue diff job", "release_id", release.ID, "error", err)
 				continue

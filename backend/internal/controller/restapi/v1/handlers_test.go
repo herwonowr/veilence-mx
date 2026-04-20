@@ -114,11 +114,12 @@ type mockEnqueuer struct {
 
 type enqueueCall struct {
 	jobType     string
+	workspaceID uint
 	referenceID uint
 }
 
-func (m *mockEnqueuer) Enqueue(_ context.Context, jobType string, referenceID uint) (string, error) {
-	m.calls = append(m.calls, enqueueCall{jobType: jobType, referenceID: referenceID})
+func (m *mockEnqueuer) Enqueue(_ context.Context, jobType string, workspaceID, referenceID uint) (string, error) {
+	m.calls = append(m.calls, enqueueCall{jobType: jobType, workspaceID: workspaceID, referenceID: referenceID})
 	if m.err != nil {
 		return "", m.err
 	}

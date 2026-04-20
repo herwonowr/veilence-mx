@@ -189,7 +189,7 @@ type mockQueue struct {
 	enqueueErr  error
 }
 
-func (m *mockQueue) Enqueue(_ context.Context, _ string, refID uint) (string, error) {
+func (m *mockQueue) Enqueue(_ context.Context, _ string, _ uint, refID uint) (string, error) {
 	if m.enqueueErr != nil {
 		return "", m.enqueueErr
 	}
@@ -477,7 +477,7 @@ type failAfterNQueue struct {
 	callCount *int
 }
 
-func (q *failAfterNQueue) Enqueue(_ context.Context, _ string, _ uint) (string, error) {
+func (q *failAfterNQueue) Enqueue(_ context.Context, _ string, _ uint, _ uint) (string, error) {
 	*q.callCount++
 	if *q.callCount > q.n {
 		return "", errors.New("queue full")

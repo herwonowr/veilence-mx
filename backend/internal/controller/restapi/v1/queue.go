@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 	"github.com/veilence/veilence-mx/backend/pkg/queue"
 )
 
@@ -27,23 +28,23 @@ type queueStatsResponse struct {
 	Analyze *queue.QueueStats `json:"analyze"`
 }
 
-// GetQueueStats returns current queue statistics.
-// NOTE: Queue data is global (Redis-backed, not org-scoped). The endpoint
-// requires org membership via RequireWorkspace middleware for access control only.
+// GetQueueStats returns queue statistics scoped to the requesting user's workspace.
 func (h *QueueHandlers) GetQueueStats(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
 		respondError(w, http.StatusInternalServerError, "queue not configured")
 		return
 	}
 
-	diffStats, err := h.Queue.Stats(r.Context(), queue.JobTypeDiff)
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+
+	diffStats, err := h.Queue.StatsForWorkspace(r.Context(), queue.JobTypeDiff, workspaceID)
 	if err != nil {
 		slog.Error("failed to get diff queue stats", "error", err)
 		respondError(w, http.StatusInternalServerError, "failed to get diff queue stats")
 		return
 	}
 
-	analyzeStats, err := h.Queue.Stats(r.Context(), queue.JobTypeAnalyze)
+	analyzeStats, err := h.Queue.StatsForWorkspace(r.Context(), queue.JobTypeAnalyze, workspaceID)
 	if err != nil {
 		slog.Error("failed to get analyze queue stats", "error", err)
 		respondError(w, http.StatusInternalServerError, "failed to get analyze queue stats")
@@ -56,10 +57,8 @@ func (h *QueueHandlers) GetQueueStats(w http.ResponseWriter, r *http.Request) {
 	}, nil)
 }
 
-// GetDeadJobs returns dead-letter jobs for a given queue type.
+// GetDeadJobs returns dead-letter jobs for a given queue type, scoped to workspace.
 // When no type is specified, returns dead jobs from all queue types.
-// NOTE: Queue data is global (Redis-backed, not org-scoped). The endpoint
-// requires org membership via RequireWorkspace middleware for access control only.
 //
 // Deprecated: Use GET /api/queue/jobs?status=dead instead. This endpoint
 // is maintained for backward compatibility and will be removed in v1.1.0.
@@ -69,10 +68,11 @@ func (h *QueueHandlers) GetDeadJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	jobType := r.URL.Query().Get("type")
 
 	if jobType != "" {
-		jobs, _, err := h.Queue.DeadJobs(r.Context(), jobType, 0, 50)
+		jobs, _, err := h.Queue.DeadJobsForWorkspace(r.Context(), jobType, workspaceID, 0, 50)
 		if err != nil {
 			slog.Error("failed to get dead jobs", "type", jobType, "error", err)
 			respondError(w, http.StatusInternalServerError, "failed to get dead jobs")
@@ -85,7 +85,7 @@ func (h *QueueHandlers) GetDeadJobs(w http.ResponseWriter, r *http.Request) {
 	// No type filter - fetch from all queue types and merge
 	var allJobs []queue.Job
 	for _, jt := range []string{queue.JobTypeDiff, queue.JobTypeAnalyze} {
-		jobs, _, err := h.Queue.DeadJobs(r.Context(), jt, 0, 50)
+		jobs, _, err := h.Queue.DeadJobsForWorkspace(r.Context(), jt, workspaceID, 0, 50)
 		if err != nil {
 			slog.Error("failed to get dead jobs", "type", jt, "error", err)
 			respondError(w, http.StatusInternalServerError, "failed to get dead jobs")
@@ -102,20 +102,19 @@ func (h *QueueHandlers) GetDeadJobs(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, allJobs, nil)
 }
 
-// RetryDeadJobs re-queues all dead-letter jobs for a given type.
+// RetryDeadJobs re-queues all dead-letter jobs for a given type, scoped to workspace.
 // When no type is specified, retries dead jobs from all queue types.
-// NOTE: Queue data is global (Redis-backed, not org-scoped). The endpoint
-// requires org membership via RequireWorkspace middleware for access control only.
 func (h *QueueHandlers) RetryDeadJobs(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
 		respondError(w, http.StatusInternalServerError, "queue not configured")
 		return
 	}
 
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	jobType := r.URL.Query().Get("type")
 
 	if jobType != "" {
-		count, err := h.Queue.RequeueAllDead(r.Context(), jobType)
+		count, err := h.Queue.RequeueAllDeadForWorkspace(r.Context(), jobType, workspaceID)
 		if err != nil {
 			slog.Error("failed to retry dead jobs", "type", jobType, "error", err)
 			respondError(w, http.StatusInternalServerError, "failed to retry dead jobs")
@@ -131,7 +130,7 @@ func (h *QueueHandlers) RetryDeadJobs(w http.ResponseWriter, r *http.Request) {
 	// No type filter - retry dead jobs from all queue types
 	totalCount := 0
 	for _, jt := range []string{queue.JobTypeDiff, queue.JobTypeAnalyze} {
-		count, err := h.Queue.RequeueAllDead(r.Context(), jt)
+		count, err := h.Queue.RequeueAllDeadForWorkspace(r.Context(), jt, workspaceID)
 		if err != nil {
 			slog.Error("failed to retry dead jobs", "type", jt, "error", err)
 			respondError(w, http.StatusInternalServerError, "failed to retry dead jobs")
@@ -146,16 +145,17 @@ func (h *QueueHandlers) RetryDeadJobs(w http.ResponseWriter, r *http.Request) {
 	}, nil)
 }
 
-// GetQueueJobs returns a paginated list of jobs filtered by queue type and status.
+// GetQueueJobs returns a paginated list of jobs filtered by queue type and status,
+// scoped to the requesting user's workspace.
 // Query params: type (required: diff|analyze), status (required: pending|processing|dead),
 // page (default 1), limit (default 20, max 100).
-// NOTE: Queue data is global (Redis-backed, not org-scoped). The endpoint
-// requires org membership via RequireWorkspace middleware for access control only.
 func (h *QueueHandlers) GetQueueJobs(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
 		respondError(w, http.StatusInternalServerError, "queue not configured")
 		return
 	}
+
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	jobType := r.URL.Query().Get("type")
 	if jobType == "" {
@@ -197,11 +197,11 @@ func (h *QueueHandlers) GetQueueJobs(w http.ResponseWriter, r *http.Request) {
 
 	switch status {
 	case queue.StatusPending:
-		jobs, total, err = h.Queue.PendingJobs(r.Context(), jobType, offset, limit)
+		jobs, total, err = h.Queue.PendingJobsForWorkspace(r.Context(), jobType, workspaceID, offset, limit)
 	case queue.StatusProcessing:
-		jobs, total, err = h.Queue.ProcessingJobs(r.Context(), jobType, offset, limit)
+		jobs, total, err = h.Queue.ProcessingJobsForWorkspace(r.Context(), jobType, workspaceID, offset, limit)
 	case queue.StatusDead:
-		jobs, total, err = h.Queue.DeadJobs(r.Context(), jobType, offset, limit)
+		jobs, total, err = h.Queue.DeadJobsForWorkspace(r.Context(), jobType, workspaceID, offset, limit)
 	}
 
 	if err != nil {
@@ -218,14 +218,14 @@ func (h *QueueHandlers) GetQueueJobs(w http.ResponseWriter, r *http.Request) {
 }
 
 // RetryDeadJob re-queues a single dead-letter job by its ID.
-// The job's type is looked up from its stored data to route to the correct queue.
-// NOTE: Queue data is global (Redis-backed, not org-scoped). The endpoint
-// requires org membership via RequireWorkspace middleware for access control only.
+// Verifies the job belongs to the requesting user's workspace before retrying.
 func (h *QueueHandlers) RetryDeadJob(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
 		respondError(w, http.StatusInternalServerError, "queue not configured")
 		return
 	}
+
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	jobID := chi.URLParam(r, "jobId")
 	if jobID == "" {
@@ -233,10 +233,16 @@ func (h *QueueHandlers) RetryDeadJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load the job to determine its type and verify it's dead
+	// Load the job to determine its type and verify ownership
 	job, err := h.Queue.LoadJob(r.Context(), jobID)
 	if err != nil {
 		slog.Error("failed to load job for retry", "job_id", jobID, "error", err)
+		respondError(w, http.StatusNotFound, "job not found or expired")
+		return
+	}
+
+	// Verify workspace ownership
+	if job.WorkspaceID != workspaceID {
 		respondError(w, http.StatusNotFound, "job not found or expired")
 		return
 	}

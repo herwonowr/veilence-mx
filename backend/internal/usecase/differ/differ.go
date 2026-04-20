@@ -147,7 +147,7 @@ func (d *Differ) processRelease(ctx context.Context, releaseID uint) error {
 	)
 
 	// Enqueue analysis job via Redis queue
-	jobID, err := d.queue.Enqueue(ctx, queue.JobTypeAnalyze, diff.ID)
+	jobID, err := d.queue.Enqueue(ctx, queue.JobTypeAnalyze, pkg.WorkspaceID, diff.ID)
 	if err != nil {
 		return fmt.Errorf("enqueuing analyze job: %w", err)
 	}
