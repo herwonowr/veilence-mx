@@ -16,11 +16,12 @@ import (
 
 // SMTPConfig holds SMTP server configuration for sending emails.
 type SMTPConfig struct {
-	Host     string
-	Port     string
-	Username string
-	Password string
-	From     string
+	Host       string
+	Port       string
+	Username   string
+	Password   string
+	From       string
+	SkipTLS    bool // Skip STARTTLS entirely (for plain SMTP like Mailpit)
 }
 
 // IsConfigured returns true if the SMTP configuration has the minimum required fields.
@@ -110,7 +111,65 @@ func (m *Mailer) sendRawEmail(recipients []string, msg []byte) error {
 		return m.sendImplicitTLS(addr, auth, recipients, msg)
 	}
 
+	// For plain SMTP (e.g., Mailpit on port 1025), skip STARTTLS entirely.
+	// Go's smtp.SendMail always attempts STARTTLS which fails against servers
+	// with self-signed certs or no TLS support.
+	if m.smtp.SkipTLS {
+		return m.sendPlainSMTP(addr, auth, recipients, msg)
+	}
+
 	return smtp.SendMail(addr, auth, m.smtp.From, recipients, msg)
+}
+
+// sendPlainSMTP sends an email without attempting STARTTLS.
+// Used for local dev servers like Mailpit that don't support TLS.
+func (m *Mailer) sendPlainSMTP(addr string, auth smtp.Auth, recipients []string, msg []byte) error {
+	conn, err := net.DialTimeout("tcp", addr, 10*time.Second)
+	if err != nil {
+		return fmt.Errorf("mailer: connecting to SMTP server: %w", err)
+	}
+
+	client, err := smtp.NewClient(conn, m.smtp.Host)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("mailer: creating SMTP client: %w", err)
+	}
+	defer func() {
+		if err := client.Close(); err != nil {
+			slog.Warn("mailer: failed to close SMTP client", "error", err)
+		}
+	}()
+
+	if auth != nil {
+		if err := client.Auth(auth); err != nil {
+			return fmt.Errorf("mailer: SMTP authentication: %w", err)
+		}
+	}
+
+	if err := client.Mail(m.smtp.From); err != nil {
+		return fmt.Errorf("mailer: SMTP MAIL FROM: %w", err)
+	}
+
+	for _, rcpt := range recipients {
+		if err := client.Rcpt(rcpt); err != nil {
+			return fmt.Errorf("mailer: SMTP RCPT TO %s: %w", rcpt, err)
+		}
+	}
+
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("mailer: SMTP DATA: %w", err)
+	}
+
+	if _, err := w.Write(msg); err != nil {
+		return fmt.Errorf("mailer: writing email body: %w", err)
+	}
+
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("mailer: closing email body: %w", err)
+	}
+
+	return client.Quit()
 }
 
 // sendImplicitTLS sends an email over implicit TLS (port 465).

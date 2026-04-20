@@ -267,6 +267,15 @@ func (uc *UseCase) ListStalePackages(ctx context.Context, workspaceID string, st
 	return packages, nil
 }
 
+// CountPackages returns the total number of packages in a workspace (all ecosystems).
+func (uc *UseCase) CountPackages(ctx context.Context, workspaceID string) (int64, error) {
+	count, err := uc.repo.CountByWorkspace(ctx, workspaceID, nil)
+	if err != nil {
+		return 0, fmt.Errorf("PackageUseCase.CountPackages: %w", err)
+	}
+	return count, nil
+}
+
 // RemoveStalePackages removes active packages that have had no updates for
 // the given number of months. Returns the number of packages removed.
 // A value of 0 means auto-removal is disabled.

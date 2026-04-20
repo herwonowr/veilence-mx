@@ -56,7 +56,7 @@ func (r *RBACRepo) CreateWorkspace(ctx context.Context, ws *entity.Workspace) er
 // FindWorkspaceByID returns a workspace by ID.
 func (r *RBACRepo) FindWorkspaceByID(ctx context.Context, id string) (*entity.Workspace, error) {
 	var model Workspace
-	if err := r.db.WithContext(ctx).First(&model, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&model).Error; err != nil {
 		return nil, fmt.Errorf("RBACRepo.FindWorkspaceByID: %w", err)
 	}
 	return workspaceModelToEntity(model), nil
@@ -76,7 +76,7 @@ func (r *RBACRepo) UpdateWorkspace(ctx context.Context, ws *entity.Workspace) er
 
 // SoftDeleteWorkspace soft-deletes a workspace.
 func (r *RBACRepo) SoftDeleteWorkspace(ctx context.Context, id string) error {
-	result := r.db.WithContext(ctx).Delete(&Workspace{}, id)
+	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&Workspace{})
 	if result.Error != nil {
 		return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: %w", result.Error)
 	}

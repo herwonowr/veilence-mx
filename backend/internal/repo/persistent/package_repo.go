@@ -24,7 +24,7 @@ func NewPackageRepo(db *gorm.DB) *PackageRepo {
 
 func (r *PackageRepo) FindByID(ctx context.Context, id string) (*entity.Package, error) {
 	var m Package
-	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("package %w", entity.ErrNotFound)
 		}

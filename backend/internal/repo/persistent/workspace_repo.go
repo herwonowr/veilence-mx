@@ -22,7 +22,7 @@ func NewWorkspaceRepo(db *gorm.DB) *WorkspaceRepo {
 
 func (r *WorkspaceRepo) FindByID(ctx context.Context, id string) (*entity.Workspace, error) {
 	var m Workspace
-	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("workspace %w", entity.ErrNotFound)
 		}
@@ -75,7 +75,7 @@ func (r *WorkspaceRepo) Update(ctx context.Context, ws *entity.Workspace) error 
 }
 
 func (r *WorkspaceRepo) SoftDelete(ctx context.Context, id string) error {
-	result := r.db.WithContext(ctx).Delete(&Workspace{}, id)
+	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&Workspace{})
 	if result.Error != nil {
 		return fmt.Errorf("deleting workspace: %w", result.Error)
 	}

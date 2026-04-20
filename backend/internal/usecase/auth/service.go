@@ -687,6 +687,12 @@ func (s *Service) ResetPassword(rawToken, newPassword string) error {
 	}
 
 	user.PasswordHash = passwordHash
+	// Completing a password reset proves email ownership - if the user hasn't
+	// verified yet, mark them verified now so they can log in immediately.
+	if !user.EmailVerified {
+		user.EmailVerified = true
+		slog.Info("email auto-verified via password reset", "user_id", user.ID)
+	}
 	if err := s.users.Update(ctx, user); err != nil {
 		return fmt.Errorf("updating password: %w", err)
 	}

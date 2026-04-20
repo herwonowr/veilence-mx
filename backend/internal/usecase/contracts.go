@@ -281,6 +281,7 @@ type PackageService interface {
 	ListSuggestions(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
 	ListStalePackages(ctx context.Context, workspaceID string, staleBefore time.Time) ([]entity.Package, error)
 	RemoveStalePackages(ctx context.Context, workspaceID string, months int) (int, error)
+	CountPackages(ctx context.Context, workspaceID string) (int64, error)
 }
 
 // AlertService defines the business logic operations for alerts.

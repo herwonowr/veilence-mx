@@ -172,7 +172,7 @@ type Alert struct {
 	WorkspaceID      string        `gorm:"type:uuid;not null;index" json:"workspaceId"`
 	AnalysisID string        `gorm:"type:uuid;not null;index" json:"analysisId"`
 	Analysis   Analysis      `gorm:"foreignKey:AnalysisID" json:"-"`
-	ReleaseID  string        `gorm:"type:uuid;index" json:"releaseId"`
+	ReleaseID  *string       `gorm:"type:uuid;index" json:"releaseId"`
 	Release    Release       `gorm:"foreignKey:ReleaseID" json:"-"`
 	PackageID  string        `gorm:"type:uuid;not null;index" json:"packageId"`
 	Package    Package       `gorm:"foreignKey:PackageID" json:"-"`
@@ -254,7 +254,7 @@ func (RefreshToken) TableName() string { return "refresh_tokens" }
 type APIKey struct {
 	ID          string         `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
 	UserID      string         `gorm:"type:uuid;not null;index" json:"userId"`
-	WorkspaceID string         `gorm:"type:uuid;not null;index;default:''" json:"workspaceId"`
+	WorkspaceID string         `gorm:"type:uuid;not null;index" json:"workspaceId"`
 	Name        string         `gorm:"not null;type:varchar(100)" json:"name"`
 	KeyHash     string         `gorm:"uniqueIndex;not null;type:varchar(255)" json:"-"`
 	KeyPrefix   string         `gorm:"not null;type:varchar(10)" json:"keyPrefix"`
@@ -384,11 +384,11 @@ func (Invitation) TableName() string { return "invitations" }
 // AuditLog is the GORM model for audit log entries.
 type AuditLog struct {
 	ID            string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	UserID        string    `gorm:"type:uuid;index" json:"userId"`
-	WorkspaceID         string    `gorm:"type:uuid;index" json:"workspaceId"`
+	UserID        *string   `gorm:"type:uuid;index" json:"userId"`
+	WorkspaceID   *string   `gorm:"type:uuid;index" json:"workspaceId"`
 	Action        string    `gorm:"not null;type:varchar(50)" json:"action"`
 	Resource      string    `gorm:"not null;type:varchar(50)" json:"resource"`
-	ResourceID    string    `gorm:"type:uuid" json:"resourceId"`
+	ResourceID    *string   `gorm:"type:uuid" json:"resourceId"`
 	Details       string    `gorm:"type:text" json:"details"`
 	IPAddress     string    `gorm:"type:varchar(45)" json:"ipAddress"`
 	UserAgent     string    `gorm:"type:varchar(255)" json:"userAgent"`
@@ -403,7 +403,7 @@ func (AuditLog) TableName() string { return "audit_logs" }
 // Setting is the GORM model for system settings.
 type Setting struct {
 	ID        string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	WorkspaceID string      `gorm:"type:uuid;index;not null;default:'';uniqueIndex:idx_settings_workspace_key" json:"workspaceId"`
+	WorkspaceID string      `gorm:"type:uuid;index;not null;uniqueIndex:idx_settings_workspace_key" json:"workspaceId"`
 	Key       string    `gorm:"not null;type:varchar(100);uniqueIndex:idx_settings_workspace_key" json:"key"`
 	Value     string    `gorm:"type:text" json:"value"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -453,12 +453,12 @@ func (NotificationRule) TableName() string { return "notification_rules" }
 // Notification is the GORM model for in-app notifications.
 type Notification struct {
 	ID            string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	WorkspaceID         string    `gorm:"type:uuid;not null;index" json:"workspaceId"`
-	UserID        string    `gorm:"type:uuid;index" json:"userId"`
-	ChannelID     string    `gorm:"type:uuid;index" json:"channelId"`
+	WorkspaceID   string    `gorm:"type:uuid;not null;index" json:"workspaceId"`
+	UserID        *string   `gorm:"type:uuid;index" json:"userId"`
+	ChannelID     *string   `gorm:"type:uuid;index" json:"channelId"`
 	Severity      string    `gorm:"not null;type:varchar(20);default:''" json:"severity"`
 	EventType     string    `gorm:"not null;type:varchar(100);default:'';index" json:"eventType"`
-	ReferenceID   string    `gorm:"type:uuid;not null;default:''" json:"referenceId"`
+	ReferenceID   *string   `gorm:"type:uuid" json:"referenceId"`
 	ReferenceType string    `gorm:"not null;type:varchar(50);default:''" json:"referenceType"`
 	Title         string    `gorm:"not null;type:varchar(255)" json:"title"`
 	Message       string    `gorm:"type:text" json:"message"`

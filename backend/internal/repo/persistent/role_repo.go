@@ -22,7 +22,7 @@ func NewRoleRepo(db *gorm.DB) *RoleRepo {
 
 func (r *RoleRepo) FindByID(ctx context.Context, id string) (*entity.Role, error) {
 	var m Role
-	if err := r.db.WithContext(ctx).Preload("Permissions").First(&m, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Permissions").Where("id = ?", id).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("role %w", entity.ErrNotFound)
 		}

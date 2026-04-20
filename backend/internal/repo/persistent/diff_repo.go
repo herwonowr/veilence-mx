@@ -22,7 +22,7 @@ func NewDiffRepo(db *gorm.DB) *DiffRepo {
 
 func (r *DiffRepo) FindByID(ctx context.Context, id string) (*entity.Diff, error) {
 	var m Diff
-	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("diff %w", entity.ErrNotFound)
 		}

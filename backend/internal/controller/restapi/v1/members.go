@@ -112,6 +112,10 @@ func (h *WorkspaceHandlers) InviteMember(w http.ResponseWriter, r *http.Request)
 		respondAppError(w, Validation("roleId is required"))
 		return
 	}
+	if _, err := uuid.Parse(req.RoleID); err != nil {
+		respondAppError(w, BadRequest("invalid roleId format"))
+		return
+	}
 
 	invitation, rawToken, err := h.RBAC.InviteMember(workspaceID, req.Email, req.RoleID, userID)
 	if err != nil {
@@ -334,6 +338,10 @@ func (h *WorkspaceHandlers) UpdateMemberRole(w http.ResponseWriter, r *http.Requ
 
 	if req.RoleID == "" {
 		respondAppError(w, Validation("roleId is required"))
+		return
+	}
+	if _, err := uuid.Parse(req.RoleID); err != nil {
+		respondAppError(w, BadRequest("invalid roleId format"))
 		return
 	}
 

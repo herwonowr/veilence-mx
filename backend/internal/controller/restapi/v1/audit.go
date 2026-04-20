@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
@@ -26,6 +27,10 @@ func (h *AuditHandlers) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if userIDStr := r.URL.Query().Get("user_id"); userIDStr != "" {
+		if _, err := uuid.Parse(userIDStr); err != nil {
+			respondAppError(w, BadRequest("invalid user_id format"))
+			return
+		}
 		filters.UserID = userIDStr
 	}
 

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 )
@@ -65,6 +66,10 @@ func RequireWorkspace(svc *Service) func(http.Handler) http.Handler {
 			workspaceID := wsIDStr
 			if workspaceID == "" {
 				http.Error(w, `{"data":null,"error":"valid workspace ID is required"}`, http.StatusBadRequest)
+				return
+			}
+			if _, err := uuid.Parse(workspaceID); err != nil {
+				http.Error(w, `{"data":null,"error":"invalid workspace ID format"}`, http.StatusBadRequest)
 				return
 			}
 

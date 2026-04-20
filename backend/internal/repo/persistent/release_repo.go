@@ -23,7 +23,7 @@ func NewReleaseRepo(db *gorm.DB) *ReleaseRepo {
 
 func (r *ReleaseRepo) FindByID(ctx context.Context, id string) (*entity.Release, error) {
 	var m Release
-	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("release %w", entity.ErrNotFound)
 		}
@@ -97,7 +97,7 @@ func (r *ReleaseRepo) Create(ctx context.Context, release *entity.Release) error
 
 func (r *ReleaseRepo) FindByIDWithPackage(ctx context.Context, id string) (*entity.Release, *entity.Package, error) {
 	var m Release
-	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil, fmt.Errorf("release %w", entity.ErrNotFound)
 		}
@@ -105,7 +105,7 @@ func (r *ReleaseRepo) FindByIDWithPackage(ctx context.Context, id string) (*enti
 	}
 
 	var pkg Package
-	if err := r.db.WithContext(ctx).First(&pkg, m.PackageID).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", m.PackageID).First(&pkg).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil, fmt.Errorf("package %w", entity.ErrNotFound)
 		}

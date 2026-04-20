@@ -41,7 +41,7 @@ func (r *NotificationRepo) FindByUserAndWorkspace(ctx context.Context, workspace
 	}
 
 	// Show org-wide (user_id='') and user-specific notifications
-	query = query.Where("user_id = ? OR user_id = ''", userID)
+	query = query.Where("user_id = ? OR user_id IS NULL", userID)
 
 	if onlyUnread {
 		query = query.Where("is_read = ?", false)
@@ -69,7 +69,7 @@ func (r *NotificationRepo) FindByUserAndWorkspaceIDs(ctx context.Context, worksp
 
 	query := r.db.WithContext(ctx).Model(&Notification{}).
 		Where("workspace_id IN ?", workspaceIDs).
-		Where("user_id = ? OR user_id = ''", userID)
+		Where("user_id = ? OR user_id IS NULL", userID)
 
 	if onlyUnread {
 		query = query.Where("is_read = ?", false)
@@ -90,7 +90,7 @@ func (r *NotificationRepo) FindByUserAndWorkspaceIDs(ctx context.Context, worksp
 
 func (r *NotificationRepo) MarkRead(ctx context.Context, id, userID string) (int64, error) {
 	result := r.db.WithContext(ctx).Model(&Notification{}).
-		Where("id = ? AND (user_id = ? OR user_id = '')", id, userID).
+		Where("id = ? AND (user_id = ? OR user_id IS NULL)", id, userID).
 		Update("is_read", true)
 	if result.Error != nil {
 		return 0, fmt.Errorf("marking notification as read: %w", result.Error)
@@ -101,7 +101,7 @@ func (r *NotificationRepo) MarkRead(ctx context.Context, id, userID string) (int
 func (r *NotificationRepo) CountUnread(ctx context.Context, workspaceID, userID string) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&Notification{}).
 		Where("is_read = ?", false).
-		Where("user_id = ? OR user_id = ''", userID)
+		Where("user_id = ? OR user_id IS NULL", userID)
 
 	// Always require workspace scoping - callers must resolve workspaceID before calling.
 	if workspaceID != "" {
@@ -127,7 +127,7 @@ func (r *NotificationRepo) CountUnreadByWorkspaceIDs(ctx context.Context, worksp
 	err := r.db.WithContext(ctx).Model(&Notification{}).
 		Where("is_read = ?", false).
 		Where("workspace_id IN ?", workspaceIDs).
-		Where("user_id = ? OR user_id = ''", userID).
+		Where("user_id = ? OR user_id IS NULL", userID).
 		Count(&count).Error
 	if err != nil {
 		return 0, fmt.Errorf("counting unread notifications by workspace IDs: %w", err)
@@ -138,7 +138,7 @@ func (r *NotificationRepo) CountUnreadByWorkspaceIDs(ctx context.Context, worksp
 func (r *NotificationRepo) MarkAllRead(ctx context.Context, workspaceID, userID string) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&Notification{}).
 		Where("is_read = ?", false).
-		Where("user_id = ? OR user_id = ''", userID)
+		Where("user_id = ? OR user_id IS NULL", userID)
 
 	// Always require workspace scoping - callers must resolve workspaceID before calling.
 	if workspaceID != "" {
@@ -163,7 +163,7 @@ func (r *NotificationRepo) MarkAllReadByWorkspaceIDs(ctx context.Context, worksp
 	result := r.db.WithContext(ctx).Model(&Notification{}).
 		Where("is_read = ?", false).
 		Where("workspace_id IN ?", workspaceIDs).
-		Where("user_id = ? OR user_id = ''", userID).
+		Where("user_id = ? OR user_id IS NULL", userID).
 		Update("is_read", true)
 	if result.Error != nil {
 		return 0, fmt.Errorf("marking all notifications as read by workspace IDs: %w", result.Error)
@@ -172,7 +172,7 @@ func (r *NotificationRepo) MarkAllReadByWorkspaceIDs(ctx context.Context, worksp
 }
 
 func (r *NotificationRepo) DeleteByID(ctx context.Context, id, workspaceID, userID string) (int64, error) {
-	query := r.db.WithContext(ctx).Where("id = ? AND (user_id = ? OR user_id = '')", id, userID)
+	query := r.db.WithContext(ctx).Where("id = ? AND (user_id = ? OR user_id IS NULL)", id, userID)
 
 	// Always require workspace scoping - callers must resolve workspaceID before calling.
 	if workspaceID != "" {
@@ -190,7 +190,7 @@ func (r *NotificationRepo) DeleteByID(ctx context.Context, id, workspaceID, user
 }
 
 func (r *NotificationRepo) DeleteAll(ctx context.Context, workspaceID, userID string) (int64, error) {
-	query := r.db.WithContext(ctx).Where("user_id = ? OR user_id = ''", userID)
+	query := r.db.WithContext(ctx).Where("user_id = ? OR user_id IS NULL", userID)
 
 	// Always require workspace scoping - callers must resolve workspaceID before calling.
 	if workspaceID != "" {
@@ -214,7 +214,7 @@ func (r *NotificationRepo) DeleteAllByWorkspaceIDs(ctx context.Context, workspac
 
 	result := r.db.WithContext(ctx).
 		Where("workspace_id IN ?", workspaceIDs).
-		Where("user_id = ? OR user_id = ''", userID).
+		Where("user_id = ? OR user_id IS NULL", userID).
 		Delete(&Notification{})
 	if result.Error != nil {
 		return 0, fmt.Errorf("deleting all notifications by workspace IDs: %w", result.Error)
@@ -227,7 +227,7 @@ func (r *NotificationRepo) DeleteBatch(ctx context.Context, ids []string, worksp
 		return 0, nil
 	}
 
-	query := r.db.WithContext(ctx).Where("id IN ? AND (user_id = ? OR user_id = '')", ids, userID)
+	query := r.db.WithContext(ctx).Where("id IN ? AND (user_id = ? OR user_id IS NULL)", ids, userID)
 
 	// Always require workspace scoping - callers must resolve workspaceID before calling.
 	if workspaceID != "" {
@@ -258,7 +258,7 @@ func (r *NotificationRepo) DeleteBatchByWorkspaceIDs(ctx context.Context, ids []
 	}
 
 	result := r.db.WithContext(ctx).
-		Where("id IN ? AND workspace_id IN ? AND (user_id = ? OR user_id = '')", ids, workspaceIDs, userID).
+		Where("id IN ? AND workspace_id IN ? AND (user_id = ? OR user_id IS NULL)", ids, workspaceIDs, userID).
 		Delete(&Notification{})
 	if result.Error != nil {
 		return 0, fmt.Errorf("batch deleting notifications by workspace IDs: %w", result.Error)
@@ -266,17 +266,36 @@ func (r *NotificationRepo) DeleteBatchByWorkspaceIDs(ctx context.Context, ids []
 	return result.RowsAffected, nil
 }
 
+// --- Helpers ---
+
+// strToNullableUUID converts a string to a *string for nullable UUID columns.
+// Empty strings become nil (SQL NULL) to avoid PostgreSQL uuid parse errors.
+func strToNullableUUID(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+// derefStr safely dereferences a *string, returning "" for nil.
+func derefStr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
 // --- Converters ---
 
 func notifToDomain(m *Notification) *entity.Notification {
 	return &entity.Notification{
 		ID:            m.ID,
-		WorkspaceID:         m.WorkspaceID,
-		UserID:        m.UserID,
-		ChannelID:     m.ChannelID,
+		WorkspaceID:   m.WorkspaceID,
+		UserID:        derefStr(m.UserID),
+		ChannelID:     derefStr(m.ChannelID),
 		Severity:      m.Severity,
 		EventType:     m.EventType,
-		ReferenceID:   m.ReferenceID,
+		ReferenceID:   derefStr(m.ReferenceID),
 		ReferenceType: m.ReferenceType,
 		Title:         m.Title,
 		Message:       m.Message,
@@ -289,12 +308,12 @@ func notifToDomain(m *Notification) *entity.Notification {
 func notifToModel(d *entity.Notification) *Notification {
 	return &Notification{
 		ID:            d.ID,
-		WorkspaceID:         d.WorkspaceID,
-		UserID:        d.UserID,
-		ChannelID:     d.ChannelID,
+		WorkspaceID:   d.WorkspaceID,
+		UserID:        strToNullableUUID(d.UserID),
+		ChannelID:     strToNullableUUID(d.ChannelID),
 		Severity:      d.Severity,
 		EventType:     d.EventType,
-		ReferenceID:   d.ReferenceID,
+		ReferenceID:   strToNullableUUID(d.ReferenceID),
 		ReferenceType: d.ReferenceType,
 		Title:         d.Title,
 		Message:       d.Message,

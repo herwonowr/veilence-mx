@@ -24,11 +24,12 @@ import {
 } from "@/ui"
 import { Building2, Plus, Loader2, Users, Package } from "lucide-react"
 import Link from "next/link"
-import { useWorkspaceMembers } from "@/features/admin/hooks/use-workspaces"
-import { useAdminPackages } from "@/features/admin/hooks/use-admin-packages"
+import { useWorkspaces } from "@/features/admin/hooks/use-workspaces"
 
 export const WorkspacesListView = () => {
-  const { workspaces, refreshWorkspaces, setCurrentWorkspace } = useAuth()
+  const { refreshWorkspaces, setCurrentWorkspace } = useAuth()
+  const { data: workspacesRes } = useWorkspaces()
+  const workspaces = workspacesRes?.data ?? []
   const router = useRouter()
   const searchParams = useSearchParams()
   const shouldCreateWorkspace = searchParams.get("create") === "true"
@@ -190,11 +191,8 @@ export const WorkspacesListView = () => {
 }
 
 const WorkspaceCard = ({ workspace }: { workspace: Workspace }) => {
-  const { data: membersRes } = useWorkspaceMembers(workspace.id)
-  const { data: packagesRes } = useAdminPackages({ page: 1, limit: 1 })
-
-  const memberCount = membersRes?.data?.length ?? null
-  const packageCount = packagesRes?.meta?.total ?? null
+  const memberCount = workspace.memberCount ?? null
+  const packageCount = workspace.packageCount ?? null
 
   return (
     <Link href={`/workspaces/${workspace.id}`}>

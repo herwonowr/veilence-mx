@@ -22,7 +22,7 @@ func NewAnalysisRepo(db *gorm.DB) *AnalysisRepo {
 
 func (r *AnalysisRepo) FindByID(ctx context.Context, id string) (*entity.Analysis, error) {
 	var m Analysis
-	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("analysis %w", entity.ErrNotFound)
 		}

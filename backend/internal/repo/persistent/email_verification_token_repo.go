@@ -42,7 +42,7 @@ func (r *EmailVerificationTokenRepo) Create(ctx context.Context, token *entity.E
 }
 
 func (r *EmailVerificationTokenRepo) Delete(ctx context.Context, id string) error {
-	result := r.db.WithContext(ctx).Delete(&EmailVerificationToken{}, id)
+	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&EmailVerificationToken{})
 	if result.Error != nil {
 		return fmt.Errorf("deleting email verification token: %w", result.Error)
 	}

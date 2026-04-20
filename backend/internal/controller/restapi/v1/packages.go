@@ -11,6 +11,7 @@ import (
 	"time"
 
 
+	"github.com/google/uuid"
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
@@ -548,6 +549,12 @@ func (h *PackageHandlers) BulkApprovePackages(w http.ResponseWriter, r *http.Req
 		if len(req.PackageIDs) > maxBulkApprove {
 			respondAppError(w, Validation(fmt.Sprintf("cannot approve more than %d packages at once", maxBulkApprove)))
 			return
+		}
+		for _, id := range req.PackageIDs {
+			if _, err := uuid.Parse(id); err != nil {
+				respondAppError(w, BadRequest(fmt.Sprintf("invalid package ID: %s", id)))
+				return
+			}
 		}
 		pkgIDs = req.PackageIDs
 	} else if req.Ecosystem != "" {

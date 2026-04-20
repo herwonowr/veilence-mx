@@ -5,6 +5,8 @@ export interface Workspace {
   description: string
   ownerId: string
   isActive: boolean
+  packageCount?: number | null
+  memberCount?: number | null
   createdAt: string
   updatedAt: string
 }

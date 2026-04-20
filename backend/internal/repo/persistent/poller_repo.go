@@ -36,7 +36,7 @@ func (r *PollerRepo) DistinctActiveWorkspaceIDs(ctx context.Context) ([]string, 
 func (r *PollerRepo) DistinctWorkspaceIDs(ctx context.Context) ([]string, error) {
 	var settingWsIDs []string
 	if err := r.db.WithContext(ctx).Model(&Setting{}).
-		Where("workspace_id != ''").
+		Where("workspace_id IS NOT NULL").
 		Distinct("workspace_id").
 		Pluck("workspace_id", &settingWsIDs).Error; err != nil {
 		return nil, fmt.Errorf("PollerRepo.DistinctWorkspaceIDs (settings): %w", err)

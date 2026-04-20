@@ -22,7 +22,7 @@ func NewPipelineRepo(db *gorm.DB) *PipelineRepo {
 // FindDiffWithRelease loads a diff by ID along with its release and package.
 func (r *PipelineRepo) FindDiffWithRelease(ctx context.Context, diffID string) (*entity.Diff, *entity.Release, *entity.Package, error) {
 	var model Diff
-	if err := r.db.WithContext(ctx).Preload("Release.Package").First(&model, diffID).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Release.Package").Where("id = ?", diffID).First(&model).Error; err != nil {
 		return nil, nil, nil, fmt.Errorf("PipelineRepo.FindDiffWithRelease: %w", err)
 	}
 
@@ -62,7 +62,7 @@ func (r *PipelineRepo) FindDiffWithRelease(ctx context.Context, diffID string) (
 // FindReleaseByID returns a release by its ID.
 func (r *PipelineRepo) FindReleaseByID(ctx context.Context, id string) (*entity.Release, error) {
 	var model Release
-	if err := r.db.WithContext(ctx).First(&model, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&model).Error; err != nil {
 		return nil, fmt.Errorf("PipelineRepo.FindReleaseByID: %w", err)
 	}
 	return &entity.Release{
@@ -101,6 +101,7 @@ func (r *PipelineRepo) CreateAlert(ctx context.Context, alert *entity.Alert) err
 	model := Alert{
 		WorkspaceID: alert.WorkspaceID,
 		AnalysisID:  alert.AnalysisID,
+		ReleaseID:   strToNullableUUID(alert.ReleaseID),
 		PackageID:   alert.PackageID,
 		Severity:    AlertSeverity(alert.Severity),
 		Status:      AlertStatus(alert.Status),

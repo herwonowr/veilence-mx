@@ -23,7 +23,7 @@ func NewDifferRepo(db *gorm.DB) *DifferRepo {
 // FindReleaseByIDWithPackage loads a release by ID along with its package.
 func (r *DifferRepo) FindReleaseByIDWithPackage(ctx context.Context, id string) (*entity.Release, *entity.Package, error) {
 	var model Release
-	if err := r.db.WithContext(ctx).Preload("Package").First(&model, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Package").Where("id = ?", id).First(&model).Error; err != nil {
 		return nil, nil, fmt.Errorf("DifferRepo.FindReleaseByIDWithPackage: %w", err)
 	}
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/google/uuid"
 	validation "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/request"
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
 
@@ -214,6 +215,10 @@ func (h *NotificationHandlers) CreateNotificationRule(w http.ResponseWriter, r *
 
 	if req.ChannelID == "" {
 		respondAppError(w, Validation("channelId is required"))
+		return
+	}
+	if _, err := uuid.Parse(req.ChannelID); err != nil {
+		respondAppError(w, BadRequest("invalid channelId format"))
 		return
 	}
 
@@ -458,6 +463,12 @@ func (h *NotificationHandlers) DeleteBatchNotifications(w http.ResponseWriter, r
 	if len(req.IDs) == 0 {
 		respondAppError(w, Validation("ids is required and must not be empty"))
 		return
+	}
+	for _, id := range req.IDs {
+		if _, err := uuid.Parse(id); err != nil {
+			respondAppError(w, BadRequest(fmt.Sprintf("invalid notification ID: %s", id)))
+			return
+		}
 	}
 
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())

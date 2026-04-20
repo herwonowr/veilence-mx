@@ -81,7 +81,7 @@ func (r *WorkspaceMemberRepo) Update(ctx context.Context, member *entity.Workspa
 	}
 	// Reload with role
 	var reloaded WorkspaceMember
-	r.db.WithContext(ctx).Preload("Role").First(&reloaded, m.ID)
+	r.db.WithContext(ctx).Preload("Role").Where("id = ?", m.ID).First(&reloaded)
 	*member = *workspaceMemberToDomain(&reloaded)
 	return nil
 }

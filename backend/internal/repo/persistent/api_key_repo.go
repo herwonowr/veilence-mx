@@ -22,7 +22,7 @@ func NewAPIKeyRepo(db *gorm.DB) *APIKeyRepo {
 
 func (r *APIKeyRepo) FindByID(ctx context.Context, id string) (*entity.APIKey, error) {
 	var m APIKey
-	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("api key %w", entity.ErrNotFound)
 		}

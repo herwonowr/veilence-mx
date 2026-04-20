@@ -88,7 +88,7 @@ export const AppSidebar = ({
   workspaceSelectorSlot?: React.ReactNode
 }) => {
   const pathname = usePathname()
-  const { user, isAuthenticated, logout } = useAuth()
+  const { user, isAuthenticated, logout, currentWorkspace } = useAuth()
   const { role } = useCurrentWorkspaceRole()
   const { setOpenMobile, isMobile } = useSidebar()
 
@@ -103,7 +103,7 @@ export const AppSidebar = ({
 
   const { data: statsRes } = useShellDashboardStats({
     refetchInterval: 30_000,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !!currentWorkspace,
   })
   const alertCount = statsRes?.data?.activeAlerts ?? 0
 

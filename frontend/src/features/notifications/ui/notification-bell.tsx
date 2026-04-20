@@ -55,16 +55,17 @@ const LoadingSkeletons = () => (
 // ---------------------------------------------------------------------------
 
 export const NotificationBell = () => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, currentWorkspace } = useAuth()
   const router = useRouter()
   const [open, setOpen] = useState(false)
 
-  const { data: unreadRes } = useUnreadCount(isAuthenticated)
+  const hasWorkspace = isAuthenticated && !!currentWorkspace
+  const { data: unreadRes } = useUnreadCount(hasWorkspace)
   const unreadCount = unreadRes?.data?.count ?? 0
 
   const { data: notificationsRes, isLoading } = useNotifications(
     { limit: 20, unread: true },
-    { enabled: isAuthenticated && open },
+    { enabled: hasWorkspace && open },
   )
   // Belt-and-suspenders: filter client-side in case optimistic updates
   // mark items as read before the refetch replaces the cached list.

@@ -85,6 +85,17 @@ func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Reques
 			ID: o.ID, Name: o.Name, Slug: o.Slug, Description: o.Description,
 			OwnerID: o.OwnerID, IsActive: o.IsActive, CreatedAt: o.CreatedAt, UpdatedAt: o.UpdatedAt,
 		}
+
+		// Populate package count
+		if pkgCount, err := h.PkgSvc.CountPackages(r.Context(), o.ID); err == nil {
+			result[i].PackageCount = &pkgCount
+		}
+
+		// Populate member count
+		if members, err := h.RBAC.GetWorkspaceMembers(o.ID); err == nil {
+			memberCount := int64(len(members))
+			result[i].MemberCount = &memberCount
+		}
 	}
 	respondJSON(w, http.StatusOK, result, nil)
 }

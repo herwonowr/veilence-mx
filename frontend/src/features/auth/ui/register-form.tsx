@@ -68,7 +68,7 @@ export const RegisterForm = () => {
       })
       // If the backend created the account but could not generate tokens,
       // it returns a code instructing the user to log in manually.
-      if (result?.code === "registration_complete_login_required") {
+      if (result?.code === "registration_complete_login_required" || result?.code === "email_verification_required") {
         try { sessionStorage.setItem("vmx_just_registered", "true") } catch {}
         setRegistrationSuccess(true)
         return

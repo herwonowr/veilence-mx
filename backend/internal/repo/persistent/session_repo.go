@@ -23,7 +23,7 @@ func NewSessionRepo(db *gorm.DB) *SessionRepo {
 
 func (r *SessionRepo) FindByID(ctx context.Context, id string) (*entity.Session, error) {
 	var m Session
-	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("session %w", entity.ErrNotFound)
 		}
@@ -83,7 +83,7 @@ func (r *SessionRepo) UpdateTokenHash(ctx context.Context, id string, tokenHash 
 }
 
 func (r *SessionRepo) Delete(ctx context.Context, id string) error {
-	if err := r.db.WithContext(ctx).Delete(&Session{}, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).Delete(&Session{}).Error; err != nil {
 		return fmt.Errorf("deleting session: %w", err)
 	}
 	return nil
@@ -117,7 +117,7 @@ func (r *SessionRepo) DeleteOldestByUserID(ctx context.Context, userID string) e
 		}
 		return fmt.Errorf("finding oldest session: %w", err)
 	}
-	if err := r.db.WithContext(ctx).Delete(&Session{}, oldest.ID).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", oldest.ID).Delete(&Session{}).Error; err != nil {
 		return fmt.Errorf("deleting oldest session: %w", err)
 	}
 	return nil

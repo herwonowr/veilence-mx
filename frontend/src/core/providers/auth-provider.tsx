@@ -234,7 +234,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       // Backend may return a fallback response when user was created but
       // token generation failed. Surface the code so the caller can redirect.
-      if (data.code === "registration_complete_login_required") {
+      if (data.code === "registration_complete_login_required" || data.code === "email_verification_required") {
         return { code: data.code } as const
       }
       storeTokens(data.accessToken, data.refreshToken)

@@ -73,7 +73,7 @@ func (r *AuditLogRepo) FindByWorkspaceID(ctx context.Context, workspaceID string
 
 func (r *AuditLogRepo) FindByID(ctx context.Context, id string) (*entity.AuditLog, error) {
 	var m AuditLog
-	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("audit log %w", entity.ErrNotFound)
 		}
@@ -87,11 +87,11 @@ func (r *AuditLogRepo) FindByID(ctx context.Context, id string) (*entity.AuditLo
 func auditLogToDomain(m *AuditLog) *entity.AuditLog {
 	return &entity.AuditLog{
 		ID:            m.ID,
-		UserID:        m.UserID,
-		WorkspaceID:         m.WorkspaceID,
+		UserID:        derefStr(m.UserID),
+		WorkspaceID:   derefStr(m.WorkspaceID),
 		Action:        m.Action,
 		Resource:      m.Resource,
-		ResourceID:    m.ResourceID,
+		ResourceID:    derefStr(m.ResourceID),
 		Details:       m.Details,
 		IPAddress:     m.IPAddress,
 		UserAgent:     m.UserAgent,
@@ -103,11 +103,11 @@ func auditLogToDomain(m *AuditLog) *entity.AuditLog {
 func auditLogToModel(d *entity.AuditLog) *AuditLog {
 	return &AuditLog{
 		ID:            d.ID,
-		UserID:        d.UserID,
-		WorkspaceID:         d.WorkspaceID,
+		UserID:        strToNullableUUID(d.UserID),
+		WorkspaceID:   strToNullableUUID(d.WorkspaceID),
 		Action:        d.Action,
 		Resource:      d.Resource,
-		ResourceID:    d.ResourceID,
+		ResourceID:    strToNullableUUID(d.ResourceID),
 		Details:       d.Details,
 		IPAddress:     d.IPAddress,
 		UserAgent:     d.UserAgent,

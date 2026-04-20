@@ -175,6 +175,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 			Username: smtpConfig.Username,
 			Password: smtpConfig.Password,
 			From:     smtpConfig.From,
+			SkipTLS:  !smtpConfig.UseTLS,
 		}, cfg.FrontendURL)
 	}
 
@@ -185,6 +186,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	}
 
 	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, authEmailSender, cfg.RequireEmailVerification, rateLimiter, cfg.JWTSecret, previousSecrets...)
+	slog.Info("auth service initialized", "require_email_verification", cfg.RequireEmailVerification, "email_sender_configured", authEmailSender != nil)
 	auditLogRepo := persistent.NewAuditLogRepo(db)
 	rbacRepo := persistent.NewRBACRepo(db)
 	if err := rbac.SeedPermissions(rbacRepo); err != nil {

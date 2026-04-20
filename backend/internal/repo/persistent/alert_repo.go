@@ -23,7 +23,7 @@ func NewAlertRepo(db *gorm.DB) *AlertRepo {
 
 func (r *AlertRepo) FindByID(ctx context.Context, id string) (*entity.Alert, error) {
 	var m Alert
-	if err := r.db.WithContext(ctx).First(&m, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("alert %w", entity.ErrNotFound)
 		}
@@ -118,7 +118,7 @@ func (r *AlertRepo) FindByIDWithPackage(ctx context.Context, id, workspaceID str
 	}
 
 	var pkg Package
-	if err := r.db.WithContext(ctx).First(&pkg, m.PackageID).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", m.PackageID).First(&pkg).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil, fmt.Errorf("package %w", entity.ErrNotFound)
 		}
@@ -234,7 +234,7 @@ func alertToDomain(m *Alert) *entity.Alert {
 		ID:         m.ID,
 		WorkspaceID:      m.WorkspaceID,
 		AnalysisID: m.AnalysisID,
-		ReleaseID:  m.ReleaseID,
+		ReleaseID:  derefStr(m.ReleaseID),
 		PackageID:  m.PackageID,
 		Severity:   entity.AlertSeverity(m.Severity),
 		Status:     entity.AlertStatus(m.Status),
@@ -249,7 +249,7 @@ func alertToModel(d *entity.Alert) *Alert {
 		ID:         d.ID,
 		WorkspaceID:      d.WorkspaceID,
 		AnalysisID: d.AnalysisID,
-		ReleaseID:  d.ReleaseID,
+		ReleaseID:  strToNullableUUID(d.ReleaseID),
 		PackageID:  d.PackageID,
 		Severity:   AlertSeverity(d.Severity),
 		Status:     AlertStatus(d.Status),

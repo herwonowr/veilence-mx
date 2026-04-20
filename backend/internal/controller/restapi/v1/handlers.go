@@ -50,8 +50,9 @@ type NotificationHandlers struct {
 
 // WorkspaceHandlers handles workspace, member, and role management endpoints.
 type WorkspaceHandlers struct {
-	RBAC  *rbac.Service
-	Audit *audit.Service
+	RBAC   *rbac.Service
+	Audit  *audit.Service
+	PkgSvc usecase.PackageService
 }
 
 // AuditHandlers handles audit log listing endpoints.
@@ -129,8 +130,9 @@ func NewHandlers(
 			Audit:         auditService,
 		},
 		Workspace: &WorkspaceHandlers{
-			RBAC:  rbacService,
-			Audit: auditService,
+			RBAC:   rbacService,
+			Audit:  auditService,
+			PkgSvc: packageService,
 		},
 		AuditLogs: &AuditHandlers{
 			Audit: auditService,

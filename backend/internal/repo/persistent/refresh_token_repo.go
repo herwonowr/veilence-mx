@@ -42,7 +42,7 @@ func (r *RefreshTokenRepo) Create(ctx context.Context, token *entity.RefreshToke
 }
 
 func (r *RefreshTokenRepo) Delete(ctx context.Context, id string) error {
-	if err := r.db.WithContext(ctx).Delete(&RefreshToken{}, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).Delete(&RefreshToken{}).Error; err != nil {
 		return fmt.Errorf("deleting refresh token: %w", err)
 	}
 	return nil
