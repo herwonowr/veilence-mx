@@ -308,7 +308,7 @@ export const PackagesListView = () => {
       {
         accessorKey: "latestVersion",
         header: ({ column }) => <SortableHeader column={column} title="Latest Version" />,
-        cell: ({ row }) => row.original.latestVersion || "\u2014",
+        cell: ({ row }) => row.original.latestVersion || "-",
       },
       {
         id: "downloadCount",
@@ -469,7 +469,7 @@ export const PackagesListView = () => {
               <Radar className="h-4 w-4" />
               Suggestions
               {suggestionsCount > 0 && (
-                <Badge variant="secondary" className="ml-0.5 px-1.5 py-0 text-xs min-w-[1.25rem] justify-center">
+                <Badge variant="secondary" className="ml-0.5 px-1.5 py-0 text-xs min-w-5 justify-center">
                   {suggestionsCount}
                 </Badge>
               )}

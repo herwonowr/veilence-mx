@@ -103,7 +103,7 @@ export const PackageDetailView = ({
             </span>
           )}
           {pkg.description && (
-            <span className="text-sm text-muted-foreground">{"\u2014"} {pkg.description}</span>
+            <span className="text-sm text-muted-foreground">{"-"} {pkg.description}</span>
           )}
         </div>
         {pkg.status === "blocked" && pkg.blockedReason && (

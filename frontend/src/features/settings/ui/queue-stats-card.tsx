@@ -69,7 +69,7 @@ export const QueueStatsCard = ({
       value: stats.completed,
       icon: <CheckCircle2 className="size-4 text-green-500" />,
       color: "text-green-500",
-      tooltip: "Total completed jobs (counter only \u2014 individual jobs expire after 1 hour)",
+      tooltip: "Total completed jobs (counter only - individual jobs expire after 1 hour)",
     },
   ]
 
