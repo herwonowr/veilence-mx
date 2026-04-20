@@ -5,9 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
-
-	"github.com/go-chi/chi/v5"
 
 	validation "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/request"
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
@@ -178,14 +175,13 @@ func (h *WorkspaceHandlers) UpdateWorkspace(w http.ResponseWriter, r *http.Reque
 
 // DeleteWorkspace handles DELETE /api/workspaces/{workspaceId} - soft-deletes a workspace.
 func (h *WorkspaceHandlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
-	wsIDStr := chi.URLParam(r, "workspaceId")
-	workspaceID, err := strconv.ParseUint(wsIDStr, 10, 64)
-	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid workspace ID")
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == 0 {
+		respondError(w, http.StatusBadRequest, "workspace context required")
 		return
 	}
 
-	if err := h.RBAC.DeleteWorkspace(uint(workspaceID)); err != nil {
+	if err := h.RBAC.DeleteWorkspace(workspaceID); err != nil {
 		if errors.Is(err, rbac.ErrWorkspaceNotFound) {
 			respondError(w, http.StatusNotFound, "workspace not found")
 			return
@@ -194,7 +190,7 @@ func (h *WorkspaceHandlers) DeleteWorkspace(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "delete", "workspace", uint(workspaceID), fmt.Sprintf("deleted workspace %d", workspaceID))
+	h.Audit.LogAction(r.Context(), "delete", "workspace", workspaceID, fmt.Sprintf("deleted workspace %d", workspaceID))
 
 	respondJSON(w, http.StatusOK, nil, nil)
 }

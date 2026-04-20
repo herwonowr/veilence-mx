@@ -162,12 +162,12 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/reanalyze", h.Dashboard.ReanalyzeAll)
 				})
 
-				// Queue monitoring (global data, but requires workspace membership)
-				r.With(rbac.RequirePermission(rbacService, "settings", "read")).Get("/queue/stats", h.Queue.GetQueueStats)
-				r.With(rbac.RequirePermission(rbacService, "settings", "read")).Get("/queue/jobs", h.Queue.GetQueueJobs)
-				r.With(rbac.RequirePermission(rbacService, "settings", "read")).Get("/queue/dead", h.Queue.GetDeadJobs) // Deprecated: use GET /queue/jobs?status=dead
-				r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/queue/retry-dead", h.Queue.RetryDeadJobs)
-				r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/queue/dead/{jobId}/retry", h.Queue.RetryDeadJob)
+				// Queue monitoring (global data - restricted to workspace admins/owners only)
+				r.With(rbac.RequirePermission(rbacService, "workspace", "write")).Get("/queue/stats", h.Queue.GetQueueStats)
+				r.With(rbac.RequirePermission(rbacService, "workspace", "write")).Get("/queue/jobs", h.Queue.GetQueueJobs)
+				r.With(rbac.RequirePermission(rbacService, "workspace", "write")).Get("/queue/dead", h.Queue.GetDeadJobs) // Deprecated: use GET /queue/jobs?status=dead
+				r.With(rbac.RequirePermission(rbacService, "workspace", "write")).Post("/queue/retry-dead", h.Queue.RetryDeadJobs)
+				r.With(rbac.RequirePermission(rbacService, "workspace", "write")).Post("/queue/dead/{jobId}/retry", h.Queue.RetryDeadJob)
 			})
 
 			// Workspace routes

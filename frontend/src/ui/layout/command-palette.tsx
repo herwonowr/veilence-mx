@@ -17,9 +17,8 @@ import {
   Monitor,
   Search,
 } from "lucide-react"
-import { cn } from "@/core"
+import { cn, useAuth, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 import { Kbd } from "@/ui/components/kbd"
-import { useAuth } from "@/core"
 import type { LucideIcon } from "lucide-react"
 
 interface CommandItem {
@@ -29,6 +28,8 @@ interface CommandItem {
   icon: LucideIcon
   group: string
   keywords?: string[]
+  /** Minimum workspace role required to see this item. Defaults to visible for all. */
+  minRole?: "viewer" | "member" | "admin" | "owner"
 }
 
 const commandItems: CommandItem[] = [
@@ -40,9 +41,9 @@ const commandItems: CommandItem[] = [
   { id: "notifications", label: "Notifications", href: "/notifications", icon: BellDot, group: "Navigation", keywords: ["inbox", "messages", "updates"] },
   { id: "workspaces", label: "Workspaces", href: "/workspaces", icon: Building2, group: "Navigation", keywords: ["teams"] },
   // Management
-  { id: "settings", label: "Settings", href: "/settings", icon: Settings, group: "Management", keywords: ["preferences", "configuration"] },
-  { id: "channels", label: "Channels", href: "/settings/notifications", icon: Bell, group: "Management", keywords: ["notifications", "webhooks", "slack"] },
-  { id: "queue", label: "Queue Monitor", href: "/settings/queue", icon: ListOrdered, group: "Management", keywords: ["jobs", "workers", "processing"] },
+  { id: "settings", label: "Settings", href: "/settings", icon: Settings, group: "Management", keywords: ["preferences", "configuration"], minRole: "admin" },
+  { id: "channels", label: "Channels", href: "/settings/notifications", icon: Bell, group: "Management", keywords: ["notifications", "webhooks", "slack"], minRole: "admin" },
+  { id: "queue", label: "Queue Monitor", href: "/settings/queue", icon: ListOrdered, group: "Management", keywords: ["jobs", "workers", "processing"], minRole: "admin" },
   { id: "api-keys", label: "API Keys", href: "/settings/api-keys", icon: Key, group: "Management", keywords: ["tokens", "authentication"] },
   { id: "sessions", label: "Sessions", href: "/settings/sessions", icon: Monitor, group: "Management", keywords: ["active", "devices"] },
   // Account
@@ -57,18 +58,25 @@ export const CommandPalette = () => {
   const listRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const { isAuthenticated } = useAuth()
+  const { role } = useCurrentWorkspaceRole()
+
+  // Filter items based on role permissions
+  const permittedItems = React.useMemo(
+    () => commandItems.filter((item) => !item.minRole || hasMinimumRole(role, item.minRole)),
+    [role]
+  )
 
   // Filter items based on query
   const filteredItems = React.useMemo(() => {
-    if (!query.trim()) return commandItems
+    if (!query.trim()) return permittedItems
     const lowerQuery = query.toLowerCase()
-    return commandItems.filter(
+    return permittedItems.filter(
       (item) =>
         item.label.toLowerCase().includes(lowerQuery) ||
         item.group.toLowerCase().includes(lowerQuery) ||
         item.keywords?.some((kw) => kw.includes(lowerQuery))
     )
-  }, [query])
+  }, [query, permittedItems])
 
   // Group filtered items, preserving order and computing flat indices
   const groupedItems = React.useMemo(() => {
