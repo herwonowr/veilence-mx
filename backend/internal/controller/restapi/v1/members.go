@@ -8,6 +8,7 @@ import (
 	"time"
 
 	validation "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/request"
+	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -64,15 +65,15 @@ func toInvitationResponse(inv entity.Invitation) invitationResponse {
 // The frontend expects email, firstName, and lastName at the top level
 // instead of nested under a "user" object.
 type flatMember struct {
-	ID          string      `json:"id"`
-	WorkspaceID string      `json:"workspaceId"`
-	UserID      string      `json:"userId"`
-	RoleID      string      `json:"roleId"`
-	Role        entity.Role `json:"role"`
-	JoinedAt    time.Time   `json:"joinedAt"`
-	Email       string      `json:"email"`
-	FirstName   string      `json:"firstName"`
-	LastName    string      `json:"lastName"`
+	ID          string                `json:"id"`
+	WorkspaceID string                `json:"workspaceId"`
+	UserID      string                `json:"userId"`
+	RoleID      string                `json:"roleId"`
+	Role        response.RoleResponse `json:"role"`
+	JoinedAt    time.Time             `json:"joinedAt"`
+	Email       string                `json:"email"`
+	FirstName   string                `json:"firstName"`
+	LastName    string                `json:"lastName"`
 }
 
 // ListMembers handles GET /api/workspaces/{workspaceId}/members - lists workspace members.
@@ -94,9 +95,26 @@ func (h *WorkspaceHandlers) ListMembers(w http.ResponseWriter, r *http.Request) 
 	// a nested user object.
 	flat := make([]flatMember, len(members))
 	for i, m := range members {
-		role := entity.Role{}
+		var roleResp response.RoleResponse
 		if m.Role != nil {
-			role = *m.Role
+			perms := make([]response.PermissionResponse, len(m.Role.Permissions))
+			for j, p := range m.Role.Permissions {
+				perms[j] = response.PermissionResponse{
+					ID:       p.ID,
+					Resource: p.Resource,
+					Action:   p.Action,
+				}
+			}
+			roleResp = response.RoleResponse{
+				ID:          m.Role.ID,
+				WorkspaceID: m.Role.WorkspaceID,
+				Name:        m.Role.Name,
+				Description: m.Role.Description,
+				IsSystem:    m.Role.IsSystem,
+				CreatedAt:   m.Role.CreatedAt,
+				UpdatedAt:   m.Role.UpdatedAt,
+				Permissions: perms,
+			}
 		}
 		var email, firstName, lastName string
 		if m.User != nil {
@@ -109,7 +127,7 @@ func (h *WorkspaceHandlers) ListMembers(w http.ResponseWriter, r *http.Request) 
 			WorkspaceID: m.WorkspaceID,
 			UserID:      m.UserID,
 			RoleID:      m.RoleID,
-			Role:        role,
+			Role:        roleResp,
 			JoinedAt:    m.JoinedAt,
 			Email:       email,
 			FirstName:   firstName,
@@ -229,6 +247,51 @@ func (h *WorkspaceHandlers) AcceptInvitation(w http.ResponseWriter, r *http.Requ
 	h.Audit.LogAction(r.Context(), "accept", "member", member.ID, fmt.Sprintf("accepted invitation for user %s", userID))
 
 	respondJSON(w, http.StatusOK, member, nil)
+}
+
+// DeclineInvitation handles POST /api/workspaces/{workspaceId}/invitations/{token}/decline - declines an invitation by token.
+func (h *WorkspaceHandlers) DeclineInvitation(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+	if token == "" {
+		respondError(w, http.StatusBadRequest, "invitation token is required")
+		return
+	}
+
+	userEmail := auth.EmailFromContext(r.Context())
+	if userEmail == "" {
+		respondError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	err := h.RBAC.DeclineInvitationByToken(token, userEmail)
+	if err != nil {
+		if errors.Is(err, rbac.ErrInvitationNotFound) {
+			respondError(w, http.StatusNotFound, "invitation not found")
+			return
+		}
+		if errors.Is(err, rbac.ErrInvitationExpired) {
+			respondError(w, http.StatusGone, "invitation has expired")
+			return
+		}
+		if errors.Is(err, rbac.ErrInvitationAccepted) {
+			respondError(w, http.StatusConflict, "invitation already accepted")
+			return
+		}
+		if errors.Is(err, rbac.ErrInvitationDeclined) {
+			respondError(w, http.StatusConflict, "invitation already declined")
+			return
+		}
+		if errors.Is(err, rbac.ErrInvitationEmailMismatch) {
+			respondError(w, http.StatusForbidden, "invitation was sent to a different email address")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to decline invitation")
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "decline", "invitation", token, fmt.Sprintf("declined invitation by token for %s", userEmail))
+
+	respondJSON(w, http.StatusOK, map[string]string{"message": "invitation declined"}, nil)
 }
 
 // GetInvitationInfo handles GET /api/invitations/{token} - returns invitation details

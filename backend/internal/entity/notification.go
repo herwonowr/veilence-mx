@@ -62,6 +62,7 @@ type NotificationEvent struct {
 	Message       string
 	ReferenceID   string
 	ReferenceType string // "alert", "release", "package"
+	UserID        string // optional - target a specific user instead of org-wide
 }
 
 // Notification event type constants.

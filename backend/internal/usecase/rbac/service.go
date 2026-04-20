@@ -321,6 +321,14 @@ func (s *Service) InviteMember(workspaceID string, email string, roleID string, 
 		if ws, wsErr := s.repo.FindWorkspaceByID(ctx, workspaceID); wsErr == nil && ws != nil {
 			wsName = ws.Name
 		}
+		// Try to resolve the invited user's ID so the notification targets them
+		// directly. If they don't have an account yet, fall back to org-wide.
+		var targetUserID string
+		if s.userResolver != nil {
+			if invitedUser, lookupErr := s.userResolver.FindByEmail(ctx, email); lookupErr == nil && invitedUser != nil {
+				targetUserID = invitedUser.ID
+			}
+		}
 		s.notifier.DispatchEvent(ctx, workspaceID, entity.NotificationEvent{
 			Severity:      "low",
 			EventType:     "invitation_received",
@@ -328,6 +336,7 @@ func (s *Service) InviteMember(workspaceID string, email string, roleID string, 
 			Message:       fmt.Sprintf("You've been invited to join %s", wsName),
 			ReferenceID:   invitation.ID,
 			ReferenceType: "invitation",
+			UserID:        targetUserID,
 		})
 	}
 
@@ -396,6 +405,43 @@ func (s *Service) AcceptInvitation(token string, userID string, userEmail string
 
 	slog.Info("invitation accepted", "workspace_id", invitation.WorkspaceID, "user_id", userID)
 	return member, nil
+}
+
+// DeclineInvitationByToken declines a pending invitation using the raw token.
+// The userEmail is compared against the invitation email to prevent unauthorized
+// decline. If the emails don't match, ErrInvitationEmailMismatch is returned.
+func (s *Service) DeclineInvitationByToken(token string, userEmail string) error {
+	ctx := ctx_bg()
+
+	invitation, err := s.repo.FindInvitationByTokenHash(ctx, hashToken(token))
+	if err != nil || invitation == nil {
+		return ErrInvitationNotFound
+	}
+
+	if invitation.Email != userEmail {
+		return ErrInvitationEmailMismatch
+	}
+
+	if invitation.AcceptedAt != nil {
+		return ErrInvitationAccepted
+	}
+
+	if invitation.DeclinedAt != nil {
+		return ErrInvitationDeclined
+	}
+
+	if time.Now().After(invitation.ExpiresAt) {
+		return ErrInvitationExpired
+	}
+
+	now := time.Now()
+	invitation.DeclinedAt = &now
+	if err := s.repo.UpdateInvitation(ctx, invitation); err != nil {
+		return fmt.Errorf("declining invitation by token: %w", err)
+	}
+
+	slog.Info("invitation declined by token", "workspace_id", invitation.WorkspaceID, "email", userEmail)
+	return nil
 }
 
 // GetInvitationByToken returns invitation details by token. This allows the

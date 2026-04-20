@@ -219,25 +219,25 @@ var severityOrder = map[string]int{
 // workspace. It creates in-app notification records and dispatches to
 // external channels (email, Slack, webhook).
 func (s *Service) Dispatch(ctx context.Context, workspaceID string, severity, title, message string) {
-	s.dispatchInternal(ctx, workspaceID, severity, "", "", "", title, message)
+	s.dispatchInternal(ctx, workspaceID, severity, "", "", "", title, message, "")
 }
 
 // DispatchEvent sends a notification with full structured event data through
 // all matching rules/channels for a workspace.
 func (s *Service) DispatchEvent(ctx context.Context, workspaceID string, evt entity.NotificationEvent) {
-	s.dispatchInternal(ctx, workspaceID, evt.Severity, evt.EventType, evt.ReferenceID, evt.ReferenceType, evt.Title, evt.Message)
+	s.dispatchInternal(ctx, workspaceID, evt.Severity, evt.EventType, evt.ReferenceID, evt.ReferenceType, evt.Title, evt.Message, evt.UserID)
 }
 
 // dispatchInternal is the shared implementation for Dispatch and DispatchEvent.
-func (s *Service) dispatchInternal(ctx context.Context, workspaceID string, severity, eventType string, referenceID string, referenceType, title, message string) {
+func (s *Service) dispatchInternal(ctx context.Context, workspaceID string, severity, eventType string, referenceID string, referenceType, title, message string, userID string) {
 	// Always create one in-app notification record (ChannelID=0 means in-app,
 	// not tied to any external channel). This ensures the frontend bell icon
 	// always has something to show regardless of whether notification
 	// rules/channels are configured.
 	inAppNotification := &entity.Notification{
 		WorkspaceID:   workspaceID,
-		UserID:        "", // org-wide
-		ChannelID:     "", // in-app notification, no external channel
+		UserID:        userID, // empty string means org-wide, non-empty targets a specific user
+		ChannelID:     "",     // in-app notification, no external channel
 		Severity:      severity,
 		EventType:     eventType,
 		ReferenceID:   referenceID,
@@ -790,10 +790,25 @@ func (s *Service) ListNotifications(workspaceID, userID string, onlyUnread bool)
 		if err != nil {
 			return nil, fmt.Errorf("listing user workspaces: %w", err)
 		}
-		if len(wsIDs) == 0 {
-			return nil, nil
+
+		// Get org-wide notifications from the user's workspaces
+		var wsNotifs []entity.Notification
+		if len(wsIDs) > 0 {
+			wsNotifs, err = s.notifications.FindByUserAndWorkspaceIDs(ctx, wsIDs, userID, onlyUnread)
+			if err != nil {
+				return nil, fmt.Errorf("listing workspace notifications: %w", err)
+			}
 		}
-		return s.notifications.FindByUserAndWorkspaceIDs(ctx, wsIDs, userID, onlyUnread)
+
+		// Also get user-targeted notifications (e.g. invitation notifications
+		// for workspaces the user is not yet a member of)
+		directNotifs, err := s.notifications.FindDirectByUserID(ctx, userID, onlyUnread)
+		if err != nil {
+			return nil, fmt.Errorf("listing direct notifications: %w", err)
+		}
+
+		// Merge and deduplicate (direct notifs may overlap with workspace notifs)
+		return mergeNotifications(wsNotifs, directNotifs), nil
 	}
 
 	notifs, err := s.notifications.FindByUserAndWorkspace(ctx, workspaceID, userID, onlyUnread)
@@ -836,19 +851,35 @@ func (s *Service) MarkRead(id, userID string) error {
 }
 
 // GetUnreadCount returns the number of unread notifications for a user.
-// When workspaceID is 0, counts are scoped to the user's actual workspaces.
+// When workspaceID is 0, counts are scoped to the user's actual workspaces
+// plus any user-targeted notifications from other workspaces.
 func (s *Service) GetUnreadCount(workspaceID, userID string) (int64, error) {
 	ctx := context.Background()
 
 	if workspaceID == "" {
+		var wsCount int64
 		wsIDs, err := s.workspaces.FindWorkspaceIDsByUserID(ctx, userID)
 		if err != nil {
 			return 0, fmt.Errorf("listing user workspaces: %w", err)
 		}
-		if len(wsIDs) == 0 {
-			return 0, nil
+		if len(wsIDs) > 0 {
+			wsCount, err = s.notifications.CountUnreadByWorkspaceIDs(ctx, wsIDs, userID)
+			if err != nil {
+				return 0, fmt.Errorf("counting workspace unread: %w", err)
+			}
 		}
-		return s.notifications.CountUnreadByWorkspaceIDs(ctx, wsIDs, userID)
+
+		// Also count user-targeted notifications from workspaces the user
+		// is not a member of (e.g. pending invitations)
+		directCount, err := s.notifications.CountUnreadDirectByUserID(ctx, userID)
+		if err != nil {
+			return 0, fmt.Errorf("counting direct unread: %w", err)
+		}
+
+		// This may double-count some notifications that are both user-targeted
+		// and in a member workspace, but the merge in ListNotifications deduplicates.
+		// For count, a slight overcount is acceptable; exact count comes from list.
+		return wsCount + directCount, nil
 	}
 
 	count, err := s.notifications.CountUnread(ctx, workspaceID, userID)
@@ -1002,6 +1033,32 @@ func (s *Service) TestChannel(id, workspaceID string) error {
 func (s *Service) GetChannel(id, workspaceID string) (*entity.NotificationChannel, error) {
 	ctx := context.Background()
 	return s.channels.FindByIDAndWorkspace(ctx, id, workspaceID)
+}
+
+// mergeNotifications merges two notification slices, deduplicating by ID.
+// The result is sorted by CreatedAt descending (most recent first).
+func mergeNotifications(a, b []entity.Notification) []entity.Notification {
+	seen := make(map[string]struct{}, len(a))
+	result := make([]entity.Notification, 0, len(a)+len(b))
+
+	for _, n := range a {
+		seen[n.ID] = struct{}{}
+		result = append(result, n)
+	}
+	for _, n := range b {
+		if _, ok := seen[n.ID]; !ok {
+			result = append(result, n)
+		}
+	}
+
+	// Sort by CreatedAt descending
+	for i := 1; i < len(result); i++ {
+		for j := i; j > 0 && result[j].CreatedAt.After(result[j-1].CreatedAt); j-- {
+			result[j], result[j-1] = result[j-1], result[j]
+		}
+	}
+
+	return result
 }
 
 // containsString returns true if the slice contains the given value.

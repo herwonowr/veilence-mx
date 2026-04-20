@@ -198,6 +198,8 @@ type NotificationRepository interface {
 	Create(ctx context.Context, notification *entity.Notification) error
 	FindByUserAndWorkspace(ctx context.Context, workspaceID, userID string, onlyUnread bool) ([]entity.Notification, error)
 	FindByUserAndWorkspaceIDs(ctx context.Context, workspaceIDs []string, userID string, onlyUnread bool) ([]entity.Notification, error)
+	FindDirectByUserID(ctx context.Context, userID string, onlyUnread bool) ([]entity.Notification, error)
+	CountUnreadDirectByUserID(ctx context.Context, userID string) (int64, error)
 	FindByID(ctx context.Context, id string) (*entity.Notification, error)
 	MarkRead(ctx context.Context, id, userID string) (int64, error)
 	MarkAllRead(ctx context.Context, workspaceID, userID string) (int64, error)
@@ -353,10 +355,12 @@ type InvitationEmailSender interface {
 	SendInvitationEmail(ctx context.Context, email, token, workspaceName, inviterEmail string) error
 }
 
-// UserEmailResolver resolves a user ID to their email address.
-// Used by the RBAC service to display inviter identity in invitation emails.
+// UserEmailResolver resolves users by ID or email.
+// Used by the RBAC service to display inviter identity in invitation emails
+// and to look up invited users for targeted notifications.
 type UserEmailResolver interface {
 	FindByID(ctx context.Context, id string) (*entity.User, error)
+	FindByEmail(ctx context.Context, email string) (*entity.User, error)
 }
 
 // UserWorkspaceLister returns the workspace IDs a user belongs to.

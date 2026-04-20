@@ -180,8 +180,9 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 				r.Post("/", h.Workspace.CreateWorkspace)
 				r.Get("/", h.Workspace.ListWorkspaces)
 
-				// Invitation acceptance (requires auth but not workspace membership)
+				// Invitation acceptance/decline (requires auth but not workspace membership)
 				r.Post("/{workspaceId}/invitations/{token}/accept", h.Workspace.AcceptInvitation)
+				r.Post("/{workspaceId}/invitations/{token}/decline", h.Workspace.DeclineInvitation)
 
 				// Workspace-scoped routes (require membership + permissions)
 				r.Route("/{workspaceId}", func(r chi.Router) {
