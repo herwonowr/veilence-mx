@@ -25,16 +25,6 @@ export interface StalePackage extends Package {
   daysSinceLastRelease: number
 }
 
-export interface CreatePackageRequest {
-  name: string
-  ecosystem: string
-}
-
-export interface BulkImportFormat {
-  format: "requirements_txt" | "package_json" | "list"
-  content: string
-}
-
 export interface BulkImportError {
   name: string
   error: string

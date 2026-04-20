@@ -18,7 +18,3 @@ export const apiDeleteApiKey = async (
 ): Promise<ApiResponse<null>> =>
   fetchApi<null>(`/api/auth/api-keys/${id}`, { method: "DELETE" })
 
-export const apiGetCurrentMemberRole = async (
-  workspaceId: number
-): Promise<ApiResponse<{ role: string }>> =>
-  fetchApi<{ role: string }>(`/api/workspaces/${workspaceId}/members/me/role`)

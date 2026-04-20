@@ -18,7 +18,6 @@ const (
 	SettingDiscoveryScanDepth = "discovery_scan_depth"
 	SettingDiscoveryInterval  = "discovery_interval"
 	SettingMonitoringInterval = "monitoring_interval"
-	SettingAnalyzerMode       = "analyzer_mode"
 	SettingDiffSizeLimit      = "diff_size_limit"
 
 	// Email digest settings (per-org).
@@ -40,21 +39,12 @@ const (
 
 )
 
-// ValidAnalyzerModes is the set of allowed values for the analyzer_mode setting.
-// "auto" = automatically analyze new releases, "manual" = user-triggered, "disabled" = skip analysis.
-var ValidAnalyzerModes = map[string]bool{
-	"auto":     true,
-	"manual":   true,
-	"disabled": true,
-}
-
 // ValidSettingKeys is the canonical set of all accepted setting keys.
 // Used by the handler layer for input validation.
 var ValidSettingKeys = map[string]bool{
 	SettingDiscoveryScanDepth:            true,
 	SettingDiscoveryInterval:             true,
 	SettingMonitoringInterval:            true,
-	SettingAnalyzerMode:                  true,
 	SettingDiffSizeLimit:                 true,
 	SettingEmailDigestEnabled:            true,
 	SettingEmailDigestFrequency:          true,

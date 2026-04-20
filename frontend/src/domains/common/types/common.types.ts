@@ -7,16 +7,10 @@ export type AnalyzerType = "api" | "cli" | "copilot"
 export type AlertSeverity = "low" | "medium" | "high" | "critical"
 export type AlertStatus = "new" | "acknowledged" | "resolved"
 export type ReleaseStatus = "pending" | "diffing" | "analyzing" | "completed" | "error" | "in_progress"
-export type SortDirection = "asc" | "desc"
-
 export interface PaginationMeta {
   page: number
   limit: number
   total: number
 }
 
-export interface PaginatedResponse<T> {
-  data: T[]
-  error: string | null
-  meta: PaginationMeta
-}
+

@@ -99,10 +99,6 @@ func (uc *UseCase) UpdateSettings(ctx context.Context, workspaceID uint, setting
 			if err != nil || n < 0 || n > 100000 {
 				return nil, validationError("package_count_warning_threshold must be an integer between 0 and 100000")
 			}
-		case entity.SettingAnalyzerMode:
-			if !entity.ValidAnalyzerModes[value] {
-				return nil, validationError("analyzer_mode must be 'auto', 'manual', or 'disabled'")
-			}
 		}
 
 		if err := uc.settings.UpsertByWorkspaceAndKey(ctx, workspaceID, key, value); err != nil {

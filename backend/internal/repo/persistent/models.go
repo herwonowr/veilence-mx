@@ -412,21 +412,6 @@ type Setting struct {
 
 func (Setting) TableName() string { return "settings" }
 
-// Setting key constants (kept here for backward compatibility with main.go seeding).
-const (
-	SettingDiscoveryScanDepth = "discovery_scan_depth"
-	SettingDiscoveryInterval  = "discovery_interval"
-	SettingMonitoringInterval = "monitoring_interval"
-	SettingAnalyzerMode       = "analyzer_mode"
-	SettingDiffSizeLimit      = "diff_size_limit"
-	SettingEmailDigestEnabled    = "email_digest_enabled"
-	SettingEmailDigestFrequency  = "email_digest_frequency"
-	SettingEmailDigestRecipients = "email_digest_recipients"
-	SettingDiscoveryAutoApprove          = "discovery_auto_approve"
-	SettingStaleAutoRemoveMonths         = "stale_auto_remove_months"
-	SettingPackageCountWarningThreshold  = "package_count_warning_threshold"
-)
-
 // --- Notification Models ---
 
 // NotificationChannelType represents the type of a notification channel (GORM model).

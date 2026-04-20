@@ -50,21 +50,6 @@ export interface AuditLog {
   createdAt: string
 }
 
-export interface CreateWorkspaceRequest {
-  name: string
-  slug: string
-  description?: string
-}
-
-export interface UpdateWorkspaceRequest {
-  name?: string
-  description?: string
-}
-
-export interface InviteMemberRequest {
-  email: string
-  roleId: number
-}
 
 export interface AuditLogParams {
   action?: string

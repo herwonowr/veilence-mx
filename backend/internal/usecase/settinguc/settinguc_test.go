@@ -87,13 +87,13 @@ func (m *mockSettingRepo) FindOrCreateByKey(_ context.Context, key, defaultValue
 func TestGetSettings_ReturnsKeyValueMap(t *testing.T) {
 	repo := newMockRepo()
 	repo.store[storeKey(1, "monitoring_interval")] = entity.Setting{WorkspaceID: 1, Key: "monitoring_interval", Value: "5m"}
-	repo.store[storeKey(1, "analyzer_mode")] = entity.Setting{WorkspaceID: 1, Key: "analyzer_mode", Value: "auto"}
+	repo.store[storeKey(1, "discovery_scan_depth")] = entity.Setting{WorkspaceID: 1, Key: "discovery_scan_depth", Value: "100"}
 
 	uc := settinguc.New(repo)
 	result, err := uc.GetSettings(context.Background(), 1)
 	require.NoError(t, err)
 	assert.Equal(t, "5m", result["monitoring_interval"])
-	assert.Equal(t, "auto", result["analyzer_mode"])
+	assert.Equal(t, "100", result["discovery_scan_depth"])
 	assert.Len(t, result, 2)
 }
 
@@ -432,45 +432,6 @@ func TestUpdateSettings_RepoUpsertError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings - analyzer_mode validation
-// ---------------------------------------------------------------------------
-
-func TestUpdateSettings_AnalyzerMode(t *testing.T) {
-	tests := []struct {
-		name    string
-		value   string
-		wantErr bool
-	}{
-		{"auto", "auto", false},
-		{"manual", "manual", false},
-		{"disabled", "disabled", false},
-		{"Auto (wrong case)", "Auto", true},
-		{"MANUAL (wrong case)", "MANUAL", true},
-		{"copilot (not a mode)", "copilot", true},
-		{"api (not a mode)", "api", true},
-		{"empty", "", true},
-		{"arbitrary string", "foobar", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := newMockRepo()
-			uc := settinguc.New(repo)
-			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
-				entity.SettingAnalyzerMode: tt.value,
-			})
-			if tt.wantErr {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), "analyzer_mode")
-				assert.ErrorIs(t, err, entity.ErrValidation)
-			} else {
-				require.NoError(t, err)
-			}
-		})
-	}
-}
-
-// ---------------------------------------------------------------------------
 // UpdateSettings - discovery_auto_approve validation
 // ---------------------------------------------------------------------------
 
@@ -604,7 +565,6 @@ func TestUpdateSettings_ValidationErrorsWrapErrValidation(t *testing.T) {
 		{"bad auto approve", entity.SettingDiscoveryAutoApprove, "abc"},
 		{"bad stale months", entity.SettingStaleAutoRemoveMonths, "abc"},
 		{"bad warning threshold", entity.SettingPackageCountWarningThreshold, "abc"},
-		{"bad analyzer mode", entity.SettingAnalyzerMode, "abc"},
 	}
 
 	for _, tt := range tests {
