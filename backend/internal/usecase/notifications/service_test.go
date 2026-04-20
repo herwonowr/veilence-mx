@@ -762,7 +762,7 @@ func TestListNotifications_OrderedByCreatedAtDesc(t *testing.T) {
 
 func TestMarkRead_Success(t *testing.T) {
 	db := setupTestDB(t)
-	svc := newService(db)
+	svc := newServiceWithWorkspaces(db, []uint{1})
 
 	n := seedNotification(t, db, 1, 42, 1, "Unread", "please read me", false)
 
@@ -776,7 +776,7 @@ func TestMarkRead_Success(t *testing.T) {
 
 func TestMarkRead_OrgWideNotification(t *testing.T) {
 	db := setupTestDB(t)
-	svc := newService(db)
+	svc := newServiceWithWorkspaces(db, []uint{1})
 
 	n := seedNotification(t, db, 1, 0, 1, "Org-Wide", "for everyone", false)
 
@@ -790,7 +790,7 @@ func TestMarkRead_OrgWideNotification(t *testing.T) {
 
 func TestMarkRead_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	svc := newService(db)
+	svc := newServiceWithWorkspaces(db, []uint{1})
 
 	err := svc.MarkRead(99999, 42)
 	require.Error(t, err)
@@ -799,7 +799,7 @@ func TestMarkRead_NotFound(t *testing.T) {
 
 func TestMarkRead_WrongUser(t *testing.T) {
 	db := setupTestDB(t)
-	svc := newService(db)
+	svc := newServiceWithWorkspaces(db, []uint{1})
 
 	n := seedNotification(t, db, 1, 42, 1, "Private", "only user 42", false)
 
@@ -901,7 +901,7 @@ func TestGetUnreadCount_Zero(t *testing.T) {
 
 func TestFullNotificationLifecycle(t *testing.T) {
 	db := setupTestDB(t)
-	svc := newService(db)
+	svc := newServiceWithWorkspaces(db, []uint{1})
 
 	ch := createTestChannel(t, svc, 1, "Lifecycle Email", entity.NotificationChannelEmail, `{}`)
 	createTestRule(t, svc, 1, ch.ID, "low")

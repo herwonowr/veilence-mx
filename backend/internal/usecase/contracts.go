@@ -206,6 +206,7 @@ type NotificationRepository interface {
 	Create(ctx context.Context, notification *entity.Notification) error
 	FindByUserAndWorkspace(ctx context.Context, workspaceID, userID uint, onlyUnread bool) ([]entity.Notification, error)
 	FindByUserAndWorkspaceIDs(ctx context.Context, workspaceIDs []uint, userID uint, onlyUnread bool) ([]entity.Notification, error)
+	FindByID(ctx context.Context, id uint) (*entity.Notification, error)
 	MarkRead(ctx context.Context, id, userID uint) (int64, error)
 	MarkAllRead(ctx context.Context, workspaceID, userID uint) (int64, error)
 	MarkAllReadByWorkspaceIDs(ctx context.Context, workspaceIDs []uint, userID uint) (int64, error)
@@ -215,6 +216,7 @@ type NotificationRepository interface {
 	DeleteAll(ctx context.Context, workspaceID, userID uint) (int64, error)
 	DeleteAllByWorkspaceIDs(ctx context.Context, workspaceIDs []uint, userID uint) (int64, error)
 	DeleteBatch(ctx context.Context, ids []uint, workspaceID, userID uint) (int64, error)
+	DeleteBatchByWorkspaceIDs(ctx context.Context, ids []uint, workspaceIDs []uint, userID uint) (int64, error)
 }
 
 // PasswordResetTokenRepository defines persistence operations for PasswordResetToken entities.

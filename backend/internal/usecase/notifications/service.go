@@ -806,8 +806,24 @@ func (s *Service) ListNotifications(workspaceID, userID uint, onlyUnread bool) (
 // MarkRead marks a notification as read.
 // The userID parameter ensures the notification belongs to the requesting user
 // (either directly assigned or org-wide with user_id=0).
+// The notification is verified to belong to one of the user's workspaces.
 func (s *Service) MarkRead(id, userID uint) error {
 	ctx := context.Background()
+
+	// Verify the notification belongs to one of the user's workspaces.
+	notif, err := s.notifications.FindByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("notification not found")
+	}
+
+	wsIDs, err := s.workspaces.FindWorkspaceIDsByUserID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("listing user workspaces: %w", err)
+	}
+
+	if !containsUint(wsIDs, notif.WorkspaceID) {
+		return fmt.Errorf("notification not found")
+	}
 
 	affected, err := s.notifications.MarkRead(ctx, id, userID)
 	if err != nil {
@@ -866,8 +882,29 @@ func (s *Service) MarkAllRead(workspaceID, userID uint) (int64, error) {
 	return affected, nil
 }
 
-// DeleteByID deletes a single notification by ID, scoped to org and user.
+// DeleteByID deletes a single notification by ID, scoped to the user's workspaces.
+// When workspaceID is 0, the notification is verified to belong to one of the user's workspaces.
 func (s *Service) DeleteByID(ctx context.Context, id, workspaceID, userID uint) (int64, error) {
+	if workspaceID == 0 {
+		// Verify the notification belongs to one of the user's workspaces.
+		notif, err := s.notifications.FindByID(ctx, id)
+		if err != nil {
+			return 0, fmt.Errorf("notification not found")
+		}
+
+		wsIDs, err := s.workspaces.FindWorkspaceIDsByUserID(ctx, userID)
+		if err != nil {
+			return 0, fmt.Errorf("listing user workspaces: %w", err)
+		}
+
+		if !containsUint(wsIDs, notif.WorkspaceID) {
+			return 0, fmt.Errorf("notification not found")
+		}
+
+		// Use the notification's actual workspace ID for the scoped delete.
+		workspaceID = notif.WorkspaceID
+	}
+
 	affected, err := s.notifications.DeleteByID(ctx, id, workspaceID, userID)
 	if err != nil {
 		return 0, fmt.Errorf("deleting notification: %w", err)
@@ -903,13 +940,30 @@ func (s *Service) DeleteAll(ctx context.Context, workspaceID, userID uint) (int6
 	return affected, nil
 }
 
-// DeleteBatch deletes multiple notifications by IDs, scoped to org and user.
+// DeleteBatch deletes multiple notifications by IDs, scoped to the user's workspaces.
+// When workspaceID is 0, notifications are scoped to the user's actual workspaces.
 func (s *Service) DeleteBatch(ctx context.Context, ids []uint, workspaceID, userID uint) (int64, error) {
 	if len(ids) == 0 {
 		return 0, fmt.Errorf("no notification IDs provided")
 	}
 	if len(ids) > 100 {
 		return 0, fmt.Errorf("batch delete limited to 100 notifications at a time")
+	}
+
+	if workspaceID == 0 {
+		wsIDs, err := s.workspaces.FindWorkspaceIDsByUserID(ctx, userID)
+		if err != nil {
+			return 0, fmt.Errorf("listing user workspaces: %w", err)
+		}
+		if len(wsIDs) == 0 {
+			return 0, nil
+		}
+		affected, err := s.notifications.DeleteBatchByWorkspaceIDs(ctx, ids, wsIDs, userID)
+		if err != nil {
+			return 0, fmt.Errorf("batch deleting notifications: %w", err)
+		}
+		slog.Info("notifications batch deleted", "workspace_ids", wsIDs, "user_id", userID, "requested", len(ids), "deleted", affected)
+		return affected, nil
 	}
 
 	affected, err := s.notifications.DeleteBatch(ctx, ids, workspaceID, userID)
@@ -948,6 +1002,16 @@ func (s *Service) TestChannel(id, workspaceID uint) error {
 func (s *Service) GetChannel(id, workspaceID uint) (*entity.NotificationChannel, error) {
 	ctx := context.Background()
 	return s.channels.FindByIDAndWorkspace(ctx, id, workspaceID)
+}
+
+// containsUint returns true if the slice contains the given value.
+func containsUint(slice []uint, val uint) bool {
+	for _, v := range slice {
+		if v == val {
+			return true
+		}
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------
