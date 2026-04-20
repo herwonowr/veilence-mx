@@ -382,7 +382,7 @@ export const PackageImportView = () => {
           </CardHeader>
           <CardContent className="space-y-3">
             <Textarea
-              className="min-h-[160px] font-mono"
+              className="min-h-40 font-mono"
               placeholder={`# requirements.txt format:\nrequests>=2.28.0\nflask==3.0.0\nnumpy\n\n# Or paste package.json content`}
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}

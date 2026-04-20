@@ -69,19 +69,6 @@ export const SiteHeader = ({ actionSlot }: { actionSlot?: React.ReactNode }) => 
     <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
       <SidebarTrigger className="-ml-1" aria-label="Toggle sidebar" />
       <Separator orientation="vertical" className="mr-2 data-vertical:self-center h-4!" />
-      <Button
-        variant="outline"
-        size="sm"
-        type="button"
-        onClick={() => {
-          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))
-        }}
-        className="hidden items-center gap-1 rounded-md border bg-muted/50 px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:inline-flex"
-        aria-label="Open command palette"
-      >
-        <Kbd>⌘</Kbd>
-        <Kbd>K</Kbd>
-      </Button>
       <Breadcrumb>
         <BreadcrumbList>
           {crumbs.map((crumb, index) => {
@@ -104,6 +91,19 @@ export const SiteHeader = ({ actionSlot }: { actionSlot?: React.ReactNode }) => 
         </BreadcrumbList>
       </Breadcrumb>
       <div className="ml-auto flex items-center gap-1">
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          onClick={() => {
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))
+          }}
+          className="hidden items-center gap-1 rounded-md border bg-muted/50 px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:inline-flex"
+          aria-label="Open command palette"
+        >
+          <Kbd>⌘</Kbd>
+          <Kbd>K</Kbd>
+        </Button>
         {actionSlot}
         <ThemeToggle />
       </div>
