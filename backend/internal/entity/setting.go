@@ -38,9 +38,6 @@ const (
 	// a warning is surfaced in the dashboard/settings UI.
 	SettingPackageCountWarningThreshold = "package_count_warning_threshold"
 
-	// Require email verification: when "true", users with unverified emails
-	// are blocked from logging in. Default is "false".
-	SettingRequireEmailVerification = "require_email_verification"
 )
 
 // ValidAnalyzerModes is the set of allowed values for the analyzer_mode setting.
@@ -65,5 +62,4 @@ var ValidSettingKeys = map[string]bool{
 	SettingDiscoveryAutoApprove:          true,
 	SettingStaleAutoRemoveMonths:         true,
 	SettingPackageCountWarningThreshold:  true,
-	SettingRequireEmailVerification:      true,
 }

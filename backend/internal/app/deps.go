@@ -184,7 +184,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		slog.Info("JWT secret rotation enabled", "previous_secrets_count", len(previousSecrets))
 	}
 
-	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, authEmailSender, settingRepo, rateLimiter, cfg.JWTSecret, previousSecrets...)
+	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, authEmailSender, cfg.RequireEmailVerification, rateLimiter, cfg.JWTSecret, previousSecrets...)
 	auditLogRepo := persistent.NewAuditLogRepo(db)
 	rbacRepo := persistent.NewRBACRepo(db)
 	if err := rbac.SeedPermissions(rbacRepo); err != nil {
@@ -319,7 +319,6 @@ func seedSettingsDefaults(cfg *config.Config, db *gorm.DB) {
 		entity.SettingDiscoveryAutoApprove:         cfg.DiscoveryAutoApprove,
 		entity.SettingStaleAutoRemoveMonths:        cfg.StaleAutoRemoveMonths,
 		entity.SettingPackageCountWarningThreshold: cfg.PackageCountWarningThreshold,
-		entity.SettingRequireEmailVerification:     cfg.RequireEmailVerification,
 	}
 	for key, value := range seedDefaults {
 		db.Where("key = ?", key).FirstOrCreate(&persistent.Setting{Key: key, Value: value})

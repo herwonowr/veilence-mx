@@ -10,7 +10,6 @@ export const settingsSchema = z.object({
   email_digest_enabled: z.enum(["true", "false"]).optional(),
   email_digest_frequency: z.enum(["daily", "weekly"]).optional(),
   email_digest_recipients: z.string().optional(),
-  require_email_verification: z.enum(["true", "false"]).optional(),
   diff_size_limit: z.string().optional(),
 })
 

@@ -78,8 +78,8 @@ type Service struct {
 	emailVerifications usecase.EmailVerificationTokenRepository
 	sessions           usecase.SessionRepository
 	emailSender        usecase.AuthEmailSender // nil = no email delivery (dev mode)
-	settings           usecase.SettingGetter   // nil = skip setting checks
-	rateLimiter        usecase.RateLimiter     // nil = no rate limiting
+	requireEmailVerification bool                    // from env: REQUIRE_EMAIL_VERIFICATION
+	rateLimiter              usecase.RateLimiter     // nil = no rate limiting
 	jwtSecret          []byte                  // primary secret (used for signing)
 	jwtSecretsPrevious [][]byte                // previous secrets (accepted for validation during rotation)
 }
@@ -87,8 +87,8 @@ type Service struct {
 // NewService creates a new auth service with the given repositories and JWT secret.
 // The jwtSecret is the primary signing secret. previousSecrets are optional older
 // secrets that are still accepted for token validation during secret rotation.
-// emailSender, settings, and rateLimiter may be nil (dev mode: emails skipped,
-// setting checks skipped, rate limiting skipped).
+// emailSender and rateLimiter may be nil (dev mode: emails skipped,
+// rate limiting skipped).
 func NewService(
 	users usecase.UserRepository,
 	refreshTokens usecase.RefreshTokenRepository,
@@ -97,7 +97,7 @@ func NewService(
 	emailVerifications usecase.EmailVerificationTokenRepository,
 	sessions usecase.SessionRepository,
 	emailSender usecase.AuthEmailSender,
-	settings usecase.SettingGetter,
+	requireEmailVerification bool,
 	rateLimiter usecase.RateLimiter,
 	jwtSecret string,
 	previousSecrets ...string,
@@ -109,17 +109,17 @@ func NewService(
 		}
 	}
 	return &Service{
-		users:              users,
-		refreshTokens:      refreshTokens,
-		apiKeys:            apiKeys,
-		passwordResets:     passwordResets,
-		emailVerifications: emailVerifications,
-		sessions:           sessions,
-		emailSender:        emailSender,
-		settings:           settings,
-		rateLimiter:        rateLimiter,
-		jwtSecret:          []byte(jwtSecret),
-		jwtSecretsPrevious: prevKeys,
+		users:                    users,
+		refreshTokens:            refreshTokens,
+		apiKeys:                  apiKeys,
+		passwordResets:           passwordResets,
+		emailVerifications:       emailVerifications,
+		sessions:                 sessions,
+		emailSender:              emailSender,
+		requireEmailVerification: requireEmailVerification,
+		rateLimiter:              rateLimiter,
+		jwtSecret:                []byte(jwtSecret),
+		jwtSecretsPrevious:       prevKeys,
 	}
 }
 
@@ -187,20 +187,11 @@ func (s *Service) Register(email, password, firstName, lastName string) (*entity
 }
 
 // sendPostRegistrationVerification sends a verification email to a newly
-// registered user if the require_email_verification setting is enabled.
+// registered user if the require_email_verification config is enabled.
 // Errors are logged but never propagated - registration must not fail
 // because of an email delivery issue.
 func (s *Service) sendPostRegistrationVerification(ctx context.Context, user *entity.User) {
-	// Check if email verification is required (global setting at workspace_id=0)
-	if s.settings == nil {
-		return
-	}
-	val, err := s.settings.GetSettingValue(ctx, 0, "require_email_verification")
-	if err != nil {
-		slog.Warn("failed to check email verification setting during registration", "user_id", user.ID, "error", err)
-		return
-	}
-	if val != "true" {
+	if !s.requireEmailVerification {
 		return
 	}
 
@@ -228,14 +219,9 @@ func (s *Service) Login(email, password, ipAddress, userAgent string) (*entity.U
 		return nil, nil, errors.New("invalid email or password")
 	}
 
-	// Check global email verification requirement (stored at workspace_id=0)
-	if s.settings != nil && !user.EmailVerified {
-		val, err := s.settings.GetSettingValue(ctx, 0, "require_email_verification")
-		if err != nil {
-			slog.Warn("failed to check email verification setting", "error", err)
-		} else if val == "true" {
-			return nil, nil, ErrEmailVerificationRequired
-		}
+	// Check global email verification requirement
+	if s.requireEmailVerification && !user.EmailVerified {
+		return nil, nil, ErrEmailVerificationRequired
 	}
 
 	tokens, err := s.generateTokenPair(ctx, user)
@@ -288,15 +274,10 @@ func (s *Service) RefreshTokens(refreshToken string) (*TokenPair, error) {
 		return nil, errors.New("account is deactivated")
 	}
 
-	// Check global email verification requirement (stored at workspace_id=0)
-	if s.settings != nil && !user.EmailVerified {
-		val, err := s.settings.GetSettingValue(ctx, 0, "require_email_verification")
-		if err != nil {
-			slog.Warn("failed to check email verification setting", "error", err)
-		} else if val == "true" {
-			_ = s.refreshTokens.Delete(ctx, stored.ID)
-			return nil, ErrEmailVerificationRequired
-		}
+	// Check global email verification requirement
+	if s.requireEmailVerification && !user.EmailVerified {
+		_ = s.refreshTokens.Delete(ctx, stored.ID)
+		return nil, ErrEmailVerificationRequired
 	}
 
 	// Update session LastActive if a session exists for this refresh token hash

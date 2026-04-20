@@ -53,7 +53,7 @@ type Config struct {
 	DiscoveryAutoApprove         string
 	StaleAutoRemoveMonths        string
 	PackageCountWarningThreshold string
-	RequireEmailVerification     string
+	RequireEmailVerification     bool
 }
 
 // NewConfig loads configuration from environment variables with sensible defaults for optional fields.
@@ -100,7 +100,7 @@ func NewConfig() (*Config, error) {
 		DiscoveryAutoApprove:         envOrDefault("DISCOVERY_AUTO_APPROVE", "false"),
 		StaleAutoRemoveMonths:        envOrDefault("STALE_AUTO_REMOVE_MONTHS", "0"),
 		PackageCountWarningThreshold: envOrDefault("PACKAGE_COUNT_WARNING_THRESHOLD", "0"),
-		RequireEmailVerification:     envOrDefault("REQUIRE_EMAIL_VERIFICATION", "false"),
+		RequireEmailVerification:     envBoolOrDefault("REQUIRE_EMAIL_VERIFICATION", false),
 	}
 
 	// Parse comma-separated previous JWT secrets

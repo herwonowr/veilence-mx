@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input, Field, FieldLabel, FieldDescription, FieldError, Checkbox, Label, RadioGroup, RadioGroupItem, Alert, AlertDescription } from "@/ui"
-import { Save, RefreshCw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangle, ShieldCheck, Loader2 } from "lucide-react"
+import { Save, RefreshCw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangle, Loader2 } from "lucide-react"
 import { settingsSchema } from "@/domains/settings"
 import { ZodError } from "zod"
 import { useSettings, useUpdateSettings, useDiscoverNow, usePackageCountSummary } from "@/features/settings/hooks/use-settings"
@@ -294,40 +294,6 @@ export const SettingsView = () => {
           </CardContent>
         </Card>
 
-        <Card className="flex flex-col">
-          <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="size-5" />
-            Security
-          </CardTitle>
-          <CardDescription>
-            Authentication and access control settings.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <Field orientation="horizontal" data-invalid={!!validationErrors.require_email_verification}>
-              <Checkbox
-                id="require-email-verification"
-                checked={localSettings.require_email_verification === "true"}
-                onCheckedChange={(checked) =>
-                  updateSetting("require_email_verification", String(checked))
-                }
-              />
-              <FieldLabel htmlFor="require-email-verification" className="cursor-pointer">
-                Require Email Verification
-              </FieldLabel>
-            </Field>
-            <p className="mt-1.5 ml-6 text-sm text-muted-foreground">
-              When enabled, users must verify their email address before they can log in.
-              This applies globally - if enabled, unverified users are blocked from logging in across all workspaces.
-            </p>
-            {validationErrors.require_email_verification && (
-              <FieldError>{validationErrors.require_email_verification}</FieldError>
-            )}
-          </div>
-        </CardContent>
-        </Card>
       </div>
 
       {/* Email Digest */}

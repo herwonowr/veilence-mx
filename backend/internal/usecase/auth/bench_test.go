@@ -49,7 +49,7 @@ func setupBenchService(b *testing.B) (*Service, *gorm.DB) {
 		persistent.NewEmailVerificationTokenRepo(db),
 		persistent.NewSessionRepo(db),
 		nil,
-		nil,
+		false,
 		nil,
 		benchJWTSecret,
 	)

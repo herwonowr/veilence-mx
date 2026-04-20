@@ -35,14 +35,6 @@ func (uc *UseCase) GetSettings(ctx context.Context, workspaceID uint) (map[strin
 		result[s.Key] = s.Value
 	}
 
-	// require_email_verification is a global setting stored at workspace_id=0
-	if workspaceID != 0 {
-		globalSetting, err := uc.settings.FindByKey(ctx, 0, entity.SettingRequireEmailVerification)
-		if err == nil {
-			result[entity.SettingRequireEmailVerification] = globalSetting.Value
-		}
-	}
-
 	return result, nil
 }
 
@@ -111,19 +103,9 @@ func (uc *UseCase) UpdateSettings(ctx context.Context, workspaceID uint, setting
 			if !entity.ValidAnalyzerModes[value] {
 				return nil, validationError("analyzer_mode must be 'auto', 'manual', or 'disabled'")
 			}
-		case entity.SettingRequireEmailVerification:
-			if value != "true" && value != "false" {
-				return nil, validationError("require_email_verification must be 'true' or 'false'")
-			}
 		}
 
-		// require_email_verification is a global setting stored at workspace_id=0
-		effectiveWorkspaceID := workspaceID
-		if key == entity.SettingRequireEmailVerification {
-			effectiveWorkspaceID = 0
-		}
-
-		if err := uc.settings.UpsertByWorkspaceAndKey(ctx, effectiveWorkspaceID, key, value); err != nil {
+		if err := uc.settings.UpsertByWorkspaceAndKey(ctx, workspaceID, key, value); err != nil {
 			return nil, fmt.Errorf("SettingUseCase.UpdateSettings: upserting %s: %w", key, err)
 		}
 	}
