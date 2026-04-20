@@ -262,19 +262,19 @@ export const SettingsView = () => {
         </CardContent>
       </Card>
 
-      {/* Analysis & Security side by side */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="flex flex-col">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="size-5" />
-              Analysis
-            </CardTitle>
-            <CardDescription>
-              Diff analysis configuration.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+      {/* Analysis */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="size-5" />
+            Analysis
+          </CardTitle>
+          <CardDescription>
+            Diff analysis configuration.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
             <Field data-invalid={!!validationErrors.diff_size_limit}>
               <FieldLabel htmlFor="diff-size-limit">Diff Size Limit (bytes)</FieldLabel>
               <Input
@@ -289,12 +289,26 @@ export const SettingsView = () => {
               {validationErrors.diff_size_limit && (
                 <FieldError>{validationErrors.diff_size_limit}</FieldError>
               )}
-              <FieldDescription>Maximum diff size sent to LLM for analysis. Default: 100KB.</FieldDescription>
+              <FieldDescription>Maximum diff size stored in database. Default: 100KB.</FieldDescription>
             </Field>
-          </CardContent>
-        </Card>
-
-      </div>
+            <Field data-invalid={!!validationErrors.analyzer_mode}>
+              <FieldLabel htmlFor="analyzer-mode">Analyzer Mode</FieldLabel>
+              <Input
+                id="analyzer-mode"
+                value={localSettings.analyzer_mode ?? ""}
+                onChange={(e) =>
+                  updateSetting("analyzer_mode", e.target.value)
+                }
+                placeholder="auto"
+              />
+              {validationErrors.analyzer_mode && (
+                <FieldError>{validationErrors.analyzer_mode}</FieldError>
+              )}
+              <FieldDescription>LLM analysis mode (e.g., auto, manual, disabled)</FieldDescription>
+            </Field>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Email Digest */}
       <Card>
