@@ -885,8 +885,7 @@ curl -s -X PUT http://localhost:8080/api/settings \
   -H "X-CSRF-Token: $CSRF_TOKEN" \
   -d '{
     "monitoring_interval": "30m",
-    "discovery_scan_depth": "200",
-    "diff_size_limit": "204800"
+    "discovery_scan_depth": "200"
   }' | jq .
 ```
 
@@ -897,7 +896,6 @@ curl -s -X PUT http://localhost:8080/api/settings \
 | `monitoring_interval`              | Duration (e.g., `1h`)       | `1h`       | How often to check packages for new releases     |
 | `discovery_interval`               | Duration (e.g., `24h`)      | `24h`      | How often to run discovery scans                 |
 | `discovery_scan_depth`             | Integer (1-1000)            | `50`       | Top N packages per ecosystem per cycle           |
-| `diff_size_limit`                  | Integer (bytes, 1024-10MB)  | `102400`   | Max diff size stored per release                 |
 | `discovery_auto_approve`           | `true` or `false`           | `false`    | Auto-approve discovered packages for monitoring  |
 | `stale_auto_remove_months`         | Integer (0-36)              | `0`        | Remove packages with no updates after N months   |
 | `package_count_warning_threshold`  | Integer (0-100000)          | `0`        | Warn when monitored packages exceed this count   |

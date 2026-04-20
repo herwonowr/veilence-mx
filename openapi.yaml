@@ -932,7 +932,7 @@ paths:
       description: >
         Updates settings from a key-value map. Requires `settings:write` permission.
         Valid keys: monitoring_interval, discovery_interval, discovery_scan_depth,
-        diff_size_limit, discovery_auto_approve, stale_auto_remove_months,
+        discovery_auto_approve, stale_auto_remove_months,
         package_count_warning_threshold, email_digest_enabled, email_digest_frequency,
         email_digest_recipients.
       operationId: updateSettings

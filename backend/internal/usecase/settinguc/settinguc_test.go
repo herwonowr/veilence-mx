@@ -169,43 +169,6 @@ func TestUpdateSettings_DiscoveryScanDepth(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// UpdateSettings - diff_size_limit validation
-// ---------------------------------------------------------------------------
-
-func TestUpdateSettings_DiffSizeLimit(t *testing.T) {
-	tests := []struct {
-		name    string
-		value   string
-		wantErr bool
-	}{
-		{"valid min", "1024", false},
-		{"valid mid", "5242880", false},
-		{"valid max", "10485760", false},
-		{"too low", "1023", true},
-		{"too high", "10485761", true},
-		{"zero", "0", true},
-		{"not a number", "abc", true},
-		{"empty", "", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := newMockRepo()
-			uc := settinguc.New(repo)
-			_, err := uc.UpdateSettings(context.Background(), 1, map[string]string{
-				entity.SettingDiffSizeLimit: tt.value,
-			})
-			if tt.wantErr {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), "diff_size_limit")
-			} else {
-				require.NoError(t, err)
-			}
-		})
-	}
-}
-
-// ---------------------------------------------------------------------------
 // UpdateSettings - monitoring_interval validation
 // ---------------------------------------------------------------------------
 
@@ -556,7 +519,6 @@ func TestUpdateSettings_ValidationErrorsWrapErrValidation(t *testing.T) {
 	}{
 		{"invalid key", "totally_invalid_key", "value"},
 		{"bad scan depth", entity.SettingDiscoveryScanDepth, "abc"},
-		{"bad diff limit", entity.SettingDiffSizeLimit, "abc"},
 		{"bad monitoring interval", entity.SettingMonitoringInterval, "abc"},
 		{"bad discovery interval", entity.SettingDiscoveryInterval, "abc"},
 		{"bad digest enabled", entity.SettingEmailDigestEnabled, "abc"},

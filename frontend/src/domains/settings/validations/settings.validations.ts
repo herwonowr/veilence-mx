@@ -2,7 +2,6 @@ import { z } from "zod"
 
 export const settingsSchema = z.object({
   monitoring_interval: z.string().optional(),
-  diff_size_limit: z.string().optional(),
   discovery_scan_depth: z.string().optional(),
   discovery_interval: z.string().optional(),
   discovery_auto_approve: z.enum(["true", "false"]).optional(),

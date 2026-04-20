@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input, Field, FieldLabel, FieldDescription, FieldError, Checkbox, Label, RadioGroup, RadioGroupItem, Alert, AlertDescription } from "@/ui"
-import { Save, RefreshCw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangle, Loader2, FileCode } from "lucide-react"
+import { Save, RefreshCw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangle, Loader2 } from "lucide-react"
 import { settingsSchema } from "@/domains/settings"
 import { ZodError } from "zod"
 import { useSettings, useUpdateSettings, useDiscoverNow, usePackageCountSummary } from "@/features/settings/hooks/use-settings"
@@ -103,37 +103,6 @@ export const SettingsView = () => {
                 <FieldError>{validationErrors.monitoring_interval}</FieldError>
               )}
               <FieldDescription>Duration format (e.g., 30m, 1h, 6h)</FieldDescription>
-            </Field>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Analysis */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileCode className="size-5" />
-            Analysis
-          </CardTitle>
-          <CardDescription>
-            Configure how release diffs are processed before LLM analysis.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-            <Field data-invalid={!!validationErrors.diff_size_limit}>
-              <FieldLabel htmlFor="diff-size-limit">Diff Size Limit (bytes)</FieldLabel>
-              <Input
-                id="diff-size-limit"
-                type="number"
-                value={localSettings.diff_size_limit ?? ""}
-                onChange={(e) => updateSetting("diff_size_limit", e.target.value)}
-                placeholder="102400"
-              />
-              {validationErrors.diff_size_limit && (
-                <FieldError>{validationErrors.diff_size_limit}</FieldError>
-              )}
-              <FieldDescription>Maximum raw diff size in bytes to store per release. Diffs exceeding this are truncated. Range: 1024 - 10485760.</FieldDescription>
             </Field>
           </div>
         </CardContent>

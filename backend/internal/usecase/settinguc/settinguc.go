@@ -60,11 +60,6 @@ func (uc *UseCase) UpdateSettings(ctx context.Context, workspaceID uint, setting
 			if err != nil || n < 1 || n > 1000 {
 				return nil, validationError("discovery_scan_depth must be an integer between 1 and 1000")
 			}
-		case entity.SettingDiffSizeLimit:
-			n, err := strconv.Atoi(value)
-			if err != nil || n < 1024 || n > 10485760 {
-				return nil, validationError("diff_size_limit must be an integer between 1024 and 10485760")
-			}
 		case entity.SettingMonitoringInterval:
 			if err := validateDurationRange(value, "monitoring_interval"); err != nil {
 				return nil, err

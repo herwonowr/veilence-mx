@@ -315,7 +315,6 @@ func seedSettingsDefaults(cfg *config.Config, db *gorm.DB) {
 		entity.SettingMonitoringInterval:           cfg.MonitoringInterval.String(),
 		entity.SettingDiscoveryScanDepth:           fmt.Sprintf("%d", cfg.DiscoveryScanDepth),
 		entity.SettingDiscoveryInterval:            cfg.DiscoveryInterval.String(),
-		entity.SettingDiffSizeLimit:                fmt.Sprintf("%d", cfg.DiffSizeLimit),
 		entity.SettingDiscoveryAutoApprove:         fmt.Sprintf("%t", cfg.DiscoveryAutoApprove),
 		entity.SettingStaleAutoRemoveMonths:        fmt.Sprintf("%d", cfg.StaleAutoRemoveMonths),
 		entity.SettingPackageCountWarningThreshold: fmt.Sprintf("%d", cfg.PackageCountWarningThreshold),

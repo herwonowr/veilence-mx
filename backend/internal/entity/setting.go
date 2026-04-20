@@ -18,8 +18,6 @@ const (
 	SettingDiscoveryScanDepth = "discovery_scan_depth"
 	SettingDiscoveryInterval  = "discovery_interval"
 	SettingMonitoringInterval = "monitoring_interval"
-	SettingDiffSizeLimit      = "diff_size_limit"
-
 	// Email digest settings (per-org).
 	SettingEmailDigestEnabled    = "email_digest_enabled"
 	SettingEmailDigestFrequency  = "email_digest_frequency"
@@ -45,7 +43,6 @@ var ValidSettingKeys = map[string]bool{
 	SettingDiscoveryScanDepth:            true,
 	SettingDiscoveryInterval:             true,
 	SettingMonitoringInterval:            true,
-	SettingDiffSizeLimit:                 true,
 	SettingEmailDigestEnabled:            true,
 	SettingEmailDigestFrequency:          true,
 	SettingEmailDigestRecipients:         true,
