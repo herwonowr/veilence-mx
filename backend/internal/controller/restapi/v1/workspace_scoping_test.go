@@ -57,11 +57,11 @@ func TestGetSettings_WorkspaceScoped(t *testing.T) {
 	h := newSettingsHandlers(db)
 
 	// Create settings for org 1
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: "python_poll_interval", Value: "5m"})
-	db.Create(&persistent.Setting{WorkspaceID: 1, Key: "npm_poll_interval", Value: "10m"})
+	db.Create(&persistent.Setting{WorkspaceID: 1, Key: "monitoring_interval", Value: "5m"})
+	db.Create(&persistent.Setting{WorkspaceID: 1, Key: "discovery_interval", Value: "10m"})
 
 	// Create settings for org 2
-	db.Create(&persistent.Setting{WorkspaceID: 2, Key: "python_poll_interval", Value: "30m"})
+	db.Create(&persistent.Setting{WorkspaceID: 2, Key: "monitoring_interval", Value: "30m"})
 
 	// Org 1 should see its own settings
 	req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
@@ -73,8 +73,8 @@ func TestGetSettings_WorkspaceScoped(t *testing.T) {
 	var resp map[string]any
 	json.NewDecoder(w.Body).Decode(&resp)
 	data := resp["data"].(map[string]any)
-	assert.Equal(t, "5m", data["python_poll_interval"])
-	assert.Equal(t, "10m", data["npm_poll_interval"])
+	assert.Equal(t, "5m", data["monitoring_interval"])
+	assert.Equal(t, "10m", data["discovery_interval"])
 
 	// Org 2 should see only its own setting
 	req = httptest.NewRequest(http.MethodGet, "/api/settings", nil)
@@ -85,8 +85,8 @@ func TestGetSettings_WorkspaceScoped(t *testing.T) {
 
 	json.NewDecoder(w.Body).Decode(&resp)
 	data = resp["data"].(map[string]any)
-	assert.Equal(t, "30m", data["python_poll_interval"])
-	assert.Nil(t, data["npm_poll_interval"]) // org 2 has no npm setting
+	assert.Equal(t, "30m", data["monitoring_interval"])
+	assert.Nil(t, data["discovery_interval"]) // org 2 has no discovery_interval setting
 }
 
 func TestGetSettings_CrossOrg_ReturnsEmpty(t *testing.T) {

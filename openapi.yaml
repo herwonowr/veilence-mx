@@ -931,9 +931,10 @@ paths:
       summary: Update settings
       description: >
         Updates settings from a key-value map. Requires `settings:write` permission.
-        Valid keys: pypi_poll_interval, npm_poll_interval, pypi_top_n, npm_top_n,
-        analyzer_mode, top_n_refresh_interval, diff_size_limit, version_depth_mode,
-        version_depth_count.
+        Valid keys: monitoring_interval, discovery_interval, discovery_scan_depth,
+        diff_size_limit, discovery_auto_approve, stale_auto_remove_months,
+        package_count_warning_threshold, email_digest_enabled, email_digest_frequency,
+        email_digest_recipients.
       operationId: updateSettings
       parameters:
         - $ref: "#/components/parameters/XOrgId"
@@ -946,8 +947,8 @@ paths:
               additionalProperties:
                 type: string
               example:
-                pypi_poll_interval: "10m"
-                npm_top_n: "200"
+                monitoring_interval: "30m"
+                discovery_scan_depth: "200"
       responses:
         "200":
           description: Updated settings map

@@ -884,29 +884,28 @@ curl -s -X PUT http://localhost:8080/api/settings \
   -H "X-Org-ID: $ORG_ID" \
   -H "X-CSRF-Token: $CSRF_TOKEN" \
   -d '{
-    "pypi_poll_interval": "10m",
-    "npm_poll_interval": "10m",
-    "pypi_top_n": "200",
-    "version_depth_mode": "custom",
-    "version_depth_count": "3"
+    "monitoring_interval": "30m",
+    "discovery_scan_depth": "200",
+    "diff_size_limit": "204800"
   }' | jq .
 ```
 
 ### Available Settings Keys
 
-| Key                      | Values                      | Default   | Description                         |
-|--------------------------|-----------------------------|-----------|-------------------------------------|
-| `pypi_poll_interval`     | Duration (e.g., `5m`)       | `5m`      | PyPI polling frequency              |
-| `npm_poll_interval`      | Duration (e.g., `5m`)       | `5m`      | npm polling frequency               |
-| `pypi_top_n`             | Integer                     | `100`     | Number of top PyPI packages         |
-| `npm_top_n`              | Integer                     | `100`     | Number of top npm packages          |
-| `analyzer_mode`          | String                      | -         | Analysis mode                       |
-| `top_n_refresh_interval` | Duration (e.g., `24h`)      | `24h`     | How often to refresh top-N list     |
-| `diff_size_limit`        | Integer (bytes)             | `102400`  | Max diff size sent to LLM           |
-| `version_depth_mode`     | `latest` or `custom`        | `latest`  | How many versions to analyze        |
-| `version_depth_count`    | `1`-`5`                     | `5`       | Version count (when mode = custom)  |
+| Key                                | Values                      | Default    | Description                                      |
+|------------------------------------|-----------------------------|------------|--------------------------------------------------|
+| `monitoring_interval`              | Duration (e.g., `1h`)       | `1h`       | How often to check packages for new releases     |
+| `discovery_interval`               | Duration (e.g., `24h`)      | `24h`      | How often to run discovery scans                 |
+| `discovery_scan_depth`             | Integer (1-1000)            | `50`       | Top N packages per ecosystem per cycle           |
+| `diff_size_limit`                  | Integer (bytes, 1024-10MB)  | `102400`   | Max diff size stored per release                 |
+| `discovery_auto_approve`           | `true` or `false`           | `false`    | Auto-approve discovered packages for monitoring  |
+| `stale_auto_remove_months`         | Integer (0-36)              | `0`        | Remove packages with no updates after N months   |
+| `package_count_warning_threshold`  | Integer (0-100000)          | `0`        | Warn when monitored packages exceed this count   |
+| `email_digest_enabled`             | `true` or `false`           | `false`    | Enable periodic email digest                     |
+| `email_digest_frequency`           | `daily` or `weekly`         | `daily`    | Digest email frequency                           |
+| `email_digest_recipients`          | Comma-separated emails      | -          | Digest recipient addresses                       |
 
-> Settings are org-scoped. Each organization has independent configuration. Changes take effect immediately (the poller settings cache is invalidated on update).
+> Settings are workspace-scoped. Each workspace has independent configuration.
 
 ---
 
