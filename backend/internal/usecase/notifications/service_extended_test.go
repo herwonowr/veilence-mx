@@ -202,7 +202,7 @@ func TestDispatch_EmailChannel_SMTPConfiguredButUnreachable(t *testing.T) {
 	notifRepo := persistent.NewNotificationRepo(db)
 
 	// Create service with SMTP configured but pointed to unreachable address
-	svc := notifications.NewService(channelRepo, ruleRepo, notifRepo, notifications.SMTPConfig{
+	svc := notifications.NewService(channelRepo, ruleRepo, notifRepo, &mockWorkspaceLister{}, notifications.SMTPConfig{
 		Host: "127.0.0.1",
 		Port: "1",
 		From: "noreply@test.example.com",
@@ -227,7 +227,7 @@ func TestDispatch_EmailChannel_MultipleRecipients(t *testing.T) {
 	ruleRepo := persistent.NewNotificationRuleRepo(db)
 	notifRepo := persistent.NewNotificationRepo(db)
 
-	svc := notifications.NewService(channelRepo, ruleRepo, notifRepo, notifications.SMTPConfig{
+	svc := notifications.NewService(channelRepo, ruleRepo, notifRepo, &mockWorkspaceLister{}, notifications.SMTPConfig{
 		Host: "127.0.0.1",
 		Port: "1",
 		From: "noreply@test.example.com",

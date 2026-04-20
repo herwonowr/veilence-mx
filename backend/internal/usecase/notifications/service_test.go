@@ -28,6 +28,16 @@ import (
 // Test helpers
 // ---------------------------------------------------------------------------
 
+// mockWorkspaceLister implements usecase.UserWorkspaceLister for tests.
+// By default it returns nil (no workspaces) - set WorkspaceIDs to override.
+type mockWorkspaceLister struct {
+	WorkspaceIDs []uint
+}
+
+func (m *mockWorkspaceLister) FindWorkspaceIDsByUserID(_ context.Context, _ uint) ([]uint, error) {
+	return m.WorkspaceIDs, nil
+}
+
 func setupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -46,10 +56,15 @@ func setupTestDB(t *testing.T) *gorm.DB {
 }
 
 func newService(db *gorm.DB) *notifications.Service {
+	return newServiceWithWorkspaces(db, nil)
+}
+
+func newServiceWithWorkspaces(db *gorm.DB, wsIDs []uint) *notifications.Service {
 	channelRepo := persistent.NewNotificationChannelRepo(db)
 	ruleRepo := persistent.NewNotificationRuleRepo(db)
 	notifRepo := persistent.NewNotificationRepo(db)
-	svc := notifications.NewService(channelRepo, ruleRepo, notifRepo, notifications.SMTPConfig{})
+	wsLister := &mockWorkspaceLister{WorkspaceIDs: wsIDs}
+	svc := notifications.NewService(channelRepo, ruleRepo, notifRepo, wsLister, notifications.SMTPConfig{})
 	svc.AllowLocalURLs = true // Tests use httptest.NewServer (localhost)
 	return svc
 }
@@ -702,7 +717,8 @@ func TestListNotifications_FilterByOrg(t *testing.T) {
 
 func TestListNotifications_ZeroOrgShowsAll(t *testing.T) {
 	db := setupTestDB(t)
-	svc := newService(db)
+	// User belongs to workspaces 1 and 2
+	svc := newServiceWithWorkspaces(db, []uint{1, 2})
 
 	seedNotification(t, db, 1, 0, 1, "Workspace1", "from org 1", false)
 	seedNotification(t, db, 2, 0, 1, "Org2", "from org 2", false)
@@ -710,6 +726,19 @@ func TestListNotifications_ZeroOrgShowsAll(t *testing.T) {
 	notifs, err := svc.ListNotifications(0, 42, false)
 	require.NoError(t, err)
 	assert.Len(t, notifs, 2)
+}
+
+func TestListNotifications_ZeroOrgNoWorkspaces(t *testing.T) {
+	db := setupTestDB(t)
+	// User belongs to NO workspaces
+	svc := newServiceWithWorkspaces(db, nil)
+
+	seedNotification(t, db, 1, 0, 1, "Workspace1", "from org 1", false)
+	seedNotification(t, db, 2, 0, 1, "Org2", "from org 2", false)
+
+	notifs, err := svc.ListNotifications(0, 42, false)
+	require.NoError(t, err)
+	assert.Empty(t, notifs, "user with no workspaces should see zero notifications")
 }
 
 func TestListNotifications_OrderedByCreatedAtDesc(t *testing.T) {
@@ -833,7 +862,8 @@ func TestGetUnreadCount_FilterByOrg(t *testing.T) {
 
 func TestGetUnreadCount_ZeroOrgCountsAll(t *testing.T) {
 	db := setupTestDB(t)
-	svc := newService(db)
+	// User belongs to workspaces 1 and 2
+	svc := newServiceWithWorkspaces(db, []uint{1, 2})
 
 	seedNotification(t, db, 1, 0, 1, "Workspace1", "m", false)
 	seedNotification(t, db, 2, 0, 1, "Org2", "m", false)
@@ -841,6 +871,19 @@ func TestGetUnreadCount_ZeroOrgCountsAll(t *testing.T) {
 	count, err := svc.GetUnreadCount(0, 42)
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), count)
+}
+
+func TestGetUnreadCount_ZeroOrgNoWorkspaces(t *testing.T) {
+	db := setupTestDB(t)
+	// User belongs to NO workspaces
+	svc := newServiceWithWorkspaces(db, nil)
+
+	seedNotification(t, db, 1, 0, 1, "Workspace1", "m", false)
+	seedNotification(t, db, 2, 0, 1, "Org2", "m", false)
+
+	count, err := svc.GetUnreadCount(0, 42)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), count, "user with no workspaces should have zero unread")
 }
 
 func TestGetUnreadCount_Zero(t *testing.T) {

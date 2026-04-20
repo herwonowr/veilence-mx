@@ -97,6 +97,19 @@ func (r *WorkspaceMemberRepo) DeleteByUserAndWorkspace(ctx context.Context, user
 	return nil
 }
 
+// FindWorkspaceIDsByUserID returns the workspace IDs the user is a member of.
+// Implements usecase.UserWorkspaceLister.
+func (r *WorkspaceMemberRepo) FindWorkspaceIDsByUserID(ctx context.Context, userID uint) ([]uint, error) {
+	var ids []uint
+	err := r.db.WithContext(ctx).Model(&WorkspaceMember{}).
+		Where("user_id = ?", userID).
+		Pluck("workspace_id", &ids).Error
+	if err != nil {
+		return nil, fmt.Errorf("listing workspace IDs for user: %w", err)
+	}
+	return ids, nil
+}
+
 // --- Converters ---
 
 func workspaceMemberToDomain(m *WorkspaceMember) *entity.WorkspaceMember {

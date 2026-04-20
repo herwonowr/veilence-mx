@@ -108,7 +108,8 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	notificationChannelRepo := persistent.NewNotificationChannelRepo(db)
 	notificationRuleRepo := persistent.NewNotificationRuleRepo(db)
 	notificationRepo := persistent.NewNotificationRepo(db)
-	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, smtpConfig)
+	workspaceMemberRepo := persistent.NewWorkspaceMemberRepo(db)
+	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, workspaceMemberRepo, smtpConfig)
 
 	// Pipeline
 	pollerRepo := persistent.NewPollerRepo(db)

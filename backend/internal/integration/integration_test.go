@@ -110,7 +110,8 @@ func setupIntegrationServer(t *testing.T) *testServer {
 	channelRepo := persistent.NewNotificationChannelRepo(db)
 	ruleRepo := persistent.NewNotificationRuleRepo(db)
 	notifRepo := persistent.NewNotificationRepo(db)
-	notifSvc := notifications.NewService(channelRepo, ruleRepo, notifRepo, notifications.SMTPConfig{})
+	wsMemberRepo := persistent.NewWorkspaceMemberRepo(db)
+	notifSvc := notifications.NewService(channelRepo, ruleRepo, notifRepo, wsMemberRepo, notifications.SMTPConfig{})
 
 	dashboardRepo := persistent.NewDashboardRepo(db)
 	alertNoteRepo := persistent.NewAlertNoteRepo(db)

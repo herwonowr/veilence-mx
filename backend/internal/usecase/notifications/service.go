@@ -48,6 +48,7 @@ type Service struct {
 	channels      usecase.NotificationChannelRepository
 	rules         usecase.NotificationRuleRepository
 	notifications usecase.NotificationRepository
+	workspaces    usecase.UserWorkspaceLister
 	smtp          SMTPConfig
 
 	// AllowLocalURLs disables SSRF protection for webhook/Slack URLs.
@@ -60,12 +61,14 @@ func NewService(
 	channels usecase.NotificationChannelRepository,
 	rules usecase.NotificationRuleRepository,
 	notifications usecase.NotificationRepository,
+	workspaces usecase.UserWorkspaceLister,
 	smtpCfg SMTPConfig,
 ) *Service {
 	return &Service{
 		channels:      channels,
 		rules:         rules,
 		notifications: notifications,
+		workspaces:    workspaces,
 		smtp:          smtpCfg,
 	}
 }
@@ -777,8 +780,21 @@ func (s *Service) sendWebhook(channel entity.NotificationChannel, title, message
 
 // ListNotifications returns notifications for a user across all workspaces.
 // If onlyUnread is true, only unread notifications are returned.
+// When workspaceID is 0, notifications are scoped to the workspaces the user
+// actually belongs to - users with no workspaces receive zero notifications.
 func (s *Service) ListNotifications(workspaceID, userID uint, onlyUnread bool) ([]entity.Notification, error) {
 	ctx := context.Background()
+
+	if workspaceID == 0 {
+		wsIDs, err := s.workspaces.FindWorkspaceIDsByUserID(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("listing user workspaces: %w", err)
+		}
+		if len(wsIDs) == 0 {
+			return nil, nil
+		}
+		return s.notifications.FindByUserAndWorkspaceIDs(ctx, wsIDs, userID, onlyUnread)
+	}
 
 	notifs, err := s.notifications.FindByUserAndWorkspace(ctx, workspaceID, userID, onlyUnread)
 	if err != nil {
@@ -804,8 +820,20 @@ func (s *Service) MarkRead(id, userID uint) error {
 }
 
 // GetUnreadCount returns the number of unread notifications for a user.
+// When workspaceID is 0, counts are scoped to the user's actual workspaces.
 func (s *Service) GetUnreadCount(workspaceID, userID uint) (int64, error) {
 	ctx := context.Background()
+
+	if workspaceID == 0 {
+		wsIDs, err := s.workspaces.FindWorkspaceIDsByUserID(ctx, userID)
+		if err != nil {
+			return 0, fmt.Errorf("listing user workspaces: %w", err)
+		}
+		if len(wsIDs) == 0 {
+			return 0, nil
+		}
+		return s.notifications.CountUnreadByWorkspaceIDs(ctx, wsIDs, userID)
+	}
 
 	count, err := s.notifications.CountUnread(ctx, workspaceID, userID)
 	if err != nil {
@@ -816,8 +844,20 @@ func (s *Service) GetUnreadCount(workspaceID, userID uint) (int64, error) {
 
 // MarkAllRead marks all unread notifications as read for a user.
 // If workspaceID is non-zero, only notifications for that org are affected.
+// When workspaceID is 0, only notifications from the user's workspaces are affected.
 func (s *Service) MarkAllRead(workspaceID, userID uint) (int64, error) {
 	ctx := context.Background()
+
+	if workspaceID == 0 {
+		wsIDs, err := s.workspaces.FindWorkspaceIDsByUserID(ctx, userID)
+		if err != nil {
+			return 0, fmt.Errorf("listing user workspaces: %w", err)
+		}
+		if len(wsIDs) == 0 {
+			return 0, nil
+		}
+		return s.notifications.MarkAllReadByWorkspaceIDs(ctx, wsIDs, userID)
+	}
 
 	affected, err := s.notifications.MarkAllRead(ctx, workspaceID, userID)
 	if err != nil {
@@ -841,7 +881,19 @@ func (s *Service) DeleteByID(ctx context.Context, id, workspaceID, userID uint) 
 }
 
 // DeleteAll deletes all notifications for a user within an org.
+// When workspaceID is 0, only notifications from the user's workspaces are deleted.
 func (s *Service) DeleteAll(ctx context.Context, workspaceID, userID uint) (int64, error) {
+	if workspaceID == 0 {
+		wsIDs, err := s.workspaces.FindWorkspaceIDsByUserID(ctx, userID)
+		if err != nil {
+			return 0, fmt.Errorf("listing user workspaces: %w", err)
+		}
+		if len(wsIDs) == 0 {
+			return 0, nil
+		}
+		return s.notifications.DeleteAllByWorkspaceIDs(ctx, wsIDs, userID)
+	}
+
 	affected, err := s.notifications.DeleteAll(ctx, workspaceID, userID)
 	if err != nil {
 		return 0, fmt.Errorf("deleting all notifications: %w", err)

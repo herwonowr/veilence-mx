@@ -205,11 +205,15 @@ type NotificationRuleRepository interface {
 type NotificationRepository interface {
 	Create(ctx context.Context, notification *entity.Notification) error
 	FindByUserAndWorkspace(ctx context.Context, workspaceID, userID uint, onlyUnread bool) ([]entity.Notification, error)
+	FindByUserAndWorkspaceIDs(ctx context.Context, workspaceIDs []uint, userID uint, onlyUnread bool) ([]entity.Notification, error)
 	MarkRead(ctx context.Context, id, userID uint) (int64, error)
 	MarkAllRead(ctx context.Context, workspaceID, userID uint) (int64, error)
+	MarkAllReadByWorkspaceIDs(ctx context.Context, workspaceIDs []uint, userID uint) (int64, error)
 	CountUnread(ctx context.Context, workspaceID, userID uint) (int64, error)
+	CountUnreadByWorkspaceIDs(ctx context.Context, workspaceIDs []uint, userID uint) (int64, error)
 	DeleteByID(ctx context.Context, id, workspaceID, userID uint) (int64, error)
 	DeleteAll(ctx context.Context, workspaceID, userID uint) (int64, error)
+	DeleteAllByWorkspaceIDs(ctx context.Context, workspaceIDs []uint, userID uint) (int64, error)
 	DeleteBatch(ctx context.Context, ids []uint, workspaceID, userID uint) (int64, error)
 }
 
@@ -353,6 +357,12 @@ type AuthEmailSender interface {
 // verification toggle) without depending on the full SettingRepository.
 type SettingGetter interface {
 	GetSettingValue(ctx context.Context, workspaceID uint, key string) (string, error)
+}
+
+// UserWorkspaceLister returns the workspace IDs a user belongs to.
+// Used by the notification service to scope cross-workspace queries.
+type UserWorkspaceLister interface {
+	FindWorkspaceIDsByUserID(ctx context.Context, userID uint) ([]uint, error)
 }
 
 // NotificationDispatcher defines the interface for dispatching system notifications.
