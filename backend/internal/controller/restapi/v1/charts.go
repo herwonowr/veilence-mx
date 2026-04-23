@@ -9,7 +9,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
-// GetChartData returns aggregated data for dashboard charts, scoped to the current org.
+// GetChartData returns aggregated data for dashboard charts, scoped to the current workspace.
 func (h *DashboardHandlers) GetChartData(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
@@ -39,7 +39,7 @@ func (h *DashboardHandlers) GetChartData(w http.ResponseWriter, r *http.Request)
 	data, err := h.DashboardSvc.GetChartData(r.Context(), workspaceID, from, to)
 	if err != nil {
 		slog.Error("failed to get chart data", "workspace_id", workspaceID, "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to get chart data")
+		respondError(w, http.StatusInternalServerError, "Failed to get chart data")
 		return
 	}
 

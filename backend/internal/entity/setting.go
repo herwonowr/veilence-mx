@@ -18,7 +18,7 @@ const (
 	SettingDiscoveryScanDepth = "discovery_scan_depth"
 	SettingDiscoveryInterval  = "discovery_interval"
 	SettingMonitoringInterval = "monitoring_interval"
-	// Email digest settings (per-org).
+	// Email digest settings (per-workspace).
 	SettingEmailDigestEnabled    = "email_digest_enabled"
 	SettingEmailDigestFrequency  = "email_digest_frequency"
 	SettingEmailDigestRecipients = "email_digest_recipients"

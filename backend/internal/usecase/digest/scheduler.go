@@ -1,5 +1,5 @@
 // Package digest provides an email digest scheduler that periodically sends
-// summary emails (daily or weekly) to configured recipients for each org.
+// summary emails (daily or weekly) to configured recipients for each workspace.
 package digest
 
 import (
@@ -14,7 +14,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/notifications"
 )
 
-// Scheduler runs a background goroutine that checks every hour whether any org
+// Scheduler runs a background goroutine that checks every hour whether any workspace
 // is due for its email digest, generates the digest content, and sends it via
 // the existing SMTP infrastructure.
 type Scheduler struct {
@@ -29,7 +29,7 @@ type Scheduler struct {
 	// Default: time.Now. Exposed for testing.
 	nowFunc func() time.Time
 
-	// lastSentAt tracks when each org last received a digest (in-memory).
+	// lastSentAt tracks when each workspace last received a digest (in-memory).
 	// Key: workspaceID, Value: time the last digest was sent.
 	lastSentAt map[string]time.Time
 }
@@ -74,7 +74,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 	}
 }
 
-// tick checks all orgs and sends digests for any that are due.
+// tick checks all workspaces and sends digests for any that are due.
 func (s *Scheduler) tick(ctx context.Context) {
 	enabledOrgs, err := s.repo.FindEnabledDigestConfigs(ctx)
 	if err != nil {
@@ -84,39 +84,39 @@ func (s *Scheduler) tick(ctx context.Context) {
 
 	now := s.nowFunc()
 
-	for _, org := range enabledOrgs {
-		if !s.isDue(org.WorkspaceID, org.Frequency, now) {
+	for _, ws := range enabledOrgs {
+		if !s.isDue(ws.WorkspaceID, ws.Frequency, now) {
 			continue
 		}
 
-		digest, err := s.GenerateDigest(ctx, org.WorkspaceID, org.Frequency, now)
+		digest, err := s.GenerateDigest(ctx, ws.WorkspaceID, ws.Frequency, now)
 		if err != nil {
 			slog.Error("digest: failed to generate",
-				"workspace_id", org.WorkspaceID,
+				"workspace_id", ws.WorkspaceID,
 				"error", err,
 			)
 			continue
 		}
 
-		if err := s.sendDigestEmail(org.Recipients, org.Frequency, digest); err != nil {
+		if err := s.sendDigestEmail(ws.Recipients, ws.Frequency, digest); err != nil {
 			slog.Error("digest: failed to send email",
-				"workspace_id", org.WorkspaceID,
-				"recipients", org.Recipients,
+				"workspace_id", ws.WorkspaceID,
+				"recipients", ws.Recipients,
 				"error", err,
 			)
 			continue
 		}
 
-		s.lastSentAt[org.WorkspaceID] = now
+		s.lastSentAt[ws.WorkspaceID] = now
 		slog.Info("digest: sent successfully",
-			"workspace_id", org.WorkspaceID,
-			"frequency", org.Frequency,
-			"recipients", org.Recipients,
+			"workspace_id", ws.WorkspaceID,
+			"frequency", ws.Frequency,
+			"recipients", ws.Recipients,
 		)
 	}
 }
 
-// isDue returns true if the org's digest is due to be sent based on frequency.
+// isDue returns true if the workspace's digest is due to be sent based on frequency.
 func (s *Scheduler) isDue(workspaceID string, frequency string, now time.Time) bool {
 	lastSent, ok := s.lastSentAt[workspaceID]
 	if !ok {
@@ -146,7 +146,7 @@ type DigestContent struct {
 	TopAlerts []entity.DigestTopAlert
 }
 
-// GenerateDigest generates the digest content for an org over the given period.
+// GenerateDigest generates the digest content for a workspace over the given period.
 func (s *Scheduler) GenerateDigest(ctx context.Context, workspaceID string, frequency string, now time.Time) (*DigestContent, error) {
 	var since time.Time
 	var period string

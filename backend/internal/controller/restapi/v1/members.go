@@ -80,13 +80,13 @@ type flatMember struct {
 func (h *WorkspaceHandlers) ListMembers(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "workspace context required")
+		respondError(w, http.StatusBadRequest, "Workspace context required")
 		return
 	}
 
 	members, err := h.RBAC.GetWorkspaceMembers(workspaceID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "failed to list members")
+		respondError(w, http.StatusInternalServerError, "Failed to list members")
 		return
 	}
 
@@ -143,13 +143,13 @@ func (h *WorkspaceHandlers) InviteMember(w http.ResponseWriter, r *http.Request)
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	userID := rbac.UserIDFromContext(r.Context())
 	if workspaceID == "" || userID == "" {
-		respondError(w, http.StatusBadRequest, "workspace and user context required")
+		respondError(w, http.StatusBadRequest, "Workspace and user context required")
 		return
 	}
 
 	var req inviteMemberRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -175,10 +175,10 @@ func (h *WorkspaceHandlers) InviteMember(w http.ResponseWriter, r *http.Request)
 	invitation, rawToken, err := h.RBAC.InviteMember(workspaceID, req.Email, req.RoleID, userID, inviterEmail)
 	if err != nil {
 		if errors.Is(err, rbac.ErrRoleNotFound) {
-			respondError(w, http.StatusBadRequest, "role not found in this workspace")
+			respondError(w, http.StatusBadRequest, "Role not found in this workspace")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to create invitation")
+		respondError(w, http.StatusInternalServerError, "Failed to create invitation")
 		return
 	}
 
@@ -202,45 +202,45 @@ func (h *WorkspaceHandlers) InviteMember(w http.ResponseWriter, r *http.Request)
 func (h *WorkspaceHandlers) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	if token == "" {
-		respondError(w, http.StatusBadRequest, "invitation token is required")
+		respondError(w, http.StatusBadRequest, "Invitation token is required")
 		return
 	}
 
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	userEmail := auth.EmailFromContext(r.Context())
 	if userEmail == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	member, err := h.RBAC.AcceptInvitation(token, userID, userEmail)
 	if err != nil {
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
-			respondError(w, http.StatusNotFound, "invitation not found")
+			respondError(w, http.StatusNotFound, "Invitation not found")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationExpired) {
-			respondError(w, http.StatusGone, "invitation has expired")
+			respondError(w, http.StatusGone, "Invitation has expired")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationAccepted) {
-			respondError(w, http.StatusConflict, "invitation already accepted")
+			respondError(w, http.StatusConflict, "Invitation already accepted")
 			return
 		}
 		if errors.Is(err, rbac.ErrAlreadyMember) {
-			respondError(w, http.StatusConflict, "already a member of this workspace")
+			respondError(w, http.StatusConflict, "Already a member of this workspace")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationEmailMismatch) {
-			respondError(w, http.StatusForbidden, "invitation was sent to a different email address")
+			respondError(w, http.StatusForbidden, "Invitation was sent to a different email address")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to accept invitation")
+		respondError(w, http.StatusInternalServerError, "Failed to accept invitation")
 		return
 	}
 
@@ -253,39 +253,39 @@ func (h *WorkspaceHandlers) AcceptInvitation(w http.ResponseWriter, r *http.Requ
 func (h *WorkspaceHandlers) DeclineInvitation(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	if token == "" {
-		respondError(w, http.StatusBadRequest, "invitation token is required")
+		respondError(w, http.StatusBadRequest, "Invitation token is required")
 		return
 	}
 
 	userEmail := auth.EmailFromContext(r.Context())
 	if userEmail == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	err := h.RBAC.DeclineInvitationByToken(token, userEmail)
 	if err != nil {
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
-			respondError(w, http.StatusNotFound, "invitation not found")
+			respondError(w, http.StatusNotFound, "Invitation not found")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationExpired) {
-			respondError(w, http.StatusGone, "invitation has expired")
+			respondError(w, http.StatusGone, "Invitation has expired")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationAccepted) {
-			respondError(w, http.StatusConflict, "invitation already accepted")
+			respondError(w, http.StatusConflict, "Invitation already accepted")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationDeclined) {
-			respondError(w, http.StatusConflict, "invitation already declined")
+			respondError(w, http.StatusConflict, "Invitation already declined")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationEmailMismatch) {
-			respondError(w, http.StatusForbidden, "invitation was sent to a different email address")
+			respondError(w, http.StatusForbidden, "Invitation was sent to a different email address")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to decline invitation")
+		respondError(w, http.StatusInternalServerError, "Failed to decline invitation")
 		return
 	}
 
@@ -295,23 +295,23 @@ func (h *WorkspaceHandlers) DeclineInvitation(w http.ResponseWriter, r *http.Req
 }
 
 // GetInvitationInfo handles GET /api/invitations/{token} - returns invitation details
-// so the frontend can display "You've been invited to {org}" before the user accepts.
+// so the frontend can display "You've been invited to workspace" before the user accepts.
 // This endpoint is public (no auth required) so unauthenticated users can see the
 // invitation info and then register/log in before accepting.
 func (h *WorkspaceHandlers) GetInvitationInfo(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	if token == "" {
-		respondError(w, http.StatusBadRequest, "invitation token is required")
+		respondError(w, http.StatusBadRequest, "Invitation token is required")
 		return
 	}
 
 	invitation, err := h.RBAC.GetInvitationByToken(token)
 	if err != nil {
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
-			respondError(w, http.StatusNotFound, "invitation not found")
+			respondError(w, http.StatusNotFound, "Invitation not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to get invitation")
+		respondError(w, http.StatusInternalServerError, "Failed to get invitation")
 		return
 	}
 
@@ -330,13 +330,13 @@ func (h *WorkspaceHandlers) GetInvitationInfo(w http.ResponseWriter, r *http.Req
 func (h *WorkspaceHandlers) ListPendingInvitations(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "workspace context required")
+		respondError(w, http.StatusBadRequest, "Workspace context required")
 		return
 	}
 
 	invitations, err := h.RBAC.ListPendingInvitations(workspaceID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "failed to list invitations")
+		respondError(w, http.StatusInternalServerError, "Failed to list invitations")
 		return
 	}
 
@@ -353,13 +353,13 @@ func (h *WorkspaceHandlers) ListPendingInvitations(w http.ResponseWriter, r *htt
 func (h *WorkspaceHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "workspace context required")
+		respondError(w, http.StatusBadRequest, "Workspace context required")
 		return
 	}
 
 	id, ok := parseUUID(r, "id")
 	if !ok {
-		respondError(w, http.StatusBadRequest, "invalid invitation ID")
+		respondError(w, http.StatusBadRequest, "Invalid invitation ID")
 		return
 	}
 
@@ -376,10 +376,10 @@ func (h *WorkspaceHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Requ
 
 	if err := h.RBAC.RevokeInvitation(workspaceID, id); err != nil {
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
-			respondError(w, http.StatusNotFound, "invitation not found or already accepted")
+			respondError(w, http.StatusNotFound, "Invitation not found or already accepted")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to revoke invitation")
+		respondError(w, http.StatusInternalServerError, "Failed to revoke invitation")
 		return
 	}
 
@@ -393,31 +393,31 @@ func (h *WorkspaceHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Requ
 func (h *WorkspaceHandlers) ResendInvitation(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "workspace context required")
+		respondError(w, http.StatusBadRequest, "Workspace context required")
 		return
 	}
 
 	id, ok := parseUUID(r, "id")
 	if !ok {
-		respondError(w, http.StatusBadRequest, "invalid invitation ID")
+		respondError(w, http.StatusBadRequest, "Invalid invitation ID")
 		return
 	}
 
 	invitation, _, err := h.RBAC.ResendInvitation(workspaceID, id)
 	if err != nil {
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
-			respondError(w, http.StatusNotFound, "invitation not found")
+			respondError(w, http.StatusNotFound, "Invitation not found")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationExpired) {
-			respondError(w, http.StatusGone, "invitation has expired")
+			respondError(w, http.StatusGone, "Invitation has expired")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationAccepted) {
-			respondError(w, http.StatusConflict, "invitation already accepted")
+			respondError(w, http.StatusConflict, "Invitation already accepted")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to resend invitation")
+		respondError(w, http.StatusInternalServerError, "Failed to resend invitation")
 		return
 	}
 
@@ -430,13 +430,13 @@ func (h *WorkspaceHandlers) ResendInvitation(w http.ResponseWriter, r *http.Requ
 func (h *WorkspaceHandlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "workspace context required")
+		respondError(w, http.StatusBadRequest, "Workspace context required")
 		return
 	}
 
 	targetUserID, ok := parseUUID(r, "userId")
 	if !ok {
-		respondError(w, http.StatusBadRequest, "invalid user ID")
+		respondError(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
 
@@ -453,14 +453,14 @@ func (h *WorkspaceHandlers) RemoveMember(w http.ResponseWriter, r *http.Request)
 
 	if err := h.RBAC.RemoveMember(workspaceID, targetUserID); err != nil {
 		if errors.Is(err, rbac.ErrCannotRemoveOwner) {
-			respondError(w, http.StatusForbidden, "cannot remove the workspace owner")
+			respondError(w, http.StatusForbidden, "Cannot remove the workspace owner")
 			return
 		}
 		if errors.Is(err, rbac.ErrMemberNotFound) {
-			respondError(w, http.StatusNotFound, "member not found")
+			respondError(w, http.StatusNotFound, "Member not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to remove member")
+		respondError(w, http.StatusInternalServerError, "Failed to remove member")
 		return
 	}
 
@@ -475,7 +475,7 @@ func (h *WorkspaceHandlers) RemoveMember(w http.ResponseWriter, r *http.Request)
 func (h *WorkspaceHandlers) GetCurrentMemberRole(w http.ResponseWriter, r *http.Request) {
 	role := rbac.MemberRoleFromContext(r.Context())
 	if role == "" {
-		respondError(w, http.StatusForbidden, "workspace membership required")
+		respondError(w, http.StatusForbidden, "Workspace membership required")
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]string{"role": role}, nil)
@@ -485,19 +485,19 @@ func (h *WorkspaceHandlers) GetCurrentMemberRole(w http.ResponseWriter, r *http.
 func (h *WorkspaceHandlers) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "workspace context required")
+		respondError(w, http.StatusBadRequest, "Workspace context required")
 		return
 	}
 
 	targetUserID := chi.URLParam(r, "userId")
 	if _, err := uuid.Parse(targetUserID); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid user ID")
+		respondError(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
 
 	var req updateMemberRoleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -513,18 +513,18 @@ func (h *WorkspaceHandlers) UpdateMemberRole(w http.ResponseWriter, r *http.Requ
 	member, err := h.RBAC.UpdateMemberRole(workspaceID, targetUserID, req.RoleID)
 	if err != nil {
 		if errors.Is(err, rbac.ErrCannotChangeOwner) {
-			respondError(w, http.StatusForbidden, "cannot change the owner's role")
+			respondError(w, http.StatusForbidden, "Cannot change the owner's role")
 			return
 		}
 		if errors.Is(err, rbac.ErrMemberNotFound) {
-			respondError(w, http.StatusNotFound, "member not found")
+			respondError(w, http.StatusNotFound, "Member not found")
 			return
 		}
 		if errors.Is(err, rbac.ErrRoleNotFound) {
-			respondError(w, http.StatusBadRequest, "role not found in this workspace")
+			respondError(w, http.StatusBadRequest, "Role not found in this workspace")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to update member role")
+		respondError(w, http.StatusInternalServerError, "Failed to update member role")
 		return
 	}
 
@@ -558,13 +558,13 @@ type myInvitationResponse struct {
 func (h *WorkspaceHandlers) ListMyInvitations(w http.ResponseWriter, r *http.Request) {
 	userEmail := auth.EmailFromContext(r.Context())
 	if userEmail == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	invitations, err := h.RBAC.ListMyInvitations(userEmail)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "failed to list invitations")
+		respondError(w, http.StatusInternalServerError, "Failed to list invitations")
 		return
 	}
 
@@ -590,44 +590,44 @@ func (h *WorkspaceHandlers) ListMyInvitations(w http.ResponseWriter, r *http.Req
 func (h *WorkspaceHandlers) AcceptInvitationByID(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseUUID(r, "id")
 	if !ok {
-		respondError(w, http.StatusBadRequest, "invalid invitation ID")
+		respondError(w, http.StatusBadRequest, "Invalid invitation ID")
 		return
 	}
 
 	userID := rbac.UserIDFromContext(r.Context())
 	userEmail := auth.EmailFromContext(r.Context())
 	if userID == "" || userEmail == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	member, err := h.RBAC.AcceptInvitationByID(id, userID, userEmail)
 	if err != nil {
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
-			respondError(w, http.StatusNotFound, "invitation not found")
+			respondError(w, http.StatusNotFound, "Invitation not found")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationExpired) {
-			respondError(w, http.StatusGone, "invitation has expired")
+			respondError(w, http.StatusGone, "Invitation has expired")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationAccepted) {
-			respondError(w, http.StatusConflict, "invitation already accepted")
+			respondError(w, http.StatusConflict, "Invitation already accepted")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationDeclined) {
-			respondError(w, http.StatusConflict, "invitation has been declined")
+			respondError(w, http.StatusConflict, "Invitation has been declined")
 			return
 		}
 		if errors.Is(err, rbac.ErrAlreadyMember) {
-			respondError(w, http.StatusConflict, "already a member of this workspace")
+			respondError(w, http.StatusConflict, "Already a member of this workspace")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationEmailMismatch) {
-			respondError(w, http.StatusForbidden, "invitation was sent to a different email address")
+			respondError(w, http.StatusForbidden, "Invitation was sent to a different email address")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to accept invitation")
+		respondError(w, http.StatusInternalServerError, "Failed to accept invitation")
 		return
 	}
 
@@ -641,39 +641,39 @@ func (h *WorkspaceHandlers) AcceptInvitationByID(w http.ResponseWriter, r *http.
 func (h *WorkspaceHandlers) DeclineInvitationByID(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseUUID(r, "id")
 	if !ok {
-		respondError(w, http.StatusBadRequest, "invalid invitation ID")
+		respondError(w, http.StatusBadRequest, "Invalid invitation ID")
 		return
 	}
 
 	userEmail := auth.EmailFromContext(r.Context())
 	if userEmail == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	err := h.RBAC.DeclineInvitationByID(id, userEmail)
 	if err != nil {
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
-			respondError(w, http.StatusNotFound, "invitation not found")
+			respondError(w, http.StatusNotFound, "Invitation not found")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationExpired) {
-			respondError(w, http.StatusGone, "invitation has expired")
+			respondError(w, http.StatusGone, "Invitation has expired")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationAccepted) {
-			respondError(w, http.StatusConflict, "invitation already accepted")
+			respondError(w, http.StatusConflict, "Invitation already accepted")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationDeclined) {
-			respondError(w, http.StatusConflict, "invitation already declined")
+			respondError(w, http.StatusConflict, "Invitation already declined")
 			return
 		}
 		if errors.Is(err, rbac.ErrInvitationEmailMismatch) {
-			respondError(w, http.StatusForbidden, "invitation was sent to a different email address")
+			respondError(w, http.StatusForbidden, "Invitation was sent to a different email address")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to decline invitation")
+		respondError(w, http.StatusInternalServerError, "Failed to decline invitation")
 		return
 	}
 

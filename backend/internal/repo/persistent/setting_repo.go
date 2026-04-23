@@ -66,7 +66,7 @@ func (r *SettingRepo) UpsertByWorkspaceAndKey(ctx context.Context, workspaceID s
 		Assign(Setting{Value: value}).
 		FirstOrCreate(m)
 	if result.Error != nil {
-		return fmt.Errorf("upserting setting by org and key: %w", result.Error)
+		return fmt.Errorf("upserting setting by workspace and key: %w", result.Error)
 	}
 	return nil
 }

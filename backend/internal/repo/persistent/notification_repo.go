@@ -40,7 +40,7 @@ func (r *NotificationRepo) FindByUserAndWorkspace(ctx context.Context, workspace
 		return nil, nil
 	}
 
-	// Show org-wide (user_id='') and user-specific notifications
+	// Show workspace-wide (user_id='') and user-specific notifications
 	query = query.Where("user_id = ? OR user_id IS NULL", userID)
 
 	if onlyUnread {

@@ -11,7 +11,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
-// ListAlerts returns a paginated list of alerts scoped to the current org.
+// ListAlerts returns a paginated list of alerts scoped to the current workspace.
 // Supports optional query params: severity, status, search.
 func (h *AlertHandlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
@@ -57,7 +57,7 @@ func (h *AlertHandlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, response.AlertsWithPackageFromEntities(alerts), &Meta{Page: page, Limit: limit, Total: total})
 }
 
-// GetAlert returns a single alert by ID, scoped to the current org.
+// GetAlert returns a single alert by ID, scoped to the current workspace.
 // Returns the alert with associated package info (packageName, packageEcosystem).
 func (h *AlertHandlers) GetAlert(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
@@ -86,7 +86,7 @@ type updateAlertRequest struct {
 	Status string `json:"status"`
 }
 
-// UpdateAlert updates the status of an alert scoped to the current org.
+// UpdateAlert updates the status of an alert scoped to the current workspace.
 func (h *AlertHandlers) UpdateAlert(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 

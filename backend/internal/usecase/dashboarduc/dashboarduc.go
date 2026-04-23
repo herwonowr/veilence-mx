@@ -152,7 +152,7 @@ func (uc *UseCase) GetChartData(ctx context.Context, workspaceID string, from, t
 	return data, nil
 }
 
-// ReanalyzeAll re-queues all unanalyzed diffs for analysis, scoped to the given org.
+// ReanalyzeAll re-queues all unanalyzed diffs for analysis, scoped to the given workspace.
 func (uc *UseCase) ReanalyzeAll(ctx context.Context, workspaceID string) (int, error) {
 	if uc.queue == nil {
 		return 0, fmt.Errorf("DashboardUseCase.ReanalyzeAll: queue not configured")

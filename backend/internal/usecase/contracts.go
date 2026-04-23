@@ -137,8 +137,8 @@ type WorkspaceRepository interface {
 	FindByID(ctx context.Context, id string) (*entity.Workspace, error)
 	FindBySlug(ctx context.Context, slug string) (*entity.Workspace, error)
 	CountBySlug(ctx context.Context, slug string, excludeID *string) (int64, error)
-	Create(ctx context.Context, org *entity.Workspace) error
-	Update(ctx context.Context, org *entity.Workspace) error
+	Create(ctx context.Context, ws *entity.Workspace) error
+	Update(ctx context.Context, ws *entity.Workspace) error
 	SoftDelete(ctx context.Context, id string) error
 	FindByUserID(ctx context.Context, userID string) ([]entity.Workspace, error)
 }

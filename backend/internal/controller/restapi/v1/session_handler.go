@@ -35,13 +35,13 @@ type SessionResponse struct {
 func (h *SessionHandlers) ListSessions(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	sessions, err := h.Auth.ListSessions(userID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "failed to list sessions")
+		respondError(w, http.StatusInternalServerError, "Failed to list sessions")
 		return
 	}
 
@@ -75,13 +75,13 @@ func (h *SessionHandlers) ListSessions(w http.ResponseWriter, r *http.Request) {
 func (h *SessionHandlers) RevokeSession(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	id, ok := parseUUID(r, "id")
 	if !ok {
-		respondError(w, http.StatusBadRequest, "invalid session ID")
+		respondError(w, http.StatusBadRequest, "Invalid session ID")
 		return
 	}
 
@@ -100,7 +100,7 @@ func (h *SessionHandlers) RevokeSession(w http.ResponseWriter, r *http.Request) 
 			respondAppError(w, NotFound("session"))
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to revoke session")
+		respondError(w, http.StatusInternalServerError, "Failed to revoke session")
 		return
 	}
 

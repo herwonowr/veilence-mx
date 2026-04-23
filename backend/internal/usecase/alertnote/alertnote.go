@@ -28,9 +28,9 @@ func New(notes usecase.AlertNoteRepository, alerts usecase.AlertRepository, user
 }
 
 // ListByAlert returns all notes for an alert, verifying that the alert
-// belongs to the given org for tenant isolation.
+// belongs to the given workspace for tenant isolation.
 func (uc *UseCase) ListByAlert(ctx context.Context, workspaceID, alertID string) ([]entity.AlertNote, error) {
-	// Verify alert exists and belongs to the org
+	// Verify alert exists and belongs to the workspace
 	_, err := uc.alerts.FindByIDAndWorkspaceID(ctx, alertID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
@@ -47,18 +47,18 @@ func (uc *UseCase) ListByAlert(ctx context.Context, workspaceID, alertID string)
 	return notes, nil
 }
 
-// Create adds a new note to an alert. It verifies org ownership, validates
+// Create adds a new note to an alert. It verifies workspace ownership, validates
 // the content, resolves the user's email, and persists the note.
 func (uc *UseCase) Create(ctx context.Context, workspaceID, alertID, userID string, content string) (*entity.AlertNote, error) {
 	// Validate content
 	if content == "" {
-		return nil, fmt.Errorf("content is required")
+		return nil, fmt.Errorf("Content is required")
 	}
 	if len(content) > entity.MaxNoteLength {
-		return nil, fmt.Errorf("content must be at most %d characters", entity.MaxNoteLength)
+		return nil, fmt.Errorf("Content must be at most %d characters", entity.MaxNoteLength)
 	}
 
-	// Verify alert exists and belongs to the org
+	// Verify alert exists and belongs to the workspace
 	_, err := uc.alerts.FindByIDAndWorkspaceID(ctx, alertID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
@@ -101,21 +101,21 @@ func (uc *UseCase) resolveUserEmail(ctx context.Context, userID string) string {
 
 // Update edits an existing note's content. Verifies:
 // 1. Content validation
-// 2. Alert exists and belongs to org (tenant isolation)
+// 2. Alert exists and belongs to workspace (tenant isolation)
 // 3. Note exists
-// 4. Note belongs to org (belt-and-suspenders tenant check)
+// 4. Note belongs to workspace (belt-and-suspenders tenant check)
 // 5. Note belongs to the given alert (URL consistency)
 // 6. Calling user is the note's author (owner verification)
 func (uc *UseCase) Update(ctx context.Context, workspaceID, alertID, noteID, userID string, content string) (*entity.AlertNote, error) {
 	// Validate content
 	if content == "" {
-		return nil, fmt.Errorf("content is required")
+		return nil, fmt.Errorf("Content is required")
 	}
 	if len(content) > entity.MaxNoteLength {
-		return nil, fmt.Errorf("content must be at most %d characters", entity.MaxNoteLength)
+		return nil, fmt.Errorf("Content must be at most %d characters", entity.MaxNoteLength)
 	}
 
-	// Verify alert exists and belongs to the org
+	// Verify alert exists and belongs to the workspace
 	_, err := uc.alerts.FindByIDAndWorkspaceID(ctx, alertID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
@@ -133,7 +133,7 @@ func (uc *UseCase) Update(ctx context.Context, workspaceID, alertID, noteID, use
 		return nil, fmt.Errorf("finding alert note: %w", err)
 	}
 
-	// Verify note belongs to org (belt-and-suspenders)
+	// Verify note belongs to workspace (belt-and-suspenders)
 	if note.WorkspaceID != workspaceID {
 		return nil, fmt.Errorf("alert note %w", entity.ErrNotFound)
 	}
@@ -158,13 +158,13 @@ func (uc *UseCase) Update(ctx context.Context, workspaceID, alertID, noteID, use
 }
 
 // Delete removes a note. Verifies:
-// 1. Alert exists and belongs to org (tenant isolation)
+// 1. Alert exists and belongs to workspace (tenant isolation)
 // 2. Note exists
-// 3. Note belongs to org (belt-and-suspenders tenant check)
+// 3. Note belongs to workspace (belt-and-suspenders tenant check)
 // 4. Note belongs to the given alert (URL consistency)
 // 5. Calling user is the note's author (owner verification)
 func (uc *UseCase) Delete(ctx context.Context, workspaceID, alertID, noteID, userID string) error {
-	// Verify alert exists and belongs to the org
+	// Verify alert exists and belongs to the workspace
 	_, err := uc.alerts.FindByIDAndWorkspaceID(ctx, alertID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
@@ -182,7 +182,7 @@ func (uc *UseCase) Delete(ctx context.Context, workspaceID, alertID, noteID, use
 		return fmt.Errorf("finding alert note: %w", err)
 	}
 
-	// Verify note belongs to org (belt-and-suspenders)
+	// Verify note belongs to workspace (belt-and-suspenders)
 	if note.WorkspaceID != workspaceID {
 		return fmt.Errorf("alert note %w", entity.ErrNotFound)
 	}

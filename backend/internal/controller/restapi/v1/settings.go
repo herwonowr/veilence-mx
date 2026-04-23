@@ -12,7 +12,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
-// GetSettings returns all settings as a key-value map scoped to the current org.
+// GetSettings returns all settings as a key-value map scoped to the current workspace.
 func (h *SettingsHandlers) GetSettings(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
@@ -25,13 +25,13 @@ func (h *SettingsHandlers) GetSettings(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, settings, nil)
 }
 
-// UpdateSettings updates settings from a key-value map scoped to the current org.
+// UpdateSettings updates settings from a key-value map scoped to the current workspace.
 func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	var req map[string]string
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -93,18 +93,18 @@ func (h *SettingsHandlers) DiscoverPackages(w http.ResponseWriter, r *http.Reque
 	// Discover both ecosystems at the same scan depth
 	if err := h.Poller.SyncTopPackages(r.Context(), h.Python, scanDepth, workspaceID); err != nil {
 		slog.Error("failed to discover Python packages", "workspace_id", workspaceID, "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to discover Python packages")
+		respondError(w, http.StatusInternalServerError, "Failed to discover Python packages")
 		return
 	}
 
 	if err := h.Poller.SyncTopPackages(r.Context(), h.NPM, scanDepth, workspaceID); err != nil {
 		slog.Error("failed to discover npm packages", "workspace_id", workspaceID, "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to discover npm packages")
+		respondError(w, http.StatusInternalServerError, "Failed to discover npm packages")
 		return
 	}
 
 	h.Audit.LogAction(r.Context(), "discover", "package", "",
-		fmt.Sprintf("triggered discovery for org (scan_depth=%d)", scanDepth))
+		fmt.Sprintf("triggered discovery for workspace (scan_depth=%d)", scanDepth))
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "discovery triggered"}, nil)
 }

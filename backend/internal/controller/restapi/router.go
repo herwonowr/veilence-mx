@@ -80,7 +80,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 				r.Delete("/{id}", h.Sessions.RevokeSession)
 			})
 
-			// Permissions (global, not org-scoped)
+			// Permissions (global, not workspace-scoped)
 			r.Get("/permissions", h.Workspace.ListPermissions)
 
 			// User-facing invitation management (not workspace-scoped)
@@ -88,7 +88,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 			r.Post("/invitations/{id}/accept", h.Workspace.AcceptInvitationByID)
 			r.Post("/invitations/{id}/decline", h.Workspace.DeclineInvitationByID)
 
-			// Workspace-scoped flat routes (org ID from X-Workspace-ID header or workspace_id query param)
+			// Workspace-scoped flat routes (workspace ID from X-Workspace-ID header or workspace_id query param)
 			r.Group(func(r chi.Router) {
 				r.Use(rbac.RequireWorkspace(rbacService))
 
@@ -108,7 +108,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 					r.With(rbac.RequirePermission(rbacService, "api_keys", "write")).Delete("/{id}", h.Auth.RevokeAPIKey)
 				})
 
-				// Dashboard (read-only, any org member can view)
+				// Dashboard (read-only, any workspace member can view)
 				r.Get("/dashboard/stats", h.Dashboard.GetDashboardStats)
 				r.Get("/dashboard/recent-releases", h.Dashboard.GetRecentReleases)
 				r.Get("/dashboard/charts", h.Dashboard.GetChartData)

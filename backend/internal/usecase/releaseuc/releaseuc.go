@@ -41,9 +41,9 @@ func New(
 	}
 }
 
-// ListByPackage returns a paginated list of releases for a package, scoped to an org.
+// ListByPackage returns a paginated list of releases for a package, scoped to a workspace.
 func (uc *UseCase) ListByPackage(ctx context.Context, workspaceID, packageID string, page, limit int) ([]entity.Release, int64, error) {
-	// Verify package belongs to the requesting org
+	// Verify package belongs to the requesting workspace
 	pkg, err := uc.packages.FindByIDAndWorkspaceID(ctx, packageID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
@@ -130,7 +130,7 @@ func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID 
 
 // GetAnalysisHistory returns the analysis history for a package across all its releases.
 func (uc *UseCase) GetAnalysisHistory(ctx context.Context, workspaceID, packageID string) ([]entity.AnalysisHistoryEntry, error) {
-	// Verify package belongs to org
+	// Verify package belongs to workspace
 	pkg, err := uc.packages.FindByIDAndWorkspaceID(ctx, packageID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {

@@ -2,7 +2,7 @@ package entity
 
 import "time"
 
-// DashboardStats holds the overview statistics for the dashboard, org-scoped.
+// DashboardStats holds the overview statistics for the dashboard, workspace-scoped.
 type DashboardStats struct {
 	TotalPackages  int64
 	TotalReleases  int64

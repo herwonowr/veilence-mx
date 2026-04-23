@@ -17,20 +17,20 @@ import (
 
 // Common errors returned by the RBAC service.
 var (
-	ErrWorkspaceNotFound        = errors.New("workspace not found")
-	ErrMemberNotFound     = errors.New("member not found")
-	ErrInvitationNotFound = errors.New("invitation not found")
-	ErrInvitationExpired  = errors.New("invitation has expired")
-	ErrInvitationAccepted = errors.New("invitation already accepted")
-	ErrAlreadyMember      = errors.New("user is already a member of this workspace")
-	ErrCannotRemoveOwner  = errors.New("cannot remove the workspace owner")
-	ErrCannotChangeOwner  = errors.New("cannot change the owner's role")
-	ErrRoleNotFound       = errors.New("role not found")
-	ErrPermissionDenied   = errors.New("permission denied")
-	ErrSlugTaken            = errors.New("workspace slug is already taken")
-	ErrInvitationEmailMismatch = errors.New("invitation email does not match accepting user")
-	ErrInvitationRevoked    = errors.New("invitation has been revoked")
-	ErrInvitationDeclined   = errors.New("invitation has been declined")
+	ErrWorkspaceNotFound        = errors.New("Workspace not found")
+	ErrMemberNotFound     = errors.New("Member not found")
+	ErrInvitationNotFound = errors.New("Invitation not found")
+	ErrInvitationExpired  = errors.New("Invitation has expired")
+	ErrInvitationAccepted = errors.New("Invitation already accepted")
+	ErrAlreadyMember      = errors.New("User is already a member of this workspace")
+	ErrCannotRemoveOwner  = errors.New("Cannot remove the workspace owner")
+	ErrCannotChangeOwner  = errors.New("Cannot change the owner's role")
+	ErrRoleNotFound       = errors.New("Role not found")
+	ErrPermissionDenied   = errors.New("Permission denied")
+	ErrSlugTaken            = errors.New("Workspace slug is already taken")
+	ErrInvitationEmailMismatch = errors.New("Invitation email does not match accepting user")
+	ErrInvitationRevoked    = errors.New("Invitation has been revoked")
+	ErrInvitationDeclined   = errors.New("Invitation has been declined")
 )
 
 // Service provides RBAC and workspace management operations.
@@ -97,7 +97,7 @@ func (s *Service) CreateWorkspace(userID string, name, slug, description string)
 			}
 		}
 		if ownerRole == nil {
-			return errors.New("owner role not created")
+			return errors.New("Owner role not created")
 		}
 
 		member := &entity.WorkspaceMember{
@@ -150,7 +150,7 @@ func (s *Service) createDefaultRoles(ctx_unused interface{}, tx RBACRepository, 
 	// All permission keys
 	allKeys := slices.Collect(maps.Keys(permMap))
 
-	// Admin gets all except org:delete
+	// Admin gets all except workspace:delete
 	adminKeys := slices.DeleteFunc(slices.Clone(allKeys), func(k string) bool {
 		return k == "workspace:delete"
 	})
@@ -273,7 +273,7 @@ func (s *Service) GetWorkspaceMembers(workspaceID string) ([]entity.WorkspaceMem
 func (s *Service) InviteMember(workspaceID string, email string, roleID string, invitedBy string, inviterEmail string) (*entity.Invitation, string, error) {
 	ctx := ctx_bg()
 
-	// Verify the role exists and belongs to this org
+	// Verify the role exists and belongs to this workspace
 	role, err := s.repo.FindRoleByIDAndWorkspace(ctx, roleID, workspaceID)
 	if err != nil || role == nil {
 		return nil, "", ErrRoleNotFound
@@ -281,7 +281,7 @@ func (s *Service) InviteMember(workspaceID string, email string, roleID string, 
 
 	// Cannot invite as owner
 	if role.Name == entity.RoleOwner {
-		return nil, "", errors.New("cannot invite user as owner")
+		return nil, "", errors.New("Cannot invite user as owner")
 	}
 
 	// Generate secure token
@@ -439,7 +439,7 @@ func (s *Service) ListPendingInvitations(workspaceID string) ([]entity.Invitatio
 	return s.repo.FindPendingInvitations(ctx_bg(), workspaceID)
 }
 
-// RevokeInvitation deletes a pending invitation by ID and org. Only pending
+// RevokeInvitation deletes a pending invitation by ID and workspace. Only pending
 // (not accepted) invitations can be revoked.
 func (s *Service) RevokeInvitation(workspaceID, invitationID string) error {
 	if err := s.repo.DeletePendingInvitation(ctx_bg(), workspaceID, invitationID); err != nil {
@@ -631,7 +631,7 @@ func (s *Service) UpdateMemberRole(workspaceID, userID, newRoleID string) (*enti
 		return nil, ErrCannotChangeOwner
 	}
 
-	// Verify the new role exists and belongs to this org
+	// Verify the new role exists and belongs to this workspace
 	role, err := s.repo.FindRoleByIDAndWorkspace(ctx, newRoleID, workspaceID)
 	if err != nil || role == nil {
 		return nil, ErrRoleNotFound

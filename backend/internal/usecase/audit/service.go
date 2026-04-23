@@ -38,7 +38,7 @@ func NewService(repo usecase.AuditLogRepository) *Service {
 	return &Service{repo: repo}
 }
 
-// LogAction creates an audit log entry, extracting user, org, IP, user-agent,
+// LogAction creates an audit log entry, extracting user, workspace, IP, user-agent,
 // and correlation ID from the request context.
 func (s *Service) LogAction(ctx context.Context, action, resource string, resourceID string, details string) {
 	userID := auth.UserIDFromContext(ctx)
@@ -102,7 +102,7 @@ func (s *Service) LogAuthEvent(ctx context.Context, action string, userID string
 
 	entry := &entity.AuditLog{
 		UserID:        userID,
-		WorkspaceID:   "", // Auth events are not org-scoped
+		WorkspaceID:   "", // Auth events are not workspace-scoped
 		Action:        action,
 		Resource:      "auth",
 		ResourceID:    userID,

@@ -21,7 +21,7 @@ func New(alerts usecase.AlertRepository, audit usecase.AuditLogger) *UseCase {
 	return &UseCase{alerts: alerts, audit: audit}
 }
 
-// ListAlerts returns a paginated list of alerts with package info for the given org.
+// ListAlerts returns a paginated list of alerts with package info for the given workspace.
 func (uc *UseCase) ListAlerts(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
 	results, total, err := uc.alerts.FindByWorkspaceIDWithPackage(ctx, workspaceID, page, limit, sortClause, filters)
 	if err != nil {
@@ -30,7 +30,7 @@ func (uc *UseCase) ListAlerts(ctx context.Context, workspaceID string, page, lim
 	return results, total, nil
 }
 
-// GetAlert returns a single alert by ID with package info, scoped to the given org.
+// GetAlert returns a single alert by ID with package info, scoped to the given workspace.
 func (uc *UseCase) GetAlert(ctx context.Context, workspaceID, alertID string) (*entity.Alert, *entity.Package, error) {
 	alert, pkg, err := uc.alerts.FindByIDWithPackage(ctx, alertID, workspaceID)
 	if err != nil {
@@ -42,7 +42,7 @@ func (uc *UseCase) GetAlert(ctx context.Context, workspaceID, alertID string) (*
 	return alert, pkg, nil
 }
 
-// UpdateAlertStatus updates the status of an alert scoped to the given org.
+// UpdateAlertStatus updates the status of an alert scoped to the given workspace.
 func (uc *UseCase) UpdateAlertStatus(ctx context.Context, workspaceID, alertID string, status entity.AlertStatus) (*entity.Alert, error) {
 	alert, err := uc.alerts.FindByIDAndWorkspaceID(ctx, alertID, workspaceID)
 	if err != nil {

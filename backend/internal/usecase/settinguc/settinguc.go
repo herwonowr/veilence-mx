@@ -23,7 +23,7 @@ func New(settings usecase.SettingRepository) *UseCase {
 	return &UseCase{settings: settings}
 }
 
-// GetSettings returns all settings as a key-value map for the given org.
+// GetSettings returns all settings as a key-value map for the given workspace.
 func (uc *UseCase) GetSettings(ctx context.Context, workspaceID string) (map[string]string, error) {
 	settings, err := uc.settings.FindByWorkspaceID(ctx, workspaceID)
 	if err != nil {
@@ -44,7 +44,7 @@ func validationError(msg string) error {
 	return fmt.Errorf("%s: %w", msg, entity.ErrValidation)
 }
 
-// UpdateSettings updates settings from a key-value map for the given org.
+// UpdateSettings updates settings from a key-value map for the given workspace.
 // Returns the updated settings map.
 // Validation failures are wrapped with entity.ErrValidation.
 func (uc *UseCase) UpdateSettings(ctx context.Context, workspaceID string, settings map[string]string) (map[string]string, error) {

@@ -9,21 +9,21 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
-// GetDashboardStats returns overview statistics for the dashboard, scoped to the current org.
+// GetDashboardStats returns overview statistics for the dashboard, scoped to the current workspace.
 func (h *DashboardHandlers) GetDashboardStats(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	stats, err := h.DashboardSvc.GetStats(r.Context(), workspaceID)
 	if err != nil {
 		slog.Error("failed to get dashboard stats", "workspace_id", workspaceID, "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to get dashboard stats")
+		respondError(w, http.StatusInternalServerError, "Failed to get dashboard stats")
 		return
 	}
 
 	respondJSON(w, http.StatusOK, response.DashboardStatsFromEntity(stats), nil)
 }
 
-// GetRecentReleases returns the most recent releases across all packages, scoped to the current org.
+// GetRecentReleases returns the most recent releases across all packages, scoped to the current workspace.
 func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
@@ -59,21 +59,21 @@ func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Req
 	releases, total, err := h.DashboardSvc.GetRecentReleases(r.Context(), workspaceID, page, limit, sortOrder, filters)
 	if err != nil {
 		slog.Error("failed to load recent releases", "workspace_id", workspaceID, "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to load releases")
+		respondError(w, http.StatusInternalServerError, "Failed to load releases")
 		return
 	}
 
 	respondJSON(w, http.StatusOK, response.RecentReleasesFromEntities(releases), &Meta{Page: page, Limit: limit, Total: total})
 }
 
-// ReanalyzeAll re-queues all un-analyzed diffs for analysis, scoped to the current org.
+// ReanalyzeAll re-queues all un-analyzed diffs for analysis, scoped to the current workspace.
 func (h *DashboardHandlers) ReanalyzeAll(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 	queued, err := h.DashboardSvc.ReanalyzeAll(r.Context(), workspaceID)
 	if err != nil {
 		slog.Error("failed to reanalyze all", "workspace_id", workspaceID, "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to enqueue analysis jobs")
+		respondError(w, http.StatusInternalServerError, "Failed to enqueue analysis jobs")
 		return
 	}
 

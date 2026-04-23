@@ -23,7 +23,7 @@ func RequireWorkspace(svc *Service) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userID := UserIDFromContext(r.Context())
 			if userID == "" {
-				http.Error(w, `{"data":null,"error":"authentication required"}`, http.StatusUnauthorized)
+				http.Error(w, `{"data":null,"error":"Authentication required"}`, http.StatusUnauthorized)
 				return
 			}
 
@@ -65,7 +65,7 @@ func RequireWorkspace(svc *Service) func(http.Handler) http.Handler {
 
 			workspaceID := wsIDStr
 			if workspaceID == "" {
-				http.Error(w, `{"data":null,"error":"valid workspace ID is required"}`, http.StatusBadRequest)
+				http.Error(w, `{"data":null,"error":"Valid workspace ID is required"}`, http.StatusBadRequest)
 				return
 			}
 			if _, err := uuid.Parse(workspaceID); err != nil {
@@ -107,7 +107,7 @@ func RequirePermission(svc *Service, resource, action string) func(http.Handler)
 			workspaceID := WorkspaceIDFromContext(r.Context())
 
 			if userID == "" || workspaceID == "" {
-				http.Error(w, `{"data":null,"error":"authentication and workspace context required"}`, http.StatusUnauthorized)
+				http.Error(w, `{"data":null,"error":"Authentication and workspace context required"}`, http.StatusUnauthorized)
 				return
 			}
 

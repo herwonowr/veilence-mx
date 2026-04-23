@@ -28,13 +28,13 @@ type updateOrgRequest struct {
 func (h *WorkspaceHandlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	var req createOrgRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -47,21 +47,21 @@ func (h *WorkspaceHandlers) CreateWorkspace(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	org, err := h.RBAC.CreateWorkspace(userID, req.Name, req.Slug, req.Description)
+	ws, err := h.RBAC.CreateWorkspace(userID, req.Name, req.Slug, req.Description)
 	if err != nil {
 		if errors.Is(err, rbac.ErrSlugTaken) {
-			respondError(w, http.StatusConflict, "workspace slug is already taken")
+			respondError(w, http.StatusConflict, "Workspace slug is already taken")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to create workspace")
+		respondError(w, http.StatusInternalServerError, "Failed to create workspace")
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "create", "workspace", org.ID, fmt.Sprintf("created workspace %q (slug: %s)", req.Name, req.Slug))
+	h.Audit.LogAction(r.Context(), "create", "workspace", ws.ID, fmt.Sprintf("created workspace %q (slug: %s)", req.Name, req.Slug))
 
 	respondJSON(w, http.StatusCreated, response.WorkspaceResponse{
-		ID: org.ID, Name: org.Name, Slug: org.Slug, Description: org.Description,
-		OwnerID: org.OwnerID, IsActive: org.IsActive, CreatedAt: org.CreatedAt, UpdatedAt: org.UpdatedAt,
+		ID: ws.ID, Name: ws.Name, Slug: ws.Slug, Description: ws.Description,
+		OwnerID: ws.OwnerID, IsActive: ws.IsActive, CreatedAt: ws.CreatedAt, UpdatedAt: ws.UpdatedAt,
 	}, nil)
 }
 
@@ -69,13 +69,13 @@ func (h *WorkspaceHandlers) CreateWorkspace(w http.ResponseWriter, r *http.Reque
 func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	orgs, err := h.RBAC.GetUserWorkspaces(userID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "failed to list workspaces")
+		respondError(w, http.StatusInternalServerError, "Failed to list workspaces")
 		return
 	}
 
@@ -104,23 +104,23 @@ func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Reques
 func (h *WorkspaceHandlers) GetWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "workspace context required")
+		respondError(w, http.StatusBadRequest, "Workspace context required")
 		return
 	}
 
-	org, err := h.RBAC.GetWorkspace(workspaceID)
+	ws, err := h.RBAC.GetWorkspace(workspaceID)
 	if err != nil {
 		if errors.Is(err, rbac.ErrWorkspaceNotFound) {
-			respondError(w, http.StatusNotFound, "workspace not found")
+			respondError(w, http.StatusNotFound, "Workspace not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to get workspace")
+		respondError(w, http.StatusInternalServerError, "Failed to get workspace")
 		return
 	}
 
 	respondJSON(w, http.StatusOK, response.WorkspaceResponse{
-		ID: org.ID, Name: org.Name, Slug: org.Slug, Description: org.Description,
-		OwnerID: org.OwnerID, IsActive: org.IsActive, CreatedAt: org.CreatedAt, UpdatedAt: org.UpdatedAt,
+		ID: ws.ID, Name: ws.Name, Slug: ws.Slug, Description: ws.Description,
+		OwnerID: ws.OwnerID, IsActive: ws.IsActive, CreatedAt: ws.CreatedAt, UpdatedAt: ws.UpdatedAt,
 	}, nil)
 }
 
@@ -128,20 +128,20 @@ func (h *WorkspaceHandlers) GetWorkspace(w http.ResponseWriter, r *http.Request)
 func (h *WorkspaceHandlers) UpdateWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "workspace context required")
+		respondError(w, http.StatusBadRequest, "Workspace context required")
 		return
 	}
 
 	var req updateOrgRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	// Fetch existing org to fill in missing fields (support partial updates)
+	// Fetch existing workspace to fill in missing fields (support partial updates)
 	existingOrg, err := h.RBAC.GetWorkspace(workspaceID)
 	if err != nil {
-		respondError(w, http.StatusNotFound, "workspace not found")
+		respondError(w, http.StatusNotFound, "Workspace not found")
 		return
 	}
 
@@ -162,25 +162,25 @@ func (h *WorkspaceHandlers) UpdateWorkspace(w http.ResponseWriter, r *http.Reque
 		description = *req.Description
 	}
 
-	org, err := h.RBAC.UpdateWorkspace(workspaceID, name, slug, description)
+	ws, err := h.RBAC.UpdateWorkspace(workspaceID, name, slug, description)
 	if err != nil {
 		if errors.Is(err, rbac.ErrWorkspaceNotFound) {
-			respondError(w, http.StatusNotFound, "workspace not found")
+			respondError(w, http.StatusNotFound, "Workspace not found")
 			return
 		}
 		if errors.Is(err, rbac.ErrSlugTaken) {
-			respondError(w, http.StatusConflict, "workspace slug is already taken")
+			respondError(w, http.StatusConflict, "Workspace slug is already taken")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to update workspace")
+		respondError(w, http.StatusInternalServerError, "Failed to update workspace")
 		return
 	}
 
 	h.Audit.LogAction(r.Context(), "update", "workspace", workspaceID, fmt.Sprintf("updated workspace %q (slug: %s)", name, slug))
 
 	respondJSON(w, http.StatusOK, response.WorkspaceResponse{
-		ID: org.ID, Name: org.Name, Slug: org.Slug, Description: org.Description,
-		OwnerID: org.OwnerID, IsActive: org.IsActive, CreatedAt: org.CreatedAt, UpdatedAt: org.UpdatedAt,
+		ID: ws.ID, Name: ws.Name, Slug: ws.Slug, Description: ws.Description,
+		OwnerID: ws.OwnerID, IsActive: ws.IsActive, CreatedAt: ws.CreatedAt, UpdatedAt: ws.UpdatedAt,
 	}, nil)
 }
 
@@ -188,7 +188,7 @@ func (h *WorkspaceHandlers) UpdateWorkspace(w http.ResponseWriter, r *http.Reque
 func (h *WorkspaceHandlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "workspace context required")
+		respondError(w, http.StatusBadRequest, "Workspace context required")
 		return
 	}
 
@@ -197,10 +197,10 @@ func (h *WorkspaceHandlers) DeleteWorkspace(w http.ResponseWriter, r *http.Reque
 
 	if err := h.RBAC.DeleteWorkspace(workspaceID); err != nil {
 		if errors.Is(err, rbac.ErrWorkspaceNotFound) {
-			respondError(w, http.StatusNotFound, "workspace not found")
+			respondError(w, http.StatusNotFound, "Workspace not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to delete workspace")
+		respondError(w, http.StatusInternalServerError, "Failed to delete workspace")
 		return
 	}
 

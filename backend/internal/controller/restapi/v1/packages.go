@@ -39,7 +39,7 @@ func validatePackageName(name string) error {
 	return nil
 }
 
-// ListPackages returns a paginated list of packages scoped to the current org.
+// ListPackages returns a paginated list of packages scoped to the current workspace.
 func (h *PackageHandlers) ListPackages(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
@@ -80,7 +80,7 @@ func (h *PackageHandlers) ListPackages(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, response.PackagesFromEntities(packages), &Meta{Page: page, Limit: limit, Total: total})
 }
 
-// GetPackage returns a single package scoped to the current org.
+// GetPackage returns a single package scoped to the current workspace.
 func (h *PackageHandlers) GetPackage(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
@@ -108,7 +108,7 @@ type createPackageRequest struct {
 	Ecosystem string `json:"ecosystem"`
 }
 
-// CreatePackage adds a custom package to monitor within the current org.
+// CreatePackage adds a custom package to monitor within the current workspace.
 func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
@@ -144,7 +144,7 @@ func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) 
 	respondJSON(w, http.StatusCreated, response.PackageFromEntity(pkg), nil)
 }
 
-// DeletePackage removes a package from monitoring within the current org.
+// DeletePackage removes a package from monitoring within the current workspace.
 func (h *PackageHandlers) DeletePackage(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
@@ -436,7 +436,7 @@ func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request)
 	respondJSON(w, http.StatusOK, response.ImportResultFromEntity(result), nil)
 }
 
-// ListSuggestions returns a paginated list of suggested packages for the current org.
+// ListSuggestions returns a paginated list of suggested packages for the current workspace.
 // GET /api/packages/suggestions
 func (h *PackageHandlers) ListSuggestions(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())

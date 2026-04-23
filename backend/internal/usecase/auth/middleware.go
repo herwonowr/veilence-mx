@@ -90,7 +90,7 @@ func Middleware(svc *Service) func(http.Handler) http.Handler {
 				return
 			}
 
-			respondAuthError(w, http.StatusUnauthorized, "authentication required")
+			respondAuthError(w, http.StatusUnauthorized, "Authentication required")
 		})
 	}
 }

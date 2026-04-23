@@ -9,7 +9,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
-// ListPackageReleases returns releases for a specific package scoped to the current org.
+// ListPackageReleases returns releases for a specific package scoped to the current workspace.
 func (h *PackageHandlers) ListPackageReleases(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
@@ -34,7 +34,7 @@ func (h *PackageHandlers) ListPackageReleases(w http.ResponseWriter, r *http.Req
 	respondJSON(w, http.StatusOK, response.ReleasesFromEntities(releases), &Meta{Page: page, Limit: limit, Total: total})
 }
 
-// GetRelease returns a single release with its diff and analysis, scoped to the current org.
+// GetRelease returns a single release with its diff and analysis, scoped to the current workspace.
 func (h *PackageHandlers) GetRelease(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 

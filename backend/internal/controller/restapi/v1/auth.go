@@ -61,7 +61,7 @@ type createAPIKeyRequest struct {
 func (h *AuthHandlers) Register(w http.ResponseWriter, r *http.Request) {
 	var req registerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -90,7 +90,7 @@ func (h *AuthHandlers) Register(w http.ResponseWriter, r *http.Request) {
 			respondAppError(w, Validation(err.Error()))
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to register user")
+		respondError(w, http.StatusInternalServerError, "Failed to register user")
 		return
 	}
 
@@ -127,7 +127,7 @@ func (h *AuthHandlers) Register(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -146,7 +146,7 @@ func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 		}
 		// Log failed login attempt
 		h.Audit.LogAuthEvent(r.Context(), "login_failed", "", fmt.Sprintf("failed login attempt for email %s", req.Email))
-		respondError(w, http.StatusUnauthorized, "invalid email or password")
+		respondError(w, http.StatusUnauthorized, "Invalid email or password")
 		return
 	}
 
@@ -164,7 +164,7 @@ func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandlers) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	var req refreshRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -175,7 +175,7 @@ func (h *AuthHandlers) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	tokens, err := h.Auth.RefreshTokens(req.RefreshToken)
 	if err != nil {
-		respondError(w, http.StatusUnauthorized, "invalid or expired refresh token")
+		respondError(w, http.StatusUnauthorized, "Invalid or expired refresh token")
 		return
 	}
 
@@ -186,7 +186,7 @@ func (h *AuthHandlers) RefreshToken(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandlers) Logout(w http.ResponseWriter, r *http.Request) {
 	var req logoutRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -196,7 +196,7 @@ func (h *AuthHandlers) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.Auth.Logout(req.RefreshToken); err != nil {
-		respondError(w, http.StatusInternalServerError, "failed to logout")
+		respondError(w, http.StatusInternalServerError, "Failed to logout")
 		return
 	}
 
@@ -211,13 +211,13 @@ func (h *AuthHandlers) Logout(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandlers) GetMe(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	user, err := h.Auth.GetUserByID(userID)
 	if err != nil {
-		respondError(w, http.StatusNotFound, "user not found")
+		respondError(w, http.StatusNotFound, "User not found")
 		return
 	}
 
@@ -230,7 +230,7 @@ func (h *AuthHandlers) GetMe(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
@@ -242,13 +242,13 @@ func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 
 	userRole := rbac.MemberRoleFromContext(r.Context())
 	if userRole == "" {
-		respondError(w, http.StatusForbidden, "workspace membership required")
+		respondError(w, http.StatusForbidden, "Workspace membership required")
 		return
 	}
 
 	var req createAPIKeyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -289,10 +289,10 @@ func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	apiKey, rawKey, err := h.Auth.CreateAPIKey(userID, workspaceID, req.Name, role, userRole, expiresAt)
 	if err != nil {
 		if errors.Is(err, auth.ErrRoleExceedsUserRole) {
-			respondError(w, http.StatusForbidden, "cannot create API key with role higher than your workspace role")
+			respondError(w, http.StatusForbidden, "Cannot create API key with role higher than your workspace role")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to create API key")
+		respondError(w, http.StatusInternalServerError, "Failed to create API key")
 		return
 	}
 
@@ -308,7 +308,7 @@ func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandlers) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
@@ -320,7 +320,7 @@ func (h *AuthHandlers) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 
 	keys, err := h.Auth.ListAPIKeys(userID, workspaceID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "failed to list API keys")
+		respondError(w, http.StatusInternalServerError, "Failed to list API keys")
 		return
 	}
 
@@ -331,7 +331,7 @@ func (h *AuthHandlers) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandlers) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
@@ -343,7 +343,7 @@ func (h *AuthHandlers) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid API key ID")
+		respondError(w, http.StatusBadRequest, "Invalid API key ID")
 		return
 	}
 
@@ -363,7 +363,7 @@ func (h *AuthHandlers) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 			respondAppError(w, NotFound("API key"))
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to revoke API key")
+		respondError(w, http.StatusInternalServerError, "Failed to revoke API key")
 		return
 	}
 
@@ -382,7 +382,7 @@ type forgotPasswordRequest struct {
 func (h *AuthHandlers) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	var req forgotPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -424,7 +424,7 @@ type resetPasswordRequest struct {
 func (h *AuthHandlers) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var req resetPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -447,7 +447,7 @@ func (h *AuthHandlers) ResetPassword(w http.ResponseWriter, r *http.Request) {
 			respondAppError(w, Validation(err.Error()))
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to reset password")
+		respondError(w, http.StatusInternalServerError, "Failed to reset password")
 		return
 	}
 
@@ -465,7 +465,7 @@ type verifyEmailRequest struct {
 func (h *AuthHandlers) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	var req verifyEmailRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -479,7 +479,7 @@ func (h *AuthHandlers) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 			respondAppError(w, BadRequest("invalid or expired verification token"))
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to verify email")
+		respondError(w, http.StatusInternalServerError, "Failed to verify email")
 		return
 	}
 
@@ -492,7 +492,7 @@ func (h *AuthHandlers) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandlers) SendVerificationEmail(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
@@ -506,7 +506,7 @@ func (h *AuthHandlers) SendVerificationEmail(w http.ResponseWriter, r *http.Requ
 			}, nil)
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to generate verification token")
+		respondError(w, http.StatusInternalServerError, "Failed to generate verification token")
 		return
 	}
 
@@ -526,7 +526,7 @@ type resendVerificationByEmailRequest struct {
 func (h *AuthHandlers) ResendVerificationByEmail(w http.ResponseWriter, r *http.Request) {
 	var req resendVerificationByEmailRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -564,13 +564,13 @@ type updateProfileRequest struct {
 func (h *AuthHandlers) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	var req updateProfileRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -596,7 +596,7 @@ func (h *AuthHandlers) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.Auth.UpdateProfile(userID, req.FirstName, req.LastName)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "failed to update profile")
+		respondError(w, http.StatusInternalServerError, "Failed to update profile")
 		return
 	}
 
@@ -615,13 +615,13 @@ type changePasswordRequest struct {
 func (h *AuthHandlers) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "authentication required")
+		respondError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	var req changePasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -651,7 +651,7 @@ func (h *AuthHandlers) ChangePassword(w http.ResponseWriter, r *http.Request) {
 			respondAppError(w, Validation(err.Error()))
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to change password")
+		respondError(w, http.StatusInternalServerError, "Failed to change password")
 		return
 	}
 

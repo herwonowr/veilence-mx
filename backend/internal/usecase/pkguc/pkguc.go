@@ -24,7 +24,7 @@ func New(repo usecase.PackageRepository, audit usecase.AuditLogger) *UseCase {
 	return &UseCase{repo: repo, audit: audit}
 }
 
-// ListPackages returns a paginated list of packages for an org with optional filters.
+// ListPackages returns a paginated list of packages for a workspace with optional filters.
 func (uc *UseCase) ListPackages(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
 	packages, total, err := uc.repo.FindByWorkspaceID(ctx, workspaceID, page, limit, sortClause, filters)
 	if err != nil {
@@ -33,7 +33,7 @@ func (uc *UseCase) ListPackages(ctx context.Context, workspaceID string, page, l
 	return packages, total, nil
 }
 
-// GetPackage returns a single package by ID, scoped to an org.
+// GetPackage returns a single package by ID, scoped to a workspace.
 func (uc *UseCase) GetPackage(ctx context.Context, workspaceID, pkgID string) (*entity.Package, error) {
 	pkg, err := uc.repo.FindByIDAndWorkspaceID(ctx, pkgID, workspaceID)
 	if err != nil {
@@ -45,14 +45,14 @@ func (uc *UseCase) GetPackage(ctx context.Context, workspaceID, pkgID string) (*
 	return pkg, nil
 }
 
-// CreatePackage adds a new manual package to monitoring within the given org.
+// CreatePackage adds a new manual package to monitoring within the given workspace.
 func (uc *UseCase) CreatePackage(ctx context.Context, workspaceID string, name string, ecosystem entity.Ecosystem) (*entity.Package, error) {
 	exists, err := uc.repo.ExistsByWorkspaceAndName(ctx, workspaceID, name, ecosystem)
 	if err != nil {
 		return nil, fmt.Errorf("PackageUseCase.CreatePackage: checking existence: %w", err)
 	}
 	if exists {
-		return nil, fmt.Errorf("package already monitored: %w", entity.ErrConflict)
+		return nil, fmt.Errorf("Package already monitored: %w", entity.ErrConflict)
 	}
 
 	pkg := &entity.Package{
@@ -249,7 +249,7 @@ func (uc *UseCase) BulkApproveAllSuggestions(ctx context.Context, workspaceID st
 	return count, nil
 }
 
-// ListSuggestions returns a paginated list of suggested packages for an org.
+// ListSuggestions returns a paginated list of suggested packages for a workspace.
 func (uc *UseCase) ListSuggestions(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
 	packages, total, err := uc.repo.FindSuggestionsByWorkspaceID(ctx, workspaceID, page, limit, sortClause, filters)
 	if err != nil {

@@ -181,7 +181,7 @@ func (r *ReleaseRepo) FindByWorkspaceID(ctx context.Context, workspaceID string,
 		Limit(limit).
 		Find(&ms).Error
 	if err != nil {
-		return nil, 0, fmt.Errorf("listing releases by org: %w", err)
+		return nil, 0, fmt.Errorf("listing releases by workspace: %w", err)
 	}
 
 	result := make([]entity.Release, len(ms))
@@ -257,7 +257,7 @@ func (r *ReleaseRepo) FindByWorkspaceIDWithDetails(ctx context.Context, workspac
 		Limit(limit).
 		Find(&rows).Error
 	if err != nil {
-		return nil, 0, fmt.Errorf("listing releases with details by org: %w", err)
+		return nil, 0, fmt.Errorf("listing releases with details by workspace: %w", err)
 	}
 
 	result := make([]entity.ReleaseWithDetails, len(rows))
