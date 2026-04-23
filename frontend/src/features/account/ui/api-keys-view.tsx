@@ -205,7 +205,7 @@ export const ApiKeysView = () => {
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   {createError && (
-                    <Alert variant="destructive">
+                    <Alert variant="destructive" className="text-center bg-destructive/10 border-destructive">
                       <AlertDescription>{createError}</AlertDescription>
                     </Alert>
                   )}

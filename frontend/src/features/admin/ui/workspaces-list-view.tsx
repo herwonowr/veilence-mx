@@ -131,7 +131,7 @@ export const WorkspacesListView = () => {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 {error && (
-                  <Alert variant="destructive">
+                  <Alert variant="destructive" className="text-center bg-destructive/10 border-destructive">
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}

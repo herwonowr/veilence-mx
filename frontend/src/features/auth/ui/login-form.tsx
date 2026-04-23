@@ -229,7 +229,7 @@ const LoginFormInner = () => {
               </Alert>
             )}
             {isLockedOut && (
-              <Alert variant="destructive" data-testid="lockout-message">
+              <Alert variant="destructive" className="text-center bg-destructive/10 border-destructive" data-testid="lockout-message">
                 <AlertDescription>
                   Too many failed login attempts. Please try again in{" "}
                   <span data-testid="lockout-countdown">{countdown}</span>{" "}

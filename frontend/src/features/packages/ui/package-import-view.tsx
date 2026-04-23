@@ -401,7 +401,7 @@ export const PackageImportView = () => {
 
       {/* Parse error */}
       {parseError && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="text-center bg-destructive/10 border-destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{parseError}</AlertDescription>
         </Alert>
