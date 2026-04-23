@@ -161,6 +161,7 @@ export const SettingsView = () => {
               <Input
                 id="discovery-scan-depth"
                 type="number"
+                min={1}
                 value={localSettings.discovery_scan_depth ?? ""}
                 onChange={(e) => updateSetting("discovery_scan_depth", e.target.value)}
                 placeholder="50"
