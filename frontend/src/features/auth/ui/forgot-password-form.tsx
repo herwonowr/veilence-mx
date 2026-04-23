@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
+import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
 import { apiForgotPassword } from "@/domains/auth"
 import { passwordResetSchema } from "@/domains/auth"
@@ -13,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui"
-import { Shield, Loader2, ArrowLeft, CheckCircle2 } from "lucide-react"
+import { Loader2, ArrowLeft, CheckCircle2 } from "lucide-react"
 import { ZodError } from "zod"
 
 export const ForgotPasswordForm = () => {
@@ -97,9 +99,7 @@ export const ForgotPasswordForm = () => {
     <div className="w-full max-w-sm px-4">
       <Card>
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Shield className="size-5" />
-          </div>
+          <Image src={veilenceLogo} alt="Veilence-MX" width={40} height={40} className="mx-auto mb-2 size-10" />
           <CardTitle className="text-xl">Reset your password</CardTitle>
           <CardDescription>
             Enter your email address and we&apos;ll send you a link to reset

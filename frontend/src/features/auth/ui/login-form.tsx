@@ -2,6 +2,8 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Image from "next/image"
+import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
 import { useAuth, sanitizeErrorMessage } from "@/core"
 import { loginSchema, apiSendVerificationEmailByEmail } from "@/domains/auth"
@@ -13,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui"
-import { Shield, Loader2, Eye, EyeOff, MailCheck } from "lucide-react"
+import { Loader2, Eye, EyeOff, MailCheck } from "lucide-react"
 import { ZodError } from "zod"
 
 // SEC-S4-10: Login throttling constants
@@ -205,9 +207,7 @@ const LoginFormInner = () => {
     <div className="w-full max-w-sm px-4">
       <Card>
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Shield className="size-5" />
-          </div>
+          <Image src={veilenceLogo} alt="Veilence-MX" width={40} height={40} className="mx-auto mb-2 size-10" />
           <CardTitle className="text-xl">Welcome back</CardTitle>
           <CardDescription>
             Sign in to your Veilence-MX account

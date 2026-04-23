@@ -2,6 +2,8 @@
 
 import { Suspense, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Image from "next/image"
+import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
 import { apiResetPassword } from "@/domains/auth"
 import { newPasswordSchema } from "@/domains/auth"
@@ -13,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui"
-import { Shield, Loader2, ArrowLeft, AlertTriangle } from "lucide-react"
+import { Loader2, ArrowLeft, AlertTriangle } from "lucide-react"
 import { ZodError } from "zod"
 import { toast } from "sonner"
 
@@ -104,9 +106,7 @@ const ResetPasswordFormInner = () => {
     <div className="w-full max-w-sm px-4">
       <Card>
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Shield className="size-5" />
-          </div>
+          <Image src={veilenceLogo} alt="Veilence-MX" width={40} height={40} className="mx-auto mb-2 size-10" />
           <CardTitle className="text-xl">Set new password</CardTitle>
           <CardDescription>
             Enter your new password below.

@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useEffect, useRef } from "react"
+import Image from "next/image"
+import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -9,7 +11,6 @@ import {
   Bell,
   BellDot,
   Settings,
-  Shield,
   Activity,
   Building2,
   Key,
@@ -117,7 +118,7 @@ export const AppSidebar = ({
               tooltip="Veilence-MX"
               className="h-auto hover:bg-transparent"
             >
-              <Shield />
+              <Image src={veilenceLogo} alt="Veilence-MX" width={20} height={20} className="size-5" />
               <div className="flex flex-col">
                 <span className="font-semibold">Veilence-MX</span>
                 <span className="text-xs text-muted-foreground">
