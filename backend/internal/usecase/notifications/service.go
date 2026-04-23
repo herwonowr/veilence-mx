@@ -283,25 +283,23 @@ func (s *Service) dispatchInternal(ctx context.Context, workspaceID string, seve
 			continue
 		}
 
-		// Dispatch to external channel (email, Slack, webhook)
-		s.dispatchToChannel(*channel, title, message)
+		// Dispatch to external channel (email, Slack, webhook).
+		// Best-effort for bulk sends - errors are logged inside dispatch.
+		_ = s.dispatchToChannel(*channel, title, message)
 	}
 }
 
 // dispatchToChannel routes the notification to the appropriate channel sender.
-func (s *Service) dispatchToChannel(channel entity.NotificationChannel, title, message string) {
+func (s *Service) dispatchToChannel(channel entity.NotificationChannel, title, message string) error {
 	switch channel.Type {
 	case entity.NotificationChannelEmail:
-		s.sendEmail(channel, title, message)
+		return s.sendEmail(channel, title, message)
 	case entity.NotificationChannelSlack:
-		s.sendSlack(channel, title, message)
+		return s.sendSlack(channel, title, message)
 	case entity.NotificationChannelWebhook:
-		s.sendWebhook(channel, title, message)
+		return s.sendWebhook(channel, title, message)
 	default:
-		slog.Warn("unknown notification channel type",
-			"channel_id", channel.ID,
-			"type", channel.Type,
-		)
+		return fmt.Errorf("unknown notification channel type: %s", channel.Type)
 	}
 }
 
@@ -314,28 +312,18 @@ type emailConfig struct {
 // sendEmail sends a notification email via the configured SMTP server.
 // The channel config should contain a JSON object with a "recipients" field.
 // If SMTP is not configured, it falls back to logging.
-func (s *Service) sendEmail(channel entity.NotificationChannel, title, message string) {
+func (s *Service) sendEmail(channel entity.NotificationChannel, title, message string) error {
 	if !s.smtp.IsConfigured() {
-		slog.Warn("email notification skipped: SMTP not configured",
-			"channel_id", channel.ID,
-			"channel_name", channel.Name,
-			"title", title,
-		)
-		return
+		return fmt.Errorf("SMTP not configured")
 	}
 
 	var cfg emailConfig
 	if err := json.Unmarshal([]byte(channel.Config), &cfg); err != nil {
-		slog.Error("invalid email channel config",
-			"channel_id", channel.ID,
-			"error", err,
-		)
-		return
+		return fmt.Errorf("invalid email channel config: %w", err)
 	}
 
 	if cfg.Recipients == "" {
-		slog.Error("email recipients is empty", "channel_id", channel.ID)
-		return
+		return fmt.Errorf("email recipients is empty")
 	}
 
 	recipients := strings.Split(cfg.Recipients, ",")
@@ -364,21 +352,11 @@ func (s *Service) sendEmail(channel entity.NotificationChannel, title, message s
 	// Port 465 uses implicit TLS; other ports use STARTTLS
 	if s.smtp.Port == "465" {
 		if err := s.sendEmailImplicitTLS(addr, auth, recipients, body.Bytes()); err != nil {
-			slog.Error("failed to send email (implicit TLS)",
-				"channel_id", channel.ID,
-				"recipients", cfg.Recipients,
-				"error", err,
-			)
-			return
+			return fmt.Errorf("sending email (implicit TLS): %w", err)
 		}
 	} else {
 		if err := smtp.SendMail(addr, auth, s.smtp.From, recipients, body.Bytes()); err != nil {
-			slog.Error("failed to send email",
-				"channel_id", channel.ID,
-				"recipients", cfg.Recipients,
-				"error", err,
-			)
-			return
+			return fmt.Errorf("sending email: %w", err)
 		}
 	}
 
@@ -387,6 +365,7 @@ func (s *Service) sendEmail(channel entity.NotificationChannel, title, message s
 		"recipients", cfg.Recipients,
 		"title", title,
 	)
+	return nil
 }
 
 // sendEmailImplicitTLS sends an email over implicit TLS (port 465).
@@ -608,30 +587,20 @@ type slackConfig struct {
 }
 
 // sendSlack sends a notification to a Slack channel via incoming webhook.
-func (s *Service) sendSlack(channel entity.NotificationChannel, title, message string) {
+func (s *Service) sendSlack(channel entity.NotificationChannel, title, message string) error {
 	var cfg slackConfig
 	if err := json.Unmarshal([]byte(channel.Config), &cfg); err != nil {
-		slog.Error("invalid slack channel config",
-			"channel_id", channel.ID,
-			"error", err,
-		)
-		return
+		return fmt.Errorf("invalid slack channel config: %w", err)
 	}
 
 	if cfg.WebhookURL == "" {
-		slog.Error("slack webhook URL is empty", "channel_id", channel.ID)
-		return
+		return fmt.Errorf("slack webhook URL is empty")
 	}
 
 	// SSRF protection: validate the Slack webhook URL at dispatch time.
 	if !s.AllowLocalURLs {
 		if err := ValidateSlackWebhookURL(cfg.WebhookURL); err != nil {
-			slog.Error("slack webhook URL blocked by SSRF policy",
-				"channel_id", channel.ID,
-				"url", cfg.WebhookURL,
-				"error", err,
-			)
-			return
+			return fmt.Errorf("slack webhook URL blocked by SSRF policy: %w", err)
 		}
 	}
 
@@ -641,36 +610,25 @@ func (s *Service) sendSlack(channel entity.NotificationChannel, title, message s
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		slog.Error("failed to marshal slack payload",
-			"channel_id", channel.ID,
-			"error", err,
-		)
-		return
+		return fmt.Errorf("marshaling slack payload: %w", err)
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Post(cfg.WebhookURL, "application/json", bytes.NewReader(body))
 	if err != nil {
-		slog.Error("failed to send slack notification",
-			"channel_id", channel.ID,
-			"error", err,
-		)
-		return
+		return fmt.Errorf("sending slack notification: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		slog.Error("slack webhook returned error status",
-			"channel_id", channel.ID,
-			"status", resp.StatusCode,
-		)
-		return
+		return fmt.Errorf("slack webhook returned HTTP %d", resp.StatusCode)
 	}
 
 	slog.Info("slack notification sent",
 		"channel_id", channel.ID,
 		"title", title,
 	)
+	return nil
 }
 
 // webhookPayload is the JSON payload sent to webhook notification channels.
@@ -690,30 +648,20 @@ type webhookConfig struct {
 // If a signing secret is configured, the request includes an X-Signature-256
 // header containing "sha256=<hex_digest>" computed via HMAC-SHA256 over the
 // JSON request body.
-func (s *Service) sendWebhook(channel entity.NotificationChannel, title, message string) {
+func (s *Service) sendWebhook(channel entity.NotificationChannel, title, message string) error {
 	var cfg webhookConfig
 	if err := json.Unmarshal([]byte(channel.Config), &cfg); err != nil {
-		slog.Error("invalid webhook config",
-			"channel_id", channel.ID,
-			"error", err,
-		)
-		return
+		return fmt.Errorf("invalid webhook config: %w", err)
 	}
 
 	if cfg.URL == "" {
-		slog.Error("webhook URL is empty", "channel_id", channel.ID)
-		return
+		return fmt.Errorf("webhook URL is empty")
 	}
 
 	// SSRF protection: validate the webhook URL at dispatch time.
 	if !s.AllowLocalURLs {
 		if err := ValidateWebhookURL(cfg.URL); err != nil {
-			slog.Error("webhook URL blocked by SSRF policy",
-				"channel_id", channel.ID,
-				"url", cfg.URL,
-				"error", err,
-			)
-			return
+			return fmt.Errorf("webhook URL blocked by SSRF policy: %w", err)
 		}
 	}
 
@@ -725,21 +673,12 @@ func (s *Service) sendWebhook(channel entity.NotificationChannel, title, message
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		slog.Error("failed to marshal webhook payload",
-			"channel_id", channel.ID,
-			"error", err,
-		)
-		return
+		return fmt.Errorf("marshaling webhook payload: %w", err)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, cfg.URL, bytes.NewReader(body))
 	if err != nil {
-		slog.Error("failed to create webhook request",
-			"channel_id", channel.ID,
-			"url", cfg.URL,
-			"error", err,
-		)
-		return
+		return fmt.Errorf("creating webhook request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
@@ -753,22 +692,12 @@ func (s *Service) sendWebhook(channel entity.NotificationChannel, title, message
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		slog.Error("failed to send webhook",
-			"channel_id", channel.ID,
-			"url", cfg.URL,
-			"error", err,
-		)
-		return
+		return fmt.Errorf("sending webhook: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		slog.Error("webhook returned error status",
-			"channel_id", channel.ID,
-			"url", cfg.URL,
-			"status", resp.StatusCode,
-		)
-		return
+		return fmt.Errorf("webhook returned HTTP %d", resp.StatusCode)
 	}
 
 	slog.Info("webhook notification sent",
@@ -776,6 +705,7 @@ func (s *Service) sendWebhook(channel entity.NotificationChannel, title, message
 		"url", cfg.URL,
 		"status", resp.StatusCode,
 	)
+	return nil
 }
 
 // ListNotifications returns notifications for a user across all workspaces.
@@ -791,24 +721,15 @@ func (s *Service) ListNotifications(workspaceID, userID string, onlyUnread bool)
 			return nil, fmt.Errorf("listing user workspaces: %w", err)
 		}
 
-		// Get org-wide notifications from the user's workspaces
-		var wsNotifs []entity.Notification
-		if len(wsIDs) > 0 {
-			wsNotifs, err = s.notifications.FindByUserAndWorkspaceIDs(ctx, wsIDs, userID, onlyUnread)
-			if err != nil {
-				return nil, fmt.Errorf("listing workspace notifications: %w", err)
-			}
+		if len(wsIDs) == 0 {
+			return nil, nil
 		}
 
-		// Also get user-targeted notifications (e.g. invitation notifications
-		// for workspaces the user is not yet a member of)
-		directNotifs, err := s.notifications.FindDirectByUserID(ctx, userID, onlyUnread)
+		notifs, err := s.notifications.FindByUserAndWorkspaceIDs(ctx, wsIDs, userID, onlyUnread)
 		if err != nil {
-			return nil, fmt.Errorf("listing direct notifications: %w", err)
+			return nil, fmt.Errorf("listing workspace notifications: %w", err)
 		}
-
-		// Merge and deduplicate (direct notifs may overlap with workspace notifs)
-		return mergeNotifications(wsNotifs, directNotifs), nil
+		return notifs, nil
 	}
 
 	notifs, err := s.notifications.FindByUserAndWorkspace(ctx, workspaceID, userID, onlyUnread)
@@ -825,22 +746,28 @@ func (s *Service) ListNotifications(workspaceID, userID string, onlyUnread bool)
 func (s *Service) MarkRead(id, userID string) error {
 	ctx := context.Background()
 
-	// Verify the notification belongs to one of the user's workspaces.
+	// Verify the notification belongs to the user (either via workspace
+	// membership or direct user targeting like invitation notifications).
 	notif, err := s.notifications.FindByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("notification not found")
 	}
 
-	wsIDs, err := s.workspaces.FindWorkspaceIDsByUserID(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("listing user workspaces: %w", err)
+	// Allow if the notification is directly targeted to this user
+	if notif.UserID != userID {
+		// Otherwise, verify the user is a member of the notification's workspace
+		wsIDs, err := s.workspaces.FindWorkspaceIDsByUserID(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("listing user workspaces: %w", err)
+		}
+
+		if !containsString(wsIDs, notif.WorkspaceID) {
+			return fmt.Errorf("notification not found")
+		}
 	}
 
-	if !containsString(wsIDs, notif.WorkspaceID) {
-		return fmt.Errorf("notification not found")
-	}
-
-	affected, err := s.notifications.MarkRead(ctx, id, userID)
+	// Use the notification's actual workspace ID for the scoped update.
+	affected, err := s.notifications.MarkRead(ctx, id, notif.WorkspaceID, userID)
 	if err != nil {
 		return fmt.Errorf("marking notification as read: %w", err)
 	}
@@ -857,29 +784,18 @@ func (s *Service) GetUnreadCount(workspaceID, userID string) (int64, error) {
 	ctx := context.Background()
 
 	if workspaceID == "" {
-		var wsCount int64
 		wsIDs, err := s.workspaces.FindWorkspaceIDsByUserID(ctx, userID)
 		if err != nil {
 			return 0, fmt.Errorf("listing user workspaces: %w", err)
 		}
-		if len(wsIDs) > 0 {
-			wsCount, err = s.notifications.CountUnreadByWorkspaceIDs(ctx, wsIDs, userID)
-			if err != nil {
-				return 0, fmt.Errorf("counting workspace unread: %w", err)
-			}
+		if len(wsIDs) == 0 {
+			return 0, nil
 		}
-
-		// Also count user-targeted notifications from workspaces the user
-		// is not a member of (e.g. pending invitations)
-		directCount, err := s.notifications.CountUnreadDirectByUserID(ctx, userID)
+		count, err := s.notifications.CountUnreadByWorkspaceIDs(ctx, wsIDs, userID)
 		if err != nil {
-			return 0, fmt.Errorf("counting direct unread: %w", err)
+			return 0, fmt.Errorf("counting workspace unread: %w", err)
 		}
-
-		// This may double-count some notifications that are both user-targeted
-		// and in a member workspace, but the merge in ListNotifications deduplicates.
-		// For count, a slight overcount is acceptable; exact count comes from list.
-		return wsCount + directCount, nil
+		return count, nil
 	}
 
 	count, err := s.notifications.CountUnread(ctx, workspaceID, userID)
@@ -903,7 +819,11 @@ func (s *Service) MarkAllRead(workspaceID, userID string) (int64, error) {
 		if len(wsIDs) == 0 {
 			return 0, nil
 		}
-		return s.notifications.MarkAllReadByWorkspaceIDs(ctx, wsIDs, userID)
+		affected, err := s.notifications.MarkAllReadByWorkspaceIDs(ctx, wsIDs, userID)
+		if err != nil {
+			return 0, fmt.Errorf("marking workspace notifications as read: %w", err)
+		}
+		return affected, nil
 	}
 
 	affected, err := s.notifications.MarkAllRead(ctx, workspaceID, userID)
@@ -917,19 +837,22 @@ func (s *Service) MarkAllRead(workspaceID, userID string) (int64, error) {
 // When workspaceID is 0, the notification is verified to belong to one of the user's workspaces.
 func (s *Service) DeleteByID(ctx context.Context, id, workspaceID, userID string) (int64, error) {
 	if workspaceID == "" {
-		// Verify the notification belongs to one of the user's workspaces.
+		// Verify the notification belongs to the user (via workspace or direct targeting).
 		notif, err := s.notifications.FindByID(ctx, id)
 		if err != nil {
 			return 0, fmt.Errorf("notification not found")
 		}
 
-		wsIDs, err := s.workspaces.FindWorkspaceIDsByUserID(ctx, userID)
-		if err != nil {
-			return 0, fmt.Errorf("listing user workspaces: %w", err)
-		}
+		if notif.UserID != userID {
+			// Not directly targeted - check workspace membership
+			wsIDs, err := s.workspaces.FindWorkspaceIDsByUserID(ctx, userID)
+			if err != nil {
+				return 0, fmt.Errorf("listing user workspaces: %w", err)
+			}
 
-		if !containsString(wsIDs, notif.WorkspaceID) {
-			return 0, fmt.Errorf("notification not found")
+			if !containsString(wsIDs, notif.WorkspaceID) {
+				return 0, fmt.Errorf("notification not found")
+			}
 		}
 
 		// Use the notification's actual workspace ID for the scoped delete.
@@ -959,7 +882,12 @@ func (s *Service) DeleteAll(ctx context.Context, workspaceID, userID string) (in
 		if len(wsIDs) == 0 {
 			return 0, nil
 		}
-		return s.notifications.DeleteAllByWorkspaceIDs(ctx, wsIDs, userID)
+		affected, err := s.notifications.DeleteAllByWorkspaceIDs(ctx, wsIDs, userID)
+		if err != nil {
+			return 0, fmt.Errorf("deleting workspace notifications: %w", err)
+		}
+		slog.Info("all notifications deleted", "user_id", userID, "count", affected)
+		return affected, nil
 	}
 
 	affected, err := s.notifications.DeleteAll(ctx, workspaceID, userID)
@@ -1019,7 +947,9 @@ func (s *Service) TestChannel(id, workspaceID string) error {
 	title := "Veilence-MX Test Notification"
 	message := "This is a test notification from Veilence-MX. If you received this, your notification channel is configured correctly."
 
-	s.dispatchToChannel(*channel, title, message)
+	if err := s.dispatchToChannel(*channel, title, message); err != nil {
+		return fmt.Errorf("test notification failed: %w", err)
+	}
 
 	slog.Info("test notification dispatched",
 		"channel_id", id,
@@ -1033,32 +963,6 @@ func (s *Service) TestChannel(id, workspaceID string) error {
 func (s *Service) GetChannel(id, workspaceID string) (*entity.NotificationChannel, error) {
 	ctx := context.Background()
 	return s.channels.FindByIDAndWorkspace(ctx, id, workspaceID)
-}
-
-// mergeNotifications merges two notification slices, deduplicating by ID.
-// The result is sorted by CreatedAt descending (most recent first).
-func mergeNotifications(a, b []entity.Notification) []entity.Notification {
-	seen := make(map[string]struct{}, len(a))
-	result := make([]entity.Notification, 0, len(a)+len(b))
-
-	for _, n := range a {
-		seen[n.ID] = struct{}{}
-		result = append(result, n)
-	}
-	for _, n := range b {
-		if _, ok := seen[n.ID]; !ok {
-			result = append(result, n)
-		}
-	}
-
-	// Sort by CreatedAt descending
-	for i := 1; i < len(result); i++ {
-		for j := i; j > 0 && result[j].CreatedAt.After(result[j-1].CreatedAt); j-- {
-			result[j], result[j-1] = result[j-1], result[j]
-		}
-	}
-
-	return result
 }
 
 // containsString returns true if the slice contains the given value.

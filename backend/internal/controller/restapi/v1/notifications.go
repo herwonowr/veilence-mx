@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 	validation "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/request"
@@ -172,12 +173,18 @@ func (h *NotificationHandlers) DeleteNotificationChannel(w http.ResponseWriter, 
 		return
 	}
 
+	// Fetch channel name before deletion for audit log readability.
+	channelName := id
+	if ch, err := h.Notifications.GetChannel(id, workspaceID); err == nil {
+		channelName = ch.Name
+	}
+
 	if err := h.Notifications.DeleteChannel(id, workspaceID); err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to delete notification channel")
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "delete", "notification_channel", id, fmt.Sprintf("deleted notification channel %s", id))
+	h.Audit.LogAction(r.Context(), "delete", "notification_channel", id, fmt.Sprintf("deleted notification channel %q", channelName))
 
 	respondJSON(w, http.StatusOK, nil, nil)
 }
@@ -236,7 +243,13 @@ func (h *NotificationHandlers) CreateNotificationRule(w http.ResponseWriter, r *
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "create", "notification_rule", rule.ID, fmt.Sprintf("created notification rule for channel %s (severity: %s)", req.ChannelID, req.Severity))
+	// Resolve channel name for audit log readability.
+	channelName := req.ChannelID
+	if ch, err := h.Notifications.GetChannel(req.ChannelID, workspaceID); err == nil {
+		channelName = ch.Name
+	}
+
+	h.Audit.LogAction(r.Context(), "create", "notification_rule", rule.ID, fmt.Sprintf("created notification rule for channel %q (severity: %s)", channelName, req.Severity))
 
 	respondJSON(w, http.StatusCreated, response.NotificationRuleFromEntity(rule), nil)
 }
@@ -378,11 +391,21 @@ func (h *NotificationHandlers) TestNotificationChannel(w http.ResponseWriter, r 
 	}
 
 	if err := h.Notifications.TestChannel(id, workspaceID); err != nil {
-		respondError(w, http.StatusNotFound, err.Error())
+		if strings.Contains(err.Error(), "not found") {
+			respondError(w, http.StatusNotFound, err.Error())
+		} else {
+			respondError(w, http.StatusBadGateway, err.Error())
+		}
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "test", "notification_channel", id, fmt.Sprintf("sent test notification to channel %s", id))
+	// Resolve channel name for audit log readability.
+	testChannelName := id
+	if ch, err := h.Notifications.GetChannel(id, workspaceID); err == nil {
+		testChannelName = ch.Name
+	}
+
+	h.Audit.LogAction(r.Context(), "test", "notification_channel", id, fmt.Sprintf("sent test notification to channel %q", testChannelName))
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "test notification sent"}, nil)
 }

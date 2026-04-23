@@ -15,5 +15,6 @@ type Invitation struct {
 	DeclinedAt     *time.Time
 	CreatedAt      time.Time
 	WorkspaceName  string // populated by joins, not persisted
+	RoleName       string // populated by joins, not persisted
 	InvitedByEmail string // populated by joins, not persisted
 }

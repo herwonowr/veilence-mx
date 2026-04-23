@@ -11,6 +11,8 @@ type Diff struct {
 	FileChangesCount int
 	LinesAdded     int
 	LinesRemoved   int
+	Truncated      bool
+	OriginalSize   int
 	CreatedAt      time.Time
 	Analyses       []Analysis
 }

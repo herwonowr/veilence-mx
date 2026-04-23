@@ -34,6 +34,8 @@ func (r *PipelineRepo) FindDiffWithRelease(ctx context.Context, diffID string) (
 		FileChangesCount: model.FileChangesCount,
 		LinesAdded:       model.LinesAdded,
 		LinesRemoved:     model.LinesRemoved,
+		Truncated:        model.Truncated,
+		OriginalSize:     model.OriginalSize,
 		CreatedAt:        model.CreatedAt,
 	}
 

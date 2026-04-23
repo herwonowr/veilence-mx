@@ -192,6 +192,9 @@ func (h *WorkspaceHandlers) DeleteWorkspace(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Fetch workspace name before deletion for audit log readability.
+	wsForAudit, _ := h.RBAC.GetWorkspace(workspaceID)
+
 	if err := h.RBAC.DeleteWorkspace(workspaceID); err != nil {
 		if errors.Is(err, rbac.ErrWorkspaceNotFound) {
 			respondError(w, http.StatusNotFound, "workspace not found")
@@ -201,7 +204,11 @@ func (h *WorkspaceHandlers) DeleteWorkspace(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "delete", "workspace", workspaceID, fmt.Sprintf("deleted workspace %s", workspaceID))
+	wsName := workspaceID
+	if wsForAudit != nil {
+		wsName = wsForAudit.Name
+	}
+	h.Audit.LogAction(r.Context(), "delete", "workspace", workspaceID, fmt.Sprintf("deleted workspace %q", wsName))
 
 	respondJSON(w, http.StatusOK, nil, nil)
 }

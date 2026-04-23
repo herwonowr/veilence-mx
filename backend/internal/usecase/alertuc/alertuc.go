@@ -52,6 +52,10 @@ func (uc *UseCase) UpdateAlertStatus(ctx context.Context, workspaceID, alertID s
 		return nil, fmt.Errorf("AlertUseCase.UpdateAlertStatus: finding alert: %w", err)
 	}
 
+	if err := alert.ValidateStatusTransition(status); err != nil {
+		return nil, err
+	}
+
 	if err := uc.alerts.UpdateStatus(ctx, alertID, workspaceID, status); err != nil {
 		return nil, fmt.Errorf("AlertUseCase.UpdateAlertStatus: %w", err)
 	}

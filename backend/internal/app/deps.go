@@ -195,7 +195,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	if err := rbac.SeedPermissions(rbacRepo); err != nil {
 		return nil, fmt.Errorf("seeding permissions: %w", err)
 	}
-	rbacService := rbac.NewService(rbacRepo, invitationEmailSender, rbac.WithUserEmailResolver(userRepo), rbac.WithNotificationDispatcher(notificationService))
+	rbacService := rbac.NewService(rbacRepo, invitationEmailSender, rbac.WithUserEmailResolver(userRepo))
 	auditService := audit.NewService(auditLogRepo)
 	dashboardRepo := persistent.NewDashboardRepo(db)
 	alertNoteRepo := persistent.NewAlertNoteRepo(db)

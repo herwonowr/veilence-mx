@@ -86,6 +86,10 @@ func (h *AuthHandlers) Register(w http.ResponseWriter, r *http.Request) {
 			respondAppError(w, Conflict("email already registered"))
 			return
 		}
+		if errors.Is(err, entity.ErrValidation) {
+			respondAppError(w, Validation(err.Error()))
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "failed to register user")
 		return
 	}
@@ -343,6 +347,17 @@ func (h *AuthHandlers) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch API key name before revocation for audit log readability.
+	apiKeyName := id
+	if keys, err := h.Auth.ListAPIKeys(userID, workspaceID); err == nil {
+		for _, k := range keys {
+			if k.ID == id {
+				apiKeyName = k.Name
+				break
+			}
+		}
+	}
+
 	if err := h.Auth.RevokeAPIKey(userID, workspaceID, id); err != nil {
 		if errors.Is(err, auth.ErrAPIKeyNotFound) {
 			respondAppError(w, NotFound("API key"))
@@ -352,7 +367,7 @@ func (h *AuthHandlers) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "revoke", "api_key", id, fmt.Sprintf("revoked API key %s", id))
+	h.Audit.LogAction(r.Context(), "revoke", "api_key", id, fmt.Sprintf("revoked API key %q", apiKeyName))
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "API key revoked"}, nil)
 }
@@ -426,6 +441,10 @@ func (h *AuthHandlers) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	if err := h.Auth.ResetPassword(req.Token, req.NewPassword); err != nil {
 		if errors.Is(err, auth.ErrResetTokenInvalid) || errors.Is(err, auth.ErrResetTokenUsed) {
 			respondAppError(w, BadRequest("invalid or expired reset token"))
+			return
+		}
+		if errors.Is(err, entity.ErrValidation) {
+			respondAppError(w, Validation(err.Error()))
 			return
 		}
 		respondError(w, http.StatusInternalServerError, "failed to reset password")
@@ -626,6 +645,10 @@ func (h *AuthHandlers) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	if err := h.Auth.ChangePassword(userID, req.CurrentPassword, req.NewPassword, currentTokenHash); err != nil {
 		if errors.Is(err, auth.ErrInvalidPassword) {
 			respondAppError(w, BadRequest("current password is incorrect"))
+			return
+		}
+		if errors.Is(err, entity.ErrValidation) {
+			respondAppError(w, Validation(err.Error()))
 			return
 		}
 		respondError(w, http.StatusInternalServerError, "failed to change password")

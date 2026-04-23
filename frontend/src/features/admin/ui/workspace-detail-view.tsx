@@ -61,6 +61,7 @@ import {
   useRevokeInvitation,
   useResendInvitation,
 } from "@/features/admin/hooks/use-workspaces"
+import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 
 export const WorkspaceDetailView = () => {
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
@@ -81,6 +82,8 @@ export const WorkspaceDetailView = () => {
   const invitations = invitationsRes?.data ?? []
 
   // SEC-S3-007: Determine current user's permissions in this workspace
+  // Use both permission-based checks (from member data) and role hierarchy
+  const { role: currentRole } = useCurrentWorkspaceRole()
   const currentMember = members.find((m) => m.userId === user?.id)
   const currentPermissions = currentMember?.role?.permissions ?? []
   const hasPermission = (resource: string, action: string) =>
@@ -88,10 +91,13 @@ export const WorkspaceDetailView = () => {
       (p) => p.resource === resource && p.action === action
     )
   const isWorkspaceOwner = workspace?.ownerId === user?.id
+  const isAdminOrAbove = hasMinimumRole(currentRole, "admin")
   const canInvite = isWorkspaceOwner || hasPermission("members", "invite")
   const canRemove = isWorkspaceOwner || hasPermission("members", "remove")
   const canUpdateRole = isWorkspaceOwner || hasPermission("members", "update_role")
+  const canManageMembers = isAdminOrAbove || isWorkspaceOwner
   const canUpdateWorkspace = isWorkspaceOwner
+  const canViewAuditLog = isAdminOrAbove || isWorkspaceOwner
 
   // Edit form
   const [editName, setEditName] = useState("")
@@ -228,12 +234,14 @@ export const WorkspaceDetailView = () => {
             <p className="text-sm text-muted-foreground font-mono">{workspace.slug}</p>
           </div>
           <div className="flex items-center gap-2">
+            {canViewAuditLog && (
             <Link href={`/workspaces/${workspace.id}/audit`}>
               <Button variant="outline" size="sm">
                 <ScrollText className="mr-2 size-4" />
                 Audit Log
               </Button>
             </Link>
+            )}
           </div>
         </div>
       </div>
@@ -349,9 +357,9 @@ export const WorkspaceDetailView = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {member.userId === workspace.ownerId ? (
+                        {member.userId === workspace.ownerId || !canUpdateRole ? (
                           <Badge variant="secondary">
-                            {member.role?.name ? capitalize(member.role.name) : "Owner"}
+                            {member.role?.name ? capitalize(member.role.name) : member.userId === workspace.ownerId ? "Owner" : "No role"}
                           </Badge>
                         ) : (
                           <Select
@@ -359,7 +367,7 @@ export const WorkspaceDetailView = () => {
                             onValueChange={(v) =>
                               handleUpdateRole(member.userId, String(v))
                             }
-                            disabled={member.userId === user?.id || !canUpdateRole}
+                            disabled={member.userId === user?.id}
                           >
                             <SelectTrigger className="w-28">
                               <SelectValue>{member.role?.name ? capitalize(member.role.name) : "No role"}</SelectValue>
@@ -413,7 +421,7 @@ export const WorkspaceDetailView = () => {
             </CardContent>
           </Card>
 
-          {/* Invitations */}
+          {/* Invitations - visible to all roles, actions gated by canManageMembers */}
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Mail className="size-4" />
@@ -429,18 +437,20 @@ export const WorkspaceDetailView = () => {
                       <TableHead>Status</TableHead>
                       <TableHead>Invited</TableHead>
                       <TableHead>Expires</TableHead>
+                      {canManageMembers && (
                       <TableHead className="w-[1%] whitespace-nowrap text-right">
                         <span className="sr-only">Actions</span>
                       </TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {invitations.length === 0 && (
                       <TableEmptyState
-                        colSpan={6}
+                        colSpan={canManageMembers ? 6 : 5}
                         icon={<Mail className="size-8" />}
                         title="No invitations"
-                        description="Invite members to join this workspace."
+                        description={canManageMembers ? "Invite members to join this workspace." : "No pending invitations for this workspace."}
                       />
                     )}
                     {invitations.map((invitation) => {
@@ -479,6 +489,7 @@ export const WorkspaceDetailView = () => {
                           <TableCell className="text-sm text-muted-foreground">
                             {new Date(invitation.expiresAt).toLocaleDateString("en-US", dateOptions)}
                           </TableCell>
+                          {canManageMembers && (
                           <TableCell className="text-right">
                             {canInvite && status === "pending" && (
                               <div className="flex items-center justify-end gap-2">
@@ -516,6 +527,7 @@ export const WorkspaceDetailView = () => {
                               </div>
                             )}
                           </TableCell>
+                          )}
                         </TableRow>
                       )
                     })}

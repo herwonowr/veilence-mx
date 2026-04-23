@@ -130,6 +130,8 @@ func diffToDomain(m *Diff) *entity.Diff {
 		FileChangesCount: m.FileChangesCount,
 		LinesAdded:       m.LinesAdded,
 		LinesRemoved:     m.LinesRemoved,
+		Truncated:        m.Truncated,
+		OriginalSize:     m.OriginalSize,
 		CreatedAt:        m.CreatedAt,
 	}
 }
@@ -143,6 +145,8 @@ func diffToModel(d *entity.Diff) *Diff {
 		FileChangesCount: d.FileChangesCount,
 		LinesAdded:       d.LinesAdded,
 		LinesRemoved:     d.LinesRemoved,
+		Truncated:        d.Truncated,
+		OriginalSize:     d.OriginalSize,
 		CreatedAt:        d.CreatedAt,
 	}
 }

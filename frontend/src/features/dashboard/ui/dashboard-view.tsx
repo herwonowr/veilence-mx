@@ -14,10 +14,11 @@ import {
   TableRow,
 } from "@/ui"
 import type { Classification } from "@/domains/common"
-import { Package, Activity, AlertTriangle, Shield, Clock, CheckCircle, RefreshCw, Building2, Plus, BookOpen, CircleCheck, Circle } from "lucide-react"
+import { Package, Activity, AlertTriangle, Shield, Clock, CheckCircle, RefreshCw, Building2, Plus, Mail } from "lucide-react"
 import { DashboardCharts } from "@/features/dashboard/ui/dashboard-charts"
 import { formatEcosystem } from "@/domains/common"
 import { useDashboardStats, useRecentReleases, useChartData, useDashboardStalePackages, useDashboardSettings } from "@/features/dashboard/hooks/use-dashboard"
+import { useMyInvitations } from "@/features/dashboard/hooks/use-my-invitations"
 
 const classificationVariant = (c?: Classification) => {
   if (c === "malicious") return "destructive" as const
@@ -35,13 +36,10 @@ interface OnboardingProps {
 
 const DashboardOnboarding = ({ hasAnyWorkspace, user }: OnboardingProps) => {
   const router = useRouter()
-
-  const steps = [
-    { label: "Create your account", done: true },
-    { label: "Create a workspace", done: hasAnyWorkspace },
-    { label: "Add packages to monitor", done: false },
-    { label: "Review your first analysis", done: false },
-  ]
+  const { data: invitationsRes } = useMyInvitations()
+  const pendingCount = (invitationsRes?.data ?? []).filter(
+    (inv) => inv.status === "pending"
+  ).length
 
   return (
     <div className="space-y-6">
@@ -69,30 +67,28 @@ const DashboardOnboarding = ({ hasAnyWorkspace, user }: OnboardingProps) => {
         </div>
       </div>
 
-      <Card className="max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <BookOpen className="h-4 w-4" />
-            Getting Started
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3">
-            {steps.map((step, i) => (
-              <li key={i} className="flex items-center gap-3">
-                {step.done ? (
-                  <CircleCheck className="h-5 w-5 text-green-500 shrink-0" />
-                ) : (
-                  <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
-                )}
-                <span className={step.done ? "text-muted-foreground line-through" : "text-sm font-medium"}>
-                  {step.label}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </CardContent>
-      </Card>
+      {pendingCount > 0 && (
+        <Card className="max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Mail className="h-4 w-4" />
+              Pending Invitations
+              <Badge variant="destructive">{pendingCount}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">
+              You have pending workspace invitations waiting for your response.
+            </p>
+            <Link href="/workspaces/invitations">
+              <Button variant="outline" size="sm">
+                <Mail className="mr-2 h-4 w-4" />
+                View Invitations
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
@@ -106,6 +102,11 @@ const DashboardData = () => {
   const [chartRange, setChartRange] = useState<{ from?: string; to?: string }>({})
 
   const refetchInterval = autoRefresh && intervalSec > 0 ? intervalSec * 1000 : false
+
+  const { data: invitationsRes } = useMyInvitations()
+  const pendingCount = (invitationsRes?.data ?? []).filter(
+    (inv) => inv.status === "pending"
+  ).length
 
   const { data: statsRes } = useDashboardStats({
     refetchInterval,
@@ -143,6 +144,17 @@ const DashboardData = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <div className="flex flex-wrap items-center gap-4">
+          {pendingCount > 0 && (
+            <Link href="/workspaces/invitations" className="flex items-center gap-2">
+              <Button variant="outline" size="sm">
+                <Mail className="mr-2 h-4 w-4" />
+                Pending Invitations
+                <Badge variant="destructive" className="ml-2">
+                  {pendingCount}
+                </Badge>
+              </Button>
+            </Link>
+          )}
           <div className="flex items-center gap-2">
             <Switch
               id="auto-refresh"

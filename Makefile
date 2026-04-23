@@ -1,4 +1,4 @@
-.PHONY: dev dev-backend dev-frontend test test-backend test-backend-integration test-e2e build lint db-up db-down db-test-setup docker-up docker-down docker-build
+.PHONY: dev dev-backend dev-frontend build lint db-up db-down db-destroy docker-up docker-down docker-destroy docker-build
 
 # Infrastructure
 db-up:
@@ -7,12 +7,8 @@ db-up:
 db-down:
 	docker compose down
 
-# Create the integration test database (run once after db-up)
-db-test-setup: db-up
-	@echo "Creating test database (if not exists)..."
-	@docker compose exec -T postgres psql -U veilence -d veilence_mx -c "SELECT 1 FROM pg_database WHERE datname = 'veilence_mx_test'" | grep -q 1 || \
-		docker compose exec -T postgres psql -U veilence -d veilence_mx -c "CREATE DATABASE veilence_mx_test;"
-	@echo "Test database ready."
+db-destroy:
+	docker compose down -v
 
 # Docker (full stack)
 docker-up:
@@ -20,6 +16,9 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+docker-destroy:
+	docker compose down -v
 
 docker-build:
 	docker compose build
@@ -41,12 +40,6 @@ dev-backend:
 build-backend:
 	cd backend && go build ./...
 
-test-backend:
-	cd backend && go test ./... -count=1
-
-test-backend-integration: db-test-setup
-	cd backend && go test -tags=integration ./... -v -count=1
-
 lint-backend:
 	cd backend && go vet ./...
 
@@ -60,20 +53,11 @@ build-frontend:
 lint-frontend:
 	cd frontend && npm run lint
 
-# E2E
-test-e2e:
-	cd e2e && npx playwright test
-
-test-e2e-ui:
-	cd e2e && npx playwright test --ui
-
 # Combined
 dev: db-up
 	@echo "Starting backend and frontend..."
 	@make dev-backend &
 	@make dev-frontend
-
-test: test-backend
 
 build: build-backend build-frontend
 

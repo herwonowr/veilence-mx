@@ -182,7 +182,7 @@ func (h *WorkspaceHandlers) InviteMember(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "invite", "member", invitation.ID, fmt.Sprintf("invited %s with role %s", req.Email, req.RoleID))
+	h.Audit.LogAction(r.Context(), "invite", "member", invitation.ID, fmt.Sprintf("invited %s with role %s", req.Email, invitation.RoleName))
 
 	// Return the invitation with the raw token so the caller can construct the invitation URL.
 	// The token is not stored in the model (only the hash is), so we include it explicitly.
@@ -244,7 +244,7 @@ func (h *WorkspaceHandlers) AcceptInvitation(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "accept", "member", member.ID, fmt.Sprintf("accepted invitation for user %s", userID))
+	h.Audit.LogAction(r.Context(), "accept", "member", member.ID, fmt.Sprintf("accepted invitation for user %s", userEmail))
 
 	respondJSON(w, http.StatusOK, member, nil)
 }
@@ -363,6 +363,17 @@ func (h *WorkspaceHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Resolve invitation email for audit log readability.
+	invEmail := id
+	if invitations, err := h.RBAC.ListPendingInvitations(workspaceID); err == nil {
+		for _, inv := range invitations {
+			if inv.ID == id {
+				invEmail = inv.Email
+				break
+			}
+		}
+	}
+
 	if err := h.RBAC.RevokeInvitation(workspaceID, id); err != nil {
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
 			respondError(w, http.StatusNotFound, "invitation not found or already accepted")
@@ -372,7 +383,7 @@ func (h *WorkspaceHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "revoke", "invitation", id, fmt.Sprintf("revoked invitation %s", id))
+	h.Audit.LogAction(r.Context(), "revoke", "invitation", id, fmt.Sprintf("revoked invitation for %s", invEmail))
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "invitation revoked"}, nil)
 }
@@ -429,6 +440,17 @@ func (h *WorkspaceHandlers) RemoveMember(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Look up member email before removal for audit log readability.
+	memberEmail := targetUserID
+	if members, err := h.RBAC.GetWorkspaceMembers(workspaceID); err == nil {
+		for _, m := range members {
+			if m.UserID == targetUserID && m.User != nil {
+				memberEmail = m.User.Email
+				break
+			}
+		}
+	}
+
 	if err := h.RBAC.RemoveMember(workspaceID, targetUserID); err != nil {
 		if errors.Is(err, rbac.ErrCannotRemoveOwner) {
 			respondError(w, http.StatusForbidden, "cannot remove the workspace owner")
@@ -442,7 +464,7 @@ func (h *WorkspaceHandlers) RemoveMember(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "remove", "member", targetUserID, fmt.Sprintf("removed member (user %s) from workspace", targetUserID))
+	h.Audit.LogAction(r.Context(), "remove", "member", targetUserID, fmt.Sprintf("removed member %s from workspace", memberEmail))
 
 	respondJSON(w, http.StatusOK, nil, nil)
 }
@@ -506,7 +528,15 @@ func (h *WorkspaceHandlers) UpdateMemberRole(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	h.Audit.LogAction(r.Context(), "update", "member", member.ID, fmt.Sprintf("updated role for user %s to role %s", targetUserID, req.RoleID))
+		roleName := req.RoleID // fallback
+	if member.Role != nil {
+		roleName = member.Role.Name
+	}
+	targetEmail := targetUserID // fallback
+	if member.User != nil {
+		targetEmail = member.User.Email
+	}
+	h.Audit.LogAction(r.Context(), "update", "member", member.ID, fmt.Sprintf("updated role for %s to %s", targetEmail, roleName))
 
 	respondJSON(w, http.StatusOK, member, nil)
 }

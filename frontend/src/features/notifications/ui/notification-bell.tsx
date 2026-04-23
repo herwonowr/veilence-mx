@@ -134,7 +134,7 @@ export const NotificationBell = () => {
         {unreadCount > 0 && (
           <Badge
             variant="destructive"
-            className="absolute -top-1 -right-1 flex size-[18px] items-center justify-center rounded-full p-0 text-[10px] font-semibold tabular-nums"
+            className="absolute -top-1 -right-1 flex size-4.5 items-center justify-center rounded-full p-0 text-[10px] font-semibold tabular-nums"
           >
             {unreadCount > 99 ? "99+" : unreadCount}
           </Badge>
@@ -167,7 +167,7 @@ export const NotificationBell = () => {
         </PopoverHeader>
 
         {/* Scrollable list */}
-        <ScrollArea className="max-h-[420px]">
+        <ScrollArea className="max-h-105">
           {isLoading && notifications.length === 0 ? (
             <LoadingSkeletons />
           ) : notifications.length === 0 ? (

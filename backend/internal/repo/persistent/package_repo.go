@@ -174,18 +174,68 @@ func (r *PackageRepo) UnblockPackage(ctx context.Context, workspaceID, pkgID str
 }
 
 func (r *PackageRepo) RemovePackage(ctx context.Context, workspaceID, pkgID string) error {
-	result := r.db.WithContext(ctx).
-		Model(&Package{}).
-		Where("id = ? AND workspace_id = ? AND status IN ?", pkgID, workspaceID,
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Verify package exists and is removable
+		var pkg Package
+		if err := tx.Where("id = ? AND workspace_id = ? AND status IN ?", pkgID, workspaceID,
 			[]PackageStatus{PackageStatusActive, PackageStatusBlocked}).
-		Update("status", PackageStatusRemoved)
-	if result.Error != nil {
-		return fmt.Errorf("removing package: %w", result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("package %w", entity.ErrNotFound)
-	}
-	return nil
+			First(&pkg).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("package %w", entity.ErrNotFound)
+			}
+			return fmt.Errorf("removing package: %w", err)
+		}
+
+		// Collect release IDs for this package
+		var releaseIDs []string
+		tx.Model(&Release{}).Where("package_id = ?", pkgID).Pluck("id", &releaseIDs)
+
+		// Collect diff IDs for these releases
+		var diffIDs []string
+		if len(releaseIDs) > 0 {
+			tx.Model(&Diff{}).Where("release_id IN ?", releaseIDs).Pluck("id", &diffIDs)
+		}
+
+		// Alert notes (via alerts for this package)
+		var alertIDs []string
+		tx.Model(&Alert{}).Where("package_id = ?", pkgID).Pluck("id", &alertIDs)
+		if len(alertIDs) > 0 {
+			if err := tx.Where("alert_id IN ?", alertIDs).Delete(&AlertNote{}).Error; err != nil {
+				return fmt.Errorf("removing package: deleting alert notes: %w", err)
+			}
+		}
+
+		// Alerts
+		if err := tx.Where("package_id = ?", pkgID).Delete(&Alert{}).Error; err != nil {
+			return fmt.Errorf("removing package: deleting alerts: %w", err)
+		}
+
+		// Analyses (depend on diffs)
+		if len(diffIDs) > 0 {
+			if err := tx.Where("diff_id IN ?", diffIDs).Delete(&Analysis{}).Error; err != nil {
+				return fmt.Errorf("removing package: deleting analyses: %w", err)
+			}
+		}
+
+		// Diffs (depend on releases)
+		if len(releaseIDs) > 0 {
+			if err := tx.Where("release_id IN ?", releaseIDs).Delete(&Diff{}).Error; err != nil {
+				return fmt.Errorf("removing package: deleting diffs: %w", err)
+			}
+		}
+
+		// Releases
+		if err := tx.Where("package_id = ?", pkgID).Delete(&Release{}).Error; err != nil {
+			return fmt.Errorf("removing package: deleting releases: %w", err)
+		}
+
+		// Set package status to removed
+		result := tx.Model(&Package{}).Where("id = ?", pkgID).Update("status", PackageStatusRemoved)
+		if result.Error != nil {
+			return fmt.Errorf("removing package: %w", result.Error)
+		}
+		return nil
+	})
 }
 
 func (r *PackageRepo) CountByWorkspace(ctx context.Context, workspaceID string, ecosystem *entity.Ecosystem) (int64, error) {

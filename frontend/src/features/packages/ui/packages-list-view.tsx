@@ -176,6 +176,8 @@ export const PackagesListView = () => {
   const { role } = useCurrentWorkspaceRole()
   /** Viewers get a read-only view - all mutation buttons are hidden */
   const canWrite = hasMinimumRole(role, "member")
+  /** Package deletion requires admin+ (packages:delete permission) */
+  const canDelete = hasMinimumRole(role, "admin")
 
   // Reset to first page when filters or sort change
   useEffect(() => {
@@ -425,6 +427,7 @@ export const PackagesListView = () => {
               >
                 <Ban className="size-4 text-destructive" />
               </Button>
+              {canDelete && (
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -436,12 +439,13 @@ export const PackagesListView = () => {
               >
                 <Trash2 className="size-4 text-destructive" />
               </Button>
+              )}
             </div>
           )
         },
       },
     ],
-    [handleRemove, handleBlock, handleUnblock, canWrite, ecosystemFilter]
+    [handleRemove, handleBlock, handleUnblock, canWrite, canDelete, ecosystemFilter]
   )
 
   const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize))
@@ -702,14 +706,18 @@ export const PackagesListView = () => {
                   colSpan={columns.length}
                   icon={<Plus className="h-8 w-8" />}
                   title="No packages found."
-                  description="Add your first package or discover popular packages to start monitoring."
+                  description={canWrite ? "Add your first package or discover popular packages to start monitoring." : "No packages are being monitored yet."}
                 >
-                  <Button size="sm" onClick={() => setDialogOpen(true)}>
-                    Add Package
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleDiscover} disabled={discoverMutation.isPending}>
-                    Discover Packages
-                  </Button>
+                  {canWrite && (
+                    <>
+                      <Button size="sm" onClick={() => setDialogOpen(true)}>
+                        Add Package
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleDiscover} disabled={discoverMutation.isPending}>
+                        Discover Packages
+                      </Button>
+                    </>
+                  )}
                 </TableEmptyState>
                 )
               )}

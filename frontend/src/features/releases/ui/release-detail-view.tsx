@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, Badge, Separator, Skeleton, B
 import type { Classification } from "@/domains/common"
 import { ArrowLeft, FileCode, Plus, Minus, WrapText, RotateCcw, Loader2 } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
+import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 import { useRelease, useReanalyzeRelease } from "@/features/releases/hooks/use-releases"
 
 const classificationColor = (c: Classification) => {
@@ -66,6 +67,8 @@ export const ReleaseDetailView = ({
 
   const { data: releaseRes, isError, refetch } = useRelease(releaseId)
   const reanalyzeMutation = useReanalyzeRelease(releaseId)
+  const { role: currentRole } = useCurrentWorkspaceRole()
+  const canReanalyze = hasMinimumRole(currentRole, "admin")
   const release = releaseRes?.data ?? null
 
   if (isError) return (
@@ -106,7 +109,7 @@ export const ReleaseDetailView = ({
             {release.package?.name} <span className="text-muted-foreground font-normal">v{release.version}</span>
           </h1>
           {/* Re-analyze button */}
-          {release.status === "completed" && !release.isBaseline && (
+          {canReanalyze && release.status === "completed" && !release.isBaseline && (
             <Button
               variant="outline"
               size="sm"

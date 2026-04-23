@@ -28,7 +28,7 @@ import {
   Route,
   Zap,
 } from "lucide-react"
-import { useAuth } from "@/core"
+import { useAuth, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 import {
   useChannels,
   useCreateChannel,
@@ -64,10 +64,25 @@ const SEVERITY_COLORS: Record<string, string> = {
 
 export const ChannelsView = () => {
   const { currentWorkspace } = useAuth()
+  const { role: currentRole } = useCurrentWorkspaceRole()
+  const canManage = hasMinimumRole(currentRole, "admin")
   const workspaceId = currentWorkspace?.id ?? null
 
   const { data: channelsRes, isLoading: channelsLoading } = useChannels(workspaceId)
   const { data: rulesRes, isLoading: rulesLoading } = useRules(workspaceId)
+
+  if (!canManage) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Notification Channels</h1>
+          <p className="mt-1 text-muted-foreground">
+            You do not have permission to manage notification channels. Admin access is required.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const channels = channelsRes?.data ?? []
   const rules = rulesRes?.data ?? []
@@ -99,6 +114,7 @@ export const ChannelsView = () => {
         workspaceId={workspaceId}
         channels={channels}
         loading={channelsLoading}
+        canManage={canManage}
       />
 
       <Separator />
@@ -109,6 +125,7 @@ export const ChannelsView = () => {
         rules={rules}
         channels={channels}
         loading={rulesLoading}
+        canManage={canManage}
       />
     </div>
   )
@@ -120,10 +137,12 @@ const ChannelsSection = ({
   workspaceId,
   channels,
   loading,
+  canManage,
 }: {
   workspaceId: string
   channels: NotificationChannel[]
   loading: boolean
+  canManage: boolean
 }) => {
   const [createOpen, setCreateOpen] = useState(false)
   const [channelName, setChannelName] = useState("")
@@ -171,6 +190,7 @@ const ChannelsSection = ({
             Configure where notifications are sent.
           </CardDescription>
         </div>
+        {canManage && (
         <Dialog open={createOpen} onOpenChange={(open) => setCreateOpen(open)}>
           <DialogTrigger
             render={
@@ -236,6 +256,7 @@ const ChannelsSection = ({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -248,10 +269,12 @@ const ChannelsSection = ({
             title="No channels configured."
             description="Add a notification channel to start receiving alerts via email, Slack, or webhook."
           >
+            {canManage && (
             <Button size="sm" onClick={() => setCreateOpen(true)}>
               <Plus className="mr-1 size-4" />
               Add Channel
             </Button>
+            )}
           </EmptyState>
         ) : (
           <div className="space-y-3">
@@ -277,6 +300,8 @@ const ChannelsSection = ({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {canManage && (
+                  <>
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -309,6 +334,8 @@ const ChannelsSection = ({
                       <Trash2 className="size-4 text-destructive" />
                     </Button>
                   </ConfirmDialog>
+                  </>
+                  )}
                 </div>
               </div>
             ))}
@@ -433,11 +460,13 @@ const RulesSection = ({
   rules,
   channels,
   loading,
+  canManage,
 }: {
   workspaceId: string
   rules: Array<{ id: string; channelId: string; severity: string; isActive: boolean; createdAt: string }>
   channels: NotificationChannel[]
   loading: boolean
+  canManage: boolean
 }) => {
   const [createOpen, setCreateOpen] = useState(false)
   const [ruleChannel, setRuleChannel] = useState<string | null>(null)
@@ -482,6 +511,7 @@ const RulesSection = ({
             Define which alerts are sent to which channels based on severity.
           </CardDescription>
         </div>
+        {canManage && (
         <Dialog open={createOpen} onOpenChange={(open) => setCreateOpen(open)}>
           <DialogTrigger
             render={
@@ -567,6 +597,7 @@ const RulesSection = ({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -579,10 +610,12 @@ const RulesSection = ({
             title="No routing rules configured."
             description="Add a rule to route alerts of specific severities to your notification channels."
           >
+            {canManage && (
             <Button size="sm" onClick={() => setCreateOpen(true)}>
               <Plus className="mr-1 size-4" />
               Add Rule
             </Button>
+            )}
           </EmptyState>
         ) : (
           <div className="space-y-3">
@@ -607,6 +640,7 @@ const RulesSection = ({
                     </span>
                   </div>
                 </div>
+                {canManage && (
                 <ConfirmDialog
                   title="Delete Rule"
                   description={`Are you sure you want to remove the ${rule.severity} severity routing rule for ${getChannelName(rule.channelId)}?`}
@@ -622,6 +656,7 @@ const RulesSection = ({
                     <Trash2 className="size-4 text-destructive" />
                   </Button>
                 </ConfirmDialog>
+                )}
               </div>
             ))}
           </div>

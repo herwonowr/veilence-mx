@@ -52,6 +52,8 @@ type DiffResponse struct {
 	FileChangesCount int       `json:"fileChangesCount"`
 	LinesAdded       int       `json:"linesAdded"`
 	LinesRemoved     int       `json:"linesRemoved"`
+	Truncated        bool      `json:"truncated"`
+	OriginalSize     int       `json:"originalSize"`
 	CreatedAt        time.Time `json:"createdAt"`
 }
 
@@ -68,6 +70,8 @@ func DiffFromEntity(d *entity.Diff) *DiffResponse {
 		FileChangesCount: d.FileChangesCount,
 		LinesAdded:       d.LinesAdded,
 		LinesRemoved:     d.LinesRemoved,
+		Truncated:        d.Truncated,
+		OriginalSize:     d.OriginalSize,
 		CreatedAt:        d.CreatedAt,
 	}
 }

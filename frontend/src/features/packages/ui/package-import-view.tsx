@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Badge, Textarea, Checkbox, Progress, Alert, AlertDescription, ScrollArea } from "@/ui"
 import { ArrowLeft, Upload, FileText, Loader2, AlertCircle, CheckCircle2, CloudUpload } from "lucide-react"
 import { useBulkImportPackages, usePackages } from "@/features/packages/hooks/use-packages"
+import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 
 type ImportFormat = "requirements_txt" | "package_json" | "list"
 
@@ -49,6 +50,8 @@ const detectFormat = (text: string, fileName?: string): ImportFormat => {
 }
 
 export const PackageImportView = () => {
+  const { role: currentRole } = useCurrentWorkspaceRole()
+  const canImport = hasMinimumRole(currentRole, "member")
   const [textInput, setTextInput] = useState("")
   const [detectedFormat, setDetectedFormat] = useState<ImportFormat>("requirements_txt")
   const [rawEntries, setRawEntries] = useState<ParsedEntry[]>([])
@@ -436,6 +439,7 @@ export const PackageImportView = () => {
                   </Badge>
                 </CardDescription>
               </div>
+              {canImport && (
               <Button
                 onClick={handleImport}
                 disabled={bulkImportMutation.isPending || selectedCount === 0}
@@ -447,6 +451,7 @@ export const PackageImportView = () => {
                 )}
                 Add {selectedCount} Selected Package{selectedCount !== 1 ? "s" : ""}
               </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -508,6 +513,7 @@ export const PackageImportView = () => {
                 >
                   Cancel
                 </Button>
+                {canImport && (
                 <Button
                   size="sm"
                   onClick={handleImport}
@@ -520,6 +526,7 @@ export const PackageImportView = () => {
                   )}
                   Add {selectedCount} Selected
                 </Button>
+                )}
               </div>
             </div>
           </CardContent>

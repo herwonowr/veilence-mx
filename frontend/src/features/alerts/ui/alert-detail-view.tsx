@@ -6,6 +6,7 @@ import { notFound } from "next/navigation"
 import { Card, CardContent, Badge, Button, Skeleton, DetailError } from "@/ui"
 import { ArrowLeft, ExternalLink } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
+import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 import { useAlert, useUpdateAlert } from "@/features/alerts/hooks/use-alerts"
 import { AlertNotesTimeline } from "@/features/alerts/ui/alert-notes-timeline"
 import type { AlertSeverity } from "@/domains/common"
@@ -31,6 +32,8 @@ export const AlertDetailView = ({
 
   const { data: alertRes, isError, refetch } = useAlert(alertId)
   const updateMutation = useUpdateAlert()
+  const { role: currentRole } = useCurrentWorkspaceRole()
+  const canTriage = hasMinimumRole(currentRole, "member")
 
   const alert = alertRes?.data ?? null
 
@@ -55,7 +58,7 @@ export const AlertDetailView = ({
         </Link>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-3xl font-bold">Alert #{alertId}</h1>
-          {alert && (
+          {alert && canTriage && (
             <div className="flex flex-wrap items-center gap-2">
               {alert.status === "new" && (
                 <Button

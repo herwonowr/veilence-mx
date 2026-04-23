@@ -164,6 +164,9 @@ func (r *ReleaseRepo) FindByWorkspaceID(ctx context.Context, workspaceID string,
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("counting releases: %w", err)
 	}
+	if total == 0 {
+		return []entity.Release{}, 0, nil
+	}
 
 	// Qualify sort clause if it doesn't contain a table prefix
 	if sortClause != "" && !strings.Contains(sortClause, ".") {
@@ -210,7 +213,7 @@ func (r *ReleaseRepo) FindByWorkspaceIDWithDetails(ctx context.Context, workspac
 	}
 	if filters.LatestPerPackage {
 		// Sub-select latest release per package
-		query = query.Where("releases.id IN (SELECT MAX(r2.id) FROM releases r2 GROUP BY r2.package_id)")
+		query = query.Where("releases.id IN (SELECT DISTINCT ON (r2.package_id) r2.id FROM releases r2 ORDER BY r2.package_id, r2.created_at DESC)")
 	}
 	if filters.Classification != nil && *filters.Classification != "" {
 		cls := *filters.Classification
@@ -228,6 +231,9 @@ func (r *ReleaseRepo) FindByWorkspaceIDWithDetails(ctx context.Context, workspac
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("counting releases with details: %w", err)
+	}
+	if total == 0 {
+		return []entity.ReleaseWithDetails{}, 0, nil
 	}
 
 	// Qualify sort clause if needed

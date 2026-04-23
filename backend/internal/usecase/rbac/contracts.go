@@ -14,7 +14,3 @@ type InvitationEmailSender = usecase.InvitationEmailSender
 // UserEmailResolver is a type alias for the interface defined in the shared
 // usecase package. Used to resolve user IDs to emails for invitation emails.
 type UserEmailResolver = usecase.UserEmailResolver
-
-// NotificationDispatcher is a type alias for the interface defined in the shared
-// usecase package. Used to dispatch in-app notifications on invitation creation.
-type NotificationDispatcher = usecase.NotificationDispatcher

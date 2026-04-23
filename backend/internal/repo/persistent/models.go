@@ -103,6 +103,8 @@ type Diff struct {
 	FileChangesCount int        `json:"fileChangesCount"`
 	LinesAdded       int        `json:"linesAdded"`
 	LinesRemoved     int        `json:"linesRemoved"`
+	Truncated        bool       `gorm:"not null;default:false" json:"truncated"`
+	OriginalSize     int        `gorm:"not null;default:0" json:"originalSize"`
 	CreatedAt        time.Time  `json:"createdAt"`
 	Analyses         []Analysis `gorm:"foreignKey:DiffID" json:"analyses,omitempty"`
 }

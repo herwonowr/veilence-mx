@@ -159,6 +159,10 @@ func (s *Service) Register(email, password, firstName, lastName string) (*entity
 		return nil, fmt.Errorf("checking existing user: %w", err)
 	}
 
+	if err := entity.ValidatePassword(password); err != nil {
+		return nil, err
+	}
+
 	passwordHash, err := hashPassword(password)
 	if err != nil {
 		return nil, fmt.Errorf("hashing password: %w", err)
@@ -675,6 +679,10 @@ func (s *Service) ResetPassword(rawToken, newPassword string) error {
 	}
 
 	// Hash the new password
+	if err := entity.ValidatePassword(newPassword); err != nil {
+		return err
+	}
+
 	passwordHash, err := hashPassword(newPassword)
 	if err != nil {
 		return fmt.Errorf("hashing password: %w", err)
@@ -963,6 +971,10 @@ func (s *Service) ChangePassword(userID string, currentPassword, newPassword, cu
 
 	if !checkPassword(currentPassword, user.PasswordHash) {
 		return ErrInvalidPassword
+	}
+
+	if err := entity.ValidatePassword(newPassword); err != nil {
+		return err
 	}
 
 	passwordHash, err := hashPassword(newPassword)

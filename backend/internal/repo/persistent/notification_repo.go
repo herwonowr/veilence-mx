@@ -88,47 +88,19 @@ func (r *NotificationRepo) FindByUserAndWorkspaceIDs(ctx context.Context, worksp
 	return result, nil
 }
 
-// FindDirectByUserID returns notifications directly targeted to a specific user
-// (by user_id), regardless of workspace membership. This is used for invitation
-// notifications where the user is not yet a member of the workspace.
-func (r *NotificationRepo) FindDirectByUserID(ctx context.Context, userID string, onlyUnread bool) ([]entity.Notification, error) {
+func (r *NotificationRepo) MarkRead(ctx context.Context, id, workspaceID, userID string) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&Notification{}).
-		Where("user_id = ?", userID)
+		Where("id = ? AND (user_id = ? OR user_id IS NULL)", id, userID)
 
-	if onlyUnread {
-		query = query.Where("is_read = ?", false)
+	// Always require workspace scoping - callers must resolve workspaceID before calling.
+	if workspaceID != "" {
+		query = query.Where("workspace_id = ?", workspaceID)
+	} else {
+		// Safety: refuse to update without workspace scope to prevent cross-tenant access.
+		return 0, nil
 	}
 
-	var ms []Notification
-	err := query.Order("created_at DESC").Find(&ms).Error
-	if err != nil {
-		return nil, fmt.Errorf("NotificationRepo.FindDirectByUserID: %w", err)
-	}
-
-	result := make([]entity.Notification, len(ms))
-	for i := range ms {
-		result[i] = *notifToDomain(&ms[i])
-	}
-	return result, nil
-}
-
-// CountUnreadDirectByUserID counts unread notifications directly targeted to a
-// specific user, regardless of workspace membership.
-func (r *NotificationRepo) CountUnreadDirectByUserID(ctx context.Context, userID string) (int64, error) {
-	var count int64
-	err := r.db.WithContext(ctx).Model(&Notification{}).
-		Where("user_id = ? AND is_read = ?", userID, false).
-		Count(&count).Error
-	if err != nil {
-		return 0, fmt.Errorf("NotificationRepo.CountUnreadDirectByUserID: %w", err)
-	}
-	return count, nil
-}
-
-func (r *NotificationRepo) MarkRead(ctx context.Context, id, userID string) (int64, error) {
-	result := r.db.WithContext(ctx).Model(&Notification{}).
-		Where("id = ? AND (user_id = ? OR user_id IS NULL)", id, userID).
-		Update("is_read", true)
+	result := query.Update("is_read", true)
 	if result.Error != nil {
 		return 0, fmt.Errorf("marking notification as read: %w", result.Error)
 	}

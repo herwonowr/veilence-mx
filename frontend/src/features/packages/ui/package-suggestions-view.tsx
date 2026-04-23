@@ -55,11 +55,14 @@ import {
   useRejectPackage,
   useBulkApprovePackages,
 } from "@/features/packages/hooks/use-packages"
+import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 
 const VALID_ECOSYSTEMS: Ecosystem[] = ["python", "npm"]
 
 export const PackageSuggestionsView = () => {
   const searchParams = useSearchParams()
+  const { role: currentRole } = useCurrentWorkspaceRole()
+  const canApprove = hasMinimumRole(currentRole, "member")
 
   const initialEcosystem = searchParams.get("ecosystem") ?? ""
 
@@ -203,6 +206,7 @@ export const PackageSuggestionsView = () => {
         meta: { headerClassName: "w-[1%] whitespace-nowrap text-right", cellClassName: "text-right" },
         cell: ({ row }) => {
           const pkg = row.original
+          if (!canApprove) return null
           return (
             <div className="flex items-center justify-end gap-1">
               <Button
@@ -230,7 +234,7 @@ export const PackageSuggestionsView = () => {
         },
       },
     ],
-    [handleApprove, handleReject, approveMutation.isPending, rejectMutation.isPending]
+    [handleApprove, handleReject, approveMutation.isPending, rejectMutation.isPending, canApprove]
   )
 
   const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize))
@@ -265,7 +269,7 @@ export const PackageSuggestionsView = () => {
               <Badge variant="secondary">{total} pending</Badge>
             )}
           </div>
-          {total > 0 && (
+          {total > 0 && canApprove && (
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"

@@ -116,8 +116,17 @@ func (d *Differ) processRelease(ctx context.Context, releaseID string) error {
 	}
 
 	// Truncate diff if too large
-	if len(diffContent) > d.config.DiffSizeLimit {
-		diffContent = diffContent[:d.config.DiffSizeLimit] + "\n... [diff truncated]"
+	truncated := false
+	originalSize := len(diffContent)
+	if originalSize > d.config.DiffSizeLimit {
+		diffContent = diffContent[:d.config.DiffSizeLimit] + "\n\n--- DIFF TRUNCATED (exceeded 100KB limit) ---\n"
+		truncated = true
+		slog.Warn("diff truncated",
+			"package", pkg.Name,
+			"version", release.Version,
+			"original_size", originalSize,
+			"limit", d.config.DiffSizeLimit,
+		)
 	}
 
 	// Store diff
@@ -128,6 +137,8 @@ func (d *Differ) processRelease(ctx context.Context, releaseID string) error {
 		FileChangesCount: stats.filesChanged,
 		LinesAdded:       stats.linesAdded,
 		LinesRemoved:     stats.linesRemoved,
+		Truncated:        truncated,
+		OriginalSize:     originalSize,
 	}
 
 	if err := d.repo.CreateDiff(ctx, diff); err != nil {
@@ -313,14 +324,19 @@ func generateDiff(oldDir, newDir string) (string, diffStats, error) {
 			oldLines := strings.Split(oldContent, "\n")
 			newLines := strings.Split(newContent, "\n")
 
-			// Simple line-by-line diff (for proper unified diff, use a diff library)
-			for _, line := range oldLines {
-				diffBuilder.WriteString("-" + line + "\n")
-				stats.linesRemoved++
-			}
-			for _, line := range newLines {
-				diffBuilder.WriteString("+" + line + "\n")
-				stats.linesAdded++
+			hunks := computeUnifiedHunks(oldLines, newLines, 3)
+			for _, h := range hunks {
+				diffBuilder.WriteString(fmt.Sprintf("@@ -%d,%d +%d,%d @@\n", h.oldStart+1, h.oldCount, h.newStart+1, h.newCount))
+				for _, op := range h.lines {
+					diffBuilder.WriteString(op.text)
+					diffBuilder.WriteString("\n")
+					switch op.kind {
+					case opAdd:
+						stats.linesAdded++
+					case opDel:
+						stats.linesRemoved++
+					}
+				}
 			}
 		}
 		diffBuilder.WriteString("\n")
@@ -367,4 +383,212 @@ func walkFiles(root string) (map[string]string, error) {
 	})
 
 	return files, err
+}
+
+// --- Unified diff generation using Myers-like LCS approach (stdlib only) ---
+
+const (
+	opCtx = iota // context line (unchanged)
+	opAdd        // added line
+	opDel        // deleted line
+)
+
+type diffLine struct {
+	kind int
+	text string // includes prefix: " ", "+", or "-"
+}
+
+type hunk struct {
+	oldStart int
+	oldCount int
+	newStart int
+	newCount int
+	lines    []diffLine
+}
+
+// computeUnifiedHunks computes a unified diff between old and new line slices,
+// grouping changes into hunks with the given number of context lines.
+func computeUnifiedHunks(oldLines, newLines []string, contextLines int) []hunk {
+	// Compute edit script via LCS
+	ops := computeEditScript(oldLines, newLines)
+
+	if len(ops) == 0 {
+		return nil
+	}
+
+	// Group into hunks
+	var hunks []hunk
+	var current *hunk
+	flushDistance := contextLines*2 + 1
+
+	oldIdx, newIdx := 0, 0
+
+	for i, op := range ops {
+		switch op.kind {
+		case opCtx:
+			// Check if we're near a change
+			nearChange := false
+			// Look backward: are we within contextLines of a previous change?
+			for j := i - 1; j >= 0 && i-j <= contextLines; j-- {
+				if ops[j].kind != opCtx {
+					nearChange = true
+					break
+				}
+			}
+			// Look forward: are we within contextLines of a next change?
+			if !nearChange {
+				for j := i + 1; j < len(ops) && j-i <= contextLines; j++ {
+					if ops[j].kind != opCtx {
+						nearChange = true
+						break
+					}
+				}
+			}
+
+			if nearChange {
+				if current == nil {
+					current = &hunk{oldStart: oldIdx, newStart: newIdx}
+				}
+				current.lines = append(current.lines, diffLine{kind: opCtx, text: " " + op.line})
+				current.oldCount++
+				current.newCount++
+			} else if current != nil {
+				// Check if next change is close enough to merge
+				nextChangeDist := 0
+				for j := i + 1; j < len(ops); j++ {
+					if ops[j].kind != opCtx {
+						nextChangeDist = j - i
+						break
+					}
+				}
+				if nextChangeDist > 0 && nextChangeDist <= flushDistance {
+					current.lines = append(current.lines, diffLine{kind: opCtx, text: " " + op.line})
+					current.oldCount++
+					current.newCount++
+				} else {
+					hunks = append(hunks, *current)
+					current = nil
+				}
+			}
+
+			oldIdx++
+			newIdx++
+		case opDel:
+			if current == nil {
+				// Start new hunk, include preceding context
+				start := oldIdx
+				startNew := newIdx
+				var ctx []diffLine
+				for j := i - 1; j >= 0 && len(ctx) < contextLines; j-- {
+					if ops[j].kind == opCtx {
+						ctx = append([]diffLine{{kind: opCtx, text: " " + ops[j].line}}, ctx...)
+						start--
+						startNew--
+					} else {
+						break
+					}
+				}
+				current = &hunk{oldStart: start, newStart: startNew, lines: ctx, oldCount: len(ctx), newCount: len(ctx)}
+			}
+			current.lines = append(current.lines, diffLine{kind: opDel, text: "-" + op.line})
+			current.oldCount++
+			oldIdx++
+		case opAdd:
+			if current == nil {
+				start := oldIdx
+				startNew := newIdx
+				var ctx []diffLine
+				for j := i - 1; j >= 0 && len(ctx) < contextLines; j-- {
+					if ops[j].kind == opCtx {
+						ctx = append([]diffLine{{kind: opCtx, text: " " + ops[j].line}}, ctx...)
+						start--
+						startNew--
+					} else {
+						break
+					}
+				}
+				current = &hunk{oldStart: start, newStart: startNew, lines: ctx, oldCount: len(ctx), newCount: len(ctx)}
+			}
+			current.lines = append(current.lines, diffLine{kind: opAdd, text: "+" + op.line})
+			current.newCount++
+			newIdx++
+		}
+	}
+
+	if current != nil {
+		hunks = append(hunks, *current)
+	}
+
+	return hunks
+}
+
+type editOp struct {
+	kind int // opCtx, opAdd, opDel
+	line string
+}
+
+// computeEditScript computes a minimal edit script between old and new using LCS.
+func computeEditScript(oldLines, newLines []string) []editOp {
+	m, n := len(oldLines), len(newLines)
+
+	// Optimize: use O(min(m,n)) space LCS with full path recovery
+	// Build LCS table (O(m*n) time and space - acceptable for package diffs)
+	// For very large files, we cap and fall back to simple approach
+	const maxCells = 10_000_000 // ~10M cells max
+	if int64(m)*int64(n) > maxCells {
+		return fallbackEditScript(oldLines, newLines)
+	}
+
+	// Standard LCS DP
+	dp := make([][]int, m+1)
+	for i := range dp {
+		dp[i] = make([]int, n+1)
+	}
+	for i := 1; i <= m; i++ {
+		for j := 1; j <= n; j++ {
+			if oldLines[i-1] == newLines[j-1] {
+				dp[i][j] = dp[i-1][j-1] + 1
+			} else if dp[i-1][j] >= dp[i][j-1] {
+				dp[i][j] = dp[i-1][j]
+			} else {
+				dp[i][j] = dp[i][j-1]
+			}
+		}
+	}
+
+	// Backtrack to produce edit script
+	var ops []editOp
+	i, j := m, n
+	for i > 0 || j > 0 {
+		if i > 0 && j > 0 && oldLines[i-1] == newLines[j-1] {
+			ops = append(ops, editOp{kind: opCtx, line: oldLines[i-1]})
+			i--
+			j--
+		} else if j > 0 && (i == 0 || dp[i][j-1] >= dp[i-1][j]) {
+			ops = append(ops, editOp{kind: opAdd, line: newLines[j-1]})
+			j--
+		} else {
+			ops = append(ops, editOp{kind: opDel, line: oldLines[i-1]})
+			i--
+		}
+	}
+
+	// Reverse to get forward order
+	for l, r := 0, len(ops)-1; l < r; l, r = l+1, r-1 {
+		ops[l], ops[r] = ops[r], ops[l]
+	}
+
+	return ops
+}
+
+// fallbackEditScript handles very large files by showing all removed then all added.
+func fallbackEditScript(oldLines, newLines []string) []editOp {
+	ops := make([]editOp, 0, len(oldLines)+len(newLines))
+	for _, l := range oldLines {
+		ops = append(ops, editOp{kind: opDel, line: l})
+	}
+	for _, l := range newLines {
+		ops = append(ops, editOp{kind: opAdd, line: l})
+	}
+	return ops
 }

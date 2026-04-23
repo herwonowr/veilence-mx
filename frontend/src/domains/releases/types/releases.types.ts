@@ -20,6 +20,8 @@ export interface Diff {
   fileChangesCount: number
   linesAdded: number
   linesRemoved: number
+  truncated: boolean
+  originalSize: number
   createdAt: string
 }
 

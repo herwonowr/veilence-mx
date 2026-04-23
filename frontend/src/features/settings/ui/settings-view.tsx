@@ -6,9 +6,12 @@ import { Save, RefreshCw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangl
 import { settingsSchema } from "@/domains/settings"
 import { ZodError } from "zod"
 import { useSettings, useUpdateSettings, useDiscoverNow, usePackageCountSummary } from "@/features/settings/hooks/use-settings"
+import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 import Link from "next/link"
 
 export const SettingsView = () => {
+  const { role: currentRole } = useCurrentWorkspaceRole()
+  const canEdit = hasMinimumRole(currentRole, "admin")
   const [localSettings, setLocalSettings] = useState<Record<string, string>>({})
   const [prevSettingsKey, setPrevSettingsKey] = useState<string | null>(null)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
@@ -67,6 +70,19 @@ export const SettingsView = () => {
     }
   }, [localSettings, updateMutation])
 
+  if (!canEdit) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Settings</h1>
+          <p className="mt-1 text-muted-foreground">
+            You do not have permission to view or edit settings. Admin access is required.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -121,6 +137,7 @@ export const SettingsView = () => {
                 Automatically scan registry popularity rankings and add new packages to monitoring.
               </CardDescription>
             </div>
+            {canEdit && (
             <Button
               variant="outline"
               size="sm"
@@ -134,6 +151,7 @@ export const SettingsView = () => {
               )}
               Discover Now
             </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -333,6 +351,7 @@ export const SettingsView = () => {
       </Card>
 
       {/* Save button - right-aligned */}
+      {canEdit && (
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={updateMutation.isPending}>
           {updateMutation.isPending ? (
@@ -343,12 +362,13 @@ export const SettingsView = () => {
           Save Settings
         </Button>
       </div>
+      )}
 
       {/* Spacer for sticky footer */}
-      {isDirty && <div className="h-16" />}
+      {canEdit && isDirty && <div className="h-16" />}
 
       {/* Sticky unsaved changes footer */}
-      {isDirty && (
+      {canEdit && isDirty && (
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
           <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
             <div className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400">

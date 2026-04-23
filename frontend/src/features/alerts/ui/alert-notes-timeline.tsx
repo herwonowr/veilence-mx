@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/ui"
 import { MessageSquare, Send, Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
-import { useAuth } from "@/core"
+import { useAuth, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 import {
   useAlertNotes,
   useCreateAlertNote,
@@ -157,6 +157,8 @@ const NoteItem = ({
 
 export const AlertNotesTimeline = ({ alertId }: { alertId: string }) => {
   const { user } = useAuth()
+  const { role: currentRole } = useCurrentWorkspaceRole()
+  const canWrite = hasMinimumRole(currentRole, "member")
   const { data: notesRes, isLoading } = useAlertNotes(alertId)
   const createNoteMutation = useCreateAlertNote(alertId)
   const updateNoteMutation = useUpdateAlertNote(alertId)
@@ -228,6 +230,7 @@ export const AlertNotesTimeline = ({ alertId }: { alertId: string }) => {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Add note form */}
+        {canWrite && (
         <div className="space-y-2">
           <Textarea
             placeholder="Add a note... (Ctrl+Enter to submit)"
@@ -251,6 +254,7 @@ export const AlertNotesTimeline = ({ alertId }: { alertId: string }) => {
             </Button>
           </div>
         </div>
+        )}
 
         {/* Timeline */}
         {isLoading ? (
@@ -274,7 +278,7 @@ export const AlertNotesTimeline = ({ alertId }: { alertId: string }) => {
               <NoteItem
                 key={note.id}
                 note={note}
-                isOwner={user?.id === note.userId}
+                isOwner={canWrite && user?.id === note.userId}
                 isEditing={editingNoteId === note.id}
                 editContent={editingNoteId === note.id ? editContent : note.content}
                 onStartEdit={() => handleStartEdit(note)}

@@ -47,7 +47,7 @@ import {
 } from "@/ui"
 import { Key, Plus, Trash2, Copy, Check, Loader2, CalendarIcon } from "lucide-react"
 import { useApiKeys, useCreateApiKey, useDeleteApiKey, useCurrentWorkspaceRole } from "@/features/account/hooks/use-api-keys"
-import { cn } from "@/core"
+import { cn, hasMinimumRole } from "@/core"
 
 const ROLE_OPTIONS: { value: APIKeyRole; label: string; description: string }[] = [
   { value: "admin", label: "Admin", description: "Administrative access (cannot delete workspace)" },
@@ -85,6 +85,7 @@ export const ApiKeysView = () => {
     { width: "w-8", header: "" },
   ]
 
+  const canCreate = hasMinimumRole(currentRole, "member")
   const keys = keysRes?.data ?? []
 
   // Filter role options based on current user's workspace role
@@ -184,188 +185,190 @@ export const ApiKeysView = () => {
             Manage API keys for programmatic access
           </p>
         </div>
-        <Dialog open={createDialogOpen} onOpenChange={(open) => setCreateDialogOpen(open)}>
-          <DialogTrigger
-            render={
-              <Button>
-                <Plus className="mr-2 size-4" />
-                New API Key
-              </Button>
-            }
-          />
-          <DialogContent className="sm:max-w-md">
-            <form onSubmit={handleCreate}>
-              <DialogHeader>
-                <DialogTitle>Create API Key</DialogTitle>
-                <DialogDescription>
-                  Generate a new API key for programmatic access.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                {createError && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{createError}</AlertDescription>
-                  </Alert>
-                )}
-                <Field>
-                  <FieldLabel htmlFor="key-name">Name</FieldLabel>
-                  <Input
-                    id="key-name"
-                    placeholder="e.g. CI/CD Pipeline"
-                    value={keyName}
-                    onChange={(e) => setKeyName(e.target.value)}
-                    required
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Role</FieldLabel>
-                  <RadioGroup value={keyRole} onValueChange={(v) => handleRoleSelect(v as APIKeyRole)} className="space-y-2">
-                    {availableRoles.map((option) => (
-                      <label
-                        key={option.value}
-                        className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors ${
-                          keyRole === option.value
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:bg-muted/50"
-                        }`}
-                      >
-                        <RadioGroupItem value={option.value} className="sr-only" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{option.label}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {option.description}
-                          </p>
-                        </div>
-                        <Badge variant={roleBadgeVariant(option.value)}>
-                          {option.value}
-                        </Badge>
-                      </label>
-                    ))}
-                  </RadioGroup>
-                </Field>
-                <Field>
-                  <FieldLabel>Expiration (optional)</FieldLabel>
-                  <Popover open={dateOpen} onOpenChange={setDateOpen}>
-                    <PopoverTrigger
-                      render={
-                        <button
-                          type="button"
-                          className={cn(
-                            buttonVariants({ variant: "outline", size: "sm" }),
-                            "w-full justify-start text-left font-normal"
-                          )}
-                          aria-label="Select expiration date and time"
-                        />
-                      }
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {expiresAt
-                        ? expiresAt.toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          }) +
-                          ` at ${String(expiresAt.getHours()).padStart(2, "0")}:${String(expiresAt.getMinutes()).padStart(2, "0")}`
-                        : "Select expiration date"}
-                    </PopoverTrigger>
-                    <PopoverContent align="start" className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={expiresAt}
-                        onSelect={(date) => {
-                          if (!date) return
-                          const hour = expiresAt ? expiresAt.getHours() : selectedHour
-                          const minute = expiresAt ? expiresAt.getMinutes() : selectedMinute
-                          const combined = new Date(date)
-                          combined.setHours(hour, minute, 0, 0)
-                          setExpiresAt(combined)
-                          setSelectedHour(hour)
-                          setSelectedMinute(minute)
-                        }}
-                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                      />
-                      <div className="border-t border-border px-3 py-3 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground whitespace-nowrap">
-                            Time:
-                          </span>
-                          <Select
-                            value={String(selectedHour)}
-                            onValueChange={(value) => {
-                              if (value === null) return
-                              const h = Number(value)
-                              setSelectedHour(h)
-                              if (expiresAt) {
-                                const updated = new Date(expiresAt)
-                                updated.setHours(h)
-                                setExpiresAt(updated)
-                              }
-                            }}
-                          >
-                            <SelectTrigger size="sm" aria-label="Hour">
-                              <SelectValue>{String(selectedHour).padStart(2, "0")}</SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Array.from({ length: 24 }, (_, i) => (
-                                <SelectItem key={i} value={String(i)}>
-                                  {String(i).padStart(2, "0")}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <span className="text-sm font-medium text-muted-foreground">:</span>
-                          <Select
-                            value={String(selectedMinute)}
-                            onValueChange={(value) => {
-                              if (value === null) return
-                              const m = Number(value)
-                              setSelectedMinute(m)
-                              if (expiresAt) {
-                                const updated = new Date(expiresAt)
-                                updated.setMinutes(m)
-                                setExpiresAt(updated)
-                              }
-                            }}
-                          >
-                            <SelectTrigger size="sm" aria-label="Minute">
-                              <SelectValue>{String(selectedMinute).padStart(2, "0")}</SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
-                                <SelectItem key={m} value={String(m)}>
-                                  {String(m).padStart(2, "0")}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="w-full"
-                          onClick={() => setDateOpen(false)}
-                        >
-                          Confirm
-                        </Button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  <FieldDescription>
-                    Leave empty for no expiration
-                  </FieldDescription>
-                </Field>
-              </div>
-              <DialogFooter>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending && (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  )}
-                  Create Key
+        {canCreate && (
+          <Dialog open={createDialogOpen} onOpenChange={(open) => setCreateDialogOpen(open)}>
+            <DialogTrigger
+              render={
+                <Button>
+                  <Plus className="mr-2 size-4" />
+                  New API Key
                 </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+              }
+            />
+            <DialogContent className="sm:max-w-md">
+              <form onSubmit={handleCreate}>
+                <DialogHeader>
+                  <DialogTitle>Create API Key</DialogTitle>
+                  <DialogDescription>
+                    Generate a new API key for programmatic access.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  {createError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{createError}</AlertDescription>
+                    </Alert>
+                  )}
+                  <Field>
+                    <FieldLabel htmlFor="key-name">Name</FieldLabel>
+                    <Input
+                      id="key-name"
+                      placeholder="e.g. CI/CD Pipeline"
+                      value={keyName}
+                      onChange={(e) => setKeyName(e.target.value)}
+                      required
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Role</FieldLabel>
+                    <RadioGroup value={keyRole} onValueChange={(v) => handleRoleSelect(v as APIKeyRole)} className="space-y-2">
+                      {availableRoles.map((option) => (
+                        <label
+                          key={option.value}
+                          className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors ${
+                            keyRole === option.value
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:bg-muted/50"
+                          }`}
+                        >
+                          <RadioGroupItem value={option.value} className="sr-only" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{option.label}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {option.description}
+                            </p>
+                          </div>
+                          <Badge variant={roleBadgeVariant(option.value)}>
+                            {option.value}
+                          </Badge>
+                        </label>
+                      ))}
+                    </RadioGroup>
+                  </Field>
+                  <Field>
+                    <FieldLabel>Expiration (optional)</FieldLabel>
+                    <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                      <PopoverTrigger
+                        render={
+                          <button
+                            type="button"
+                            className={cn(
+                              buttonVariants({ variant: "outline", size: "sm" }),
+                              "w-full justify-start text-left font-normal"
+                            )}
+                            aria-label="Select expiration date and time"
+                          />
+                        }
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {expiresAt
+                          ? expiresAt.toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            }) +
+                            ` at ${String(expiresAt.getHours()).padStart(2, "0")}:${String(expiresAt.getMinutes()).padStart(2, "0")}`
+                          : "Select expiration date"}
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={expiresAt}
+                          onSelect={(date) => {
+                            if (!date) return
+                            const hour = expiresAt ? expiresAt.getHours() : selectedHour
+                            const minute = expiresAt ? expiresAt.getMinutes() : selectedMinute
+                            const combined = new Date(date)
+                            combined.setHours(hour, minute, 0, 0)
+                            setExpiresAt(combined)
+                            setSelectedHour(hour)
+                            setSelectedMinute(minute)
+                          }}
+                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                        />
+                        <div className="border-t border-border px-3 py-3 space-y-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground whitespace-nowrap">
+                              Time:
+                            </span>
+                            <Select
+                              value={String(selectedHour)}
+                              onValueChange={(value) => {
+                                if (value === null) return
+                                const h = Number(value)
+                                setSelectedHour(h)
+                                if (expiresAt) {
+                                  const updated = new Date(expiresAt)
+                                  updated.setHours(h)
+                                  setExpiresAt(updated)
+                                }
+                              }}
+                            >
+                              <SelectTrigger size="sm" aria-label="Hour">
+                                <SelectValue>{String(selectedHour).padStart(2, "0")}</SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from({ length: 24 }, (_, i) => (
+                                  <SelectItem key={i} value={String(i)}>
+                                    {String(i).padStart(2, "0")}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <span className="text-sm font-medium text-muted-foreground">:</span>
+                            <Select
+                              value={String(selectedMinute)}
+                              onValueChange={(value) => {
+                                if (value === null) return
+                                const m = Number(value)
+                                setSelectedMinute(m)
+                                if (expiresAt) {
+                                  const updated = new Date(expiresAt)
+                                  updated.setMinutes(m)
+                                  setExpiresAt(updated)
+                                }
+                              }}
+                            >
+                              <SelectTrigger size="sm" aria-label="Minute">
+                                <SelectValue>{String(selectedMinute).padStart(2, "0")}</SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
+                                  <SelectItem key={m} value={String(m)}>
+                                    {String(m).padStart(2, "0")}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setDateOpen(false)}
+                          >
+                            Confirm
+                          </Button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    <FieldDescription>
+                      Leave empty for no expiration
+                    </FieldDescription>
+                  </Field>
+                </div>
+                <DialogFooter>
+                  <Button type="submit" disabled={createMutation.isPending}>
+                    {createMutation.isPending && (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    )}
+                    Create Key
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* Elevated role warning dialog */}
@@ -508,12 +511,17 @@ export const ApiKeysView = () => {
                     colSpan={8}
                     icon={<Key className="h-8 w-8" />}
                     title="No API keys yet."
-                    description="Create an API key to enable programmatic access to the Veilence-MX API."
+                    description={canCreate
+                      ? "Create an API key to enable programmatic access to the Veilence-MX API."
+                      : "You don't have permission to create API keys."
+                    }
                   >
-                    <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
-                      <Plus className="mr-2 size-4" />
-                      Create API Key
-                    </Button>
+                    {canCreate && (
+                      <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+                        <Plus className="mr-2 size-4" />
+                        Create API Key
+                      </Button>
+                    )}
                   </TableEmptyState>
                 )}
               </TableBody>

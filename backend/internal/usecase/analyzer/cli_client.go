@@ -95,7 +95,7 @@ type chatResponse struct {
 }
 
 // Analyze sends a diff to copilot-api for classification via GitHub Copilot.
-func (c *CLIClient) Analyze(ctx context.Context, diff string, packageName string, ecosystem string, oldVersion string, newVersion string) (*Result, error) {
+func (c *CLIClient) Analyze(ctx context.Context, diff string, packageName string, ecosystem string, oldVersion string, newVersion string, truncated bool) (*Result, error) {
 	// Rate limit
 	select {
 	case <-c.rateLimiter.C:
@@ -103,8 +103,7 @@ func (c *CLIClient) Analyze(ctx context.Context, diff string, packageName string
 		return nil, ctx.Err()
 	}
 
-	// Truncate diff
-	truncated := false
+	// Truncate diff further if needed for this analyzer's limit
 	if len(diff) > c.maxDiffLen {
 		diff = diff[:c.maxDiffLen]
 		truncated = true
@@ -115,7 +114,7 @@ func (c *CLIClient) Analyze(ctx context.Context, diff string, packageName string
 		packageName, ecosystem, oldVersion, newVersion, diff,
 	)
 	if truncated {
-		userPrompt += "\n\n(Note: diff was truncated due to size limits. Analyze what is visible.)"
+		userPrompt += "\n\nWARNING: This diff was truncated due to size limits. Your analysis may be incomplete - malicious code could be hidden in the truncated portion. Analyze what is visible and note that the diff is partial."
 	}
 
 	reqBody := chatRequest{

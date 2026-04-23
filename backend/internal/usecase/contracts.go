@@ -198,10 +198,8 @@ type NotificationRepository interface {
 	Create(ctx context.Context, notification *entity.Notification) error
 	FindByUserAndWorkspace(ctx context.Context, workspaceID, userID string, onlyUnread bool) ([]entity.Notification, error)
 	FindByUserAndWorkspaceIDs(ctx context.Context, workspaceIDs []string, userID string, onlyUnread bool) ([]entity.Notification, error)
-	FindDirectByUserID(ctx context.Context, userID string, onlyUnread bool) ([]entity.Notification, error)
-	CountUnreadDirectByUserID(ctx context.Context, userID string) (int64, error)
 	FindByID(ctx context.Context, id string) (*entity.Notification, error)
-	MarkRead(ctx context.Context, id, userID string) (int64, error)
+	MarkRead(ctx context.Context, id, workspaceID, userID string) (int64, error)
 	MarkAllRead(ctx context.Context, workspaceID, userID string) (int64, error)
 	MarkAllReadByWorkspaceIDs(ctx context.Context, workspaceIDs []string, userID string) (int64, error)
 	CountUnread(ctx context.Context, workspaceID, userID string) (int64, error)

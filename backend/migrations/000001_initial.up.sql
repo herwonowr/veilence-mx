@@ -1,8 +1,5 @@
--- Veilence-MX complete schema (merged from migrations 000001-000005).
--- For fresh installs only. Existing deployments that have already run the
--- original migrations should reset migration state:
---   DELETE FROM schema_migrations;
---   INSERT INTO schema_migrations (version, dirty) VALUES (1, false);
+-- Veilence-MX complete schema (single initial migration).
+-- For fresh installs only.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
@@ -98,10 +95,12 @@ CREATE TABLE invitations (
     invited_by UUID NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     accepted_at TIMESTAMPTZ,
+    declined_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE UNIQUE INDEX idx_invitations_token_hash ON invitations(token_hash);
 CREATE INDEX idx_invitations_workspace_id ON invitations(workspace_id);
+CREATE INDEX idx_invitations_email_pending ON invitations(email) WHERE accepted_at IS NULL AND declined_at IS NULL;
 
 -- =========================================================================
 -- Refresh tokens
@@ -240,6 +239,8 @@ CREATE TABLE diffs (
     file_changes_count BIGINT DEFAULT 0,
     lines_added BIGINT DEFAULT 0,
     lines_removed BIGINT DEFAULT 0,
+    truncated BOOLEAN NOT NULL DEFAULT false,
+    original_size INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_diffs_release_id ON diffs(release_id);

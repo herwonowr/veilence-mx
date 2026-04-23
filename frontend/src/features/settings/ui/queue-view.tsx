@@ -5,6 +5,7 @@ import { Card, CardContent, Button } from "@/ui"
 import { RefreshCw, Loader2, Play, RotateCcw } from "lucide-react"
 import { useQueueStats, useRetryDeadJobs, queueKeys } from "@/features/settings/hooks/use-queue"
 import { useReanalyzeAll } from "@/features/settings/hooks/use-settings"
+import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 import { useQueryClient } from "@tanstack/react-query"
 import { QueueStatsCard } from "@/features/settings/ui/queue-stats-card"
 import { QueueJobsBrowser, type QueueJobsBrowserHandle } from "@/features/settings/ui/queue-jobs-browser"
@@ -13,6 +14,8 @@ import type { QueueJobStatus, QueueJobType } from "@/domains/queue"
 export const QueueView = () => {
   const jobsBrowserRef = useRef<QueueJobsBrowserHandle>(null)
   const queryClient = useQueryClient()
+  const { role: currentRole } = useCurrentWorkspaceRole()
+  const canOperate = hasMinimumRole(currentRole, "admin")
   const [queueMessage, setQueueMessage] = useState("")
 
   const {
@@ -24,6 +27,19 @@ export const QueueView = () => {
   const stats = queueRes?.data ?? null
   const reanalyzeMutation = useReanalyzeAll()
   const retryMutation = useRetryDeadJobs()
+
+  if (!canOperate) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Queue Monitor</h1>
+          <p className="mt-1 text-muted-foreground">
+            You do not have permission to view or manage queues. Admin access is required.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: queueKeys.all })
@@ -66,6 +82,7 @@ export const QueueView = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {canOperate && (
           <Button
             variant="outline"
             size="sm"
@@ -79,7 +96,8 @@ export const QueueView = () => {
             )}
             {reanalyzeMutation.isPending ? "Queuing..." : "Re-analyze Unanalyzed Diffs"}
           </Button>
-          {stats && stats.analyze.dead > 0 && (
+          )}
+          {canOperate && stats && stats.analyze.dead > 0 && (
             <Button
               variant="outline"
               size="sm"

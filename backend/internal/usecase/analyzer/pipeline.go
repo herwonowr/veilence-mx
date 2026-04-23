@@ -48,16 +48,34 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID string) error {
 	var analysisCreated bool
 	var lastErr error
 
-	// Truncate diff content to prevent excessive LLM token usage (Finding 13)
+	// Safety truncation in case diff content exceeds limit (should already be
+	// truncated by the differ, but guard against edge cases).
 	const maxDiffSize = 100 * 1024 // 100KB
 	diffContent := diff.DiffContent
+	diffTruncated := diff.Truncated
 	if len(diffContent) > maxDiffSize {
-		diffContent = diffContent[:maxDiffSize] + "\n... [truncated]"
+		diffContent = diffContent[:maxDiffSize] + "\n\n--- DIFF TRUNCATED (exceeded 100KB limit) ---\n"
+		diffTruncated = true
 		slog.Warn("diff content truncated for analysis",
 			"diff_id", diffID,
 			"original_size", len(diff.DiffContent),
 			"truncated_size", maxDiffSize,
 		)
+	}
+
+	// Prepend truncation warning so the LLM knows the diff is incomplete.
+	// This is critical for security - the LLM must factor in that malicious
+	// changes may exist beyond the truncation boundary.
+	if diffTruncated {
+		truncationWarning := fmt.Sprintf(
+			"WARNING: This diff has been truncated from %d bytes to %d bytes. "+
+				"You are NOT seeing the complete set of changes. "+
+				"Malicious code may exist beyond the truncation boundary. "+
+				"Factor this into your confidence score and flag if the visible "+
+				"changes suggest further review of the full diff is warranted.\n\n",
+			diff.OriginalSize, len(diffContent),
+		)
+		diffContent = truncationWarning + diffContent
 	}
 
 	for _, analyzer := range p.analyzers {
@@ -68,6 +86,7 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID string) error {
 			string(pkg.Ecosystem),
 			prevRelease.Version,
 			release.Version,
+			diffTruncated,
 		)
 		if err != nil {
 			slog.Error("analyzer failed", "type", analyzer.Type(), "package", pkg.Name, "error", err)
@@ -112,6 +131,7 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID string) error {
 			alert := &entity.Alert{
 				WorkspaceID: pkg.WorkspaceID,
 				AnalysisID:  analysis.ID,
+				ReleaseID:   release.ID,
 				PackageID:   pkg.ID,
 				Severity:    severity,
 				Status:      entity.AlertStatusNew,

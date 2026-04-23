@@ -38,7 +38,6 @@ type Service struct {
 	repo          RBACRepository
 	emailSender   InvitationEmailSender // nil = no email delivery (dev mode)
 	userResolver  UserEmailResolver     // nil = falls back to user ID in emails
-	notifier      NotificationDispatcher // nil = no in-app notifications
 }
 
 // NewService creates a new RBAC service.
@@ -58,10 +57,6 @@ func WithUserEmailResolver(r UserEmailResolver) ServiceOption {
 	return func(s *Service) { s.userResolver = r }
 }
 
-// WithNotificationDispatcher sets the notification dispatcher for invitation events.
-func WithNotificationDispatcher(d NotificationDispatcher) ServiceOption {
-	return func(s *Service) { s.notifier = d }
-}
 
 // CreateWorkspace creates a new workspace, seeds default roles, and assigns
 // the creating user as the owner.
@@ -160,7 +155,7 @@ func (s *Service) createDefaultRoles(ctx_unused interface{}, tx RBACRepository, 
 		return k == "workspace:delete"
 	})
 
-	// Member permissions
+	// Member permissions - read-all plus write access to packages/alerts
 	memberKeys := []string{
 		"packages:read", "packages:write",
 		"alerts:read", "alerts:write",
@@ -169,16 +164,22 @@ func (s *Service) createDefaultRoles(ctx_unused interface{}, tx RBACRepository, 
 		"members:read",
 		"roles:read",
 		"workspace:read",
+		"audit:read",
 		"api_keys:read", "api_keys:write",
-		"notifications:read", "notifications:create", "notifications:update", "notifications:delete",
+		"notifications:read",
 	}
 
-	// Viewer permissions
+	// Viewer permissions - read-only access to everything
 	viewerKeys := []string{
 		"packages:read",
 		"alerts:read",
 		"releases:read",
 		"settings:read",
+		"workspace:read",
+		"members:read",
+		"roles:read",
+		"audit:read",
+		"api_keys:read",
 		"notifications:read",
 	}
 
@@ -298,6 +299,8 @@ func (s *Service) InviteMember(workspaceID string, email string, roleID string, 
 		ExpiresAt:   time.Now().Add(7 * 24 * time.Hour), // 7 days
 	}
 
+	invitation.RoleName = role.Name
+
 	if err := s.repo.CreateInvitation(ctx, invitation); err != nil {
 		return nil, "", fmt.Errorf("creating invitation: %w", err)
 	}
@@ -314,31 +317,6 @@ func (s *Service) InviteMember(workspaceID string, email string, roleID string, 
 	}
 
 	slog.Info("invitation created", "workspace_id", workspaceID, "email", email, "invited_by", invitedBy)
-
-	// Dispatch in-app notification to the invited user (if they exist in the system)
-	if s.notifier != nil {
-		wsName := workspaceID
-		if ws, wsErr := s.repo.FindWorkspaceByID(ctx, workspaceID); wsErr == nil && ws != nil {
-			wsName = ws.Name
-		}
-		// Try to resolve the invited user's ID so the notification targets them
-		// directly. If they don't have an account yet, fall back to org-wide.
-		var targetUserID string
-		if s.userResolver != nil {
-			if invitedUser, lookupErr := s.userResolver.FindByEmail(ctx, email); lookupErr == nil && invitedUser != nil {
-				targetUserID = invitedUser.ID
-			}
-		}
-		s.notifier.DispatchEvent(ctx, workspaceID, entity.NotificationEvent{
-			Severity:      "low",
-			EventType:     "invitation_received",
-			Title:         "Workspace Invitation",
-			Message:       fmt.Sprintf("You've been invited to join %s", wsName),
-			ReferenceID:   invitation.ID,
-			ReferenceType: "invitation",
-			UserID:        targetUserID,
-		})
-	}
 
 	return invitation, rawToken, nil
 }
@@ -490,11 +468,7 @@ func (s *Service) ResendInvitation(workspaceID, invitationID string) (*entity.In
 		return nil, "", ErrInvitationDeclined
 	}
 
-	if time.Now().After(invitation.ExpiresAt) {
-		return nil, "", ErrInvitationExpired
-	}
-
-	// Generate a new token and extend expiry
+	// Allow resending expired invitations - generate a new token and extend expiry
 	rawToken, err := generateToken()
 	if err != nil {
 		return nil, "", fmt.Errorf("generating invitation token: %w", err)

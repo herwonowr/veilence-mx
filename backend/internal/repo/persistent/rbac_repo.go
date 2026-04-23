@@ -74,16 +74,134 @@ func (r *RBACRepo) UpdateWorkspace(ctx context.Context, ws *entity.Workspace) er
 	return nil
 }
 
-// SoftDeleteWorkspace soft-deletes a workspace.
+// SoftDeleteWorkspace soft-deletes a workspace and cascade-deletes all related data.
+// Deletes are performed leaf-first to respect foreign key constraints.
 func (r *RBACRepo) SoftDeleteWorkspace(ctx context.Context, id string) error {
-	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&Workspace{})
-	if result.Error != nil {
-		return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: %w", result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("workspace not found")
-	}
-	return nil
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Verify workspace exists
+		var ws Workspace
+		if err := tx.Where("id = ?", id).First(&ws).Error; err != nil {
+			return fmt.Errorf("workspace not found")
+		}
+
+		// Collect package IDs for this workspace
+		var pkgIDs []string
+		tx.Model(&Package{}).Where("workspace_id = ?", id).Pluck("id", &pkgIDs)
+
+		if len(pkgIDs) > 0 {
+			// Collect release IDs for these packages
+			var releaseIDs []string
+			tx.Model(&Release{}).Where("package_id IN ?", pkgIDs).Pluck("id", &releaseIDs)
+
+			// Collect diff IDs for these releases
+			var diffIDs []string
+			if len(releaseIDs) > 0 {
+				tx.Model(&Diff{}).Where("release_id IN ?", releaseIDs).Pluck("id", &diffIDs)
+			}
+
+			// Alert notes (depend on alerts)
+			if err := tx.Where("workspace_id = ?", id).Delete(&AlertNote{}).Error; err != nil {
+				return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting alert notes: %w", err)
+			}
+
+			// Alerts (depend on packages)
+			if err := tx.Where("workspace_id = ?", id).Delete(&Alert{}).Error; err != nil {
+				return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting alerts: %w", err)
+			}
+
+			// Analyses (depend on diffs)
+			if len(diffIDs) > 0 {
+				if err := tx.Where("diff_id IN ?", diffIDs).Delete(&Analysis{}).Error; err != nil {
+					return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting analyses: %w", err)
+				}
+			}
+
+			// Diffs (depend on releases)
+			if len(releaseIDs) > 0 {
+				if err := tx.Where("release_id IN ?", releaseIDs).Delete(&Diff{}).Error; err != nil {
+					return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting diffs: %w", err)
+				}
+			}
+
+			// Releases (depend on packages)
+			if err := tx.Where("package_id IN ?", pkgIDs).Delete(&Release{}).Error; err != nil {
+				return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting releases: %w", err)
+			}
+
+			// Packages
+			if err := tx.Where("workspace_id = ?", id).Delete(&Package{}).Error; err != nil {
+				return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting packages: %w", err)
+			}
+		}
+
+		// Notification rules (depend on channels)
+		if err := tx.Where("workspace_id = ?", id).Delete(&NotificationRule{}).Error; err != nil {
+			return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting notification rules: %w", err)
+		}
+
+		// Notification channels
+		if err := tx.Where("workspace_id = ?", id).Delete(&NotificationChannel{}).Error; err != nil {
+			return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting notification channels: %w", err)
+		}
+
+		// Notifications
+		if err := tx.Where("workspace_id = ?", id).Delete(&Notification{}).Error; err != nil {
+			return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting notifications: %w", err)
+		}
+
+		// Settings
+		if err := tx.Where("workspace_id = ?", id).Delete(&Setting{}).Error; err != nil {
+			return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting settings: %w", err)
+		}
+
+		// Audit logs
+		if err := tx.Where("workspace_id = ?", id).Delete(&AuditLog{}).Error; err != nil {
+			return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting audit logs: %w", err)
+		}
+
+		// Collect role IDs for this workspace
+		var roleIDs []string
+		tx.Model(&Role{}).Where("workspace_id = ?", id).Pluck("id", &roleIDs)
+
+		// Role permissions (join table)
+		if len(roleIDs) > 0 {
+			if err := tx.Exec("DELETE FROM role_permissions WHERE role_id IN ?", roleIDs).Error; err != nil {
+				return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting role permissions: %w", err)
+			}
+		}
+
+		// Workspace members (depend on workspace + roles)
+		if err := tx.Where("workspace_id = ?", id).Delete(&WorkspaceMember{}).Error; err != nil {
+			return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting workspace members: %w", err)
+		}
+
+		// Invitations
+		if err := tx.Where("workspace_id = ?", id).Delete(&Invitation{}).Error; err != nil {
+			return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting invitations: %w", err)
+		}
+
+		// Roles
+		if len(roleIDs) > 0 {
+			if err := tx.Where("id IN ?", roleIDs).Delete(&Role{}).Error; err != nil {
+				return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting roles: %w", err)
+			}
+		}
+
+		// API keys scoped to workspace
+		if err := tx.Where("workspace_id = ?", id).Delete(&APIKey{}).Error; err != nil {
+			return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting api keys: %w", err)
+		}
+
+		// Finally, soft-delete the workspace itself
+		result := tx.Where("id = ?", id).Delete(&Workspace{})
+		if result.Error != nil {
+			return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: %w", result.Error)
+		}
+		if result.RowsAffected == 0 {
+			return fmt.Errorf("workspace not found")
+		}
+		return nil
+	})
 }
 
 // FindWorkspacesByUserID returns all workspaces the user is a member of.
