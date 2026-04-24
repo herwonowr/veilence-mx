@@ -126,9 +126,12 @@ const (
 type AnalyzerType string
 
 const (
-	AnalyzerTypeAPI     AnalyzerType = "api"
-	AnalyzerTypeCLI     AnalyzerType = "cli"
-	AnalyzerTypeCopilot AnalyzerType = "copilot"
+	AnalyzerTypeAPI       AnalyzerType = "api"
+	AnalyzerTypeCLI       AnalyzerType = "cli"
+	AnalyzerTypeCopilot   AnalyzerType = "copilot"
+	AnalyzerTypeOpenAI    AnalyzerType = "openai"
+	AnalyzerTypeAnthropic AnalyzerType = "anthropic"
+	AnalyzerTypeOllama    AnalyzerType = "ollama"
 )
 
 // Analysis is the GORM model for LLM analysis results.
@@ -140,7 +143,7 @@ type Analysis struct {
 	Confidence     float64        `gorm:"not null" json:"confidence"`
 	Reasoning      string         `gorm:"type:text" json:"reasoning"`
 	ModelUsed      string         `gorm:"type:varchar(100)" json:"modelUsed"`
-	AnalyzerType   AnalyzerType   `gorm:"not null;type:varchar(10)" json:"analyzerType"`
+	AnalyzerType   AnalyzerType   `gorm:"not null;type:varchar(20)" json:"analyzerType"`
 	RawResponse    string         `gorm:"type:text" json:"-"`
 	CreatedAt      time.Time      `json:"createdAt"`
 }

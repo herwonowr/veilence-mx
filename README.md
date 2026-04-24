@@ -24,7 +24,7 @@ Poller (PyPI/npm) --> Differ (unified LCS diff) --> Analyzer (LLM) --> Alerts --
 
 - **Backend**: Go 1.23+, Chi v5, GORM, PostgreSQL 16, Redis 7 - Clean Architecture (entity/usecase/repo/controller)
 - **Frontend**: Next.js 16 (App Router), React 19, TypeScript strict, TailwindCSS v4, shadcn/ui - Clean Architecture (app/features/domains/core/ui)
-- **LLM**: copilot-api -> GitHub Copilot -> Claude Sonnet 4.6
+- **LLM**: Multiple providers - copilot-api (default), OpenAI, Anthropic, Ollama
 - **Auth**: JWT (access + refresh tokens), RBAC (Owner/Admin/Member/Viewer), multi-tenant workspaces
 - **Notifications**: Email (SMTP), Slack webhooks, custom webhooks with configurable rules
 
@@ -45,8 +45,9 @@ Poller (PyPI/npm) --> Differ (unified LCS diff) --> Analyzer (LLM) --> Alerts --
 - Go 1.23+
 - Node.js 22+
 - Docker & Docker Compose (for PostgreSQL + Redis)
-- GitHub Copilot subscription (for LLM analysis)
-- GitHub CLI (`gh`) authenticated (`gh auth login`)
+- GitHub Copilot subscription (for LLM analysis with copilot provider), OR
+- OpenAI API key, Anthropic API key, or local Ollama instance
+- GitHub CLI (`gh`) authenticated - only needed for copilot provider
 
 ## Quick Start
 

@@ -26,6 +26,12 @@ const (
 	AnalyzerTypeCLI AnalyzerType = "cli"
 	// AnalyzerTypeCopilot uses the copilot-api proxy.
 	AnalyzerTypeCopilot AnalyzerType = "copilot"
+	// AnalyzerTypeOpenAI uses the OpenAI API directly.
+	AnalyzerTypeOpenAI AnalyzerType = "openai"
+	// AnalyzerTypeAnthropic uses the Anthropic API directly.
+	AnalyzerTypeAnthropic AnalyzerType = "anthropic"
+	// AnalyzerTypeOllama uses a local Ollama instance.
+	AnalyzerTypeOllama AnalyzerType = "ollama"
 )
 
 // Analysis represents the LLM analysis of a diff.

@@ -29,7 +29,7 @@ docker-prod-up:
 docker-prod-down:
 	docker compose -f docker-compose.prod.yml down
 
-# copilot-api (LLM proxy)
+# copilot-api (LLM proxy) - only needed when LLM_PROVIDER=copilot
 dev-copilot:
 	npx copilot-api start --github-token "$$(gh auth token)" --port 4141 --rate-limit 5 --wait
 

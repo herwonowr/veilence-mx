@@ -35,8 +35,12 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/releaseuc"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/settinguc"
+	"github.com/veilence/veilence-mx/backend/pkg/anthropic"
 	"github.com/veilence/veilence-mx/backend/pkg/copilotapi"
+	"github.com/veilence/veilence-mx/backend/pkg/llm"
 	"github.com/veilence/veilence-mx/backend/pkg/mailer"
+	"github.com/veilence/veilence-mx/backend/pkg/ollama"
+	"github.com/veilence/veilence-mx/backend/pkg/openai"
 	"github.com/veilence/veilence-mx/backend/pkg/postgres"
 	"github.com/veilence/veilence-mx/backend/pkg/queue"
 )
@@ -125,21 +129,73 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		DiffSizeLimit: cfg.DiffSizeLimit,
 	}, jobQueue, notificationService)
 
-	// LLM analyzer
-	llmConfig := copilotapi.Config{
-		BaseURL:      cfg.LLMApiURL,
-		Model:        cfg.LLMModel,
-		MaxDiffLen:   cfg.LLMMaxDiffLen,
-		RateInterval: cfg.LLMRateInterval,
-	}
-	if err := llmConfig.Validate(); err != nil {
-		return nil, fmt.Errorf("LLM configuration error: %w", err)
+	// LLM analyzer - provider selection
+	var llmAdapter analyzer.LLMProvider
+	switch cfg.LLMProvider {
+	case "copilot":
+		llmConfig := copilotapi.Config{
+			BaseURL:      cfg.LLMApiURL,
+			Model:        cfg.LLMModel,
+			MaxDiffLen:   cfg.LLMMaxDiffLen,
+			RateInterval: cfg.LLMRateInterval,
+		}
+		if err := llmConfig.Validate(); err != nil {
+			return nil, fmt.Errorf("copilot LLM config error: %w", err)
+		}
+		client := copilotapi.New(llmConfig)
+		llmAdapter = &copilotAdapter{client: client}
+		slog.Info("LLM provider: copilot", "url", llmConfig.BaseURL, "model", llmConfig.Model)
+
+	case "openai":
+		llmConfig := openai.Config{
+			APIKey:       cfg.OpenAIAPIKey,
+			Model:        cfg.OpenAIModel,
+			BaseURL:      cfg.OpenAIBaseURL,
+			MaxDiffLen:   cfg.LLMMaxDiffLen,
+			RateInterval: cfg.LLMRateInterval,
+		}
+		if err := llmConfig.Validate(); err != nil {
+			return nil, fmt.Errorf("openai LLM config error: %w", err)
+		}
+		client := openai.New(llmConfig)
+		llmAdapter = &openaiAdapter{client: client}
+		slog.Info("LLM provider: openai", "model", llmConfig.Model)
+
+	case "anthropic":
+		llmConfig := anthropic.Config{
+			APIKey:       cfg.AnthropicAPIKey,
+			Model:        cfg.AnthropicModel,
+			BaseURL:      cfg.AnthropicBaseURL,
+			MaxDiffLen:   cfg.LLMMaxDiffLen,
+			RateInterval: cfg.LLMRateInterval,
+		}
+		if err := llmConfig.Validate(); err != nil {
+			return nil, fmt.Errorf("anthropic LLM config error: %w", err)
+		}
+		client := anthropic.New(llmConfig)
+		llmAdapter = &anthropicAdapter{client: client}
+		slog.Info("LLM provider: anthropic", "model", llmConfig.Model)
+
+	case "ollama":
+		llmConfig := ollama.Config{
+			Model:        cfg.OllamaModel,
+			BaseURL:      cfg.OllamaBaseURL,
+			MaxDiffLen:   cfg.LLMMaxDiffLen,
+			RateInterval: cfg.LLMRateInterval,
+		}
+		if err := llmConfig.Validate(); err != nil {
+			return nil, fmt.Errorf("ollama LLM config error: %w", err)
+		}
+		client := ollama.New(llmConfig)
+		llmAdapter = &ollamaAdapter{client: client}
+		slog.Info("LLM provider: ollama", "url", llmConfig.BaseURL, "model", llmConfig.Model)
+
+	default:
+		return nil, fmt.Errorf("unknown LLM provider: %s", cfg.LLMProvider)
 	}
 
-	copilotClient := copilotapi.New(llmConfig)
-	slog.Info("LLM analyzer enabled", "url", llmConfig.BaseURL, "model", llmConfig.Model)
 	pipelineRepo := persistent.NewPipelineRepo(db)
-	pipeline := analyzer.NewPipeline(pipelineRepo, notificationService, &llmProviderAdapter{client: copilotClient})
+	pipeline := analyzer.NewPipeline(pipelineRepo, notificationService, llmAdapter)
 
 	// Queue workers
 	diffWorker := queue.NewWorker(jobQueue, queue.JobTypeDiff, differService.ProcessJob, queue.WorkerConfig{
@@ -317,12 +373,18 @@ func recoverStuckReleases(ctx context.Context, jobQueue *queue.Queue, db *gorm.D
 	}
 }
 
-// llmProviderAdapter adapts a copilotapi.Client to satisfy the analyzer.LLMProvider interface.
-type llmProviderAdapter struct {
-	client *copilotapi.Client
+// llmClientAdapter is a generic interface for all LLM provider clients.
+type llmClientAdapter interface {
+	Analyze(ctx context.Context, diff string, packageName string, ecosystem string, oldVersion string, newVersion string, truncated bool) (*llm.Result, error)
+	Type() string
 }
 
-func (a *llmProviderAdapter) Analyze(ctx context.Context, diff string, packageName string, ecosystem string, oldVersion string, newVersion string, truncated bool) (*analyzer.LLMResult, error) {
+// genericLLMAdapter adapts any llmClientAdapter to satisfy analyzer.LLMProvider.
+type genericLLMAdapter struct {
+	client llmClientAdapter
+}
+
+func (a *genericLLMAdapter) Analyze(ctx context.Context, diff string, packageName string, ecosystem string, oldVersion string, newVersion string, truncated bool) (*analyzer.LLMResult, error) {
 	result, err := a.client.Analyze(ctx, diff, packageName, ecosystem, oldVersion, newVersion, truncated)
 	if err != nil {
 		return nil, err
@@ -335,9 +397,15 @@ func (a *llmProviderAdapter) Analyze(ctx context.Context, diff string, packageNa
 	}, nil
 }
 
-func (a *llmProviderAdapter) Type() string {
+func (a *genericLLMAdapter) Type() string {
 	return a.client.Type()
 }
+
+// Type aliases for clarity in the provider switch.
+type copilotAdapter = genericLLMAdapter
+type openaiAdapter = genericLLMAdapter
+type anthropicAdapter = genericLLMAdapter
+type ollamaAdapter = genericLLMAdapter
 
 // seedSettingsDefaults seeds default settings values into the database.
 func seedSettingsDefaults(cfg *config.Config, db *gorm.DB) {

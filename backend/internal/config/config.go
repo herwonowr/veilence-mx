@@ -33,6 +33,16 @@ type Config struct {
 	LLMMaxDiffLen   int
 	LLMRateInterval time.Duration
 
+	// Provider-specific
+	OpenAIAPIKey     string
+	OpenAIModel      string
+	OpenAIBaseURL    string
+	AnthropicAPIKey  string
+	AnthropicModel   string
+	AnthropicBaseURL string
+	OllamaModel      string
+	OllamaBaseURL    string
+
 	// Pipeline
 	MonitoringInterval time.Duration
 	DiscoveryInterval  time.Duration
@@ -80,6 +90,16 @@ func NewConfig() (*Config, error) {
 		LLMProvider:     envOrDefault("LLM_PROVIDER", "copilot"),
 		LLMMaxDiffLen:   envIntOrDefault("LLM_MAX_DIFF_LEN", 20000),
 		LLMRateInterval: envDurationOrDefault("LLM_RATE_INTERVAL", 6*time.Second),
+
+		// Provider-specific
+		OpenAIAPIKey:     os.Getenv("OPENAI_API_KEY"),
+		OpenAIModel:      envOrDefault("OPENAI_MODEL", "gpt-4o"),
+		OpenAIBaseURL:    envOrDefault("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+		AnthropicAPIKey:  os.Getenv("ANTHROPIC_API_KEY"),
+		AnthropicModel:   envOrDefault("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
+		AnthropicBaseURL: envOrDefault("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1"),
+		OllamaModel:      envOrDefault("OLLAMA_MODEL", "llama3.1"),
+		OllamaBaseURL:    envOrDefault("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
 
 		// Pipeline
 		MonitoringInterval: envDurationOrDefault("MONITORING_INTERVAL", 1*time.Hour),
@@ -137,11 +157,25 @@ func (c *Config) Validate() error {
 	if c.JWTSecret == "veilence-mx-dev-jwt-secret-change-in-production" && c.AppEnv != "development" {
 		errs = append(errs, "JWT_SECRET must be set to a secure value in production")
 	}
-	if c.LLMApiURL == "" {
-		errs = append(errs, "LLM_API_URL (or COPILOT_API_URL) is required")
-	}
-	if c.LLMModel == "" {
-		errs = append(errs, "LLM_MODEL (or COPILOT_MODEL) is required")
+	if c.LLMProvider == "copilot" {
+		if c.LLMApiURL == "" {
+			errs = append(errs, "LLM_API_URL (or COPILOT_API_URL) is required when using copilot provider")
+		}
+		if c.LLMModel == "" {
+			errs = append(errs, "LLM_MODEL (or COPILOT_MODEL) is required when using copilot provider")
+		}
+	} else if c.LLMProvider == "openai" {
+		if c.OpenAIAPIKey == "" {
+			errs = append(errs, "OPENAI_API_KEY is required when using openai provider")
+		}
+	} else if c.LLMProvider == "anthropic" {
+		if c.AnthropicAPIKey == "" {
+			errs = append(errs, "ANTHROPIC_API_KEY is required when using anthropic provider")
+		}
+	} else if c.LLMProvider == "ollama" {
+		// No API key needed for Ollama
+	} else {
+		errs = append(errs, fmt.Sprintf("unknown LLM_PROVIDER: %s (valid: copilot, openai, anthropic, ollama)", c.LLMProvider))
 	}
 	if c.LLMMaxDiffLen <= 0 {
 		errs = append(errs, "LLM_MAX_DIFF_LEN must be > 0")
