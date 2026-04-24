@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useLocalStorage, useAuth } from "@/core"
-import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Skeleton, TableSkeleton, TableError, Alert, AlertDescription, Input, Label, Switch, TableEmptyState, type SkeletonColumn } from "@/ui"
+import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Skeleton, TableSkeleton, TableError, Alert, AlertDescription, Label, Switch, TableEmptyState, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, type SkeletonColumn } from "@/ui"
 import {
   Table,
   TableBody,
@@ -167,21 +167,22 @@ const DashboardData = () => {
             </Label>
           </div>
           {autoRefresh && (
-            <div className="flex items-center gap-1.5">
-              <Input
-                type="number"
-                min={5}
-                max={300}
-                value={intervalSec}
-                onChange={(e) => {
-                  const v = parseInt(e.target.value, 10)
-                  if (!isNaN(v) && v >= 5) setIntervalSec(v)
-                }}
-                className="w-16 h-8 text-sm"
-                aria-label="Auto-refresh interval in seconds"
-              />
-              <span className="text-sm text-muted-foreground">sec</span>
-            </div>
+            <Select
+              value={String(intervalSec)}
+              onValueChange={(val) => setIntervalSec(Number(val))}
+            >
+              <SelectTrigger className="h-8 w-auto text-sm" aria-label="Auto-refresh interval">
+                <SelectValue>
+                  {intervalSec === 30 ? "30 Seconds" : intervalSec === 60 ? "1 Minute" : intervalSec === 300 ? "5 Minutes" : "10 Minutes"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30">30 Seconds</SelectItem>
+                <SelectItem value="60">1 Minute</SelectItem>
+                <SelectItem value="300">5 Minutes</SelectItem>
+                <SelectItem value="600">10 Minutes</SelectItem>
+              </SelectContent>
+            </Select>
           )}
           {autoRefresh && (
             <RefreshCw className="h-3.5 w-3.5 text-muted-foreground animate-spin" style={{ animationDuration: "3s" }} aria-hidden="true" />
