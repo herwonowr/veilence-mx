@@ -8,32 +8,26 @@ import (
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
-	"github.com/veilence/veilence-mx/backend/pkg/queue"
 )
 
-// Pipeline processes diffs through the LLM analyzer and creates alerts.
+// Pipeline processes diffs through the LLM providers and creates alerts.
 type Pipeline struct {
 	repo      PipelineRepository
-	analyzers []Analyzer
+	providers []LLMProvider
 	notifier  usecase.NotificationDispatcher
 }
 
 // NewPipeline creates a new analysis pipeline.
-func NewPipeline(repo PipelineRepository, notifier usecase.NotificationDispatcher, analyzers ...Analyzer) *Pipeline {
+func NewPipeline(repo PipelineRepository, notifier usecase.NotificationDispatcher, providers ...LLMProvider) *Pipeline {
 	return &Pipeline{
 		repo:      repo,
-		analyzers: analyzers,
+		providers: providers,
 		notifier:  notifier,
 	}
 }
 
-// ProcessJob is the queue worker handler for analyze jobs.
-func (p *Pipeline) ProcessJob(ctx context.Context, job *queue.Job) error {
-	return p.processDiff(ctx, job.ReferenceID)
-}
-
-// processDiff runs all configured analyzers on a diff.
-func (p *Pipeline) processDiff(ctx context.Context, diffID string) error {
+// ProcessDiff runs all configured LLM providers on a diff.
+func (p *Pipeline) ProcessDiff(ctx context.Context, diffID string) error {
 	diff, release, pkg, err := p.repo.FindDiffWithRelease(ctx, diffID)
 	if err != nil {
 		return fmt.Errorf("loading diff %s: %w", diffID, err)
@@ -78,8 +72,8 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID string) error {
 		diffContent = truncationWarning + diffContent
 	}
 
-	for _, analyzer := range p.analyzers {
-		result, err := analyzer.Analyze(
+	for _, provider := range p.providers {
+		result, err := provider.Analyze(
 			ctx,
 			diffContent,
 			pkg.Name,
@@ -89,7 +83,7 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID string) error {
 			diffTruncated,
 		)
 		if err != nil {
-			slog.Error("analyzer failed", "type", analyzer.Type(), "package", pkg.Name, "error", err)
+			slog.Error("provider failed", "type", provider.Type(), "package", pkg.Name, "error", err)
 			lastErr = err
 			continue
 		}
@@ -101,7 +95,7 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID string) error {
 			Confidence:     result.Confidence,
 			Reasoning:      result.Reasoning,
 			ModelUsed:      "claude",
-			AnalyzerType:   entity.AnalyzerType(analyzer.Type()),
+			AnalyzerType:   entity.AnalyzerType(provider.Type()),
 			RawResponse:    result.RawResponse,
 		}
 
@@ -118,7 +112,7 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID string) error {
 			"version", release.Version,
 			"classification", result.Classification,
 			"confidence", result.Confidence,
-			"analyzer", analyzer.Type(),
+			"provider", provider.Type(),
 		)
 
 		// Create alert if suspicious or malicious
@@ -174,12 +168,12 @@ func (p *Pipeline) processDiff(ctx context.Context, diffID string) error {
 				Severity:      "high",
 				EventType:     entity.NotifEventAnalysisError,
 				Title:         fmt.Sprintf("Analysis failed: %s v%s", pkg.Name, release.Version),
-				Message:       fmt.Sprintf("All analyzers failed for %s v%s (%s). The release will be retried. Error: %v", pkg.Name, release.Version, pkg.Ecosystem, lastErr),
+				Message:       fmt.Sprintf("All providers failed for %s v%s (%s). The release will be retried. Error: %v", pkg.Name, release.Version, pkg.Ecosystem, lastErr),
 				ReferenceID:   release.ID,
 				ReferenceType: "release",
 			})
 		}
-		return fmt.Errorf("all analyzers failed for diff %s: %w", diffID, lastErr)
+		return fmt.Errorf("all providers failed for diff %s: %w", diffID, lastErr)
 	}
 
 	// Update release status to completed

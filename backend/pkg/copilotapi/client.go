@@ -1,4 +1,4 @@
-package analyzer
+package copilotapi
 
 import (
 	"bytes"
@@ -9,11 +9,13 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/veilence/veilence-mx/backend/pkg/llm"
 )
 
-// CLIClient implements the Analyzer interface using an OpenAI-compatible LLM API.
-// It sends requests to a configured LLM API endpoint for code analysis.
-type CLIClient struct {
+// Client implements an OpenAI-compatible LLM API client for the copilot-api proxy.
+// It handles rate limiting, retries, and response parsing.
+type Client struct {
 	httpClient  *http.Client
 	baseURL     string
 	model       string
@@ -21,57 +23,27 @@ type CLIClient struct {
 	rateLimiter *time.Ticker
 }
 
-// CLIClientConfig holds configuration for the LLM API client.
-// All fields are mandatory - the application MUST fail to start if any are missing.
-type CLIClientConfig struct {
-	// BaseURL is the LLM API proxy URL (required).
-	BaseURL string
-	// Model is the model to use (required).
-	Model string
-	// MaxDiffLen limits diff size in characters (required, must be > 0).
-	MaxDiffLen int
-	// RateInterval is the minimum time between requests (required, must be > 0).
-	RateInterval time.Duration
-}
-
-// Validate ensures all required configuration is provided. Returns an error if any field is missing.
-func (c CLIClientConfig) Validate() error {
-	if c.BaseURL == "" {
-		return fmt.Errorf("LLM API base URL is required (set LLM_API_URL env var)")
-	}
-	if c.Model == "" {
-		return fmt.Errorf("LLM model is required (set LLM_MODEL env var)")
-	}
-	if c.MaxDiffLen <= 0 {
-		return fmt.Errorf("LLM max diff length must be > 0 (set LLM_MAX_DIFF_LEN env var)")
-	}
-	if c.RateInterval <= 0 {
-		return fmt.Errorf("LLM rate interval must be > 0 (set LLM_RATE_INTERVAL env var)")
-	}
-	return nil
-}
-
-// NewCLIClient creates a new LLM analyzer client.
-// Config must be validated before calling this (use CLIClientConfig.Validate()).
-func NewCLIClient(config CLIClientConfig) *CLIClient {
-	return &CLIClient{
+// New creates a new copilot-api client.
+// Config must be validated before calling this (use Config.Validate()).
+func New(cfg Config) *Client {
+	return &Client{
 		httpClient:  &http.Client{Timeout: 120 * time.Second},
-		baseURL:     config.BaseURL,
-		model:       config.Model,
-		maxDiffLen:  config.MaxDiffLen,
-		rateLimiter: time.NewTicker(config.RateInterval),
+		baseURL:     cfg.BaseURL,
+		model:       cfg.Model,
+		maxDiffLen:  cfg.MaxDiffLen,
+		rateLimiter: time.NewTicker(cfg.RateInterval),
 	}
 }
 
 // Close stops the rate limiter ticker, releasing its goroutine.
-func (c *CLIClient) Close() {
+func (c *Client) Close() {
 	if c.rateLimiter != nil {
 		c.rateLimiter.Stop()
 	}
 }
 
-// Type returns the analyzer type identifier.
-func (c *CLIClient) Type() string {
+// Type returns the provider type identifier.
+func (c *Client) Type() string {
 	return "copilot"
 }
 
@@ -95,7 +67,7 @@ type chatResponse struct {
 }
 
 // Analyze sends a diff to copilot-api for classification via GitHub Copilot.
-func (c *CLIClient) Analyze(ctx context.Context, diff string, packageName string, ecosystem string, oldVersion string, newVersion string, truncated bool) (*Result, error) {
+func (c *Client) Analyze(ctx context.Context, diff string, packageName string, ecosystem string, oldVersion string, newVersion string, truncated bool) (*llm.Result, error) {
 	// Rate limit
 	select {
 	case <-c.rateLimiter.C:
@@ -103,25 +75,19 @@ func (c *CLIClient) Analyze(ctx context.Context, diff string, packageName string
 		return nil, ctx.Err()
 	}
 
-	// Truncate diff further if needed for this analyzer's limit
+	// Truncate diff further if needed for this provider's limit
 	if len(diff) > c.maxDiffLen {
 		diff = diff[:c.maxDiffLen]
 		truncated = true
 	}
 
-	userPrompt := fmt.Sprintf(
-		"Analyze the following diff for package \"%s\" (%s ecosystem) between versions %s and %s:\n\n```diff\n%s\n```",
-		packageName, ecosystem, oldVersion, newVersion, diff,
-	)
-	if truncated {
-		userPrompt += "\n\nWARNING: This diff was truncated due to size limits. Your analysis may be incomplete - malicious code could be hidden in the truncated portion. Analyze what is visible and note that the diff is partial."
-	}
+	userPrompt := llm.BuildUserPrompt(packageName, ecosystem, oldVersion, newVersion, diff, truncated)
 
 	reqBody := chatRequest{
 		Model: c.model,
 		Max:   4096,
 		Messages: []chatMessage{
-			{Role: "system", Content: SystemPrompt},
+			{Role: "system", Content: llm.SecurityAnalysisPrompt},
 			{Role: "user", Content: userPrompt},
 		},
 	}
@@ -184,6 +150,6 @@ func (c *CLIClient) Analyze(ctx context.Context, diff string, packageName string
 
 	rawResponse := chatResp.Choices[0].Message.Content
 
-	result := ParseLLMResponse(rawResponse)
+	result := llm.ParseResponse(rawResponse)
 	return result, nil
 }

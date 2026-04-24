@@ -29,6 +29,7 @@ type Config struct {
 	JWTSecretPrevious []string
 
 	// LLM
+	LLMProvider     string
 	LLMMaxDiffLen   int
 	LLMRateInterval time.Duration
 
@@ -66,8 +67,8 @@ func NewConfig() (*Config, error) {
 		// Required - no defaults
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		JWTSecret:   os.Getenv("JWT_SECRET"),
-		LLMApiURL:   os.Getenv("COPILOT_API_URL"),
-		LLMModel:    os.Getenv("COPILOT_MODEL"),
+		LLMApiURL:   envOrDefault("LLM_API_URL", os.Getenv("COPILOT_API_URL")),
+		LLMModel:    envOrDefault("LLM_MODEL", os.Getenv("COPILOT_MODEL")),
 
 		// Optional with defaults
 		RedisURL:    envOrDefault("REDIS_URL", "redis://localhost:6379/0"),
@@ -76,6 +77,7 @@ func NewConfig() (*Config, error) {
 		AppEnv:      envOrDefault("APP_ENV", "production"),
 
 		// LLM
+		LLMProvider:     envOrDefault("LLM_PROVIDER", "copilot"),
 		LLMMaxDiffLen:   envIntOrDefault("LLM_MAX_DIFF_LEN", 20000),
 		LLMRateInterval: envDurationOrDefault("LLM_RATE_INTERVAL", 6*time.Second),
 
@@ -136,10 +138,10 @@ func (c *Config) Validate() error {
 		errs = append(errs, "JWT_SECRET must be set to a secure value in production")
 	}
 	if c.LLMApiURL == "" {
-		errs = append(errs, "COPILOT_API_URL is required")
+		errs = append(errs, "LLM_API_URL (or COPILOT_API_URL) is required")
 	}
 	if c.LLMModel == "" {
-		errs = append(errs, "COPILOT_MODEL is required")
+		errs = append(errs, "LLM_MODEL (or COPILOT_MODEL) is required")
 	}
 	if c.LLMMaxDiffLen <= 0 {
 		errs = append(errs, "LLM_MAX_DIFF_LEN must be > 0")

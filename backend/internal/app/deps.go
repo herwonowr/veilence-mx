@@ -35,6 +35,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/releaseuc"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/settinguc"
+	"github.com/veilence/veilence-mx/backend/pkg/copilotapi"
 	"github.com/veilence/veilence-mx/backend/pkg/mailer"
 	"github.com/veilence/veilence-mx/backend/pkg/postgres"
 	"github.com/veilence/veilence-mx/backend/pkg/queue"
@@ -125,7 +126,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	}, jobQueue, notificationService)
 
 	// LLM analyzer
-	llmConfig := analyzer.CLIClientConfig{
+	llmConfig := copilotapi.Config{
 		BaseURL:      cfg.LLMApiURL,
 		Model:        cfg.LLMModel,
 		MaxDiffLen:   cfg.LLMMaxDiffLen,
@@ -135,17 +136,19 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		return nil, fmt.Errorf("LLM configuration error: %w", err)
 	}
 
-	llmClient := analyzer.NewCLIClient(llmConfig)
+	copilotClient := copilotapi.New(llmConfig)
 	slog.Info("LLM analyzer enabled", "url", llmConfig.BaseURL, "model", llmConfig.Model)
 	pipelineRepo := persistent.NewPipelineRepo(db)
-	pipeline := analyzer.NewPipeline(pipelineRepo, notificationService, llmClient)
+	pipeline := analyzer.NewPipeline(pipelineRepo, notificationService, &llmProviderAdapter{client: copilotClient})
 
 	// Queue workers
 	diffWorker := queue.NewWorker(jobQueue, queue.JobTypeDiff, differService.ProcessJob, queue.WorkerConfig{
 		PollInterval: 2 * time.Second,
 		Concurrency:  2,
 	})
-	analyzeWorker := queue.NewWorker(jobQueue, queue.JobTypeAnalyze, pipeline.ProcessJob, queue.WorkerConfig{
+	analyzeWorker := queue.NewWorker(jobQueue, queue.JobTypeAnalyze, func(ctx context.Context, job *queue.Job) error {
+		return pipeline.ProcessDiff(ctx, job.ReferenceID)
+	}, queue.WorkerConfig{
 		PollInterval: 2 * time.Second,
 		Concurrency:  1,
 	})
@@ -312,6 +315,28 @@ func recoverStuckReleases(ctx context.Context, jobQueue *queue.Queue, db *gorm.D
 	if len(stuckDiffing) > 0 {
 		slog.Info("recovered stuck releases from database", "count", len(stuckDiffing))
 	}
+}
+
+// llmProviderAdapter adapts a copilotapi.Client to satisfy the analyzer.LLMProvider interface.
+type llmProviderAdapter struct {
+	client *copilotapi.Client
+}
+
+func (a *llmProviderAdapter) Analyze(ctx context.Context, diff string, packageName string, ecosystem string, oldVersion string, newVersion string, truncated bool) (*analyzer.LLMResult, error) {
+	result, err := a.client.Analyze(ctx, diff, packageName, ecosystem, oldVersion, newVersion, truncated)
+	if err != nil {
+		return nil, err
+	}
+	return &analyzer.LLMResult{
+		Classification: result.Classification,
+		Confidence:     result.Confidence,
+		Reasoning:      result.Reasoning,
+		RawResponse:    result.RawResponse,
+	}, nil
+}
+
+func (a *llmProviderAdapter) Type() string {
+	return a.client.Type()
 }
 
 // seedSettingsDefaults seeds default settings values into the database.

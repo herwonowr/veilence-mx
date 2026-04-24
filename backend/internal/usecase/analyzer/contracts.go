@@ -19,3 +19,20 @@ type PipelineRepository interface {
 	// UpdateReleaseStatus updates the status of a release.
 	UpdateReleaseStatus(ctx context.Context, id string, status entity.ReleaseStatus) error
 }
+
+// LLMProvider defines the interface for LLM-based diff analysis.
+// Implementations live in pkg/ (copilot-api, openai, anthropic, ollama, etc.)
+type LLMProvider interface {
+	// Analyze classifies a diff using an LLM.
+	Analyze(ctx context.Context, diff string, packageName string, ecosystem string, oldVersion string, newVersion string, truncated bool) (*LLMResult, error)
+	// Type returns a provider identifier (e.g., "copilot", "openai", "ollama").
+	Type() string
+}
+
+// LLMResult holds the output of an LLM analysis.
+type LLMResult struct {
+	Classification string
+	Confidence     float64
+	Reasoning      string
+	RawResponse    string
+}

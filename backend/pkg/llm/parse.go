@@ -1,4 +1,4 @@
-package analyzer
+package llm
 
 import (
 	"encoding/json"
@@ -23,7 +23,7 @@ func stripMarkdownFences(raw string) string {
 	return raw
 }
 
-// ParseLLMResponse parses an LLM response that may be raw JSON or JSON wrapped
+// ParseResponse parses an LLM response that may be raw JSON or JSON wrapped
 // in markdown code fences (```json ... ``` or ``` ... ```).
 //
 // The parsing strategy is:
@@ -31,7 +31,7 @@ func stripMarkdownFences(raw string) string {
 //  2. Strip markdown code fences and try again
 //  3. Extract JSON by finding the outermost { } in the stripped text
 //  4. Fallback: return suspicious classification with 50% confidence
-func ParseLLMResponse(rawResponse string) *Result {
+func ParseResponse(rawResponse string) *Result {
 	trimmed := strings.TrimSpace(rawResponse)
 
 	// Step 1: Try direct JSON parse.
