@@ -18,6 +18,8 @@ import {
   Lock,
   Monitor,
   ArrowRight,
+  Eye,
+  EyeOff,
 } from "lucide-react"
 import Link from "next/link"
 import {
@@ -222,6 +224,9 @@ const PasswordSection = () => {
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -266,43 +271,82 @@ const PasswordSection = () => {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-            <Field data-invalid={!!errors.currentPassword} className="sm:col-span-2">
-              <FieldLabel htmlFor="currentPassword">Current Password</FieldLabel>
-              <Input
-                id="currentPassword"
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-              />
-              {errors.currentPassword && <FieldError>{errors.currentPassword}</FieldError>}
-            </Field>
-            <Field data-invalid={!!errors.newPassword}>
-              <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
-              <Input
-                id="newPassword"
-                type="password"
-                placeholder="At least 8 characters"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-                autoComplete="new-password"
-              />
-              {errors.newPassword && <FieldError>{errors.newPassword}</FieldError>}
-            </Field>
-            <Field data-invalid={!!errors.confirmPassword}>
-              <FieldLabel htmlFor="confirmPassword">Confirm New Password</FieldLabel>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                autoComplete="new-password"
-              />
-              {errors.confirmPassword && <FieldError>{errors.confirmPassword}</FieldError>}
-            </Field>
+            <div className="relative sm:col-span-2">
+              <Field data-invalid={!!errors.currentPassword}>
+                <FieldLabel htmlFor="currentPassword">Current Password</FieldLabel>
+                <Input
+                  id="currentPassword"
+                  type={showCurrent ? "text" : "password"}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
+                {errors.currentPassword && <FieldError>{errors.currentPassword}</FieldError>}
+              </Field>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                type="button"
+                className="absolute right-2 top-7.5 text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setShowCurrent((prev) => !prev)}
+                aria-label={showCurrent ? "Hide password" : "Show password"}
+                tabIndex={-1}
+              >
+                {showCurrent ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </Button>
+            </div>
+            <div className="relative">
+              <Field data-invalid={!!errors.newPassword}>
+                <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
+                <Input
+                  id="newPassword"
+                  type={showNew ? "text" : "password"}
+                  placeholder="At least 8 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                />
+                {errors.newPassword && <FieldError>{errors.newPassword}</FieldError>}
+              </Field>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                type="button"
+                className="absolute right-2 top-7.5 text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setShowNew((prev) => !prev)}
+                aria-label={showNew ? "Hide password" : "Show password"}
+                tabIndex={-1}
+              >
+                {showNew ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </Button>
+            </div>
+            <div className="relative">
+              <Field data-invalid={!!errors.confirmPassword}>
+                <FieldLabel htmlFor="confirmPassword">Confirm New Password</FieldLabel>
+                <Input
+                  id="confirmPassword"
+                  type={showConfirm ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                />
+                {errors.confirmPassword && <FieldError>{errors.confirmPassword}</FieldError>}
+              </Field>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                type="button"
+                className="absolute right-2 top-7.5 text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setShowConfirm((prev) => !prev)}
+                aria-label={showConfirm ? "Hide password" : "Show password"}
+                tabIndex={-1}
+              >
+                {showConfirm ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </Button>
+            </div>
           </div>
           <div className="flex justify-end">
             <Button type="submit" disabled={changePassword.isPending}>
