@@ -315,14 +315,7 @@ export const AuditLogView = () => {
                       <Badge variant="outline">{log.action}</Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <Badge variant="secondary" className="w-fit capitalize">{log.resource}</Badge>
-                        {log.resourceId && (
-                          <span className="font-mono text-[10px] text-muted-foreground/60" title={log.resourceId}>
-                            {log.resourceId.length > 8 ? `${log.resourceId.slice(0, 8)}...` : log.resourceId}
-                          </span>
-                        )}
-                      </div>
+                      <Badge variant="secondary" className="w-fit capitalize">{log.resource.replace(/_/g, " ")}</Badge>
                     </TableCell>
                     <TableCell className="max-w-sm text-sm">
                       {log.details || "-"}
