@@ -26,6 +26,7 @@ import {
   Loader2,
   BellRing,
   Route,
+  Pencil,
   Zap,
 } from "lucide-react"
 import { useAuth, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
@@ -131,6 +132,27 @@ export const ChannelsView = () => {
   )
 }
 
+// ─── Config Validation ─────────────────────────────────────────
+
+const isConfigValid = (type: NotificationChannelType | "", config: string): boolean => {
+  if (!type) return false
+  try {
+    const parsed = config ? JSON.parse(config) : {}
+    switch (type) {
+      case "email":
+        return !!(parsed.host && parsed.port && parsed.from && parsed.to)
+      case "slack":
+        return !!parsed.webhookUrl
+      case "webhook":
+        return !!parsed.url
+      default:
+        return false
+    }
+  } catch {
+    return false
+  }
+}
+
 // ─── Channels Section ──────────────────────────────────────────
 
 const ChannelsSection = ({
@@ -148,6 +170,9 @@ const ChannelsSection = ({
   const [channelName, setChannelName] = useState("")
   const [channelType, setChannelType] = useState<NotificationChannelType | "">("")
   const [channelConfig, setChannelConfig] = useState("")
+  const [editChannel, setEditChannel] = useState<NotificationChannel | null>(null)
+  const [editName, setEditName] = useState("")
+  const [editConfig, setEditConfig] = useState("")
 
   const createMutation = useCreateChannel(workspaceId)
   const updateMutation = useUpdateChannel(workspaceId)
@@ -155,7 +180,7 @@ const ChannelsSection = ({
   const testMutation = useTestChannel(workspaceId)
 
   const handleCreate = () => {
-    if (!channelName || !channelType) return
+    if (!channelName || !channelType || !isConfigValid(channelType, channelConfig)) return
     createMutation.mutate(
       { name: channelName, type: channelType, config: channelConfig },
       {
@@ -178,7 +203,33 @@ const ChannelsSection = ({
     })
   }
 
+  const handleEditOpen = (channel: NotificationChannel) => {
+    setEditChannel(channel)
+    setEditName(channel.name)
+    setEditConfig(channel.config)
+  }
+
+  const handleEditSave = () => {
+    if (!editChannel || !editName || !isConfigValid(editChannel.type, editConfig)) return
+    updateMutation.mutate(
+      {
+        id: editChannel.id,
+        name: editName,
+        config: editConfig,
+        isActive: editChannel.isActive,
+      },
+      {
+        onSuccess: () => {
+          setEditChannel(null)
+          setEditName("")
+          setEditConfig("")
+        },
+      }
+    )
+  }
+
   return (
+    <>
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
@@ -246,7 +297,7 @@ const ChannelsSection = ({
             <DialogFooter>
               <Button
                 onClick={handleCreate}
-                disabled={!channelName || !channelType || createMutation.isPending}
+                disabled={!channelName || !channelType || !isConfigValid(channelType, channelConfig) || createMutation.isPending}
               >
                 {createMutation.isPending && (
                   <Loader2 className="mr-2 size-4 animate-spin" />
@@ -305,6 +356,15 @@ const ChannelsSection = ({
                   <Button
                     variant="ghost"
                     size="icon-sm"
+                    onClick={() => handleEditOpen(channel)}
+                    aria-label={`Edit channel ${channel.name}`}
+                    title="Edit channel"
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
                     onClick={() => testMutation.mutate(channel.id)}
                     disabled={testMutation.isPending}
                     aria-label={`Test channel ${channel.name}`}
@@ -343,6 +403,48 @@ const ChannelsSection = ({
         )}
       </CardContent>
     </Card>
+
+    {/* Edit Channel Dialog */}
+    <Dialog open={!!editChannel} onOpenChange={(open) => { if (!open) setEditChannel(null) }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Channel</DialogTitle>
+          <DialogDescription>
+            Update the channel name and configuration.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <Field>
+            <FieldLabel htmlFor="channel-edit-name">Name</FieldLabel>
+            <Input
+              id="channel-edit-name"
+              placeholder="e.g., Team Slack"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+            />
+          </Field>
+          {editChannel && (
+            <ChannelConfigFields
+              type={editChannel.type}
+              config={editConfig}
+              onChange={setEditConfig}
+            />
+          )}
+        </div>
+        <DialogFooter>
+          <Button
+            onClick={handleEditSave}
+            disabled={!editName || !editChannel || !isConfigValid(editChannel?.type ?? "", editConfig) || updateMutation.isPending}
+          >
+            {updateMutation.isPending && (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            )}
+            Save Changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }
 
