@@ -3,7 +3,6 @@
 package digest
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -11,15 +10,16 @@ import (
 	"time"
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/notifications"
+	"github.com/veilence/veilence-mx/backend/internal/usecase"
 )
 
 // Scheduler runs a background goroutine that checks every hour whether any workspace
 // is due for its email digest, generates the digest content, and sends it via
 // the existing SMTP infrastructure.
 type Scheduler struct {
-	repo DigestRepository
-	smtp notifications.SMTPConfig
+	repo        DigestRepository
+	emailSender usecase.EmailNotificationSender // nil = no email
+	smtpFrom    string                          // sender address for digest emails
 
 	// checkInterval controls how often the scheduler polls for due digests.
 	// Default: 1 hour. Exposed for testing.
@@ -42,14 +42,15 @@ type Config struct {
 }
 
 // New creates a new digest Scheduler.
-func New(repo DigestRepository, smtpCfg notifications.SMTPConfig, cfg Config) *Scheduler {
+func New(repo DigestRepository, emailSender usecase.EmailNotificationSender, smtpFrom string, cfg Config) *Scheduler {
 	interval := cfg.CheckInterval
 	if interval <= 0 {
 		interval = 1 * time.Hour
 	}
 	return &Scheduler{
 		repo:          repo,
-		smtp:          smtpCfg,
+		emailSender:   emailSender,
+		smtpFrom:      smtpFrom,
 		checkInterval: interval,
 		nowFunc:       time.Now,
 		lastSentAt:    make(map[string]time.Time),
@@ -232,10 +233,10 @@ func FormatDigestText(d *DigestContent) string {
 	return b.String()
 }
 
-// sendDigestEmail sends the digest email via SMTP to the configured recipients.
+// sendDigestEmail sends the digest email via the email sender to the configured recipients.
 func (s *Scheduler) sendDigestEmail(recipientsList, frequency string, digest *DigestContent) error {
-	if !s.smtp.IsConfigured() {
-		return fmt.Errorf("SMTP not configured")
+	if s.emailSender == nil {
+		return fmt.Errorf("email sender not configured")
 	}
 
 	recipients := parseRecipients(recipientsList)
@@ -243,21 +244,10 @@ func (s *Scheduler) sendDigestEmail(recipientsList, frequency string, digest *Di
 		return fmt.Errorf("no valid recipients")
 	}
 
-	subject := fmt.Sprintf("Veilence-MX %s Digest", capitalize(frequency))
+	subject := fmt.Sprintf("[Veilence-MX] Veilence-MX %s Digest", capitalize(frequency))
 	body := FormatDigestText(digest)
 
-	var msg bytes.Buffer
-	msg.WriteString("From: " + s.smtp.From + "\r\n")
-	msg.WriteString("To: " + strings.Join(recipients, ", ") + "\r\n")
-	msg.WriteString("Subject: [Veilence-MX] " + subject + "\r\n")
-	msg.WriteString("MIME-Version: 1.0\r\n")
-	msg.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
-	msg.WriteString("\r\n")
-	msg.WriteString(body)
-
-	// Reuse the notification service's SMTP sending logic by delegating
-	// to a helper. For simplicity, we use net/smtp directly here.
-	return notifications.SendRawEmail(s.smtp, recipients, msg.Bytes())
+	return s.emailSender.SendNotificationEmail(s.smtpFrom, recipients, subject, body)
 }
 
 // parseRecipients splits a comma-separated list of email addresses and trims whitespace.

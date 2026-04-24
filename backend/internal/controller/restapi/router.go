@@ -6,7 +6,6 @@ import (
 
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/middleware"
 	v1 "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
@@ -23,8 +22,8 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 	}))
 	r.Use(middleware.BodySizeLimit(middleware.DefaultMaxBodySize))
 	r.Use(middleware.Sanitize)
-	r.Use(audit.CorrelationMiddleware)
-	r.Use(audit.RequestCaptureMiddleware)
+	r.Use(middleware.CorrelationMiddleware)
+	r.Use(middleware.RequestCaptureMiddleware)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Metrics)
 	r.Use(middleware.CORS(frontendURL))
@@ -65,7 +64,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 
 		// Protected routes (authentication required)
 		r.Group(func(r chi.Router) {
-			r.Use(auth.Middleware(authService))
+			r.Use(middleware.Auth(authService))
 
 			// Protected auth routes
 			r.Post("/auth/logout", h.Auth.Logout)
@@ -90,7 +89,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 
 			// Workspace-scoped flat routes (workspace ID from X-Workspace-ID header or workspace_id query param)
 			r.Group(func(r chi.Router) {
-				r.Use(rbac.RequireWorkspace(rbacService))
+				r.Use(middleware.RequireWorkspace(rbacService))
 
 				// User notifications (workspace-scoped)
 				r.Get("/notifications", h.Notifications.ListUserNotifications)
@@ -103,9 +102,9 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 
 				// API keys (require workspace context)
 				r.Route("/auth/api-keys", func(r chi.Router) {
-					r.With(rbac.RequirePermission(rbacService, "api_keys", "read")).Get("/", h.Auth.ListAPIKeys)
-					r.With(rbac.RequirePermission(rbacService, "api_keys", "write")).Post("/", h.Auth.CreateAPIKey)
-					r.With(rbac.RequirePermission(rbacService, "api_keys", "write")).Delete("/{id}", h.Auth.RevokeAPIKey)
+					r.With(middleware.RequirePermission(rbacService, "api_keys", "read")).Get("/", h.Auth.ListAPIKeys)
+					r.With(middleware.RequirePermission(rbacService, "api_keys", "write")).Post("/", h.Auth.CreateAPIKey)
+					r.With(middleware.RequirePermission(rbacService, "api_keys", "write")).Delete("/{id}", h.Auth.RevokeAPIKey)
 				})
 
 				// Dashboard (read-only, any workspace member can view)
@@ -115,64 +114,64 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 
 				// Packages
 				r.Route("/packages", func(r chi.Router) {
-					r.With(rbac.RequirePermission(rbacService, "packages", "read")).Get("/", h.Packages.ListPackages)
-					r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/", h.Packages.CreatePackage)
-					r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/bulk-import", h.Packages.ImportPackages)
+					r.With(middleware.RequirePermission(rbacService, "packages", "read")).Get("/", h.Packages.ListPackages)
+					r.With(middleware.RequirePermission(rbacService, "packages", "write")).Post("/", h.Packages.CreatePackage)
+					r.With(middleware.RequirePermission(rbacService, "packages", "write")).Post("/bulk-import", h.Packages.ImportPackages)
 
 					// Static routes MUST be registered before /{id} to avoid Chi matching
 					// "suggestions", "stale", "bulk-approve" as an {id} parameter.
-					r.With(rbac.RequirePermission(rbacService, "packages", "read")).Get("/suggestions", h.Packages.ListSuggestions)
-					r.With(rbac.RequirePermission(rbacService, "packages", "read")).Get("/stale", h.Packages.ListStalePackages)
-					r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/bulk-approve", h.Packages.BulkApprovePackages)
+					r.With(middleware.RequirePermission(rbacService, "packages", "read")).Get("/suggestions", h.Packages.ListSuggestions)
+					r.With(middleware.RequirePermission(rbacService, "packages", "read")).Get("/stale", h.Packages.ListStalePackages)
+					r.With(middleware.RequirePermission(rbacService, "packages", "write")).Post("/bulk-approve", h.Packages.BulkApprovePackages)
 
 					r.Route("/{id}", func(r chi.Router) {
-						r.With(rbac.RequirePermission(rbacService, "packages", "read")).Get("/", h.Packages.GetPackage)
-						r.With(rbac.RequirePermission(rbacService, "packages", "delete")).Delete("/", h.Packages.DeletePackage)
-						r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/block", h.Packages.BlockPackage)
-						r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/unblock", h.Packages.UnblockPackage)
-						r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/approve", h.Packages.ApprovePackage)
-						r.With(rbac.RequirePermission(rbacService, "packages", "write")).Post("/reject", h.Packages.RejectPackage)
-						r.With(rbac.RequirePermission(rbacService, "releases", "read")).Get("/releases", h.Packages.ListPackageReleases)
-						r.With(rbac.RequirePermission(rbacService, "packages", "read")).Get("/analysis-history", h.Packages.GetAnalysisHistory)
+						r.With(middleware.RequirePermission(rbacService, "packages", "read")).Get("/", h.Packages.GetPackage)
+						r.With(middleware.RequirePermission(rbacService, "packages", "delete")).Delete("/", h.Packages.DeletePackage)
+						r.With(middleware.RequirePermission(rbacService, "packages", "write")).Post("/block", h.Packages.BlockPackage)
+						r.With(middleware.RequirePermission(rbacService, "packages", "write")).Post("/unblock", h.Packages.UnblockPackage)
+						r.With(middleware.RequirePermission(rbacService, "packages", "write")).Post("/approve", h.Packages.ApprovePackage)
+						r.With(middleware.RequirePermission(rbacService, "packages", "write")).Post("/reject", h.Packages.RejectPackage)
+						r.With(middleware.RequirePermission(rbacService, "releases", "read")).Get("/releases", h.Packages.ListPackageReleases)
+						r.With(middleware.RequirePermission(rbacService, "packages", "read")).Get("/analysis-history", h.Packages.GetAnalysisHistory)
 					})
 				})
 
 				// Releases
 				r.Route("/releases", func(r chi.Router) {
-					r.With(rbac.RequirePermission(rbacService, "releases", "read")).Get("/{id}", h.Packages.GetRelease)
-					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/{id}/reanalyze", h.Packages.ReanalyzeRelease)
+					r.With(middleware.RequirePermission(rbacService, "releases", "read")).Get("/{id}", h.Packages.GetRelease)
+					r.With(middleware.RequirePermission(rbacService, "settings", "write")).Post("/{id}/reanalyze", h.Packages.ReanalyzeRelease)
 				})
 
 				// Alerts
 				r.Route("/alerts", func(r chi.Router) {
-					r.With(rbac.RequirePermission(rbacService, "alerts", "read")).Get("/", h.Alerts.ListAlerts)
+					r.With(middleware.RequirePermission(rbacService, "alerts", "read")).Get("/", h.Alerts.ListAlerts)
 					r.Route("/{id}", func(r chi.Router) {
-						r.With(rbac.RequirePermission(rbacService, "alerts", "read")).Get("/", h.Alerts.GetAlert)
-						r.With(rbac.RequirePermission(rbacService, "alerts", "write")).Patch("/", h.Alerts.UpdateAlert)
-						r.With(rbac.RequirePermission(rbacService, "alerts", "read")).Get("/notes", h.Alerts.ListAlertNotes)
-						r.With(rbac.RequirePermission(rbacService, "alerts", "write")).Post("/notes", h.Alerts.CreateAlertNote)
-						r.With(rbac.RequirePermission(rbacService, "alerts", "write")).Put("/notes/{noteId}", h.Alerts.UpdateAlertNote)
-						r.With(rbac.RequirePermission(rbacService, "alerts", "write")).Delete("/notes/{noteId}", h.Alerts.DeleteAlertNote)
+						r.With(middleware.RequirePermission(rbacService, "alerts", "read")).Get("/", h.Alerts.GetAlert)
+						r.With(middleware.RequirePermission(rbacService, "alerts", "write")).Patch("/", h.Alerts.UpdateAlert)
+						r.With(middleware.RequirePermission(rbacService, "alerts", "read")).Get("/notes", h.Alerts.ListAlertNotes)
+						r.With(middleware.RequirePermission(rbacService, "alerts", "write")).Post("/notes", h.Alerts.CreateAlertNote)
+						r.With(middleware.RequirePermission(rbacService, "alerts", "write")).Put("/notes/{noteId}", h.Alerts.UpdateAlertNote)
+						r.With(middleware.RequirePermission(rbacService, "alerts", "write")).Delete("/notes/{noteId}", h.Alerts.DeleteAlertNote)
 					})
 				})
 
 				// Settings
-				r.With(rbac.RequirePermission(rbacService, "settings", "read")).Get("/settings", h.Settings.GetSettings)
-				r.With(rbac.RequirePermission(rbacService, "settings", "write")).Put("/settings", h.Settings.UpdateSettings)
+				r.With(middleware.RequirePermission(rbacService, "settings", "read")).Get("/settings", h.Settings.GetSettings)
+				r.With(middleware.RequirePermission(rbacService, "settings", "write")).Put("/settings", h.Settings.UpdateSettings)
 
 				// Sync triggers (stricter rate limit + write permission)
 				r.Group(func(r chi.Router) {
 					r.Use(rateLimitGroup.ForCategory(middleware.CategorySync))
-					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/discover", h.Settings.DiscoverPackages)
-					r.With(rbac.RequirePermission(rbacService, "settings", "write")).Post("/sync/reanalyze", h.Dashboard.ReanalyzeAll)
+					r.With(middleware.RequirePermission(rbacService, "settings", "write")).Post("/sync/discover", h.Settings.DiscoverPackages)
+					r.With(middleware.RequirePermission(rbacService, "settings", "write")).Post("/sync/reanalyze", h.Dashboard.ReanalyzeAll)
 				})
 
 				// Queue monitoring (global data - restricted to workspace admins/owners only)
-				r.With(rbac.RequirePermission(rbacService, "workspace", "write")).Get("/queue/stats", h.Queue.GetQueueStats)
-				r.With(rbac.RequirePermission(rbacService, "workspace", "write")).Get("/queue/jobs", h.Queue.GetQueueJobs)
-				r.With(rbac.RequirePermission(rbacService, "workspace", "write")).Get("/queue/dead", h.Queue.GetDeadJobs) // Deprecated: use GET /queue/jobs?status=dead
-				r.With(rbac.RequirePermission(rbacService, "workspace", "write")).Post("/queue/retry-dead", h.Queue.RetryDeadJobs)
-				r.With(rbac.RequirePermission(rbacService, "workspace", "write")).Post("/queue/dead/{jobId}/retry", h.Queue.RetryDeadJob)
+				r.With(middleware.RequirePermission(rbacService, "workspace", "write")).Get("/queue/stats", h.Queue.GetQueueStats)
+				r.With(middleware.RequirePermission(rbacService, "workspace", "write")).Get("/queue/jobs", h.Queue.GetQueueJobs)
+				r.With(middleware.RequirePermission(rbacService, "workspace", "write")).Get("/queue/dead", h.Queue.GetDeadJobs) // Deprecated: use GET /queue/jobs?status=dead
+				r.With(middleware.RequirePermission(rbacService, "workspace", "write")).Post("/queue/retry-dead", h.Queue.RetryDeadJobs)
+				r.With(middleware.RequirePermission(rbacService, "workspace", "write")).Post("/queue/dead/{jobId}/retry", h.Queue.RetryDeadJob)
 			})
 
 			// Workspace routes
@@ -186,44 +185,44 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 
 				// Workspace-scoped routes (require membership + permissions)
 				r.Route("/{workspaceId}", func(r chi.Router) {
-					r.Use(rbac.RequireWorkspace(rbacService))
+					r.Use(middleware.RequireWorkspace(rbacService))
 
-					r.With(rbac.RequirePermission(rbacService, "workspace", "read")).Get("/", h.Workspace.GetWorkspace)
-					r.With(rbac.RequirePermission(rbacService, "workspace", "write")).Put("/", h.Workspace.UpdateWorkspace)
-					r.With(rbac.RequirePermission(rbacService, "workspace", "delete")).Delete("/", h.Workspace.DeleteWorkspace)
+					r.With(middleware.RequirePermission(rbacService, "workspace", "read")).Get("/", h.Workspace.GetWorkspace)
+					r.With(middleware.RequirePermission(rbacService, "workspace", "write")).Put("/", h.Workspace.UpdateWorkspace)
+					r.With(middleware.RequirePermission(rbacService, "workspace", "delete")).Delete("/", h.Workspace.DeleteWorkspace)
 
 					// Members
 					r.Get("/members/me/role", h.Workspace.GetCurrentMemberRole) // No extra permission - any workspace member can read their own role
-					r.With(rbac.RequirePermission(rbacService, "members", "read")).Get("/members", h.Workspace.ListMembers)
-					r.With(rbac.RequirePermission(rbacService, "members", "invite")).Post("/invitations", h.Workspace.InviteMember)
-					r.With(rbac.RequirePermission(rbacService, "members", "read")).Get("/invitations", h.Workspace.ListPendingInvitations)
-					r.With(rbac.RequirePermission(rbacService, "members", "invite")).Delete("/invitations/{id}", h.Workspace.RevokeInvitation)
-					r.With(rbac.RequirePermission(rbacService, "members", "invite")).Post("/invitations/{id}/resend", h.Workspace.ResendInvitation)
-					r.With(rbac.RequirePermission(rbacService, "members", "remove")).Delete("/members/{userId}", h.Workspace.RemoveMember)
-					r.With(rbac.RequirePermission(rbacService, "members", "remove")).Put("/members/{userId}/role", h.Workspace.UpdateMemberRole)
+					r.With(middleware.RequirePermission(rbacService, "members", "read")).Get("/members", h.Workspace.ListMembers)
+					r.With(middleware.RequirePermission(rbacService, "members", "invite")).Post("/invitations", h.Workspace.InviteMember)
+					r.With(middleware.RequirePermission(rbacService, "members", "read")).Get("/invitations", h.Workspace.ListPendingInvitations)
+					r.With(middleware.RequirePermission(rbacService, "members", "invite")).Delete("/invitations/{id}", h.Workspace.RevokeInvitation)
+					r.With(middleware.RequirePermission(rbacService, "members", "invite")).Post("/invitations/{id}/resend", h.Workspace.ResendInvitation)
+					r.With(middleware.RequirePermission(rbacService, "members", "remove")).Delete("/members/{userId}", h.Workspace.RemoveMember)
+					r.With(middleware.RequirePermission(rbacService, "members", "remove")).Put("/members/{userId}/role", h.Workspace.UpdateMemberRole)
 
 					// Roles
-					r.With(rbac.RequirePermission(rbacService, "roles", "read")).Get("/roles", h.Workspace.ListRoles)
+					r.With(middleware.RequirePermission(rbacService, "roles", "read")).Get("/roles", h.Workspace.ListRoles)
 
 					// Audit logs
-					r.With(rbac.RequirePermission(rbacService, "audit", "read")).Get("/audit-logs", h.AuditLogs.ListAuditLogs)
+					r.With(middleware.RequirePermission(rbacService, "audit", "read")).Get("/audit-logs", h.AuditLogs.ListAuditLogs)
 
 					// Notification channels
 					r.Route("/notification-channels", func(r chi.Router) {
-						r.With(rbac.RequirePermission(rbacService, "notifications", "read")).Get("/", h.Notifications.ListNotificationChannels)
-						r.With(rbac.RequirePermission(rbacService, "notifications", "create")).Post("/", h.Notifications.CreateNotificationChannel)
+						r.With(middleware.RequirePermission(rbacService, "notifications", "read")).Get("/", h.Notifications.ListNotificationChannels)
+						r.With(middleware.RequirePermission(rbacService, "notifications", "create")).Post("/", h.Notifications.CreateNotificationChannel)
 						r.Route("/{id}", func(r chi.Router) {
-							r.With(rbac.RequirePermission(rbacService, "notifications", "update")).Put("/", h.Notifications.UpdateNotificationChannel)
-							r.With(rbac.RequirePermission(rbacService, "notifications", "delete")).Delete("/", h.Notifications.DeleteNotificationChannel)
-							r.With(rbac.RequirePermission(rbacService, "notifications", "update")).Post("/test", h.Notifications.TestNotificationChannel)
+							r.With(middleware.RequirePermission(rbacService, "notifications", "update")).Put("/", h.Notifications.UpdateNotificationChannel)
+							r.With(middleware.RequirePermission(rbacService, "notifications", "delete")).Delete("/", h.Notifications.DeleteNotificationChannel)
+							r.With(middleware.RequirePermission(rbacService, "notifications", "update")).Post("/test", h.Notifications.TestNotificationChannel)
 						})
 					})
 
 					// Notification rules
 					r.Route("/notification-rules", func(r chi.Router) {
-						r.With(rbac.RequirePermission(rbacService, "notifications", "read")).Get("/", h.Notifications.ListNotificationRules)
-						r.With(rbac.RequirePermission(rbacService, "notifications", "create")).Post("/", h.Notifications.CreateNotificationRule)
-						r.With(rbac.RequirePermission(rbacService, "notifications", "delete")).Delete("/{id}", h.Notifications.DeleteNotificationRule)
+						r.With(middleware.RequirePermission(rbacService, "notifications", "read")).Get("/", h.Notifications.ListNotificationRules)
+						r.With(middleware.RequirePermission(rbacService, "notifications", "create")).Post("/", h.Notifications.CreateNotificationRule)
+						r.With(middleware.RequirePermission(rbacService, "notifications", "delete")).Delete("/{id}", h.Notifications.DeleteNotificationRule)
 					})
 				})
 			})

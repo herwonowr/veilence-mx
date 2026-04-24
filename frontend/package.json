@@ -36,7 +36,6 @@
     "@types/react-dom": "^19",
     "@typescript-eslint/eslint-plugin": "^8.58.0",
     "@typescript-eslint/parser": "^8.58.0",
-    "copilot-api": "^0.7.0",
     "eslint": "^9",
     "eslint-config-next": "^16.2.4",
     "tailwindcss": "^4",

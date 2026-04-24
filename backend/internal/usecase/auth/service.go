@@ -10,9 +10,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
 )
@@ -54,14 +51,6 @@ const (
 	TokenTypeRefresh = "refresh"
 )
 
-// Claims represents the JWT claims used for authentication tokens.
-type Claims struct {
-	UserID    string `json:"user_id"`
-	Email     string `json:"email"`
-	TokenType string `json:"token_type"`
-	jwt.RegisteredClaims
-}
-
 // TokenPair holds an access token and a refresh token.
 type TokenPair struct {
 	AccessToken  string `json:"accessToken"`
@@ -79,13 +68,11 @@ type Service struct {
 	emailSender        usecase.AuthEmailSender // nil = no email delivery (dev mode)
 	requireEmailVerification bool                    // from env: REQUIRE_EMAIL_VERIFICATION
 	rateLimiter              usecase.RateLimiter     // nil = no rate limiting
-	jwtSecret          []byte                  // primary secret (used for signing)
-	jwtSecretsPrevious [][]byte                // previous secrets (accepted for validation during rotation)
+	tokenProvider      usecase.TokenProvider
+	hasher             usecase.PasswordHasher
 }
 
-// NewService creates a new auth service with the given repositories and JWT secret.
-// The jwtSecret is the primary signing secret. previousSecrets are optional older
-// secrets that are still accepted for token validation during secret rotation.
+// NewService creates a new auth service with the given repositories and token/password providers.
 // emailSender and rateLimiter may be nil (dev mode: emails skipped,
 // rate limiting skipped).
 func NewService(
@@ -98,15 +85,9 @@ func NewService(
 	emailSender usecase.AuthEmailSender,
 	requireEmailVerification bool,
 	rateLimiter usecase.RateLimiter,
-	jwtSecret string,
-	previousSecrets ...string,
+	tokenProvider usecase.TokenProvider,
+	hasher usecase.PasswordHasher,
 ) *Service {
-	var prevKeys [][]byte
-	for _, s := range previousSecrets {
-		if s != "" {
-			prevKeys = append(prevKeys, []byte(s))
-		}
-	}
 	return &Service{
 		users:                    users,
 		refreshTokens:            refreshTokens,
@@ -117,8 +98,8 @@ func NewService(
 		emailSender:              emailSender,
 		requireEmailVerification: requireEmailVerification,
 		rateLimiter:              rateLimiter,
-		jwtSecret:                []byte(jwtSecret),
-		jwtSecretsPrevious:       prevKeys,
+		tokenProvider:            tokenProvider,
+		hasher:                   hasher,
 	}
 }
 
@@ -130,19 +111,14 @@ func hashRefreshToken(token string) string {
 	return hex.EncodeToString(h[:])
 }
 
-// hashPassword hashes the given plaintext password using bcrypt.
-func hashPassword(password string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
-	}
-	return string(hash), nil
+// hashPassword hashes the given plaintext password using the configured hasher.
+func (s *Service) hashPassword(password string) (string, error) {
+	return s.hasher.Hash(password)
 }
 
 // checkPassword compares the given plaintext password against the stored hash.
-func checkPassword(password, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
+func (s *Service) checkPassword(password, hash string) bool {
+	return s.hasher.Compare(hash, password) == nil
 }
 
 // Register creates a new user with the given credentials.
@@ -163,7 +139,7 @@ func (s *Service) Register(email, password, firstName, lastName string) (*entity
 		return nil, err
 	}
 
-	passwordHash, err := hashPassword(password)
+	passwordHash, err := s.hashPassword(password)
 	if err != nil {
 		return nil, fmt.Errorf("hashing password: %w", err)
 	}
@@ -218,7 +194,7 @@ func (s *Service) Login(email, password, ipAddress, userAgent string) (*entity.U
 		return nil, nil, errors.New("account is deactivated")
 	}
 
-	if !checkPassword(password, user.PasswordHash) {
+	if !s.checkPassword(password, user.PasswordHash) {
 		return nil, nil, errors.New("invalid email or password")
 	}
 
@@ -336,50 +312,9 @@ func (s *Service) Logout(refreshToken string) error {
 }
 
 // ValidateAccessToken parses and validates a JWT access token, returning its claims.
-// It first tries the primary secret, then falls back to previous secrets to
-// support seamless JWT secret rotation.
-func (s *Service) ValidateAccessToken(tokenString string) (*Claims, error) {
-	// Try primary secret first
-	claims, err := s.validateTokenWithSecret(tokenString, s.jwtSecret)
-	if err == nil {
-		return claims, nil
-	}
-
-	// Try previous secrets (rotation support)
-	for _, prevSecret := range s.jwtSecretsPrevious {
-		claims, prevErr := s.validateTokenWithSecret(tokenString, prevSecret)
-		if prevErr == nil {
-			slog.Debug("token validated with previous secret (rotation in progress)")
-			return claims, nil
-		}
-	}
-
-	// Return the original error from the primary secret
-	return nil, err
-}
-
-// validateTokenWithSecret validates a JWT token using a specific secret.
-func (s *Service) validateTokenWithSecret(tokenString string, secret []byte) (*Claims, error) {
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return secret, nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("parsing token: %w", err)
-	}
-
-	if !token.Valid {
-		return nil, errors.New("invalid token")
-	}
-
-	if claims.TokenType != TokenTypeAccess {
-		return nil, errors.New("not an access token")
-	}
-
-	return claims, nil
+// Delegates to the TokenProvider implementation which handles secret rotation.
+func (s *Service) ValidateAccessToken(tokenString string) (*usecase.TokenClaims, error) {
+	return s.tokenProvider.ValidateAccessToken(tokenString)
 }
 
 // GetUserByID retrieves a user by their ID.
@@ -423,7 +358,7 @@ func (s *Service) ValidateAPIKey(rawKey string) (string, string, entity.APIKeyRo
 	}
 
 	for _, key := range keys {
-		if checkAPIKeyHash(rawKey, key.KeyHash) {
+		if s.checkAPIKeyHash(rawKey, key.KeyHash) {
 			// Check expiration
 			if key.ExpiresAt != nil && time.Now().After(*key.ExpiresAt) {
 				return "", "", "", "", errors.New("API key expired")
@@ -453,32 +388,17 @@ func (s *Service) ValidateAPIKey(rawKey string) (string, string, entity.APIKeyRo
 
 // generateTokenPair creates a new access/refresh token pair for the given user.
 func (s *Service) generateTokenPair(ctx context.Context, user *entity.User) (*TokenPair, error) {
-	// Generate access token
-	accessClaims := &Claims{
-		UserID:    user.ID,
-		Email:     user.Email,
-		TokenType: TokenTypeAccess,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(AccessTokenDuration)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Issuer:    "veilence-mx",
-			Subject:   user.ID,
-			Audience:  jwt.ClaimStrings{"veilence-mx-api"},
-		},
-	}
-
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
-	accessTokenString, err := accessToken.SignedString(s.jwtSecret)
+	// Generate access token via provider
+	accessTokenString, err := s.tokenProvider.GenerateAccessToken(user.ID, user.Email, AccessTokenDuration)
 	if err != nil {
-		return nil, fmt.Errorf("signing access token: %w", err)
+		return nil, fmt.Errorf("generating access token: %w", err)
 	}
 
-	// Generate refresh token (opaque random string)
-	refreshTokenBytes := make([]byte, 32)
-	if _, err := rand.Read(refreshTokenBytes); err != nil {
+	// Generate refresh token (opaque random string) via provider
+	refreshTokenString, err := s.tokenProvider.GenerateRefreshToken()
+	if err != nil {
 		return nil, fmt.Errorf("generating refresh token: %w", err)
 	}
-	refreshTokenString := hex.EncodeToString(refreshTokenBytes)
 
 	// Store SHA-256 hash of refresh token (never store plaintext)
 	storedToken := &entity.RefreshToken{
@@ -505,16 +425,15 @@ func generateAPIKeyRaw() (string, error) {
 	return "vmx_" + hex.EncodeToString(b), nil
 }
 
-// hashAPIKey hashes an API key using bcrypt for storage.
-func hashAPIKey(rawKey string) string {
-	hash, _ := bcrypt.GenerateFromPassword([]byte(rawKey), bcrypt.DefaultCost)
-	return string(hash)
+// hashAPIKey hashes an API key using the configured hasher for storage.
+func (s *Service) hashAPIKey(rawKey string) string {
+	hash, _ := s.hasher.Hash(rawKey)
+	return hash
 }
 
 // checkAPIKeyHash compares a raw API key against its stored hash.
-func checkAPIKeyHash(rawKey, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(rawKey))
-	return err == nil
+func (s *Service) checkAPIKeyHash(rawKey, hash string) bool {
+	return s.hasher.Compare(hash, rawKey) == nil
 }
 
 // CreateAPIKey generates a new API key for the given user with the specified role within a workspace.
@@ -547,7 +466,7 @@ func (s *Service) CreateAPIKey(userID string, workspaceID string, name string, r
 		UserID:      userID,
 		WorkspaceID: workspaceID,
 		Name:        name,
-		KeyHash:     hashAPIKey(rawKey),
+		KeyHash:     s.hashAPIKey(rawKey),
 		KeyPrefix:   rawKey[:10],
 		Role:        role,
 		IsActive:    true,
@@ -683,7 +602,7 @@ func (s *Service) ResetPassword(rawToken, newPassword string) error {
 		return err
 	}
 
-	passwordHash, err := hashPassword(newPassword)
+	passwordHash, err := s.hashPassword(newPassword)
 	if err != nil {
 		return fmt.Errorf("hashing password: %w", err)
 	}
@@ -969,7 +888,7 @@ func (s *Service) ChangePassword(userID string, currentPassword, newPassword, cu
 		return fmt.Errorf("finding user: %w", err)
 	}
 
-	if !checkPassword(currentPassword, user.PasswordHash) {
+	if !s.checkPassword(currentPassword, user.PasswordHash) {
 		return ErrInvalidPassword
 	}
 
@@ -977,7 +896,7 @@ func (s *Service) ChangePassword(userID string, currentPassword, newPassword, cu
 		return err
 	}
 
-	passwordHash, err := hashPassword(newPassword)
+	passwordHash, err := s.hashPassword(newPassword)
 	if err != nil {
 		return fmt.Errorf("hashing new password: %w", err)
 	}

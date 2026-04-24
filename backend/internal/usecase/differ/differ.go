@@ -15,7 +15,6 @@ import (
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
-	"github.com/veilence/veilence-mx/backend/pkg/queue"
 )
 
 // Config holds configuration for the differ.
@@ -29,12 +28,12 @@ type Differ struct {
 	python   usecase.Registry
 	npm      usecase.Registry
 	config   Config
-	queue    *queue.Queue
+	queue    usecase.QueueEnqueuer
 	notifier usecase.NotificationDispatcher
 }
 
 // New creates a new Differ instance.
-func New(repo DifferRepository, python usecase.Registry, npm usecase.Registry, config Config, q *queue.Queue, notifier usecase.NotificationDispatcher) *Differ {
+func New(repo DifferRepository, python usecase.Registry, npm usecase.Registry, config Config, q usecase.QueueEnqueuer, notifier usecase.NotificationDispatcher) *Differ {
 	if config.DiffSizeLimit <= 0 {
 		config.DiffSizeLimit = 100 * 1024 // 100KB default
 	}
@@ -48,13 +47,9 @@ func New(repo DifferRepository, python usecase.Registry, npm usecase.Registry, c
 	}
 }
 
-// ProcessJob is the queue worker handler for diff jobs.
-func (d *Differ) ProcessJob(ctx context.Context, job *queue.Job) error {
-	return d.processRelease(ctx, job.ReferenceID)
-}
-
-// processRelease generates a diff for a new release.
-func (d *Differ) processRelease(ctx context.Context, releaseID string) error {
+// ProcessRelease generates a diff for a new release by its ID.
+// This is the entry point for the queue worker.
+func (d *Differ) ProcessRelease(ctx context.Context, releaseID string) error {
 	release, pkg, err := d.repo.FindReleaseByIDWithPackage(ctx, releaseID)
 	if err != nil {
 		return fmt.Errorf("loading release %s: %w", releaseID, err)
@@ -157,8 +152,8 @@ func (d *Differ) processRelease(ctx context.Context, releaseID string) error {
 		"lines_removed", stats.linesRemoved,
 	)
 
-	// Enqueue analysis job via Redis queue
-	jobID, err := d.queue.Enqueue(ctx, queue.JobTypeAnalyze, pkg.WorkspaceID, diff.ID)
+	// Enqueue analysis job via queue
+	jobID, err := d.queue.Enqueue(ctx, "analyze", pkg.WorkspaceID, diff.ID)
 	if err != nil {
 		return fmt.Errorf("enqueuing analyze job: %w", err)
 	}

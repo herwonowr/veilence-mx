@@ -37,12 +37,15 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/settinguc"
 	"github.com/veilence/veilence-mx/backend/pkg/anthropic"
 	"github.com/veilence/veilence-mx/backend/pkg/copilotapi"
+	"github.com/veilence/veilence-mx/backend/pkg/hasher"
 	"github.com/veilence/veilence-mx/backend/pkg/llm"
 	"github.com/veilence/veilence-mx/backend/pkg/mailer"
 	"github.com/veilence/veilence-mx/backend/pkg/ollama"
 	"github.com/veilence/veilence-mx/backend/pkg/openai"
 	"github.com/veilence/veilence-mx/backend/pkg/postgres"
 	"github.com/veilence/veilence-mx/backend/pkg/queue"
+	"github.com/veilence/veilence-mx/backend/pkg/sender"
+	"github.com/veilence/veilence-mx/backend/pkg/token"
 )
 
 // Dependencies holds all initialized services, repos, and infrastructure.
@@ -109,12 +112,27 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		slog.Warn("SMTP not configured - email notifications will be skipped")
 	}
 
+	// Notification senders
+	var emailNotifSender usecase.EmailNotificationSender
+	if smtpConfig.IsConfigured() {
+		emailNotifSender = sender.NewSMTPSender(sender.SMTPConfig{
+			Host:     smtpConfig.Host,
+			Port:     smtpConfig.Port,
+			Username: smtpConfig.Username,
+			Password: smtpConfig.Password,
+			From:     smtpConfig.From,
+			UseTLS:   smtpConfig.UseTLS,
+		})
+	}
+	webhookSender := sender.NewHTTPWebhookSender()
+	slackSender := sender.NewHTTPSlackSender()
+
 	// Notification service
 	notificationChannelRepo := persistent.NewNotificationChannelRepo(db)
 	notificationRuleRepo := persistent.NewNotificationRuleRepo(db)
 	notificationRepo := persistent.NewNotificationRepo(db)
 	workspaceMemberRepo := persistent.NewWorkspaceMemberRepo(db)
-	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, workspaceMemberRepo, smtpConfig)
+	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, workspaceMemberRepo, smtpConfig, emailNotifSender, webhookSender, slackSender)
 
 	// Pipeline
 	pollerRepo := persistent.NewPollerRepo(db)
@@ -198,7 +216,9 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	pipeline := analyzer.NewPipeline(pipelineRepo, notificationService, llmAdapter)
 
 	// Queue workers
-	diffWorker := queue.NewWorker(jobQueue, queue.JobTypeDiff, differService.ProcessJob, queue.WorkerConfig{
+	diffWorker := queue.NewWorker(jobQueue, queue.JobTypeDiff, func(ctx context.Context, job *queue.Job) error {
+		return differService.ProcessRelease(ctx, job.ReferenceID)
+	}, queue.WorkerConfig{
 		PollInterval: 2 * time.Second,
 		Concurrency:  2,
 	})
@@ -247,7 +267,10 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		slog.Info("JWT secret rotation enabled", "previous_secrets_count", len(previousSecrets))
 	}
 
-	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, authEmailSender, cfg.RequireEmailVerification, rateLimiter, cfg.JWTSecret, previousSecrets...)
+	tokenProvider := token.New(cfg.JWTSecret, previousSecrets...)
+	passwordHasher := hasher.New()
+
+	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, authEmailSender, cfg.RequireEmailVerification, rateLimiter, tokenProvider, passwordHasher)
 	slog.Info("auth service initialized", "require_email_verification", cfg.RequireEmailVerification, "email_sender_configured", authEmailSender != nil)
 	auditLogRepo := persistent.NewAuditLogRepo(db)
 	rbacRepo := persistent.NewRBACRepo(db)
@@ -274,7 +297,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 
 	// Digest scheduler
 	digestRepo := persistent.NewDigestRepo(db)
-	digestScheduler := digest.New(digestRepo, smtpConfig, digest.Config{})
+	digestScheduler := digest.New(digestRepo, emailNotifSender, smtpConfig.From, digest.Config{})
 
 	// HTTP handlers + router
 	h := v1.NewHandlers(

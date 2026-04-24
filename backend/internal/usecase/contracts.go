@@ -430,6 +430,55 @@ type RateLimiter interface {
 	Allow(ctx context.Context, key string, cooldown time.Duration) (bool, error)
 }
 
+// TokenClaims represents the essential claims extracted from a validated token.
+type TokenClaims struct {
+	UserID    string
+	Email     string
+	TokenType string
+}
+
+// TokenProvider handles JWT token generation and validation.
+// Implementations live in the outer layer (pkg/jwt or similar).
+type TokenProvider interface {
+	// GenerateAccessToken creates a signed JWT access token.
+	GenerateAccessToken(userID, email string, duration time.Duration) (string, error)
+	// GenerateRefreshToken creates a cryptographically random refresh token string.
+	GenerateRefreshToken() (string, error)
+	// ValidateAccessToken parses and validates a JWT access token, returning its claims.
+	ValidateAccessToken(tokenString string) (*TokenClaims, error)
+}
+
+// PasswordHasher handles password hashing and comparison.
+// Implementations live in the outer layer (pkg/hasher or similar).
+type PasswordHasher interface {
+	// Hash produces a secure hash of the given password.
+	Hash(password string) (string, error)
+	// Compare checks whether the given password matches the stored hash.
+	// Returns nil on match, error otherwise.
+	Compare(hash, password string) error
+}
+
+// EmailNotificationSender sends notification emails via SMTP.
+// Implementations live in the outer layer (pkg/mailer or similar).
+type EmailNotificationSender interface {
+	SendNotificationEmail(from string, recipients []string, subject, body string) error
+}
+
+// WebhookSender sends HTTP webhook notifications.
+// Implementations live in the outer layer (pkg/ or repo/).
+type WebhookSender interface {
+	// SendWebhook posts a JSON payload to the given URL.
+	// If signingSecret is non-empty, it adds an HMAC-SHA256 signature header.
+	SendWebhook(url string, payload []byte, signingSecret string) error
+}
+
+// SlackSender sends Slack webhook notifications.
+// Implementations live in the outer layer (pkg/ or repo/).
+type SlackSender interface {
+	// SendSlack posts a text message to a Slack incoming webhook URL.
+	SendSlack(webhookURL string, text string) error
+}
+
 // DigestRepository defines the persistence operations needed by the digest scheduler.
 type DigestRepository interface {
 	FindEnabledDigestConfigs(ctx context.Context) ([]entity.DigestOrgConfig, error)

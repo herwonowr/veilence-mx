@@ -1,19 +1,15 @@
 package notifications
 
 import (
-	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
-	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net"
-	"net/http"
-	"net/smtp"
 	"net/url"
 	"strings"
 	"time"
@@ -50,6 +46,9 @@ type Service struct {
 	notifications usecase.NotificationRepository
 	workspaces    usecase.UserWorkspaceLister
 	smtp          SMTPConfig
+	emailSender   usecase.EmailNotificationSender // nil = SMTP not configured
+	webhookSender usecase.WebhookSender
+	slackSender   usecase.SlackSender
 
 	// AllowLocalURLs disables SSRF protection for webhook/Slack URLs.
 	// This must ONLY be set to true in tests that use httptest.NewServer (localhost).
@@ -63,6 +62,9 @@ func NewService(
 	notifications usecase.NotificationRepository,
 	workspaces usecase.UserWorkspaceLister,
 	smtpCfg SMTPConfig,
+	emailSender usecase.EmailNotificationSender,
+	webhookSender usecase.WebhookSender,
+	slackSender usecase.SlackSender,
 ) *Service {
 	return &Service{
 		channels:      channels,
@@ -70,6 +72,9 @@ func NewService(
 		notifications: notifications,
 		workspaces:    workspaces,
 		smtp:          smtpCfg,
+		emailSender:   emailSender,
+		webhookSender: webhookSender,
+		slackSender:   slackSender,
 	}
 }
 
@@ -309,11 +314,11 @@ type emailConfig struct {
 	Recipients string `json:"recipients"`
 }
 
-// sendEmail sends a notification email via the configured SMTP server.
+// sendEmail sends a notification email via the configured email sender.
 // The channel config should contain a JSON object with a "recipients" field.
-// If SMTP is not configured, it falls back to logging.
+// If the email sender is not configured, it returns an error.
 func (s *Service) sendEmail(channel entity.NotificationChannel, title, message string) error {
-	if !s.smtp.IsConfigured() {
+	if s.emailSender == nil {
 		return fmt.Errorf("SMTP not configured")
 	}
 
@@ -331,33 +336,11 @@ func (s *Service) sendEmail(channel entity.NotificationChannel, title, message s
 		recipients[i] = strings.TrimSpace(recipients[i])
 	}
 
-	// Build the email message following RFC 2822
-	var body bytes.Buffer
-	body.WriteString("From: " + s.smtp.From + "\r\n")
-	body.WriteString("To: " + strings.Join(recipients, ", ") + "\r\n")
-	body.WriteString("Subject: [Veilence-MX] " + title + "\r\n")
-	body.WriteString("MIME-Version: 1.0\r\n")
-	body.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
-	body.WriteString("\r\n")
-	body.WriteString(message)
-	body.WriteString("\r\n\r\n---\r\nSent by Veilence-MX notification system\r\n")
+	subject := "[Veilence-MX] " + title
+	body := message + "\r\n\r\n---\r\nSent by Veilence-MX notification system\r\n"
 
-	addr := net.JoinHostPort(s.smtp.Host, s.smtp.Port)
-
-	var auth smtp.Auth
-	if s.smtp.Username != "" {
-		auth = smtp.PlainAuth("", s.smtp.Username, s.smtp.Password, s.smtp.Host)
-	}
-
-	// Port 465 uses implicit TLS; other ports use STARTTLS
-	if s.smtp.Port == "465" {
-		if err := s.sendEmailImplicitTLS(addr, auth, recipients, body.Bytes()); err != nil {
-			return fmt.Errorf("sending email (implicit TLS): %w", err)
-		}
-	} else {
-		if err := smtp.SendMail(addr, auth, s.smtp.From, recipients, body.Bytes()); err != nil {
-			return fmt.Errorf("sending email: %w", err)
-		}
+	if err := s.emailSender.SendNotificationEmail(s.smtp.From, recipients, subject, body); err != nil {
+		return fmt.Errorf("sending email: %w", err)
 	}
 
 	slog.Info("email notification sent",
@@ -366,57 +349,6 @@ func (s *Service) sendEmail(channel entity.NotificationChannel, title, message s
 		"title", title,
 	)
 	return nil
-}
-
-// sendEmailImplicitTLS sends an email over implicit TLS (port 465).
-func (s *Service) sendEmailImplicitTLS(addr string, auth smtp.Auth, recipients []string, msg []byte) error {
-	tlsConfig := &tls.Config{
-		ServerName: s.smtp.Host,
-		MinVersion: tls.VersionTLS12,
-	}
-
-	conn, err := tls.DialWithDialer(&net.Dialer{Timeout: 10 * time.Second}, "tcp", addr, tlsConfig)
-	if err != nil {
-		return fmt.Errorf("connecting to SMTP server: %w", err)
-	}
-
-	client, err := smtp.NewClient(conn, s.smtp.Host)
-	if err != nil {
-		conn.Close()
-		return fmt.Errorf("creating SMTP client: %w", err)
-	}
-	defer client.Close()
-
-	if auth != nil {
-		if err := client.Auth(auth); err != nil {
-			return fmt.Errorf("SMTP authentication: %w", err)
-		}
-	}
-
-	if err := client.Mail(s.smtp.From); err != nil {
-		return fmt.Errorf("SMTP MAIL FROM: %w", err)
-	}
-
-	for _, rcpt := range recipients {
-		if err := client.Rcpt(rcpt); err != nil {
-			return fmt.Errorf("SMTP RCPT TO %s: %w", rcpt, err)
-		}
-	}
-
-	w, err := client.Data()
-	if err != nil {
-		return fmt.Errorf("SMTP DATA: %w", err)
-	}
-
-	if _, err := w.Write(msg); err != nil {
-		return fmt.Errorf("writing email body: %w", err)
-	}
-
-	if err := w.Close(); err != nil {
-		return fmt.Errorf("closing email body: %w", err)
-	}
-
-	return client.Quit()
 }
 
 // ---------------------------------------------------------------------------
@@ -575,11 +507,6 @@ func isPrivateOrReservedIP(ip net.IP) bool {
 	return false
 }
 
-// slackPayload is the JSON payload sent to Slack incoming webhooks.
-type slackPayload struct {
-	Text string `json:"text"`
-}
-
 // slackConfig is the expected JSON config for a Slack channel.
 type slackConfig struct {
 	// WebhookURL is the Slack incoming webhook URL.
@@ -606,22 +533,9 @@ func (s *Service) sendSlack(channel entity.NotificationChannel, title, message s
 
 	// Format as a Slack mrkdwn message
 	text := fmt.Sprintf(":warning: *%s*\n%s", title, message)
-	payload := slackPayload{Text: text}
 
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("marshaling slack payload: %w", err)
-	}
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Post(cfg.WebhookURL, "application/json", bytes.NewReader(body))
-	if err != nil {
+	if err := s.slackSender.SendSlack(cfg.WebhookURL, text); err != nil {
 		return fmt.Errorf("sending slack notification: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("slack webhook returned HTTP %d", resp.StatusCode)
 	}
 
 	slog.Info("slack notification sent",
@@ -644,10 +558,8 @@ type webhookConfig struct {
 	Secret string `json:"secret,omitempty"`
 }
 
-// sendWebhook actually POSTs to the configured webhook URL.
-// If a signing secret is configured, the request includes an X-Signature-256
-// header containing "sha256=<hex_digest>" computed via HMAC-SHA256 over the
-// JSON request body.
+// sendWebhook actually POSTs to the configured webhook URL via the webhook sender.
+// If a signing secret is configured, it is passed to the sender for HMAC-SHA256 signing.
 func (s *Service) sendWebhook(channel entity.NotificationChannel, title, message string) error {
 	var cfg webhookConfig
 	if err := json.Unmarshal([]byte(channel.Config), &cfg); err != nil {
@@ -676,34 +588,13 @@ func (s *Service) sendWebhook(channel entity.NotificationChannel, title, message
 		return fmt.Errorf("marshaling webhook payload: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, cfg.URL, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("creating webhook request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	// If a signing secret is configured, compute HMAC-SHA256 and attach the
-	// signature header so the receiver can verify payload integrity.
-	if cfg.Secret != "" {
-		sig := ComputeHMACSignature([]byte(cfg.Secret), body)
-		req.Header.Set("X-Signature-256", "sha256="+sig)
-	}
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
+	if err := s.webhookSender.SendWebhook(cfg.URL, body, cfg.Secret); err != nil {
 		return fmt.Errorf("sending webhook: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("webhook returned HTTP %d", resp.StatusCode)
 	}
 
 	slog.Info("webhook notification sent",
 		"channel_id", channel.ID,
 		"url", cfg.URL,
-		"status", resp.StatusCode,
 	)
 	return nil
 }
@@ -1013,75 +904,4 @@ func ValidateWebhookSignature(secret, body []byte, signatureHeader string) bool 
 	return hmac.Equal(receivedMAC, expectedMAC.Sum(nil))
 }
 
-// SendRawEmail sends a pre-formatted email message via the configured SMTP server.
-// This is a package-level utility for use by other packages (e.g., digest scheduler)
-// that need to send emails using the same SMTP configuration.
-func SendRawEmail(cfg SMTPConfig, recipients []string, msg []byte) error {
-	if !cfg.IsConfigured() {
-		return fmt.Errorf("SMTP not configured")
-	}
 
-	addr := net.JoinHostPort(cfg.Host, cfg.Port)
-
-	var auth smtp.Auth
-	if cfg.Username != "" {
-		auth = smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
-	}
-
-	if cfg.Port == "465" {
-		return sendImplicitTLS(addr, cfg.Host, cfg.From, auth, recipients, msg)
-	}
-
-	return smtp.SendMail(addr, auth, cfg.From, recipients, msg)
-}
-
-// sendImplicitTLS sends an email over implicit TLS (port 465).
-func sendImplicitTLS(addr, host, from string, auth smtp.Auth, recipients []string, msg []byte) error {
-	tlsConfig := &tls.Config{
-		ServerName: host,
-		MinVersion: tls.VersionTLS12,
-	}
-
-	conn, err := tls.DialWithDialer(&net.Dialer{Timeout: 10 * time.Second}, "tcp", addr, tlsConfig)
-	if err != nil {
-		return fmt.Errorf("connecting to SMTP server: %w", err)
-	}
-
-	client, err := smtp.NewClient(conn, host)
-	if err != nil {
-		conn.Close()
-		return fmt.Errorf("creating SMTP client: %w", err)
-	}
-	defer client.Close()
-
-	if auth != nil {
-		if err := client.Auth(auth); err != nil {
-			return fmt.Errorf("SMTP authentication: %w", err)
-		}
-	}
-
-	if err := client.Mail(from); err != nil {
-		return fmt.Errorf("SMTP MAIL FROM: %w", err)
-	}
-
-	for _, rcpt := range recipients {
-		if err := client.Rcpt(rcpt); err != nil {
-			return fmt.Errorf("SMTP RCPT TO %s: %w", rcpt, err)
-		}
-	}
-
-	w, err := client.Data()
-	if err != nil {
-		return fmt.Errorf("SMTP DATA: %w", err)
-	}
-
-	if _, err := w.Write(msg); err != nil {
-		return fmt.Errorf("writing email body: %w", err)
-	}
-
-	if err := w.Close(); err != nil {
-		return fmt.Errorf("closing email body: %w", err)
-	}
-
-	return client.Quit()
-}

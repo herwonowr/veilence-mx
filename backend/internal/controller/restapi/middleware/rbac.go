@@ -1,4 +1,4 @@
-package rbac
+package middleware
 
 import (
 	"cmp"
@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
 // RequireWorkspace returns a Chi middleware that extracts the workspace ID from
@@ -18,10 +19,10 @@ import (
 // The user ID must already be set in the context (by the auth middleware).
 // If no user ID is found, it returns 401. If the user is not a member
 // of the workspace, it returns 403.
-func RequireWorkspace(svc *Service) func(http.Handler) http.Handler {
+func RequireWorkspace(svc *rbac.Service) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			userID := UserIDFromContext(r.Context())
+			userID := rbac.UserIDFromContext(r.Context())
 			if userID == "" {
 				http.Error(w, `{"data":null,"error":"Authentication required"}`, http.StatusUnauthorized)
 				return
@@ -50,8 +51,8 @@ func RequireWorkspace(svc *Service) func(http.Handler) http.Handler {
 					}
 				}
 
-				ctx := WithWorkspaceID(r.Context(), apiKeyWsID)
-				ctx = WithMemberRole(ctx, string(apiKeyRole))
+				ctx := rbac.WithWorkspaceID(r.Context(), apiKeyWsID)
+				ctx = rbac.WithMemberRole(ctx, string(apiKeyRole))
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
@@ -84,8 +85,8 @@ func RequireWorkspace(svc *Service) func(http.Handler) http.Handler {
 				return
 			}
 
-			ctx := WithWorkspaceID(r.Context(), workspaceID)
-			ctx = WithMemberRole(ctx, member.Role.Name)
+			ctx := rbac.WithWorkspaceID(r.Context(), workspaceID)
+			ctx = rbac.WithMemberRole(ctx, member.Role.Name)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -100,11 +101,11 @@ func RequireWorkspace(svc *Service) func(http.Handler) http.Handler {
 //
 // This middleware must be used after RequireWorkspace, which sets the workspace ID and
 // user context. Returns 403 if the user lacks the required permission.
-func RequirePermission(svc *Service, resource, action string) func(http.Handler) http.Handler {
+func RequirePermission(svc *rbac.Service, resource, action string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			userID := UserIDFromContext(r.Context())
-			workspaceID := WorkspaceIDFromContext(r.Context())
+			userID := rbac.UserIDFromContext(r.Context())
+			workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 
 			if userID == "" || workspaceID == "" {
 				http.Error(w, `{"data":null,"error":"Authentication and workspace context required"}`, http.StatusUnauthorized)

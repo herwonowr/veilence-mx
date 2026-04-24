@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/http"
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
@@ -45,12 +44,9 @@ func (s *Service) LogAction(ctx context.Context, action, resource string, resour
 	workspaceID := rbac.WorkspaceIDFromContext(ctx)
 	correlationID := CorrelationIDFromContext(ctx)
 
-	// Extract IP and User-Agent from the request if available
-	var ipAddress, userAgent string
-	if r, ok := ctx.Value(httpRequestKey).(*http.Request); ok {
-		ipAddress = r.RemoteAddr
-		userAgent = r.Header.Get("User-Agent")
-	}
+	// Extract IP and User-Agent from the context (set by middleware)
+	ipAddress := IPAddressFromContext(ctx)
+	userAgent := UserAgentFromContext(ctx)
 
 	entry := &entity.AuditLog{
 		UserID:        userID,
@@ -94,11 +90,8 @@ func (s *Service) LogAction(ctx context.Context, action, resource string, resour
 func (s *Service) LogAuthEvent(ctx context.Context, action string, userID string, details string) {
 	correlationID := CorrelationIDFromContext(ctx)
 
-	var ipAddress, userAgent string
-	if r, ok := ctx.Value(httpRequestKey).(*http.Request); ok {
-		ipAddress = r.RemoteAddr
-		userAgent = r.Header.Get("User-Agent")
-	}
+	ipAddress := IPAddressFromContext(ctx)
+	userAgent := UserAgentFromContext(ctx)
 
 	entry := &entity.AuditLog{
 		UserID:        userID,
@@ -187,22 +180,3 @@ func (s *Service) GetAuditLog(id string) (*entity.AuditLog, error) {
 	return s.repo.FindByID(context.Background(), id)
 }
 
-// httpRequestKeyType is the context key type for storing the HTTP request.
-type httpRequestKeyType string
-
-const httpRequestKey httpRequestKeyType = "http_request"
-
-// WithHTTPRequest returns a new context with the HTTP request stored in it.
-// This is used by the audit middleware to capture IP and User-Agent.
-func WithHTTPRequest(ctx context.Context, r *http.Request) context.Context {
-	return context.WithValue(ctx, httpRequestKey, r)
-}
-
-// RequestCaptureMiddleware is a Chi middleware that stores the HTTP request
-// in the context so the audit service can extract IP address and User-Agent.
-func RequestCaptureMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := WithHTTPRequest(r.Context(), r)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
