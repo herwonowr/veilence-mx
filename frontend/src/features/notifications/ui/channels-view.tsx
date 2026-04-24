@@ -393,6 +393,25 @@ const ChannelConfigFields = ({
             />
           </Field>
           <Field>
+            <FieldLabel htmlFor="channel-email-username">SMTP Username (optional)</FieldLabel>
+            <Input
+              id="channel-email-username"
+              placeholder="user@example.com"
+              value={parsed.username ?? ""}
+              onChange={(e) => updateField("username", e.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="channel-email-password">SMTP Password (optional)</FieldLabel>
+            <Input
+              id="channel-email-password"
+              type="password"
+              placeholder="SMTP password or app password"
+              value={parsed.password ?? ""}
+              onChange={(e) => updateField("password", e.target.value)}
+            />
+          </Field>
+          <Field>
             <FieldLabel htmlFor="channel-email-from">From Address</FieldLabel>
             <Input
               id="channel-email-from"
