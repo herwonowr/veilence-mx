@@ -460,7 +460,13 @@ func ValidateChannelConfig(channelType entity.NotificationChannelType, config st
 		return ValidateSlackWebhookURL(cfg.WebhookURL)
 
 	case entity.NotificationChannelEmail:
-		// Email channels don't have URLs to validate for SSRF.
+		var cfg emailConfig
+		if err := json.Unmarshal([]byte(config), &cfg); err != nil {
+			return fmt.Errorf("invalid email config JSON: %w", err)
+		}
+		if cfg.Recipients == "" {
+			return fmt.Errorf("Recipients is required")
+		}
 		return nil
 
 	default:
