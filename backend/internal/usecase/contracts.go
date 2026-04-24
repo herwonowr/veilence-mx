@@ -461,7 +461,10 @@ type PasswordHasher interface {
 // EmailNotificationSender sends notification emails via SMTP.
 // Implementations live in the outer layer (pkg/mailer or similar).
 type EmailNotificationSender interface {
+	// SendNotificationEmail sends using the globally configured SMTP (for system/digest emails).
 	SendNotificationEmail(from string, recipients []string, subject, body string) error
+	// SendChannelEmail sends using per-channel SMTP config (for notification channels).
+	SendChannelEmail(host, port, username, password, from string, recipients []string, subject, body string) error
 }
 
 // WebhookSender sends HTTP webhook notifications.

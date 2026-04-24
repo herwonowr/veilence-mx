@@ -73,14 +73,54 @@ func (s *SMTPSender) SendNotificationEmail(from string, recipients []string, sub
 
 	// Port 465 uses implicit TLS; other ports use STARTTLS
 	if s.config.Port == "465" {
-		return s.sendImplicitTLS(addr, auth, from, recipients, msgBytes)
+		return s.sendImplicitTLSWithConfig(s.config.Host, addr, auth, from, recipients, msgBytes)
 	}
 	return smtp.SendMail(addr, auth, from, recipients, msgBytes)
 }
 
-func (s *SMTPSender) sendImplicitTLS(addr string, auth smtp.Auth, from string, recipients []string, msg []byte) error {
+// SendChannelEmail sends an email using per-channel SMTP config rather than
+// the globally configured SMTP settings. This is used by notification channels
+// that carry their own SMTP server configuration.
+func (s *SMTPSender) SendChannelEmail(host, port, username, password, from string, recipients []string, subject, body string) error {
+	if host == "" || port == "" || from == "" {
+		return fmt.Errorf("channel SMTP config missing required fields (host, port, from)")
+	}
+
+	addr := net.JoinHostPort(host, port)
+
+	var auth smtp.Auth
+	if username != "" {
+		auth = smtp.PlainAuth("", username, password, host)
+	}
+
+	// Build the raw email message
+	var msg bytes.Buffer
+	msg.WriteString("From: " + from + "\r\n")
+	for i, r := range recipients {
+		if i > 0 {
+			msg.WriteString(", ")
+		}
+		msg.WriteString(r)
+	}
+	msg.WriteString("\r\nSubject: " + subject + "\r\n")
+	msg.WriteString("MIME-Version: 1.0\r\n")
+	msg.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+	msg.WriteString("\r\n")
+	msg.WriteString(body)
+
+	msgBytes := msg.Bytes()
+
+	// Port 465 uses implicit TLS; other ports use STARTTLS
+	if port == "465" {
+		return s.sendImplicitTLSWithConfig(host, addr, auth, from, recipients, msgBytes)
+	}
+	return smtp.SendMail(addr, auth, from, recipients, msgBytes)
+}
+
+// sendImplicitTLSWithConfig sends email via implicit TLS using the provided host for TLS verification.
+func (s *SMTPSender) sendImplicitTLSWithConfig(host, addr string, auth smtp.Auth, from string, recipients []string, msg []byte) error {
 	tlsConfig := &tls.Config{
-		ServerName: s.config.Host,
+		ServerName: host,
 		MinVersion: tls.VersionTLS12,
 	}
 
@@ -89,7 +129,7 @@ func (s *SMTPSender) sendImplicitTLS(addr string, auth smtp.Auth, from string, r
 		return fmt.Errorf("connecting to SMTP server: %w", err)
 	}
 
-	client, err := smtp.NewClient(conn, s.config.Host)
+	client, err := smtp.NewClient(conn, host)
 	if err != nil {
 		conn.Close()
 		return fmt.Errorf("creating SMTP client: %w", err)

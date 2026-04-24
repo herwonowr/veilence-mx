@@ -140,7 +140,7 @@ const isConfigValid = (type: NotificationChannelType | "", config: string): bool
     const parsed = config ? JSON.parse(config) : {}
     switch (type) {
       case "email":
-        return !!parsed.recipients
+        return !!parsed.host && !!parsed.port && !!parsed.from && !!parsed.to
       case "slack":
         return !!parsed.webhookUrl
       case "webhook":
@@ -475,18 +475,66 @@ const ChannelConfigFields = ({
   switch (type) {
     case "email":
       return (
-        <Field>
-          <FieldLabel htmlFor="channel-email-recipients">Recipients</FieldLabel>
-          <Input
-            id="channel-email-recipients"
-            placeholder="team@example.com, security@example.com"
-            value={parsed.recipients ?? ""}
-            onChange={(e) => updateField("recipients", e.target.value)}
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Comma-separated email addresses. Uses the global SMTP configuration.
-          </p>
-        </Field>
+        <div className="space-y-4">
+          <Field>
+            <FieldLabel htmlFor="channel-email-host">SMTP Host</FieldLabel>
+            <Input
+              id="channel-email-host"
+              placeholder="smtp.example.com"
+              value={parsed.host ?? ""}
+              onChange={(e) => updateField("host", e.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="channel-email-port">SMTP Port</FieldLabel>
+            <Input
+              id="channel-email-port"
+              placeholder="587"
+              value={parsed.port ?? ""}
+              onChange={(e) => updateField("port", e.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="channel-email-username">SMTP Username (optional)</FieldLabel>
+            <Input
+              id="channel-email-username"
+              placeholder="user@example.com"
+              value={parsed.username ?? ""}
+              onChange={(e) => updateField("username", e.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="channel-email-password">SMTP Password (optional)</FieldLabel>
+            <Input
+              id="channel-email-password"
+              type="password"
+              placeholder="App password or SMTP password"
+              value={parsed.password ?? ""}
+              onChange={(e) => updateField("password", e.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="channel-email-from">From Address</FieldLabel>
+            <Input
+              id="channel-email-from"
+              placeholder="alerts@example.com"
+              value={parsed.from ?? ""}
+              onChange={(e) => updateField("from", e.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="channel-email-to">To Address</FieldLabel>
+            <Input
+              id="channel-email-to"
+              placeholder="team@example.com, security@example.com"
+              value={parsed.to ?? ""}
+              onChange={(e) => updateField("to", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Comma-separated email addresses
+            </p>
+          </Field>
+        </div>
       )
     case "slack":
       return (

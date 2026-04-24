@@ -310,16 +310,26 @@ func (s *Service) dispatchToChannel(channel entity.NotificationChannel, title, m
 
 // emailConfig is the expected JSON config for an email channel.
 type emailConfig struct {
-	// Recipients is a comma-separated list of email addresses to notify.
-	Recipients string `json:"recipients"`
+	// Host is the SMTP server hostname (e.g. "smtp.gmail.com").
+	Host string `json:"host"`
+	// Port is the SMTP server port (e.g. "587" for STARTTLS, "465" for implicit TLS).
+	Port string `json:"port"`
+	// Username is the SMTP authentication username (optional).
+	Username string `json:"username"`
+	// Password is the SMTP authentication password (optional).
+	Password string `json:"password"`
+	// From is the sender email address.
+	From string `json:"from"`
+	// To is a comma-separated list of recipient email addresses.
+	To string `json:"to"`
 }
 
-// sendEmail sends a notification email via the configured email sender.
-// The channel config should contain a JSON object with a "recipients" field.
-// If the email sender is not configured, it returns an error.
+// sendEmail sends a notification email using the channel's own SMTP config.
+// Each email notification channel carries its own SMTP server settings,
+// independent of the global SMTP config used for system emails.
 func (s *Service) sendEmail(channel entity.NotificationChannel, title, message string) error {
 	if s.emailSender == nil {
-		return fmt.Errorf("SMTP not configured")
+		return fmt.Errorf("email sender not available")
 	}
 
 	var cfg emailConfig
@@ -327,11 +337,11 @@ func (s *Service) sendEmail(channel entity.NotificationChannel, title, message s
 		return fmt.Errorf("invalid email channel config: %w", err)
 	}
 
-	if cfg.Recipients == "" {
-		return fmt.Errorf("email recipients is empty")
+	if cfg.Host == "" || cfg.Port == "" || cfg.From == "" || cfg.To == "" {
+		return fmt.Errorf("email channel config missing required fields (host, port, from, to)")
 	}
 
-	recipients := strings.Split(cfg.Recipients, ",")
+	recipients := strings.Split(cfg.To, ",")
 	for i := range recipients {
 		recipients[i] = strings.TrimSpace(recipients[i])
 	}
@@ -339,13 +349,13 @@ func (s *Service) sendEmail(channel entity.NotificationChannel, title, message s
 	subject := "[Veilence-MX] " + title
 	body := message + "\r\n\r\n---\r\nSent by Veilence-MX notification system\r\n"
 
-	if err := s.emailSender.SendNotificationEmail(s.smtp.From, recipients, subject, body); err != nil {
+	if err := s.emailSender.SendChannelEmail(cfg.Host, cfg.Port, cfg.Username, cfg.Password, cfg.From, recipients, subject, body); err != nil {
 		return fmt.Errorf("sending email: %w", err)
 	}
 
 	slog.Info("email notification sent",
 		"channel_id", channel.ID,
-		"recipients", cfg.Recipients,
+		"recipients", cfg.To,
 		"title", title,
 	)
 	return nil
@@ -464,8 +474,17 @@ func ValidateChannelConfig(channelType entity.NotificationChannelType, config st
 		if err := json.Unmarshal([]byte(config), &cfg); err != nil {
 			return fmt.Errorf("invalid email config JSON: %w", err)
 		}
-		if cfg.Recipients == "" {
-			return fmt.Errorf("Recipients is required")
+		if cfg.Host == "" {
+			return fmt.Errorf("SMTP host is required")
+		}
+		if cfg.Port == "" {
+			return fmt.Errorf("SMTP port is required")
+		}
+		if cfg.From == "" {
+			return fmt.Errorf("From address is required")
+		}
+		if cfg.To == "" {
+			return fmt.Errorf("To address is required")
 		}
 		return nil
 
