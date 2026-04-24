@@ -22,13 +22,13 @@ type Config struct {
 // Validate ensures all required configuration is provided.
 func (c Config) Validate() error {
 	if c.APIKey == "" {
-		return fmt.Errorf("OpenAI API key is required (set OPENAI_API_KEY env var)")
+		return fmt.Errorf("OpenAI API key is required (set LLM_API_KEY env var)")
 	}
 	if c.Model == "" {
-		return fmt.Errorf("OpenAI model is required (set OPENAI_MODEL env var)")
+		return fmt.Errorf("OpenAI model is required (set LLM_MODEL env var)")
 	}
 	if c.BaseURL == "" {
-		return fmt.Errorf("OpenAI base URL is required (set OPENAI_BASE_URL env var)")
+		return fmt.Errorf("OpenAI base URL is required (set LLM_API_URL env var)")
 	}
 	if c.MaxDiffLen <= 0 {
 		return fmt.Errorf("OpenAI max diff length must be > 0")

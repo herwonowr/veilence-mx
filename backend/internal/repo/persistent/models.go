@@ -126,8 +126,6 @@ const (
 type AnalyzerType string
 
 const (
-	AnalyzerTypeAPI       AnalyzerType = "api"
-	AnalyzerTypeCLI       AnalyzerType = "cli"
 	AnalyzerTypeCopilot   AnalyzerType = "copilot"
 	AnalyzerTypeOpenAI    AnalyzerType = "openai"
 	AnalyzerTypeAnthropic AnalyzerType = "anthropic"

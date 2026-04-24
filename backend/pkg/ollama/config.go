@@ -20,10 +20,10 @@ type Config struct {
 // Validate ensures all required configuration is provided.
 func (c Config) Validate() error {
 	if c.Model == "" {
-		return fmt.Errorf("Ollama model is required (set OLLAMA_MODEL env var)")
+		return fmt.Errorf("Ollama model is required (set LLM_MODEL env var)")
 	}
 	if c.BaseURL == "" {
-		return fmt.Errorf("Ollama base URL is required (set OLLAMA_BASE_URL env var)")
+		return fmt.Errorf("Ollama base URL is required (set LLM_API_URL env var)")
 	}
 	if c.MaxDiffLen <= 0 {
 		return fmt.Errorf("Ollama max diff length must be > 0")

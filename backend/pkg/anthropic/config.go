@@ -22,13 +22,13 @@ type Config struct {
 // Validate ensures all required configuration is provided.
 func (c Config) Validate() error {
 	if c.APIKey == "" {
-		return fmt.Errorf("Anthropic API key is required (set ANTHROPIC_API_KEY env var)")
+		return fmt.Errorf("Anthropic API key is required (set LLM_API_KEY env var)")
 	}
 	if c.Model == "" {
-		return fmt.Errorf("Anthropic model is required (set ANTHROPIC_MODEL env var)")
+		return fmt.Errorf("Anthropic model is required (set LLM_MODEL env var)")
 	}
 	if c.BaseURL == "" {
-		return fmt.Errorf("Anthropic base URL is required (set ANTHROPIC_BASE_URL env var)")
+		return fmt.Errorf("Anthropic base URL is required (set LLM_API_URL env var)")
 	}
 	if c.MaxDiffLen <= 0 {
 		return fmt.Errorf("Anthropic max diff length must be > 0")

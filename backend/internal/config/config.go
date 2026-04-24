@@ -30,18 +30,9 @@ type Config struct {
 
 	// LLM
 	LLMProvider     string
+	LLMApiKey       string
 	LLMMaxDiffLen   int
 	LLMRateInterval time.Duration
-
-	// Provider-specific
-	OpenAIAPIKey     string
-	OpenAIModel      string
-	OpenAIBaseURL    string
-	AnthropicAPIKey  string
-	AnthropicModel   string
-	AnthropicBaseURL string
-	OllamaModel      string
-	OllamaBaseURL    string
 
 	// Pipeline
 	MonitoringInterval time.Duration
@@ -77,8 +68,8 @@ func NewConfig() (*Config, error) {
 		// Required - no defaults
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		JWTSecret:   os.Getenv("JWT_SECRET"),
-		LLMApiURL:   envOrDefault("LLM_API_URL", os.Getenv("COPILOT_API_URL")),
-		LLMModel:    envOrDefault("LLM_MODEL", os.Getenv("COPILOT_MODEL")),
+		LLMApiURL:   os.Getenv("LLM_API_URL"),
+		LLMModel:    os.Getenv("LLM_MODEL"),
 
 		// Optional with defaults
 		RedisURL:    envOrDefault("REDIS_URL", "redis://localhost:6379/0"),
@@ -87,19 +78,10 @@ func NewConfig() (*Config, error) {
 		AppEnv:      envOrDefault("APP_ENV", "production"),
 
 		// LLM
-		LLMProvider:     envOrDefault("LLM_PROVIDER", "copilot"),
+		LLMProvider:     os.Getenv("LLM_PROVIDER"),
+		LLMApiKey:       os.Getenv("LLM_API_KEY"),
 		LLMMaxDiffLen:   envIntOrDefault("LLM_MAX_DIFF_LEN", 20000),
 		LLMRateInterval: envDurationOrDefault("LLM_RATE_INTERVAL", 6*time.Second),
-
-		// Provider-specific
-		OpenAIAPIKey:     os.Getenv("OPENAI_API_KEY"),
-		OpenAIModel:      envOrDefault("OPENAI_MODEL", "gpt-4o"),
-		OpenAIBaseURL:    envOrDefault("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-		AnthropicAPIKey:  os.Getenv("ANTHROPIC_API_KEY"),
-		AnthropicModel:   envOrDefault("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
-		AnthropicBaseURL: envOrDefault("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1"),
-		OllamaModel:      envOrDefault("OLLAMA_MODEL", "llama3.1"),
-		OllamaBaseURL:    envOrDefault("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
 
 		// Pipeline
 		MonitoringInterval: envDurationOrDefault("MONITORING_INTERVAL", 1*time.Hour),
@@ -157,25 +139,20 @@ func (c *Config) Validate() error {
 	if c.JWTSecret == "veilence-mx-dev-jwt-secret-change-in-production" && c.AppEnv != "development" {
 		errs = append(errs, "JWT_SECRET must be set to a secure value in production")
 	}
-	if c.LLMProvider == "copilot" {
+	if c.LLMProvider == "" {
+		errs = append(errs, "LLM_PROVIDER is required (valid: copilot, openai, anthropic, ollama)")
+	} else if c.LLMProvider != "copilot" && c.LLMProvider != "openai" && c.LLMProvider != "anthropic" && c.LLMProvider != "ollama" {
+		errs = append(errs, fmt.Sprintf("unknown LLM_PROVIDER: %s (valid: copilot, openai, anthropic, ollama)", c.LLMProvider))
+	} else {
 		if c.LLMApiURL == "" {
-			errs = append(errs, "LLM_API_URL (or COPILOT_API_URL) is required when using copilot provider")
+			errs = append(errs, "LLM_API_URL is required")
 		}
 		if c.LLMModel == "" {
-			errs = append(errs, "LLM_MODEL (or COPILOT_MODEL) is required when using copilot provider")
+			errs = append(errs, "LLM_MODEL is required")
 		}
-	} else if c.LLMProvider == "openai" {
-		if c.OpenAIAPIKey == "" {
-			errs = append(errs, "OPENAI_API_KEY is required when using openai provider")
+		if (c.LLMProvider == "openai" || c.LLMProvider == "anthropic") && c.LLMApiKey == "" {
+			errs = append(errs, fmt.Sprintf("LLM_API_KEY is required when using %s provider", c.LLMProvider))
 		}
-	} else if c.LLMProvider == "anthropic" {
-		if c.AnthropicAPIKey == "" {
-			errs = append(errs, "ANTHROPIC_API_KEY is required when using anthropic provider")
-		}
-	} else if c.LLMProvider == "ollama" {
-		// No API key needed for Ollama
-	} else {
-		errs = append(errs, fmt.Sprintf("unknown LLM_PROVIDER: %s (valid: copilot, openai, anthropic, ollama)", c.LLMProvider))
 	}
 	if c.LLMMaxDiffLen <= 0 {
 		errs = append(errs, "LLM_MAX_DIFF_LEN must be > 0")

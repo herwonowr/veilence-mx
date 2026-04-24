@@ -148,9 +148,9 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 
 	case "openai":
 		llmConfig := openai.Config{
-			APIKey:       cfg.OpenAIAPIKey,
-			Model:        cfg.OpenAIModel,
-			BaseURL:      cfg.OpenAIBaseURL,
+			APIKey:       cfg.LLMApiKey,
+			Model:        cfg.LLMModel,
+			BaseURL:      cfg.LLMApiURL,
 			MaxDiffLen:   cfg.LLMMaxDiffLen,
 			RateInterval: cfg.LLMRateInterval,
 		}
@@ -163,9 +163,9 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 
 	case "anthropic":
 		llmConfig := anthropic.Config{
-			APIKey:       cfg.AnthropicAPIKey,
-			Model:        cfg.AnthropicModel,
-			BaseURL:      cfg.AnthropicBaseURL,
+			APIKey:       cfg.LLMApiKey,
+			Model:        cfg.LLMModel,
+			BaseURL:      cfg.LLMApiURL,
 			MaxDiffLen:   cfg.LLMMaxDiffLen,
 			RateInterval: cfg.LLMRateInterval,
 		}
@@ -178,8 +178,8 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 
 	case "ollama":
 		llmConfig := ollama.Config{
-			Model:        cfg.OllamaModel,
-			BaseURL:      cfg.OllamaBaseURL,
+			Model:        cfg.LLMModel,
+			BaseURL:      cfg.LLMApiURL,
 			MaxDiffLen:   cfg.LLMMaxDiffLen,
 			RateInterval: cfg.LLMRateInterval,
 		}

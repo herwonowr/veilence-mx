@@ -20,10 +20,6 @@ const (
 type AnalyzerType string
 
 const (
-	// AnalyzerTypeAPI uses the Anthropic Claude API.
-	AnalyzerTypeAPI AnalyzerType = "api"
-	// AnalyzerTypeCLI uses the Claude Code CLI subprocess.
-	AnalyzerTypeCLI AnalyzerType = "cli"
 	// AnalyzerTypeCopilot uses the copilot-api proxy.
 	AnalyzerTypeCopilot AnalyzerType = "copilot"
 	// AnalyzerTypeOpenAI uses the OpenAI API directly.

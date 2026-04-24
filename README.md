@@ -1,6 +1,6 @@
 # Veilence-MX - Supply Chain Compromise Monitor
 
-Automated monitoring of PyPI and npm packages for supply chain compromise. Polls registries for new releases, diffs each release against its predecessor, and uses an LLM (Claude Sonnet 4.6 via copilot-api proxy) to classify diffs as benign, suspicious, or malicious.
+Automated monitoring of PyPI and npm packages for supply chain compromise. Polls registries for new releases, diffs each release against its predecessor, and uses an LLM to classify diffs as benign, suspicious, or malicious. Supports 4 LLM providers: copilot-api (GitHub Copilot proxy), OpenAI, Anthropic, and Ollama (local).
 
 ## Architecture
 
@@ -45,8 +45,8 @@ Poller (PyPI/npm) --> Differ (unified LCS diff) --> Analyzer (LLM) --> Alerts --
 - Go 1.23+
 - Node.js 22+
 - Docker & Docker Compose (for PostgreSQL + Redis)
-- GitHub Copilot subscription (for LLM analysis with copilot provider), OR
-- OpenAI API key, Anthropic API key, or local Ollama instance
+- GitHub Copilot subscription (for copilot provider), OR
+- OpenAI API key (LLM_API_KEY), Anthropic API key (LLM_API_KEY), or local Ollama instance
 - GitHub CLI (`gh`) authenticated - only needed for copilot provider
 
 ## Quick Start
