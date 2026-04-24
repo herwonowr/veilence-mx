@@ -23,17 +23,13 @@ export const emailConfigSchema = z.object({
     .regex(/^\d+$/, "Port must be a number"),
   username: z.string().optional().default(""),
   password: z.string().optional().default(""),
-  from: z
-    .string()
-    .min(1, "From address is required")
-    .regex(emailRegex, "Must be a valid email address"),
+  from: z.email("Must be a valid email address"),
   to: commaSeparatedEmails,
 })
 
 export const slackConfigSchema = z.object({
   webhookUrl: z
-    .string()
-    .min(1, "Webhook URL is required")
+    .url("Must be a valid URL")
     .refine((val) => val.startsWith("https://hooks.slack.com/"), {
       message: "Must start with https://hooks.slack.com/",
     }),
@@ -41,8 +37,7 @@ export const slackConfigSchema = z.object({
 
 export const webhookConfigSchema = z.object({
   url: z
-    .string()
-    .min(1, "Webhook URL is required")
+    .url("Must be a valid URL")
     .refine((val) => val.startsWith("http://") || val.startsWith("https://"), {
       message: "Must start with http:// or https://",
     }),

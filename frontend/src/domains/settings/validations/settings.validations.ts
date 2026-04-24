@@ -37,3 +37,23 @@ export const settingsSchema = z.object({
 })
 
 export type SettingsFormData = z.infer<typeof settingsSchema>
+
+export const onboardingSettingsSchema = z.object({
+  discovery_scan_depth: z
+    .string()
+    .min(1, "Discovery scan depth is required")
+    .refine((val) => /^\d+$/.test(val), { message: "Must be a number" })
+    .refine((val) => Number(val) >= 1 && Number(val) <= 10000, {
+      message: "Must be between 1 and 10,000",
+    }),
+  monitoring_interval: z
+    .string()
+    .min(1, "Monitoring interval is required")
+    .refine((val) => /^\d+$/.test(val), { message: "Must be a number (seconds)" }),
+  discovery_interval: z
+    .string()
+    .min(1, "Discovery interval is required")
+    .refine((val) => /^\d+$/.test(val), { message: "Must be a number (seconds)" }),
+})
+
+export type OnboardingSettingsFormData = z.infer<typeof onboardingSettingsSchema>

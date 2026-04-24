@@ -5,6 +5,7 @@ import { ThemeProvider, AuthProvider, QueryProvider } from "@/core";
 import { AppShell } from "@/features/shell";
 import { NotificationBell } from "@/features/notifications";
 import { WorkspaceSelector } from "@/features/admin";
+import { OnboardingGate } from "@/features/onboarding";
 import { Toaster } from "@/ui";
 import "./globals.css";
 
@@ -48,13 +49,15 @@ const RootLayout = async ({
         <ThemeProvider>
           <QueryProvider>
             <AuthProvider>
-              <AppShell
+              <OnboardingGate>
+                <AppShell
                 notificationSlot={<NotificationBell />}
                 workspaceSelectorSlot={<WorkspaceSelector />}
                 sidebarDefaultOpen={sidebarDefaultOpen}
               >
                 {children}
               </AppShell>
+              </OnboardingGate>
               <Toaster />
             </AuthProvider>
           </QueryProvider>
