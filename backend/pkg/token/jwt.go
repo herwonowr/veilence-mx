@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-
-	"github.com/veilence/veilence-mx/backend/internal/usecase"
 )
 
 const (
@@ -27,7 +25,14 @@ type claims struct {
 	jwt.RegisteredClaims
 }
 
-// JWTProvider implements usecase.TokenProvider using JWT.
+// Claims represents the essential claims extracted from a validated token.
+type Claims struct {
+	UserID    string
+	Email     string
+	TokenType string
+}
+
+// JWTProvider implements token generation and validation using JWT.
 type JWTProvider struct {
 	secret          []byte
 	previousSecrets [][]byte
@@ -84,7 +89,7 @@ func (p *JWTProvider) GenerateRefreshToken() (string, error) {
 // ValidateAccessToken parses and validates a JWT access token, returning its claims.
 // It first tries the primary secret, then falls back to previous secrets to
 // support seamless JWT secret rotation.
-func (p *JWTProvider) ValidateAccessToken(tokenString string) (*usecase.TokenClaims, error) {
+func (p *JWTProvider) ValidateAccessToken(tokenString string) (*Claims, error) {
 	// Try primary secret first
 	c, err := validateWithSecret(tokenString, p.secret)
 	if err == nil {
@@ -103,7 +108,7 @@ func (p *JWTProvider) ValidateAccessToken(tokenString string) (*usecase.TokenCla
 	return nil, err
 }
 
-func validateWithSecret(tokenString string, secret []byte) (*usecase.TokenClaims, error) {
+func validateWithSecret(tokenString string, secret []byte) (*Claims, error) {
 	c := &claims{}
 	t, err := jwt.ParseWithClaims(tokenString, c, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -123,7 +128,7 @@ func validateWithSecret(tokenString string, secret []byte) (*usecase.TokenClaims
 		return nil, errors.New("not an access token")
 	}
 
-	return &usecase.TokenClaims{
+	return &Claims{
 		UserID:    c.UserID,
 		Email:     c.Email,
 		TokenType: c.TokenType,

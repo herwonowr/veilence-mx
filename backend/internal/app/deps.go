@@ -267,7 +267,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		slog.Info("JWT secret rotation enabled", "previous_secrets_count", len(previousSecrets))
 	}
 
-	tokenProvider := token.New(cfg.JWTSecret, previousSecrets...)
+	tokenProvider := &tokenProviderAdapter{provider: token.New(cfg.JWTSecret, previousSecrets...)}
 	passwordHasher := hasher.New()
 
 	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, authEmailSender, cfg.RequireEmailVerification, rateLimiter, tokenProvider, passwordHasher)
@@ -429,6 +429,31 @@ type copilotAdapter = genericLLMAdapter
 type openaiAdapter = genericLLMAdapter
 type anthropicAdapter = genericLLMAdapter
 type ollamaAdapter = genericLLMAdapter
+
+// tokenProviderAdapter adapts pkg/token.JWTProvider to satisfy usecase.TokenProvider.
+type tokenProviderAdapter struct {
+	provider *token.JWTProvider
+}
+
+func (a *tokenProviderAdapter) GenerateAccessToken(userID, email string, duration time.Duration) (string, error) {
+	return a.provider.GenerateAccessToken(userID, email, duration)
+}
+
+func (a *tokenProviderAdapter) GenerateRefreshToken() (string, error) {
+	return a.provider.GenerateRefreshToken()
+}
+
+func (a *tokenProviderAdapter) ValidateAccessToken(tokenString string) (*usecase.TokenClaims, error) {
+	c, err := a.provider.ValidateAccessToken(tokenString)
+	if err != nil {
+		return nil, err
+	}
+	return &usecase.TokenClaims{
+		UserID:    c.UserID,
+		Email:     c.Email,
+		TokenType: c.TokenType,
+	}, nil
+}
 
 // seedSettingsDefaults seeds default settings values into the database.
 func seedSettingsDefaults(cfg *config.Config, db *gorm.DB) {
