@@ -39,8 +39,8 @@ export const OnboardingWizard = () => {
 
   return (
     <Dialog open modal>
-      <DialogContent showCloseButton={false} className="sm:max-w-md">
-        <div className="space-y-6">
+      <DialogContent showCloseButton={false} className="sm:max-w-lg">
+        <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-1">
           <WizardProgress currentStep={currentStep} totalSteps={totalSteps} />
 
           {currentStep === 1 && <WelcomeStep onNext={goNext} />}
