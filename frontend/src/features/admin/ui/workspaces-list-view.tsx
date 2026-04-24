@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/core"
-import { apiCreateWorkspace } from "@/domains/admin"
+import { apiCreateWorkspace, workspaceSchema } from "@/domains/admin"
 import type { Workspace } from "@/domains/admin"
-import { Button, Input, Field, FieldLabel, FieldDescription, Badge, EmptyState, Alert, AlertDescription } from "@/ui"
+import { Button, Input, Field, FieldLabel, FieldDescription, FieldError, Badge, EmptyState, Alert, AlertDescription } from "@/ui"
 import {
   Card,
   CardContent,
@@ -26,6 +26,7 @@ import { Building2, Plus, Loader2, Users, Package, Mail } from "lucide-react"
 import Link from "next/link"
 import { useWorkspaces } from "@/features/admin/hooks/use-workspaces"
 import { useMyInvitations } from "@/features/admin/hooks/use-my-invitations"
+import { ZodError } from "zod"
 
 export const WorkspacesListView = () => {
   const { refreshWorkspaces, setCurrentWorkspace } = useAuth()
@@ -55,6 +56,7 @@ export const WorkspacesListView = () => {
   const [description, setDescription] = useState("")
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState("")
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   // When URL has ?create=true, clean it up so re-navigation works
   useEffect(() => {
@@ -78,6 +80,22 @@ export const WorkspacesListView = () => {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setFieldErrors({})
+
+    try {
+      workspaceSchema.parse({ name, slug, description })
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const errs: Record<string, string> = {}
+        for (const issue of err.issues) {
+          const key = issue.path[0]
+          if (typeof key === "string") errs[key] = issue.message
+        }
+        setFieldErrors(errs)
+      }
+      return
+    }
+
     setCreating(true)
 
     try {
@@ -135,7 +153,7 @@ export const WorkspacesListView = () => {
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
-                <Field>
+                <Field data-invalid={!!fieldErrors.name}>
                   <FieldLabel htmlFor="workspace-name">Name</FieldLabel>
                   <Input
                     id="workspace-name"
@@ -144,8 +162,9 @@ export const WorkspacesListView = () => {
                     onChange={(e) => handleNameChange(e.target.value)}
                     required
                   />
+                  {fieldErrors.name && <FieldError>{fieldErrors.name}</FieldError>}
                 </Field>
-                <Field>
+                <Field data-invalid={!!fieldErrors.slug}>
                   <FieldLabel htmlFor="workspace-slug">Slug</FieldLabel>
                   <Input
                     id="workspace-slug"
@@ -154,11 +173,12 @@ export const WorkspacesListView = () => {
                     onChange={(e) => setSlug(e.target.value)}
                     required
                   />
+                  {fieldErrors.slug && <FieldError>{fieldErrors.slug}</FieldError>}
                   <FieldDescription>
                     URL-friendly identifier for your workspace
                   </FieldDescription>
                 </Field>
-                <Field>
+                <Field data-invalid={!!fieldErrors.description}>
                   <FieldLabel htmlFor="workspace-description">Description</FieldLabel>
                   <Input
                     id="workspace-description"
@@ -166,6 +186,7 @@ export const WorkspacesListView = () => {
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                   />
+                  {fieldErrors.description && <FieldError>{fieldErrors.description}</FieldError>}
                 </Field>
               </div>
               <DialogFooter>

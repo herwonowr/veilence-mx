@@ -3,7 +3,8 @@
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/core"
-import { Button, Input, Field, FieldLabel, Tabs, TabsContent, TabsList, TabsTrigger, Badge, Skeleton, ConfirmDialog, Alert, AlertDescription, TableEmptyState, type ConfirmDialogDetail } from "@/ui"
+import { workspaceUpdateSchema, invitationSchema } from "@/domains/admin"
+import { Button, Input, Field, FieldLabel, FieldError, Tabs, TabsContent, TabsList, TabsTrigger, Badge, Skeleton, ConfirmDialog, Alert, AlertDescription, TableEmptyState, type ConfirmDialogDetail } from "@/ui"
 import {
   Card,
   CardContent,
@@ -48,6 +49,7 @@ import {
   Mail,
 } from "lucide-react"
 import Link from "next/link"
+import { ZodError } from "zod"
 import {
   useWorkspace,
   useWorkspaceMembers,
@@ -116,6 +118,10 @@ export const WorkspaceDetailView = () => {
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviteRoleId, setInviteRoleId] = useState<string | null>(null)
   const [inviteError, setInviteError] = useState("")
+  const [inviteFieldErrors, setInviteFieldErrors] = useState<Record<string, string>>({})
+
+  // Edit field errors
+  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({})
 
   // Remove member confirmation
   const [memberToRemove, setMemberToRemove] = useState<{
@@ -133,6 +139,20 @@ export const WorkspaceDetailView = () => {
   const resendMutation = useResendInvitation()
 
   const handleSave = async () => {
+    setEditFieldErrors({})
+    try {
+      workspaceUpdateSchema.parse({ name: editName, description: editDescription })
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const errs: Record<string, string> = {}
+        for (const issue of err.issues) {
+          const key = issue.path[0]
+          if (typeof key === "string") errs[key] = issue.message
+        }
+        setEditFieldErrors(errs)
+      }
+      return
+    }
     await updateMutation.mutateAsync({
       id: validWorkspaceId,
       data: { name: editName, description: editDescription },
@@ -148,8 +168,22 @@ export const WorkspaceDetailView = () => {
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!inviteRoleId) return
     setInviteError("")
+    setInviteFieldErrors({})
+    try {
+      invitationSchema.parse({ email: inviteEmail, roleId: inviteRoleId ? Number(inviteRoleId) : undefined })
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const errs: Record<string, string> = {}
+        for (const issue of err.issues) {
+          const key = issue.path[0]
+          if (typeof key === "string") errs[key] = issue.message
+        }
+        setInviteFieldErrors(errs)
+      }
+      return
+    }
+    if (!inviteRoleId) return
     try {
       await inviteMutation.mutateAsync({
         workspaceId: validWorkspaceId,
@@ -286,7 +320,7 @@ export const WorkspaceDetailView = () => {
                         <AlertDescription>{inviteError}</AlertDescription>
                       </Alert>
                     )}
-                    <Field>
+                    <Field data-invalid={!!inviteFieldErrors.email}>
                       <FieldLabel htmlFor="invite-email">Email</FieldLabel>
                       <Input
                         id="invite-email"
@@ -296,8 +330,9 @@ export const WorkspaceDetailView = () => {
                         onChange={(e) => setInviteEmail(e.target.value)}
                         required
                       />
+                      {inviteFieldErrors.email && <FieldError>{inviteFieldErrors.email}</FieldError>}
                     </Field>
-                    <Field>
+                    <Field data-invalid={!!inviteFieldErrors.roleId}>
                       <FieldLabel>Role</FieldLabel>
                       <Select
                         value={inviteRoleId != null ? String(inviteRoleId) : undefined}
@@ -314,6 +349,7 @@ export const WorkspaceDetailView = () => {
                           ))}
                         </SelectContent>
                       </Select>
+                      {inviteFieldErrors.roleId && <FieldError>{inviteFieldErrors.roleId}</FieldError>}
                     </Field>
                   </div>
                   <DialogFooter>
@@ -603,21 +639,23 @@ export const WorkspaceDetailView = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Field>
+              <Field data-invalid={!!editFieldErrors.name}>
                 <FieldLabel htmlFor="edit-name">Name</FieldLabel>
                 <Input
                   id="edit-name"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                 />
+                {editFieldErrors.name && <FieldError>{editFieldErrors.name}</FieldError>}
               </Field>
-              <Field>
+              <Field data-invalid={!!editFieldErrors.description}>
                 <FieldLabel htmlFor="edit-description">Description</FieldLabel>
                 <Input
                   id="edit-description"
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                 />
+                {editFieldErrors.description && <FieldError>{editFieldErrors.description}</FieldError>}
               </Field>
               <div className="flex items-center gap-4">
                 <Button onClick={handleSave} disabled={updateMutation.isPending}>

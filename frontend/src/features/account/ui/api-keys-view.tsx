@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import type { APIKeyRole } from "@/domains/account"
-import { API_KEY_ROLE_HIERARCHY } from "@/domains/account"
-import { Button, buttonVariants, Input, Field, FieldLabel, FieldDescription, Badge, Calendar, Popover, PopoverContent, PopoverTrigger, TableSkeleton, TableError, TableEmptyState, ConfirmDialog, RadioGroup, RadioGroupItem, Alert, AlertDescription, type SkeletonColumn, type ConfirmDialogDetail } from "@/ui"
+import { API_KEY_ROLE_HIERARCHY, apiKeySchema } from "@/domains/account"
+import { Button, buttonVariants, Input, Field, FieldLabel, FieldDescription, FieldError, Badge, Calendar, Popover, PopoverContent, PopoverTrigger, TableSkeleton, TableError, TableEmptyState, ConfirmDialog, RadioGroup, RadioGroupItem, Alert, AlertDescription, type SkeletonColumn, type ConfirmDialogDetail } from "@/ui"
 import {
   Card,
   CardContent,
@@ -48,6 +48,7 @@ import {
 import { Key, Plus, Trash2, Copy, Check, Loader2, CalendarIcon } from "lucide-react"
 import { useApiKeys, useCreateApiKey, useDeleteApiKey, useCurrentWorkspaceRole } from "@/features/account/hooks/use-api-keys"
 import { cn, hasMinimumRole } from "@/core"
+import { ZodError } from "zod"
 
 const ROLE_OPTIONS: { value: APIKeyRole; label: string; description: string }[] = [
   { value: "admin", label: "Admin", description: "Administrative access (cannot delete workspace)" },
@@ -106,6 +107,7 @@ export const ApiKeysView = () => {
   const [selectedMinute, setSelectedMinute] = useState(55)
   const [dateOpen, setDateOpen] = useState(false)
   const [createError, setCreateError] = useState("")
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   // Elevated role warning dialog
   const [pendingRole, setPendingRole] = useState<APIKeyRole | null>(null)
@@ -149,11 +151,17 @@ export const ApiKeysView = () => {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreateError("")
+    setFieldErrors({})
     try {
-      const { data } = await createMutation.mutateAsync({
+      const validated = apiKeySchema.parse({
         name: keyName,
         role: keyRole,
         expiresAt: expiresAt ? expiresAt.toISOString() : undefined,
+      })
+      const { data } = await createMutation.mutateAsync({
+        name: validated.name,
+        role: validated.role,
+        expiresAt: validated.expiresAt,
       })
       setNewKeyValue(data.key)
       setCreateDialogOpen(false)
@@ -164,9 +172,18 @@ export const ApiKeysView = () => {
       setSelectedHour(23)
       setSelectedMinute(55)
     } catch (err) {
-      setCreateError(
-        err instanceof Error ? err.message : "Failed to create API key"
-      )
+      if (err instanceof ZodError) {
+        const errs: Record<string, string> = {}
+        for (const issue of err.issues) {
+          const key = issue.path[0]
+          if (typeof key === "string") errs[key] = issue.message
+        }
+        setFieldErrors(errs)
+      } else {
+        setCreateError(
+          err instanceof Error ? err.message : "Failed to create API key"
+        )
+      }
     }
   }
 
@@ -209,7 +226,7 @@ export const ApiKeysView = () => {
                       <AlertDescription>{createError}</AlertDescription>
                     </Alert>
                   )}
-                  <Field>
+                  <Field data-invalid={!!fieldErrors.name}>
                     <FieldLabel htmlFor="key-name">Name</FieldLabel>
                     <Input
                       id="key-name"
@@ -218,6 +235,7 @@ export const ApiKeysView = () => {
                       onChange={(e) => setKeyName(e.target.value)}
                       required
                     />
+                    {fieldErrors.name && <FieldError>{fieldErrors.name}</FieldError>}
                   </Field>
                   <Field>
                     <FieldLabel>Role</FieldLabel>

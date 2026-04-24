@@ -30,6 +30,7 @@ import {
   Zap,
 } from "lucide-react"
 import { useAuth, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
+import { ZodError } from "zod"
 import {
   useChannels,
   useCreateChannel,
@@ -41,6 +42,13 @@ import {
   useDeleteRule,
 } from "@/features/notifications/hooks/use-channels"
 import type { NotificationChannel, NotificationChannelType } from "@/domains/notifications"
+import {
+  emailConfigSchema,
+  slackConfigSchema,
+  webhookConfigSchema,
+  channelSchema,
+  notificationRuleSchema,
+} from "@/domains/notifications"
 
 const CHANNEL_TYPE_LABELS: Record<NotificationChannelType, string> = {
   email: "Email",
@@ -134,22 +142,50 @@ export const ChannelsView = () => {
 
 // ─── Config Validation ─────────────────────────────────────────
 
+const getConfigSchema = (type: NotificationChannelType | "") => {
+  switch (type) {
+    case "email":
+      return emailConfigSchema
+    case "slack":
+      return slackConfigSchema
+    case "webhook":
+      return webhookConfigSchema
+    default:
+      return null
+  }
+}
+
 const isConfigValid = (type: NotificationChannelType | "", config: string): boolean => {
-  if (!type) return false
+  const schema = getConfigSchema(type)
+  if (!schema) return false
   try {
     const parsed = config ? JSON.parse(config) : {}
-    switch (type) {
-      case "email":
-        return !!parsed.host && !!parsed.port && !!parsed.from && !!parsed.to
-      case "slack":
-        return !!parsed.webhookUrl
-      case "webhook":
-        return !!parsed.url
-      default:
-        return false
-    }
+    return schema.safeParse(parsed).success
   } catch {
     return false
+  }
+}
+
+const validateConfigFields = (
+  type: NotificationChannelType | "",
+  config: string
+): Record<string, string> => {
+  const schema = getConfigSchema(type)
+  if (!schema) return {}
+  try {
+    const parsed = config ? JSON.parse(config) : {}
+    const result = schema.safeParse(parsed)
+    if (result.success) return {}
+    const errors: Record<string, string> = {}
+    for (const issue of result.error.issues) {
+      const key = issue.path[0]
+      if (key !== undefined && !errors[String(key)]) {
+        errors[String(key)] = issue.message
+      }
+    }
+    return errors
+  } catch {
+    return {}
   }
 }
 
@@ -173,6 +209,7 @@ const ChannelsSection = ({
   const [editChannel, setEditChannel] = useState<NotificationChannel | null>(null)
   const [editName, setEditName] = useState("")
   const [editConfig, setEditConfig] = useState("")
+  const [channelFieldErrors, setChannelFieldErrors] = useState<Record<string, string>>({})
 
   const createMutation = useCreateChannel(workspaceId)
   const updateMutation = useUpdateChannel(workspaceId)
@@ -180,7 +217,21 @@ const ChannelsSection = ({
   const testMutation = useTestChannel(workspaceId)
 
   const handleCreate = () => {
-    if (!channelName || !channelType || !isConfigValid(channelType, channelConfig)) return
+    setChannelFieldErrors({})
+    try {
+      channelSchema.parse({ name: channelName, type: channelType || undefined })
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const errs: Record<string, string> = {}
+        for (const issue of err.issues) {
+          const key = issue.path[0]
+          if (typeof key === "string") errs[key] = issue.message
+        }
+        setChannelFieldErrors(errs)
+      }
+      return
+    }
+    if (!isConfigValid(channelType, channelConfig)) return
     createMutation.mutate(
       { name: channelName, type: channelType, config: channelConfig },
       {
@@ -259,7 +310,7 @@ const ChannelsSection = ({
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-2">
-              <Field>
+              <Field data-invalid={!!channelFieldErrors.name}>
                 <FieldLabel htmlFor="channel-create-name">Name</FieldLabel>
                 <Input
                   id="channel-create-name"
@@ -267,8 +318,9 @@ const ChannelsSection = ({
                   value={channelName}
                   onChange={(e) => setChannelName(e.target.value)}
                 />
+                {channelFieldErrors.name && <p className="text-xs text-destructive mt-1">{channelFieldErrors.name}</p>}
               </Field>
-              <Field>
+              <Field data-invalid={!!channelFieldErrors.type}>
                 <FieldLabel>Type</FieldLabel>
                 <Select
                   value={channelType}
@@ -285,6 +337,7 @@ const ChannelsSection = ({
                     <SelectItem value="webhook">Webhook</SelectItem>
                   </SelectContent>
                 </Select>
+                {channelFieldErrors.type && <p className="text-xs text-destructive mt-1">{channelFieldErrors.type}</p>}
               </Field>
               {channelType && (
                 <ChannelConfigFields
@@ -467,9 +520,17 @@ const ChannelConfigFields = ({
     /* ignore parse errors */
   }
 
+  const errors = validateConfigFields(type, config)
+
   const updateField = (key: string, value: string) => {
     const updated = { ...parsed, [key]: value }
     onChange(JSON.stringify(updated))
+  }
+
+  const errorFor = (name: string): string | null => {
+    const msg = errors[name]
+    if (!msg || !parsed[name]) return null
+    return msg
   }
 
   switch (type) {
@@ -484,6 +545,7 @@ const ChannelConfigFields = ({
               value={parsed.host ?? ""}
               onChange={(e) => updateField("host", e.target.value)}
             />
+            {errorFor("host") && <p className="text-xs text-destructive mt-1">{errorFor("host")}</p>}
           </Field>
           <Field>
             <FieldLabel htmlFor="channel-email-port">SMTP Port</FieldLabel>
@@ -493,6 +555,7 @@ const ChannelConfigFields = ({
               value={parsed.port ?? ""}
               onChange={(e) => updateField("port", e.target.value)}
             />
+            {errorFor("port") && <p className="text-xs text-destructive mt-1">{errorFor("port")}</p>}
           </Field>
           <Field>
             <FieldLabel htmlFor="channel-email-username">SMTP Username (optional)</FieldLabel>
@@ -521,6 +584,7 @@ const ChannelConfigFields = ({
               value={parsed.from ?? ""}
               onChange={(e) => updateField("from", e.target.value)}
             />
+            {errorFor("from") && <p className="text-xs text-destructive mt-1">{errorFor("from")}</p>}
           </Field>
           <Field>
             <FieldLabel htmlFor="channel-email-to">To Address</FieldLabel>
@@ -530,9 +594,12 @@ const ChannelConfigFields = ({
               value={parsed.to ?? ""}
               onChange={(e) => updateField("to", e.target.value)}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Comma-separated email addresses
-            </p>
+            {errorFor("to") && <p className="text-xs text-destructive mt-1">{errorFor("to")}</p>}
+            {!errors.to && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Comma-separated email addresses
+              </p>
+            )}
           </Field>
         </div>
       )
@@ -546,6 +613,7 @@ const ChannelConfigFields = ({
             value={parsed.webhookUrl ?? ""}
             onChange={(e) => updateField("webhookUrl", e.target.value)}
           />
+          {errorFor("webhookUrl") && <p className="text-xs text-destructive mt-1">{errorFor("webhookUrl")}</p>}
         </Field>
       )
     case "webhook":
@@ -559,6 +627,7 @@ const ChannelConfigFields = ({
               value={parsed.url ?? ""}
               onChange={(e) => updateField("url", e.target.value)}
             />
+            {errorFor("url") && <p className="text-xs text-destructive mt-1">{errorFor("url")}</p>}
           </Field>
           <Field>
             <FieldLabel htmlFor="channel-webhook-secret">Secret (optional)</FieldLabel>
@@ -595,14 +664,28 @@ const RulesSection = ({
   const [createOpen, setCreateOpen] = useState(false)
   const [ruleChannel, setRuleChannel] = useState<string | null>(null)
   const [ruleSeverity, setRuleSeverity] = useState("")
+  const [ruleFieldErrors, setRuleFieldErrors] = useState<Record<string, string>>({})
 
   const createMutation = useCreateRule(workspaceId)
   const deleteMutation = useDeleteRule(workspaceId)
 
   const handleCreate = () => {
-    if (!ruleChannel || !ruleSeverity) return
+    setRuleFieldErrors({})
+    try {
+      notificationRuleSchema.parse({ channelId: ruleChannel ?? "", severity: ruleSeverity || undefined })
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const errs: Record<string, string> = {}
+        for (const issue of err.issues) {
+          const key = issue.path[0]
+          if (typeof key === "string") errs[key] = issue.message
+        }
+        setRuleFieldErrors(errs)
+      }
+      return
+    }
     createMutation.mutate(
-      { channelId: ruleChannel, severity: ruleSeverity },
+      { channelId: ruleChannel!, severity: ruleSeverity },
       {
         onSuccess: () => {
           setCreateOpen(false)
@@ -653,7 +736,7 @@ const RulesSection = ({
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-2">
-              <Field>
+              <Field data-invalid={!!ruleFieldErrors.severity}>
                 <FieldLabel>Severity</FieldLabel>
                 <Select
                   value={ruleSeverity}
@@ -672,8 +755,9 @@ const RulesSection = ({
                     ))}
                   </SelectContent>
                 </Select>
+                {ruleFieldErrors.severity && <p className="text-xs text-destructive mt-1">{ruleFieldErrors.severity}</p>}
               </Field>
-              <Field>
+              <Field data-invalid={!!ruleFieldErrors.channelId}>
                 <FieldLabel>Channel</FieldLabel>
                 {channels.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
@@ -701,6 +785,7 @@ const RulesSection = ({
                     </SelectContent>
                   </Select>
                 )}
+                {ruleFieldErrors.channelId && <p className="text-xs text-destructive mt-1">{ruleFieldErrors.channelId}</p>}
               </Field>
             </div>
             <DialogFooter>

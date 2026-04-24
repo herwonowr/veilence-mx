@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Badg
 import { ArrowLeft, Upload, FileText, Loader2, AlertCircle, CheckCircle2, CloudUpload } from "lucide-react"
 import { useBulkImportPackages, usePackages } from "@/features/packages/hooks/use-packages"
 import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
+import { bulkImportEntrySchema } from "@/domains/packages"
 
 type ImportFormat = "requirements_txt" | "package_json" | "list"
 
@@ -92,11 +93,22 @@ export const PackageImportView = () => {
 
   const buildEntries = useCallback(
     (raw: { name: string; ecosystem: string }[]): ParsedEntry[] => {
-      return raw.map((pkg) => ({
-        ...pkg,
-        status: existingNames.has(`${pkg.name}:${pkg.ecosystem}`) ? "exists" as const : "new" as const,
-        selected: !existingNames.has(`${pkg.name}:${pkg.ecosystem}`),
-      }))
+      return raw.map((pkg) => {
+        const result = bulkImportEntrySchema.safeParse(pkg)
+        if (!result.success) {
+          return {
+            ...pkg,
+            status: "error" as const,
+            error: result.error.issues[0]?.message ?? "Invalid entry",
+            selected: false,
+          }
+        }
+        return {
+          ...pkg,
+          status: existingNames.has(`${pkg.name}:${pkg.ecosystem}`) ? "exists" as const : "new" as const,
+          selected: !existingNames.has(`${pkg.name}:${pkg.ecosystem}`),
+        }
+      })
     },
     [existingNames]
   )

@@ -17,8 +17,9 @@ import {
   useUpdateAlertNote,
   useDeleteAlertNote,
 } from "@/features/alerts/hooks/use-alerts"
-import { toAlertNoteViewModels } from "@/domains/alerts"
+import { toAlertNoteViewModels, alertNoteSchema } from "@/domains/alerts"
 import type { AlertNoteViewModel } from "@/domains/alerts"
+import { ZodError } from "zod"
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ interface NoteItemProps {
   onEditContentChange: (value: string) => void
   isSaving: boolean
   onDelete: () => void
+  editError?: string
 }
 
 const NoteItem = ({
@@ -51,6 +53,7 @@ const NoteItem = ({
   onEditContentChange,
   isSaving,
   onDelete,
+  editError,
 }: NoteItemProps) => {
   const canSave =
     editContent.trim().length > 0 &&
@@ -71,7 +74,7 @@ const NoteItem = ({
   return (
     <div className="relative flex gap-4 pb-6 last:pb-0">
       {/* Timeline dot */}
-      <div className="relative z-10 ml-[14px] mt-1.5 flex h-[10px] w-[10px] shrink-0 items-center justify-center rounded-full bg-muted-foreground ring-2 ring-background" />
+      <div className="relative z-10 ml-3.5 mt-1.5 flex h-2.5 w-2.5 shrink-0 items-center justify-center rounded-full bg-muted-foreground ring-2 ring-background" />
 
       <div className="flex-1 min-w-0">
         {/* Header row */}
@@ -133,6 +136,7 @@ const NoteItem = ({
               aria-label="Edit note content"
               placeholder="Ctrl+Enter to save, Escape to cancel"
             />
+            {editError && <p className="text-xs text-destructive mt-1">{editError}</p>}
             <div className="flex justify-end gap-2 mt-2">
               <Button variant="outline" size="sm" onClick={onCancelEdit} disabled={isSaving}>
                 Cancel
@@ -165,10 +169,12 @@ export const AlertNotesTimeline = ({ alertId }: { alertId: string }) => {
   const deleteNoteMutation = useDeleteAlertNote(alertId)
 
   const [noteContent, setNoteContent] = useState("")
+  const [noteError, setNoteError] = useState("")
 
   // Edit state - only one note can be edited at a time
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState("")
+  const [editError, setEditError] = useState("")
 
   // Delete state - controlled ConfirmDialog
   const [deletingNote, setDeletingNote] = useState<AlertNoteViewModel | null>(null)
@@ -179,7 +185,16 @@ export const AlertNotesTimeline = ({ alertId }: { alertId: string }) => {
   // ─── Create ───────────────────────────────────────────────
 
   const handleAddNote = async () => {
-    if (!noteContent.trim()) return
+    setNoteError("")
+    try {
+      alertNoteSchema.parse({ content: noteContent.trim() })
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const msg = err.issues[0]?.message ?? "Invalid note"
+        setNoteError(msg)
+      }
+      return
+    }
     await createNoteMutation.mutateAsync(noteContent.trim())
     setNoteContent("")
   }
@@ -205,8 +220,17 @@ export const AlertNotesTimeline = ({ alertId }: { alertId: string }) => {
 
   const handleSaveEdit = async () => {
     if (editingNoteId === null) return
+    setEditError("")
     const trimmed = editContent.trim()
-    if (!trimmed) return
+    try {
+      alertNoteSchema.parse({ content: trimmed })
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const msg = err.issues[0]?.message ?? "Invalid note"
+        setEditError(msg)
+      }
+      return
+    }
     await updateNoteMutation.mutateAsync({ noteId: editingNoteId, content: trimmed })
     setEditingNoteId(null)
     setEditContent("")
@@ -239,6 +263,7 @@ export const AlertNotesTimeline = ({ alertId }: { alertId: string }) => {
             onKeyDown={handleKeyDown}
             aria-label="Add a note to this alert"
           />
+          {noteError && <p className="text-xs text-destructive">{noteError}</p>}
           <div className="flex justify-end">
             <Button
               size="sm"
@@ -261,7 +286,7 @@ export const AlertNotesTimeline = ({ alertId }: { alertId: string }) => {
           <div className="space-y-4">
             {Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className="flex gap-4">
-                <Skeleton className="h-[10px] w-[10px] rounded-full shrink-0 ml-[14px] mt-1.5" />
+                <Skeleton className="h-2.5 w-2.5 rounded-full shrink-0 ml-3.5 mt-1.5" />
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-4 w-40" />
                   <Skeleton className="h-12 w-full" />
@@ -272,7 +297,7 @@ export const AlertNotesTimeline = ({ alertId }: { alertId: string }) => {
         ) : notes.length > 0 ? (
           <div className="relative space-y-0">
             {/* Timeline line */}
-            <div className="absolute left-[19px] top-3 bottom-3 w-px bg-border" aria-hidden="true" />
+            <div className="absolute left-4.75 top-3 bottom-3 w-px bg-border" aria-hidden="true" />
 
             {notes.map((note) => (
               <NoteItem
@@ -287,6 +312,7 @@ export const AlertNotesTimeline = ({ alertId }: { alertId: string }) => {
                 onEditContentChange={setEditContent}
                 isSaving={updateNoteMutation.isPending}
                 onDelete={() => setDeletingNote(note)}
+                editError={editingNoteId === note.id ? editError : undefined}
               />
             ))}
           </div>

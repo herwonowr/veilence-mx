@@ -17,5 +17,11 @@ export const workspaceSchema = z.object({
   description: z.string().optional(),
 })
 
+export const workspaceUpdateSchema = z.object({
+  name: z.string().min(1, "Workspace name is required"),
+  description: z.string().optional(),
+})
+
 export type InvitationFormData = z.infer<typeof invitationSchema>
 export type WorkspaceFormData = z.infer<typeof workspaceSchema>
+export type WorkspaceUpdateFormData = z.infer<typeof workspaceUpdateSchema>
