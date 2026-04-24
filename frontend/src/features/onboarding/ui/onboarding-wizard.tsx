@@ -18,11 +18,8 @@ export const OnboardingWizard = () => {
     settingsForm,
     settingsErrors,
     addedPackages,
-    discoveryTriggered,
-    isCreatingWorkspace,
-    isSavingSettings,
-    isAddingPackage,
-    isDiscovering,
+    discoveryPreference,
+    isSubmitting,
     goNext,
     goBack,
     updateWorkspaceField,
@@ -39,8 +36,8 @@ export const OnboardingWizard = () => {
 
   return (
     <Dialog open modal>
-      <DialogContent showCloseButton={false} className="sm:max-w-lg">
-        <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-1">
+      <DialogContent showCloseButton={false} className="max-w-xl!">
+        <div className="space-y-6 max-h-[70vh] overflow-y-auto p-2">
           <WizardProgress currentStep={currentStep} totalSteps={totalSteps} />
 
           {currentStep === 1 && <WelcomeStep onNext={goNext} />}
@@ -48,7 +45,6 @@ export const OnboardingWizard = () => {
           {currentStep === 2 && (
             <CreateWorkspaceStep
               formData={workspaceForm}
-              isCreating={isCreatingWorkspace}
               onUpdateField={updateWorkspaceField}
               onSubmit={handleCreateWorkspace}
               onBack={goBack}
@@ -59,7 +55,6 @@ export const OnboardingWizard = () => {
             <ConfigureSettingsStep
               formData={settingsForm}
               errors={settingsErrors}
-              isSaving={isSavingSettings}
               onUpdateField={updateSettingsField}
               onSubmit={handleSaveSettings}
               onSkip={handleSkipSettings}
@@ -70,7 +65,6 @@ export const OnboardingWizard = () => {
           {currentStep === 4 && (
             <AddPackagesStep
               addedPackages={addedPackages}
-              isAdding={isAddingPackage}
               onAddPackage={handleAddPackage}
               onRemovePackage={handleRemovePackage}
               onNext={goNext}
@@ -81,8 +75,7 @@ export const OnboardingWizard = () => {
 
           {currentStep === 5 && (
             <FirstDiscoveryStep
-              discoveryTriggered={discoveryTriggered}
-              isDiscovering={isDiscovering}
+              discoveryPreference={discoveryPreference}
               onTriggerDiscovery={handleTriggerDiscovery}
               onNext={goNext}
               onSkip={goNext}
@@ -90,7 +83,13 @@ export const OnboardingWizard = () => {
             />
           )}
 
-          {currentStep === 6 && <CompleteStep onComplete={handleComplete} />}
+          {currentStep === 6 && (
+            <CompleteStep
+              isSubmitting={isSubmitting}
+              onComplete={handleComplete}
+              onBack={goBack}
+            />
+          )}
         </div>
       </DialogContent>
     </Dialog>

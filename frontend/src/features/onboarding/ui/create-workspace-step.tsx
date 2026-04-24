@@ -7,7 +7,6 @@ import type { WorkspaceFormData } from "@/features/onboarding/hooks/use-onboardi
 
 interface CreateWorkspaceStepProps {
   formData: WorkspaceFormData
-  isCreating: boolean
   onUpdateField: (field: keyof WorkspaceFormData, value: string) => void
   onSubmit: () => void
   onBack: () => void
@@ -15,7 +14,6 @@ interface CreateWorkspaceStepProps {
 
 export const CreateWorkspaceStep = ({
   formData,
-  isCreating,
   onUpdateField,
   onSubmit,
   onBack,
@@ -93,10 +91,10 @@ export const CreateWorkspaceStep = ({
         </Button>
         <Button
           type="submit"
-          disabled={isCreating || !formData.name || !formData.slug}
+          disabled={!formData.name || !formData.slug}
           className="flex-1"
         >
-          {isCreating ? "Creating..." : "Create Workspace"}
+          Next
         </Button>
       </div>
     </form>

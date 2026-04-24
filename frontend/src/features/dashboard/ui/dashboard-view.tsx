@@ -19,6 +19,7 @@ import { DashboardCharts } from "@/features/dashboard/ui/dashboard-charts"
 import { formatEcosystem } from "@/domains/common"
 import { useDashboardStats, useRecentReleases, useChartData, useDashboardStalePackages, useDashboardSettings } from "@/features/dashboard/hooks/use-dashboard"
 import { useMyInvitations } from "@/features/dashboard/hooks/use-my-invitations"
+import { PendingSuggestionsCard } from "@/features/dashboard/ui/pending-suggestions-card"
 
 const classificationVariant = (c?: Classification) => {
   if (c === "malicious") return "destructive" as const
@@ -187,6 +188,8 @@ const DashboardData = () => {
           )}
         </div>
       </div>
+
+      <PendingSuggestionsCard />
 
       {warningThreshold > 0 && stats && stats.totalPackages > warningThreshold && (
         <Alert variant="warning">

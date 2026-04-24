@@ -58,23 +58,23 @@ func (uc *UseCase) UpdateSettings(ctx context.Context, workspaceID string, setti
 		case entity.SettingDiscoveryScanDepth:
 			n, err := strconv.Atoi(value)
 			if err != nil || n < 1 || n > 1000 {
-				return nil, validationError("discovery_scan_depth must be an integer between 1 and 1000")
+				return nil, validationError("Discovery scan depth must be an integer between 1 and 1000")
 			}
 		case entity.SettingMonitoringInterval:
-			if err := validateDurationRange(value, "monitoring_interval"); err != nil {
+			if err := validateDurationRange(value, "Monitoring interval"); err != nil {
 				return nil, err
 			}
 		case entity.SettingDiscoveryInterval:
-			if err := validateDurationRange(value, "discovery_interval"); err != nil {
+			if err := validateDurationRange(value, "Discovery interval"); err != nil {
 				return nil, err
 			}
 		case entity.SettingEmailDigestEnabled:
 			if value != "true" && value != "false" {
-				return nil, validationError("email_digest_enabled must be 'true' or 'false'")
+				return nil, validationError("Email digest enabled must be 'true' or 'false'")
 			}
 		case entity.SettingEmailDigestFrequency:
 			if value != "daily" && value != "weekly" {
-				return nil, validationError("email_digest_frequency must be 'daily' or 'weekly'")
+				return nil, validationError("Email digest frequency must be 'daily' or 'weekly'")
 			}
 		case entity.SettingEmailDigestRecipients:
 			if err := validateEmailRecipients(value); err != nil {
@@ -82,17 +82,17 @@ func (uc *UseCase) UpdateSettings(ctx context.Context, workspaceID string, setti
 			}
 		case entity.SettingDiscoveryAutoApprove:
 			if value != "true" && value != "false" {
-				return nil, validationError("discovery_auto_approve must be 'true' or 'false'")
+				return nil, validationError("Discovery auto-approve must be 'true' or 'false'")
 			}
 		case entity.SettingStaleAutoRemoveMonths:
 			n, err := strconv.Atoi(value)
 			if err != nil || n < 0 || n > 36 {
-				return nil, validationError("stale_auto_remove_months must be an integer between 0 and 36")
+				return nil, validationError("Stale auto-remove months must be an integer between 0 and 36")
 			}
 		case entity.SettingPackageCountWarningThreshold:
 			n, err := strconv.Atoi(value)
 			if err != nil || n < 0 || n > 100000 {
-				return nil, validationError("package_count_warning_threshold must be an integer between 0 and 100000")
+				return nil, validationError("Package count warning threshold must be an integer between 0 and 100000")
 			}
 		}
 
@@ -121,7 +121,7 @@ func validateDurationRange(value, fieldName string) error {
 // At least one valid address is required. Each address is checked using net/mail.ParseAddress.
 func validateEmailRecipients(value string) error {
 	if strings.TrimSpace(value) == "" {
-		return validationError("email_digest_recipients must contain at least one email address")
+		return validationError("Email digest recipients must contain at least one email address")
 	}
 	parts := strings.Split(value, ",")
 	for _, part := range parts {
@@ -130,7 +130,7 @@ func validateEmailRecipients(value string) error {
 			continue
 		}
 		if _, err := mail.ParseAddress(addr); err != nil {
-			return validationError(fmt.Sprintf("email_digest_recipients contains invalid email: %s", addr))
+			return validationError(fmt.Sprintf("Email digest recipients contains invalid email: %s", addr))
 		}
 	}
 	return nil

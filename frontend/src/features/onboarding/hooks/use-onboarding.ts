@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { useAuth, sanitizeErrorMessage } from "@/core"
@@ -30,6 +30,11 @@ export interface AddedPackage {
   ecosystem: "python" | "npm"
 }
 
+export interface DiscoveryPreference {
+  enabled: boolean
+  ecosystem?: string
+}
+
 const TOTAL_STEPS = 6
 
 const toSlug = (name: string): string =>
@@ -53,81 +58,20 @@ export const useOnboarding = () => {
   })
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
   const [settingsErrors, setSettingsErrors] = useState<Record<string, string>>({})
+  const [settingsSkipped, setSettingsSkipped] = useState(false)
 
   const [settingsForm, setSettingsForm] = useState<SettingsFormData>({
     discovery_scan_depth: "100",
-    monitoring_interval: "1800",
-    discovery_interval: "86400",
+    monitoring_interval: "1h",
+    discovery_interval: "24h",
   })
   const [addedPackages, setAddedPackages] = useState<AddedPackage[]>([])
-  const [discoveryTriggered, setDiscoveryTriggered] = useState(false)
-
-  // Workspace creation mutation
-  const createWorkspaceMutation = useMutation({
-    mutationFn: () =>
-      apiCreateWorkspace({
-        name: workspaceForm.name,
-        slug: workspaceForm.slug,
-        description: workspaceForm.description || undefined,
-      }),
-    onSuccess: async (response) => {
-      if (response.data) {
-        setCurrentWorkspace(response.data)
-        await refreshWorkspaces()
-        setCurrentStep(3)
-      }
-    },
-    onError: (error: Error) => {
-      toast.error(sanitizeErrorMessage(error, "Failed to create workspace"))
-    },
+  const [localIdCounter, setLocalIdCounter] = useState(0)
+  const [discoveryPreference, setDiscoveryPreference] = useState<DiscoveryPreference>({
+    enabled: false,
   })
 
-  // Settings update mutation
-  const updateSettingsMutation = useMutation({
-    mutationFn: () => {
-      const settings: Record<string, string> = { ...settingsForm }
-      return updateSettings(settings)
-    },
-    onSuccess: () => {
-      setCurrentStep(4)
-    },
-    onError: (error: Error) => {
-      toast.error(sanitizeErrorMessage(error, "Failed to save settings"))
-    },
-  })
-
-  // Add package mutation
-  const addPackageMutation = useMutation({
-    mutationFn: ({ name, ecosystem }: { name: string; ecosystem: "python" | "npm" }) =>
-      createPackage(name, ecosystem),
-    onSuccess: (response, variables) => {
-      if (response.data) {
-        setAddedPackages((prev) => [
-          ...prev,
-          {
-            id: response.data?.id ?? "",
-            name: variables.name,
-            ecosystem: variables.ecosystem,
-          },
-        ])
-      }
-    },
-    onError: (error: Error) => {
-      toast.error(sanitizeErrorMessage(error, "Failed to add package"))
-    },
-  })
-
-  // Discovery mutation
-  const discoverMutation = useMutation({
-    mutationFn: (ecosystem?: string) => discoverPackages(ecosystem),
-    onSuccess: () => {
-      setDiscoveryTriggered(true)
-      toast.success("Discovery started - results will appear in your dashboard")
-    },
-    onError: (error: Error) => {
-      toast.error(sanitizeErrorMessage(error, "Failed to trigger discovery"))
-    },
-  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const updateWorkspaceField = useCallback(
     (field: keyof WorkspaceFormData, value: string) => {
@@ -160,10 +104,12 @@ export const useOnboarding = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 1) as OnboardingStep)
   }, [])
 
+  // Step 2: validate workspace form locally, then advance
   const handleCreateWorkspace = useCallback(() => {
-    createWorkspaceMutation.mutate()
-  }, [createWorkspaceMutation])
+    goNext()
+  }, [goNext])
 
+  // Step 3: validate settings locally, then advance
   const handleSaveSettings = useCallback(() => {
     const result = onboardingSettingsSchema.safeParse(settingsForm)
     if (!result.success) {
@@ -178,13 +124,16 @@ export const useOnboarding = () => {
       return
     }
     setSettingsErrors({})
-    updateSettingsMutation.mutate()
-  }, [updateSettingsMutation, settingsForm])
+    setSettingsSkipped(false)
+    goNext()
+  }, [settingsForm, goNext])
 
   const handleSkipSettings = useCallback(() => {
+    setSettingsSkipped(true)
     setCurrentStep(4)
   }, [])
 
+  // Step 4: add package to local list (no API call)
   const handleAddPackage = useCallback(
     (name: string, ecosystem: "python" | "npm") => {
       const isDuplicate = addedPackages.some(
@@ -194,9 +143,17 @@ export const useOnboarding = () => {
         toast.error("This package has already been added")
         return
       }
-      addPackageMutation.mutate({ name, ecosystem })
+      setLocalIdCounter((prev) => prev + 1)
+      setAddedPackages((prev) => [
+        ...prev,
+        {
+          id: `local-${Date.now()}-${localIdCounter + 1}`,
+          name,
+          ecosystem,
+        },
+      ])
     },
-    [addPackageMutation, addedPackages]
+    [addedPackages, localIdCounter]
   )
 
   const handleRemovePackage = useCallback((id: string) => {
@@ -207,19 +164,74 @@ export const useOnboarding = () => {
     setCurrentStep(5)
   }, [])
 
+  // Step 5: record discovery preference locally
   const handleTriggerDiscovery = useCallback(
     (ecosystem?: string) => {
-      discoverMutation.mutate(ecosystem)
+      setDiscoveryPreference({ enabled: true, ecosystem })
     },
-    [discoverMutation]
+    []
   )
 
-  const handleComplete = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: onboardingKeys.check })
-    queryClient.invalidateQueries({ queryKey: ["packages"] })
-    queryClient.invalidateQueries({ queryKey: ["settings"] })
-    router.push("/")
-  }, [queryClient, router])
+  // Step 6: submit everything in sequence
+  const handleComplete = useCallback(async () => {
+    setIsSubmitting(true)
+    try {
+      // 1. Create workspace
+      const wsResponse = await apiCreateWorkspace({
+        name: workspaceForm.name,
+        slug: workspaceForm.slug,
+        description: workspaceForm.description || undefined,
+      })
+      if (!wsResponse.data) {
+        throw new Error("Failed to create workspace - no data returned")
+      }
+
+      // 2. Set current workspace and refresh
+      setCurrentWorkspace(wsResponse.data)
+      await refreshWorkspaces()
+
+      // 3. Save settings (if not skipped)
+      if (!settingsSkipped) {
+        const settings: Record<string, string> = { ...settingsForm }
+        await updateSettings(settings)
+      }
+
+      // 4. Add packages (if any)
+      for (const pkg of addedPackages) {
+        await createPackage(pkg.name, pkg.ecosystem)
+      }
+
+      // 5. Trigger discovery (if user chose to)
+      if (discoveryPreference.enabled) {
+        await discoverPackages(discoveryPreference.ecosystem)
+      }
+
+      // 6. Invalidate queries and redirect
+      queryClient.invalidateQueries({ queryKey: onboardingKeys.check })
+      queryClient.invalidateQueries({ queryKey: ["packages"] })
+      queryClient.invalidateQueries({ queryKey: ["settings"] })
+      router.push("/")
+    } catch (error) {
+      toast.error(
+        sanitizeErrorMessage(
+          error instanceof Error ? error : new Error(String(error)),
+          "Failed to complete onboarding"
+        )
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [
+    workspaceForm,
+    settingsForm,
+    settingsSkipped,
+    addedPackages,
+    discoveryPreference,
+    setCurrentWorkspace,
+    refreshWorkspaces,
+    queryClient,
+    router,
+  ])
 
   return {
     currentStep,
@@ -228,14 +240,9 @@ export const useOnboarding = () => {
     settingsForm,
     settingsErrors,
     addedPackages,
-    discoveryTriggered,
+    discoveryPreference,
     slugManuallyEdited,
-
-    // Mutations
-    isCreatingWorkspace: createWorkspaceMutation.isPending,
-    isSavingSettings: updateSettingsMutation.isPending,
-    isAddingPackage: addPackageMutation.isPending,
-    isDiscovering: discoverMutation.isPending,
+    isSubmitting,
 
     // Actions
     goNext,

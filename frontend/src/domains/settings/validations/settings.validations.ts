@@ -8,6 +8,14 @@ const numericString = (label: string) =>
       message: `${label} must be a number`,
     })
 
+const durationString = (label: string) =>
+  z
+    .string()
+    .optional()
+    .refine((val) => !val || /^\d+[smhd]$/.test(val), {
+      message: `${label} must be a duration (e.g., 30m, 1h, 24h)`,
+    })
+
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const optionalCommaSeparatedEmails = z
@@ -25,9 +33,9 @@ const optionalCommaSeparatedEmails = z
   )
 
 export const settingsSchema = z.object({
-  monitoring_interval: numericString("Monitoring interval"),
+  monitoring_interval: durationString("Monitoring interval"),
   discovery_scan_depth: numericString("Discovery scan depth"),
-  discovery_interval: numericString("Discovery interval"),
+  discovery_interval: durationString("Discovery interval"),
   discovery_auto_approve: z.enum(["true", "false"]).optional(),
   stale_auto_remove_months: numericString("Stale auto-remove months"),
   package_count_warning_threshold: numericString("Package count warning threshold"),
@@ -49,11 +57,15 @@ export const onboardingSettingsSchema = z.object({
   monitoring_interval: z
     .string()
     .min(1, "Monitoring interval is required")
-    .refine((val) => /^\d+$/.test(val), { message: "Must be a number (seconds)" }),
+    .refine((val) => /^\d+[smhd]$/.test(val), {
+      message: "Must be a duration (e.g., 30m, 1h, 6h)",
+    }),
   discovery_interval: z
     .string()
     .min(1, "Discovery interval is required")
-    .refine((val) => /^\d+$/.test(val), { message: "Must be a number (seconds)" }),
+    .refine((val) => /^\d+[smhd]$/.test(val), {
+      message: "Must be a duration (e.g., 12h, 24h, 7d)",
+    }),
 })
 
 export type OnboardingSettingsFormData = z.infer<typeof onboardingSettingsSchema>

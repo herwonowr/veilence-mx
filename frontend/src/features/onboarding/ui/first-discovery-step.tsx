@@ -2,10 +2,10 @@
 
 import { Telescope, CheckCircle2 } from "lucide-react"
 import { Button } from "@/ui"
+import type { DiscoveryPreference } from "@/features/onboarding/hooks/use-onboarding"
 
 interface FirstDiscoveryStepProps {
-  discoveryTriggered: boolean
-  isDiscovering: boolean
+  discoveryPreference: DiscoveryPreference
   onTriggerDiscovery: (ecosystem?: string) => void
   onNext: () => void
   onSkip: () => void
@@ -13,8 +13,7 @@ interface FirstDiscoveryStepProps {
 }
 
 export const FirstDiscoveryStep = ({
-  discoveryTriggered,
-  isDiscovering,
+  discoveryPreference,
   onTriggerDiscovery,
   onNext,
   onSkip,
@@ -31,14 +30,14 @@ export const FirstDiscoveryStep = ({
       </div>
 
       <div className="flex flex-col items-center gap-4 rounded-lg border bg-muted/30 p-6">
-        {discoveryTriggered ? (
+        {discoveryPreference.enabled ? (
           <>
             <CheckCircle2 className="size-10 text-green-500" />
             <div className="text-center">
-              <p className="font-medium">Discovery Started</p>
+              <p className="font-medium">Discovery Enabled</p>
               <p className="text-sm text-muted-foreground">
-                Packages are being discovered in the background. Results will appear in
-                your dashboard shortly.
+                Discovery will run after setup completes. Packages will appear in
+                your dashboard shortly after.
               </p>
             </div>
           </>
@@ -51,31 +50,29 @@ export const FirstDiscoveryStep = ({
                 This will fetch top packages from both PyPI and NPM registries.
               </p>
             </div>
-            <Button
-              onClick={() => onTriggerDiscovery()}
-              disabled={isDiscovering}
-            >
-              {isDiscovering ? "Starting Discovery..." : "Start Discovery"}
+            <Button onClick={() => onTriggerDiscovery()}>
+              Enable Discovery
             </Button>
           </>
         )}
       </div>
 
+      {!discoveryPreference.enabled && (
+        <Button type="button" variant="outline" onClick={onSkip} className="w-full">
+          Skip
+        </Button>
+      )}
+
       <div className="flex gap-2">
         <Button type="button" variant="outline" onClick={onBack} className="flex-1">
           Back
         </Button>
-        {!discoveryTriggered && (
-          <Button type="button" variant="ghost" onClick={onSkip}>
-            Skip
-          </Button>
-        )}
         <Button
           type="button"
           onClick={onNext}
           className="flex-1"
         >
-          {discoveryTriggered ? "Continue" : "Skip & Continue"}
+          Continue
         </Button>
       </div>
     </div>

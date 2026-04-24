@@ -7,6 +7,7 @@ import {
   Input,
   Field,
   FieldLabel,
+  FieldDescription,
   FieldError,
   Badge,
   Select,
@@ -20,7 +21,6 @@ import type { AddedPackage } from "@/features/onboarding/hooks/use-onboarding"
 
 interface AddPackagesStepProps {
   addedPackages: AddedPackage[]
-  isAdding: boolean
   onAddPackage: (name: string, ecosystem: "python" | "npm") => void
   onRemovePackage: (id: string) => void
   onNext: () => void
@@ -30,7 +30,6 @@ interface AddPackagesStepProps {
 
 export const AddPackagesStep = ({
   addedPackages,
-  isAdding,
   onAddPackage,
   onRemovePackage,
   onNext,
@@ -61,44 +60,50 @@ export const AddPackagesStep = ({
       <div className="space-y-1">
         <h2 className="text-lg font-semibold">Add Packages</h2>
         <p className="text-sm text-muted-foreground">
-          Add specific packages you want to monitor. You can also skip this - top-N
-          packages will be discovered automatically.
+          Add specific packages you want to monitor. Top-N packages will also be discovered
+          automatically based on your settings.
         </p>
       </div>
 
-      <form onSubmit={handleAdd} className="flex items-end gap-2">
-        <Field className="flex-1">
-          <FieldLabel>Package Name</FieldLabel>
-          <Input
-            placeholder="e.g., requests, lodash"
-            value={name}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-          />
-          {error && <FieldError>{error}</FieldError>}
-        </Field>
-        <Field>
-          <FieldLabel>Ecosystem</FieldLabel>
-          <Select
-            value={ecosystem}
-            onValueChange={(val) => setEcosystem(val as "python" | "npm")}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="python">PyPI</SelectItem>
-              <SelectItem value="npm">NPM</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-        <Button type="submit" size="sm" disabled={isAdding} className="mb-0.5">
-          <PlusIcon className="size-4" />
-          Add
+      <form onSubmit={handleAdd} className="space-y-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+          <Field data-invalid={!!error}>
+            <FieldLabel htmlFor="onb-pkg-name">Package Name</FieldLabel>
+            <Input
+              id="onb-pkg-name"
+              placeholder="e.g., requests, lodash"
+              value={name}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+            />
+            {error && <FieldError>{error}</FieldError>}
+            <FieldDescription>Enter the exact package name from the registry</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="onb-pkg-eco">Ecosystem</FieldLabel>
+            <Select
+              value={ecosystem}
+              onValueChange={(val) => setEcosystem(val as "python" | "npm")}
+            >
+              <SelectTrigger id="onb-pkg-eco" className="w-full sm:w-28">
+                <SelectValue>
+                  {ecosystem === "python" ? "Python" : "NPM"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="python">Python</SelectItem>
+                <SelectItem value="npm">NPM</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+        <Button type="submit" variant="outline" size="sm" className="w-full">
+          <PlusIcon className="mr-1.5 size-4" />
+          Add Package
         </Button>
       </form>
 
       {addedPackages.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2 border-t pt-3">
           <p className="text-xs font-medium text-muted-foreground">
             Added ({addedPackages.length}):
           </p>
@@ -122,12 +127,13 @@ export const AddPackagesStep = ({
         </div>
       )}
 
+      <Button type="button" variant="outline" onClick={onSkip} className="w-full">
+        Skip
+      </Button>
+
       <div className="flex gap-2">
         <Button type="button" variant="outline" onClick={onBack} className="flex-1">
           Back
-        </Button>
-        <Button type="button" variant="ghost" onClick={onSkip}>
-          Skip
         </Button>
         <Button
           type="button"
