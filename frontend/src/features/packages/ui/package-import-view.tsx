@@ -281,7 +281,7 @@ export const PackageImportView = () => {
             <li>
               <Link
                 href="/packages"
-                className="flex items-center gap-1 hover:text-foreground transition-colors"
+                className="w-fit flex items-center gap-1 hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Packages

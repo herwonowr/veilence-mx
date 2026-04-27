@@ -73,7 +73,7 @@ export const PackageDetailView = ({
       <div>
         <Link
           href="/packages"
-          className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
+          className="w-fit text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Packages

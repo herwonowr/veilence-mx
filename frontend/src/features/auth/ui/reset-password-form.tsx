@@ -53,7 +53,7 @@ const ResetPasswordFormInner = () => {
               <div className="text-center">
                 <Link
                   href="/login"
-                  className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
+                  className="w-fit inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
                 >
                   <ArrowLeft className="size-3" />
                   Back to sign in
@@ -153,7 +153,7 @@ const ResetPasswordFormInner = () => {
           <div className="mt-4 text-center">
             <Link
               href="/login"
-              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
+              className="w-fit inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
             >
               <ArrowLeft className="size-3" />
               Back to sign in
