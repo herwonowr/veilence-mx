@@ -45,9 +45,9 @@ const commandItems: CommandItem[] = [
   { id: "channels", label: "Channels", href: "/settings/notifications", icon: Bell, group: "Management", keywords: ["notifications", "webhooks", "slack"], minRole: "admin" },
   { id: "queue", label: "Queue Monitor", href: "/settings/queue", icon: ListOrdered, group: "Management", keywords: ["jobs", "workers", "processing"], minRole: "admin" },
   { id: "api-keys", label: "API Keys", href: "/settings/api-keys", icon: Key, group: "Management", keywords: ["tokens", "authentication"] },
-  { id: "sessions", label: "Sessions", href: "/settings/sessions", icon: Monitor, group: "Management", keywords: ["active", "devices"] },
   // Account
   { id: "account", label: "Account", href: "/account", icon: User, group: "Account", keywords: ["profile", "email", "password"] },
+  { id: "sessions", label: "Sessions", href: "/settings/sessions", icon: Monitor, group: "Account", keywords: ["active", "devices"] },
 ]
 
 export const CommandPalette = () => {
@@ -182,110 +182,117 @@ export const CommandPalette = () => {
   if (!isAuthenticated) return null
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
+    <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange} disablePointerDismissal>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Backdrop
           className="fixed inset-0 isolate z-50 bg-black/25 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
         />
         <DialogPrimitive.Popup
-          className="fixed top-[20%] left-1/2 z-50 w-full max-w-[calc(100%-2rem)] -translate-x-1/2 overflow-hidden rounded-xl bg-popover text-popover-foreground ring-1 ring-foreground/10 shadow-xl duration-100 outline-none sm:max-w-lg data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
+          className="fixed inset-0 z-50 overflow-y-auto pt-[15vh] pb-8 outline-none"
           onKeyDown={handleKeyDown}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setOpen(false)
+          }}
         >
-          <DialogPrimitive.Title className="sr-only">
-            Command palette
-          </DialogPrimitive.Title>
-          <DialogPrimitive.Description className="sr-only">
-            Search and navigate to pages. Use arrow keys to navigate, Enter to select, Escape to close.
-          </DialogPrimitive.Description>
-
-          {/* Search input */}
-          <div className="flex items-center gap-2 border-b px-3">
-            <Search className="size-4 shrink-0 text-muted-foreground" />
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value)
-                setSelectedIndex(0)
-              }}
-              placeholder="Search pages..."
-              autoFocus
-              className="flex-1 bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
-              aria-label="Search command palette"
-              role="combobox"
-              aria-expanded={true}
-              aria-controls="command-palette-list"
-              aria-activedescendant={
-                filteredItems[selectedIndex]
-                  ? `command-item-${filteredItems[selectedIndex].id}`
-                  : undefined
-              }
-            />
-            <Kbd className="hidden sm:inline-block">
-              Esc
-            </Kbd>
-          </div>
-
-          {/* Results list */}
           <div
-            ref={listRef}
-            id="command-palette-list"
-            role="listbox"
-            className="max-h-72 overflow-y-auto p-1"
+            className="relative mx-auto w-full max-w-[calc(100%-2rem)] overflow-hidden rounded-xl bg-popover text-popover-foreground ring-1 ring-foreground/10 shadow-xl duration-100 sm:max-w-lg data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
           >
-            {filteredItems.length === 0 ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">
-                No results found
-              </div>
-            ) : (
-              groupedItems.map(({ group, items }) => (
-                <div key={group} role="group" aria-label={group}>
-                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                    {group}
-                  </div>
-                  {items.map(({ item, flatIndex: currentIndex }) => {
-                    const isSelected = currentIndex === selectedIndex
-                    return (
-                      <div
-                        key={item.id}
-                        id={`command-item-${item.id}`}
-                        role="option"
-                        aria-selected={isSelected}
-                        data-command-index={currentIndex}
-                        className={cn(
-                          "flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm outline-none select-none",
-                          isSelected
-                            ? "bg-accent text-accent-foreground"
-                            : "text-foreground hover:bg-accent/50"
-                        )}
-                        onClick={() => navigateTo(item)}
-                        onMouseEnter={() => setSelectedIndex(currentIndex)}
-                      >
-                        <item.icon className="size-4 shrink-0 text-muted-foreground" />
-                        <span>{item.label}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              ))
-            )}
-          </div>
+          <DialogPrimitive.Title className="sr-only">
+              Command palette
+            </DialogPrimitive.Title>
+            <DialogPrimitive.Description className="sr-only">
+              Search and navigate to pages. Use arrow keys to navigate, Enter to select, Escape to close.
+            </DialogPrimitive.Description>
 
-          {/* Footer hint */}
-          <div className="flex items-center gap-3 border-t px-3 py-2">
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Kbd>↑</Kbd>
-              <Kbd>↓</Kbd>
-              <span>navigate</span>
-            </span>
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Kbd>↵</Kbd>
-              <span>select</span>
-            </span>
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Kbd>esc</Kbd>
-              <span>close</span>
-            </span>
+            {/* Search input */}
+            <div className="flex items-center gap-2 border-b px-3">
+              <Search className="size-4 shrink-0 text-muted-foreground" />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value)
+                  setSelectedIndex(0)
+                }}
+                placeholder="Search pages..."
+                autoFocus
+                className="flex-1 bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
+                aria-label="Search command palette"
+                role="combobox"
+                aria-expanded={true}
+                aria-controls="command-palette-list"
+                aria-activedescendant={
+                  filteredItems[selectedIndex]
+                    ? `command-item-${filteredItems[selectedIndex].id}`
+                    : undefined
+                }
+              />
+              <Kbd className="hidden sm:inline-block">
+                Esc
+              </Kbd>
+            </div>
+
+            {/* Results list */}
+            <div
+              ref={listRef}
+              id="command-palette-list"
+              role="listbox"
+              className="max-h-72 overflow-y-auto p-1"
+            >
+              {filteredItems.length === 0 ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  No results found
+                </div>
+              ) : (
+                groupedItems.map(({ group, items }) => (
+                  <div key={group} role="group" aria-label={group}>
+                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                      {group}
+                    </div>
+                    {items.map(({ item, flatIndex: currentIndex }) => {
+                      const isSelected = currentIndex === selectedIndex
+                      return (
+                        <div
+                          key={item.id}
+                          id={`command-item-${item.id}`}
+                          role="option"
+                          aria-selected={isSelected}
+                          data-command-index={currentIndex}
+                          className={cn(
+                            "flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm outline-none select-none",
+                            isSelected
+                              ? "bg-accent text-accent-foreground"
+                              : "text-foreground hover:bg-accent/50"
+                          )}
+                          onClick={() => navigateTo(item)}
+                          onMouseEnter={() => setSelectedIndex(currentIndex)}
+                        >
+                          <item.icon className="size-4 shrink-0 text-muted-foreground" />
+                          <span>{item.label}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Footer hint */}
+            <div className="flex items-center gap-3 border-t px-3 py-2">
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Kbd>↑</Kbd>
+                <Kbd>↓</Kbd>
+                <span>navigate</span>
+              </span>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Kbd>↵</Kbd>
+                <span>select</span>
+              </span>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Kbd>esc</Kbd>
+                <span>close</span>
+              </span>
+            </div>
           </div>
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
