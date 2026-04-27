@@ -79,7 +79,6 @@ const settingsItems: NavItem[] = [
   { title: "Channels", href: "/settings/notifications", icon: Bell, minRole: "admin" },
   { title: "Queue Monitor", href: "/settings/queue", icon: ListOrdered, minRole: "admin" },
   { title: "API Keys", href: "/settings/api-keys", icon: Key },
-  { title: "Sessions", href: "/settings/sessions", icon: Monitor },
 ]
 
 export const AppSidebar = ({
@@ -203,7 +202,7 @@ export const AppSidebar = ({
                   render={
                     <SidebarMenuButton
                       tooltip={user.email}
-                      className="w-full h-auto"
+                      className="w-full h-auto border group-data-[collapsible=icon]:border-none! group-data-[collapsible=icon]:p-0.75!"
                     />
                   }
                 >
@@ -228,6 +227,12 @@ export const AppSidebar = ({
                   >
                     <User className="mr-2 size-4" />
                     Account
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    render={<Link href="/settings/sessions" />}
+                  >
+                    <Monitor className="mr-2 size-4" />
+                    Sessions
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

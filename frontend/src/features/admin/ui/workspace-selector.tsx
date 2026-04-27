@@ -53,7 +53,7 @@ export const WorkspaceSelector = () => {
           <DropdownMenuTrigger
             render={
               <SidebarMenuButton
-                className={`w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground h-auto ${
+                className={`w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground h-auto border ${
                   noWorkspacesIdle ? "animate-pulse border border-dashed border-green-500/60" : ""
                 }`}
                 tooltip="Workspace"
