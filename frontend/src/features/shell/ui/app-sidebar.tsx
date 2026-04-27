@@ -8,8 +8,9 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   Package,
-  Bell,
   BellDot,
+  Radio,
+  ShieldAlert,
   Settings,
   Activity,
   Building2,
@@ -69,14 +70,14 @@ const navItems: NavItem[] = [
   { title: "Dashboard", href: "/", icon: LayoutDashboard },
   { title: "Packages", href: "/packages", icon: Package },
   { title: "Releases", href: "/releases", icon: Activity },
-  { title: "Alerts", href: "/alerts", icon: Bell },
+  { title: "Alerts", href: "/alerts", icon: ShieldAlert },
   { title: "Notifications", href: "/notifications", icon: BellDot },
   { title: "Workspaces", href: "/workspaces", icon: Building2 },
 ]
 
 const settingsItems: NavItem[] = [
   { title: "Settings", href: "/settings", icon: Settings, minRole: "admin" },
-  { title: "Channels", href: "/settings/notifications", icon: Bell, minRole: "admin" },
+  { title: "Channels", href: "/settings/notifications", icon: Radio, minRole: "admin" },
   { title: "Queue Monitor", href: "/settings/queue", icon: ListOrdered, minRole: "admin" },
   { title: "API Keys", href: "/settings/api-keys", icon: Key },
 ]

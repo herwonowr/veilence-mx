@@ -6,8 +6,9 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import {
   LayoutDashboard,
   Package,
-  Bell,
+  ShieldAlert,
   BellDot,
+  Radio,
   Settings,
   Activity,
   Building2,
@@ -37,12 +38,12 @@ const commandItems: CommandItem[] = [
   { id: "dashboard", label: "Dashboard", href: "/", icon: LayoutDashboard, group: "Navigation", keywords: ["home", "overview", "stats"] },
   { id: "packages", label: "Packages", href: "/packages", icon: Package, group: "Navigation", keywords: ["python", "npm", "dependencies"] },
   { id: "releases", label: "Releases", href: "/releases", icon: Activity, group: "Navigation", keywords: ["versions", "updates"] },
-  { id: "alerts", label: "Alerts", href: "/alerts", icon: Bell, group: "Navigation", keywords: ["notifications", "warnings", "threats"] },
+  { id: "alerts", label: "Alerts", href: "/alerts", icon: ShieldAlert, group: "Navigation", keywords: ["notifications", "warnings", "threats"] },
   { id: "notifications", label: "Notifications", href: "/notifications", icon: BellDot, group: "Navigation", keywords: ["inbox", "messages", "updates"] },
   { id: "workspaces", label: "Workspaces", href: "/workspaces", icon: Building2, group: "Navigation", keywords: ["teams"] },
   // Management
   { id: "settings", label: "Settings", href: "/settings", icon: Settings, group: "Management", keywords: ["preferences", "configuration"], minRole: "admin" },
-  { id: "channels", label: "Channels", href: "/settings/notifications", icon: Bell, group: "Management", keywords: ["notifications", "webhooks", "slack"], minRole: "admin" },
+  { id: "channels", label: "Channels", href: "/settings/notifications", icon: Radio, group: "Management", keywords: ["notifications", "webhooks", "slack"], minRole: "admin" },
   { id: "queue", label: "Queue Monitor", href: "/settings/queue", icon: ListOrdered, group: "Management", keywords: ["jobs", "workers", "processing"], minRole: "admin" },
   { id: "api-keys", label: "API Keys", href: "/settings/api-keys", icon: Key, group: "Management", keywords: ["tokens", "authentication"] },
   // Account

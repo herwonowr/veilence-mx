@@ -287,7 +287,7 @@ export const AuditLogView = () => {
 
       {/* Table */}
       <Card>
-        <CardContent className="p-0">
+        <CardContent>
           {isLoading ? (
             <div className="space-y-2 p-4">
               {Array.from({ length: 5 }).map((_, i) => (

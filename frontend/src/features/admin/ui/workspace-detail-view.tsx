@@ -367,7 +367,7 @@ export const WorkspaceDetailView = () => {
           </div>
 
           <Card>
-            <CardContent className="p-0">
+            <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -464,7 +464,7 @@ export const WorkspaceDetailView = () => {
               Invitations ({invitations.length})
             </h3>
             <Card>
-              <CardContent className="p-0">
+              <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>

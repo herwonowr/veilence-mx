@@ -449,7 +449,7 @@ export const ApiKeysView = () => {
             API keys are used to authenticate programmatic access to the API.
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent>
           {isLoading ? (
             <TableSkeleton columns={apiKeysSkeletonColumns} rows={5} />
           ) : isError ? (

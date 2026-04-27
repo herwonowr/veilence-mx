@@ -77,7 +77,7 @@ export const SessionsView = () => {
             account. Revoke any session you don&apos;t recognize.
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent>
           {isLoading ? (
             <TableSkeleton columns={sessionsSkeletonColumns} rows={5} />
           ) : isError ? (

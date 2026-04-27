@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Input, Field, FieldLabel, Badge, Switch, Separator, ConfirmDialog, EmptyState } from "@/ui"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Input, Field, FieldLabel, Badge, Switch, ConfirmDialog, EmptyState } from "@/ui"
 import {
   Select,
   SelectContent,
@@ -24,7 +24,7 @@ import {
   Mail,
   Webhook,
   Loader2,
-  BellRing,
+  Radio,
   Route,
   Pencil,
   Zap,
@@ -125,8 +125,6 @@ export const ChannelsView = () => {
         loading={channelsLoading}
         canManage={canManage}
       />
-
-      <Separator />
 
       {/* Rules Section */}
       <RulesSection
@@ -285,7 +283,7 @@ const ChannelsSection = ({
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="flex items-center gap-2">
-            <BellRing className="size-5" />
+            <Radio className="size-5" />
             Channels
           </CardTitle>
           <CardDescription>
@@ -369,7 +367,7 @@ const ChannelsSection = ({
           </div>
         ) : channels.length === 0 ? (
           <EmptyState
-            icon={<BellRing className="h-8 w-8" />}
+            icon={<Radio className="h-8 w-8" />}
             title="No channels configured."
             description="Add a notification channel to start receiving alerts via email, Slack, or webhook."
           >

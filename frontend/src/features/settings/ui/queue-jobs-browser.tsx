@@ -343,7 +343,7 @@ const PendingTable = ({
   jobs: QueueJob[]
   onRowClick: (job: QueueJob) => void
 }) => (
-  <div className="overflow-x-auto">
+  <div className="overflow-x-auto px-4">
     <Table>
       <TableHeader>
         <TableRow>
@@ -419,7 +419,7 @@ const ProcessingTable = ({
   onRowClick: (job: QueueJob) => void
   nowSeconds: number
 }) => (
-  <div className="overflow-x-auto">
+  <div className="overflow-x-auto px-4">
     <Table>
       <TableHeader>
         <TableRow>
@@ -494,7 +494,7 @@ const DeadTable = ({
   onRetry: (jobId: string) => void
   isRetrying?: boolean
 }) => (
-  <div className="overflow-x-auto">
+  <div className="overflow-x-auto px-4">
     <Table>
       <TableHeader>
         <TableRow>
