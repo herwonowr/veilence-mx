@@ -163,6 +163,7 @@ const AlertsContent = () => {
           <Link
             href={`/packages/${row.original.packageId}`}
             className="font-medium hover:underline"
+            onClick={(e) => e.stopPropagation()}
           >
             {row.original.packageName}
           </Link>
@@ -197,7 +198,7 @@ const AlertsContent = () => {
         enableSorting: false,
         meta: { headerClassName: "w-[1%] whitespace-nowrap text-right", cellClassName: "text-right" },
         cell: ({ row }) => (
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
             {canTriage && row.original.status === "new" && (
               <Button
                 variant="ghost"

@@ -102,14 +102,14 @@ export const PackagesListView = () => {
   const searchParams = useSearchParams()
 
   const initialEcosystem = searchParams.get("ecosystem") ?? ""
-  const initialStatus = searchParams.get("status") ?? "active"
+  const initialStatus = searchParams.get("status") ?? ""
   const initialSource = searchParams.get("source") ?? ""
 
   const [ecosystemFilter, setEcosystemFilter] = useState(
     VALID_ECOSYSTEMS.includes(initialEcosystem as Ecosystem) ? initialEcosystem : ""
   )
   const [statusFilter, setStatusFilter] = useState<string>(
-    VALID_STATUSES.includes(initialStatus as PackageStatus) ? initialStatus : "active"
+    VALID_STATUSES.includes(initialStatus as PackageStatus) ? initialStatus : ""
   )
   const [sourceFilter, setSourceFilter] = useState<string>(
     VALID_SOURCES.includes(initialSource as PackageSource) ? initialSource : ""
@@ -127,8 +127,8 @@ export const PackagesListView = () => {
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null)
 
   // Sync filter state → URL search params
-  // For packages, "active" is the default status - omit from URL when it matches
-  const PACKAGES_FILTER_DEFAULTS = useMemo(() => ({ status: "active" }), [])
+  // For packages, "" (all) is the default status - omit from URL when it matches
+  const PACKAGES_FILTER_DEFAULTS = useMemo(() => ({ status: "" }), [])
   useFilterParams(
     useMemo(() => ({
       ecosystem: ecosystemFilter,
@@ -183,12 +183,12 @@ export const PackagesListView = () => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }))
   }, [ecosystemFilter, statusFilter, sourceFilter, debouncedSearch, sorting])
 
-  const hasActiveFilters = !!(search || ecosystemFilter || sourceFilter || statusFilter !== "active")
+  const hasActiveFilters = !!(search || ecosystemFilter || sourceFilter || statusFilter)
 
   const clearAllFilters = () => {
     setSearch("")
     setEcosystemFilter("")
-    setStatusFilter("active")
+    setStatusFilter("")
     setSourceFilter("")
     setSorting([])
   }
@@ -197,8 +197,8 @@ export const PackagesListView = () => {
     ...(ecosystemFilter
       ? [{ label: "Ecosystem", value: ecosystemFilter === "python" ? "Python" : "NPM", onRemove: () => setEcosystemFilter("") }]
       : []),
-    ...(statusFilter && statusFilter !== "active"
-      ? [{ label: "Status", value: statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1), onRemove: () => setStatusFilter("active") }]
+    ...(statusFilter
+      ? [{ label: "Status", value: statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1), onRemove: () => setStatusFilter("") }]
       : []),
     ...(sourceFilter
       ? [{ label: "Source", value: formatSource(sourceFilter as PackageSource), onRemove: () => setSourceFilter("") }]
@@ -600,19 +600,19 @@ export const PackagesListView = () => {
                   Status
                 </Label>
                 <Select
-                  value={statusFilter || "active"}
-                  onValueChange={(v) => setStatusFilter(v === "all" ? "" : (v ?? "active"))}
+                  value={statusFilter || "all"}
+                  onValueChange={(v) => setStatusFilter(v === "all" ? "" : (v ?? ""))}
                 >
                   <SelectTrigger id="packages-status-filter" className="w-32">
                     <SelectValue>
-                      {statusFilter === "blocked" ? "Blocked" : statusFilter === "suggested" ? "Suggested" : statusFilter === "" ? "All" : "Active"}
+                      {statusFilter === "active" ? "Active" : statusFilter === "blocked" ? "Blocked" : statusFilter === "suggested" ? "Suggested" : "All"}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="suggested">Suggested</SelectItem>
                     <SelectItem value="blocked">Blocked</SelectItem>
-                    <SelectItem value="all">All</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
