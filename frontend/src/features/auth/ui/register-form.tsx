@@ -33,9 +33,8 @@ export const RegisterForm = () => {
     apiGetPublicConfig()
       .then((res) => {
         setPublicConfig(res.data)
-        if (res.data.setupRequired) {
-          router.replace("/setup")
-        } else if (res.data && !res.data.registrationEnabled) {
+        // Redirect to login if registration is disabled
+        if (res.data && !res.data.registrationEnabled) {
           router.replace("/login")
         }
       })

@@ -77,14 +77,9 @@ const LoginFormInner = () => {
     if (didFetchConfig.current) return
     didFetchConfig.current = true
     apiGetPublicConfig()
-      .then((res) => {
-        setPublicConfig(res.data)
-        if (res.data.setupRequired) {
-          router.replace("/setup")
-        }
-      })
+      .then((res) => setPublicConfig(res.data))
       .catch(() => {})
-  }, [router])
+  }, [])
 
   // Validate redirect is a same-origin relative path to prevent open redirect
   const rawRedirect = searchParams.get("redirect") ?? "/"
