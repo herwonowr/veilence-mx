@@ -118,7 +118,7 @@ export const AppSidebar = ({
               tooltip="Veilence-MX"
               className="h-auto hover:bg-transparent"
             >
-              <Image src={veilenceLogo} alt="Veilence-MX" width={20} height={20} className="size-5" />
+              <Image src={veilenceLogo} alt="Veilence-MX" width={24} height={24} className="size-6" />
               <div className="flex flex-col">
                 <span className="font-semibold">Veilence-MX</span>
                 <span className="text-xs text-muted-foreground">

@@ -57,7 +57,7 @@ export const AlertDetailView = ({
           Alerts
         </Link>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold">Alert #{alertId}</h1>
+          <h1 className="text-3xl font-bold">Alert #{alertId.slice(0, 8)}</h1>
           {alert && canTriage && (
             <div className="flex flex-wrap items-center gap-2">
               {alert.status === "new" && (
