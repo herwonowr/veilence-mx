@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
@@ -25,6 +26,10 @@ var (
 	ErrRoleExceedsUserRole       = errors.New("Cannot create API key with role higher than your workspace role")
 	ErrSessionNotFound           = errors.New("Session not found")
 	ErrEmailVerificationRequired = errors.New("email_verification_required")
+	ErrRegistrationDisabled      = errors.New("registration is disabled")
+	ErrEmailDomainNotAllowed     = errors.New("email domain is not allowed")
+	ErrPasswordSameAsCurrent     = errors.New("new password must be different from current password")
+	ErrInvalidEmail              = errors.New("invalid email address")
 )
 
 const (
@@ -70,6 +75,8 @@ type Service struct {
 	rateLimiter              usecase.RateLimiter     // nil = no rate limiting
 	tokenProvider      usecase.TokenProvider
 	hasher             usecase.PasswordHasher
+	registrationEnabled   bool
+	allowedEmailDomains   []string
 }
 
 // NewService creates a new auth service with the given repositories and token/password providers.
@@ -87,6 +94,8 @@ func NewService(
 	rateLimiter usecase.RateLimiter,
 	tokenProvider usecase.TokenProvider,
 	hasher usecase.PasswordHasher,
+	registrationEnabled bool,
+	allowedEmailDomains []string,
 ) *Service {
 	return &Service{
 		users:                    users,
@@ -100,6 +109,8 @@ func NewService(
 		rateLimiter:              rateLimiter,
 		tokenProvider:            tokenProvider,
 		hasher:                   hasher,
+		registrationEnabled:      registrationEnabled,
+		allowedEmailDomains:      allowedEmailDomains,
 	}
 }
 
@@ -121,9 +132,66 @@ func (s *Service) checkPassword(password, hash string) bool {
 	return s.hasher.Compare(hash, password) == nil
 }
 
+// normalizeEmail lowercases, trims whitespace, and strips +tag suffixes from emails.
+func normalizeEmail(email string) string {
+	email = strings.TrimSpace(email)
+	email = strings.ToLower(email)
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) != 2 {
+		return email // invalid, will fail validation downstream
+	}
+	local := parts[0]
+	if idx := strings.Index(local, "+"); idx != -1 {
+		local = local[:idx]
+	}
+	return local + "@" + parts[1]
+}
+
+// validateEmailDomain checks the email domain against the allowed domains list.
+// Expects already-normalized email input.
+func (s *Service) validateEmailDomain(email string) error {
+	if len(s.allowedEmailDomains) == 0 {
+		return nil // no restriction
+	}
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) != 2 {
+		return ErrInvalidEmail
+	}
+	domain := strings.ToLower(parts[1])
+	for _, allowed := range s.allowedEmailDomains {
+		if domain == strings.ToLower(strings.TrimSpace(allowed)) {
+			return nil
+		}
+	}
+	return ErrEmailDomainNotAllowed
+}
+
+// AllowedEmailDomains returns the configured allowed email domains.
+func (s *Service) AllowedEmailDomains() []string {
+	return s.allowedEmailDomains
+}
+
+// RegistrationEnabled returns whether open registration is enabled.
+func (s *Service) RegistrationEnabled() bool {
+	return s.registrationEnabled
+}
+
+// HasEmailDomainRestriction returns whether email domain restrictions are active.
+func (s *Service) HasEmailDomainRestriction() bool {
+	return len(s.allowedEmailDomains) > 0
+}
+
 // Register creates a new user with the given credentials.
 func (s *Service) Register(email, password, firstName, lastName string) (*entity.User, error) {
 	ctx := context.Background()
+
+	email = normalizeEmail(email)
+	if !s.registrationEnabled {
+		return nil, ErrRegistrationDisabled
+	}
+	if err := s.validateEmailDomain(email); err != nil {
+		return nil, err
+	}
 
 	// Check for existing user
 	_, err := s.users.FindByEmail(ctx, email)
@@ -180,10 +248,96 @@ func (s *Service) sendPostRegistrationVerification(ctx context.Context, user *en
 	}
 }
 
+// CreateUserWithoutPassword creates a user account with no password (for admin add-user flow).
+// The user must set their password via a reset link.
+func (s *Service) CreateUserWithoutPassword(ctx context.Context, email, firstName, lastName string) (*entity.User, error) {
+	email = normalizeEmail(email)
+	if err := s.validateEmailDomain(email); err != nil {
+		return nil, err
+	}
+
+	// Check for existing user
+	_, err := s.users.FindByEmail(ctx, email)
+	if err == nil {
+		return nil, ErrEmailAlreadyRegistered
+	}
+	if !errors.Is(err, entity.ErrNotFound) {
+		return nil, fmt.Errorf("checking existing user: %w", err)
+	}
+
+	user := &entity.User{
+		Email:         email,
+		PasswordHash:  "",
+		FirstName:     firstName,
+		LastName:      lastName,
+		IsActive:      true,
+		EmailVerified: true,
+	}
+
+	if err := s.users.Create(ctx, user); err != nil {
+		return nil, fmt.Errorf("creating user: %w", err)
+	}
+
+	slog.Info("user created without password", "user_id", user.ID, "email", user.Email)
+	return user, nil
+}
+
+// CreateUserWithPassword creates a user account with an admin-set password.
+// The user will be flagged to change their password on first login.
+func (s *Service) CreateUserWithPassword(ctx context.Context, email, firstName, lastName, password string) (*entity.User, error) {
+	email = normalizeEmail(email)
+	if err := s.validateEmailDomain(email); err != nil {
+		return nil, err
+	}
+
+	if err := entity.ValidatePassword(password); err != nil {
+		return nil, err
+	}
+
+	// Check for existing user
+	_, err := s.users.FindByEmail(ctx, email)
+	if err == nil {
+		return nil, ErrEmailAlreadyRegistered
+	}
+	if !errors.Is(err, entity.ErrNotFound) {
+		return nil, fmt.Errorf("checking existing user: %w", err)
+	}
+
+	passwordHash, err := s.hashPassword(password)
+	if err != nil {
+		return nil, fmt.Errorf("hashing password: %w", err)
+	}
+
+	user := &entity.User{
+		Email:              email,
+		PasswordHash:       passwordHash,
+		FirstName:          firstName,
+		LastName:           lastName,
+		IsActive:           true,
+		EmailVerified:      true,
+		MustChangePassword: true,
+	}
+
+	if err := s.users.Create(ctx, user); err != nil {
+		return nil, fmt.Errorf("creating user: %w", err)
+	}
+
+	slog.Info("user created with admin-set password", "user_id", user.ID, "email", user.Email)
+	return user, nil
+}
+
+// InitiatePasswordReset triggers a password reset email for the given email.
+// This implements the PasswordResetInitiator interface.
+func (s *Service) InitiatePasswordReset(ctx context.Context, email string) error {
+	_, err := s.ForgotPassword(email)
+	return err
+}
+
 // Login authenticates a user and returns a token pair.
 // It also creates a session record for the user using the provided IP address and User-Agent.
 func (s *Service) Login(email, password, ipAddress, userAgent string) (*entity.User, *TokenPair, error) {
 	ctx := context.Background()
+	email = normalizeEmail(email)
 
 	user, err := s.users.FindByEmail(ctx, email)
 	if err != nil {
@@ -620,6 +774,9 @@ func (s *Service) ResetPassword(rawToken, newPassword string) error {
 		user.EmailVerified = true
 		slog.Info("email auto-verified via password reset", "user_id", user.ID)
 	}
+	if user.MustChangePassword {
+		user.MustChangePassword = false
+	}
 	if err := s.users.Update(ctx, user); err != nil {
 		return fmt.Errorf("updating password: %w", err)
 	}
@@ -892,6 +1049,11 @@ func (s *Service) ChangePassword(userID string, currentPassword, newPassword, cu
 		return ErrInvalidPassword
 	}
 
+	// Reject same password
+	if s.checkPassword(newPassword, user.PasswordHash) {
+		return ErrPasswordSameAsCurrent
+	}
+
 	if err := entity.ValidatePassword(newPassword); err != nil {
 		return err
 	}
@@ -902,6 +1064,9 @@ func (s *Service) ChangePassword(userID string, currentPassword, newPassword, cu
 	}
 
 	user.PasswordHash = passwordHash
+	if user.MustChangePassword {
+		user.MustChangePassword = false
+	}
 	if err := s.users.Update(ctx, user); err != nil {
 		return fmt.Errorf("updating password: %w", err)
 	}

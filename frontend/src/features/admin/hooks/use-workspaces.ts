@@ -22,6 +22,7 @@ import {
   apiGetPendingInvitations,
   apiRevokeInvitation,
   apiResendInvitation,
+  apiAddMember,
 } from "@/domains/admin"
 import type { ApiResponse } from "@/domains/common"
 import type {
@@ -32,6 +33,7 @@ import type {
   AuditLog,
   Invitation,
 } from "@/domains/admin"
+import type { AddMemberRequest } from "@/domains/admin/api/admin.api"
 import { toast } from "sonner"
 import { sanitizeErrorMessage } from "@/core"
 
@@ -299,5 +301,37 @@ export const useAuditLogs = (
     queryFn: () => apiGetAuditLogs(workspaceId, params),
     enabled: !!workspaceId,
     ...options,
+  })
+}
+
+export const useAddMember = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      workspaceId,
+      data,
+    }: {
+      workspaceId: string
+      data: AddMemberRequest
+    }) => apiAddMember(workspaceId, data),
+    onSuccess: (result, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: workspaceKeys.members(variables.workspaceId),
+      })
+      const response = result.data
+      if (response?.userCreated) {
+        if (variables.data.password) {
+          toast.success("User added. They'll need to change their password on first login.")
+        } else {
+          toast.success("User added. They'll receive an email to set their password.")
+        }
+      } else {
+        toast.success("User added to workspace.")
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(sanitizeErrorMessage(error, "Failed to add member"))
+    },
   })
 }

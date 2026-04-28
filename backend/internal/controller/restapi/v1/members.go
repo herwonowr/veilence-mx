@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	validation "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/request"
@@ -20,6 +21,14 @@ import (
 type inviteMemberRequest struct {
 	Email  string `json:"email"`
 	RoleID string `json:"roleId"`
+}
+
+type addMemberRequest struct {
+	Email     string `json:"email"`
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	RoleID    string `json:"roleId"`
+	Password  string `json:"password,omitempty"`
 }
 
 type updateMemberRoleRequest struct {
@@ -138,6 +147,69 @@ func (h *WorkspaceHandlers) ListMembers(w http.ResponseWriter, r *http.Request) 
 	respondJSON(w, http.StatusOK, flat, nil)
 }
 
+// AddMember handles POST /api/workspaces/{workspaceId}/members - directly adds a user to the workspace.
+// This is the admin-driven flow when registration is disabled: creates a user account and workspace membership in one step.
+func (h *WorkspaceHandlers) AddMember(w http.ResponseWriter, r *http.Request) {
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+	if workspaceID == "" {
+		respondError(w, http.StatusBadRequest, "Workspace context required")
+		return
+	}
+
+	var req addMemberRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	req.Email = strings.TrimSpace(req.Email)
+	req.FirstName = strings.TrimSpace(req.FirstName)
+	req.LastName = strings.TrimSpace(req.LastName)
+
+	if req.Email == "" {
+		respondAppError(w, Validation("email is required"))
+		return
+	}
+	if err := validation.ValidateEmail(req.Email); err != nil {
+		respondAppError(w, Validation(err.Error()))
+		return
+	}
+	if req.FirstName == "" {
+		respondAppError(w, Validation("firstName is required"))
+		return
+	}
+	if req.RoleID == "" {
+		respondAppError(w, Validation("roleId is required"))
+		return
+	}
+	if _, err := uuid.Parse(req.RoleID); err != nil {
+		respondAppError(w, BadRequest("invalid roleId format"))
+		return
+	}
+
+	member, _, err := h.RBAC.AddUserToWorkspace(workspaceID, req.Email, req.FirstName, req.LastName, req.RoleID, req.Password)
+	if err != nil {
+		if errors.Is(err, rbac.ErrRoleNotFound) {
+			respondError(w, http.StatusBadRequest, "Role not found in this workspace")
+			return
+		}
+		if errors.Is(err, rbac.ErrAlreadyMember) {
+			respondError(w, http.StatusConflict, "User is already a member of this workspace")
+			return
+		}
+		if errors.Is(err, auth.ErrEmailDomainNotAllowed) {
+			respondError(w, http.StatusForbidden, "Email domain is not allowed")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "Failed to add member")
+		return
+	}
+
+	h.Audit.LogAction(r.Context(), "add", "member", member.ID, fmt.Sprintf("added %s with role %s", req.Email, req.RoleID))
+
+	respondJSON(w, http.StatusCreated, member, nil)
+}
+
 // InviteMember handles POST /api/workspaces/{workspaceId}/invitations - invites a user to the workspace.
 func (h *WorkspaceHandlers) InviteMember(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
@@ -174,6 +246,10 @@ func (h *WorkspaceHandlers) InviteMember(w http.ResponseWriter, r *http.Request)
 
 	invitation, rawToken, err := h.RBAC.InviteMember(workspaceID, req.Email, req.RoleID, userID, inviterEmail)
 	if err != nil {
+		if errors.Is(err, rbac.ErrInvitationsDisabled) {
+			respondError(w, http.StatusForbidden, "Invitations are not available. Ask your workspace admin to add you directly.")
+			return
+		}
 		if errors.Is(err, rbac.ErrRoleNotFound) {
 			respondError(w, http.StatusBadRequest, "Role not found in this workspace")
 			return
@@ -220,6 +296,10 @@ func (h *WorkspaceHandlers) AcceptInvitation(w http.ResponseWriter, r *http.Requ
 
 	member, err := h.RBAC.AcceptInvitation(token, userID, userEmail)
 	if err != nil {
+		if errors.Is(err, rbac.ErrInvitationsDisabled) {
+			respondError(w, http.StatusForbidden, "Invitations are not available. Ask your workspace admin to add you directly.")
+			return
+		}
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
 			respondError(w, http.StatusNotFound, "Invitation not found")
 			return
@@ -265,6 +345,10 @@ func (h *WorkspaceHandlers) DeclineInvitation(w http.ResponseWriter, r *http.Req
 
 	err := h.RBAC.DeclineInvitationByToken(token, userEmail)
 	if err != nil {
+		if errors.Is(err, rbac.ErrInvitationsDisabled) {
+			respondError(w, http.StatusForbidden, "Invitations are not available. Ask your workspace admin to add you directly.")
+			return
+		}
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
 			respondError(w, http.StatusNotFound, "Invitation not found")
 			return
@@ -307,6 +391,10 @@ func (h *WorkspaceHandlers) GetInvitationInfo(w http.ResponseWriter, r *http.Req
 
 	invitation, err := h.RBAC.GetInvitationByToken(token)
 	if err != nil {
+		if errors.Is(err, rbac.ErrInvitationsDisabled) {
+			respondError(w, http.StatusForbidden, "Invitations are not available. Ask your workspace admin to add you directly.")
+			return
+		}
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
 			respondError(w, http.StatusNotFound, "Invitation not found")
 			return
@@ -336,6 +424,10 @@ func (h *WorkspaceHandlers) ListPendingInvitations(w http.ResponseWriter, r *htt
 
 	invitations, err := h.RBAC.ListPendingInvitations(workspaceID)
 	if err != nil {
+		if errors.Is(err, rbac.ErrInvitationsDisabled) {
+			respondError(w, http.StatusForbidden, "Invitations are not available. Ask your workspace admin to add you directly.")
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "Failed to list invitations")
 		return
 	}
@@ -375,6 +467,10 @@ func (h *WorkspaceHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := h.RBAC.RevokeInvitation(workspaceID, id); err != nil {
+		if errors.Is(err, rbac.ErrInvitationsDisabled) {
+			respondError(w, http.StatusForbidden, "Invitations are not available. Ask your workspace admin to add you directly.")
+			return
+		}
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
 			respondError(w, http.StatusNotFound, "Invitation not found or already accepted")
 			return
@@ -405,6 +501,10 @@ func (h *WorkspaceHandlers) ResendInvitation(w http.ResponseWriter, r *http.Requ
 
 	invitation, _, err := h.RBAC.ResendInvitation(workspaceID, id)
 	if err != nil {
+		if errors.Is(err, rbac.ErrInvitationsDisabled) {
+			respondError(w, http.StatusForbidden, "Invitations are not available. Ask your workspace admin to add you directly.")
+			return
+		}
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
 			respondError(w, http.StatusNotFound, "Invitation not found")
 			return
@@ -564,6 +664,10 @@ func (h *WorkspaceHandlers) ListMyInvitations(w http.ResponseWriter, r *http.Req
 
 	invitations, err := h.RBAC.ListMyInvitations(userEmail)
 	if err != nil {
+		if errors.Is(err, rbac.ErrInvitationsDisabled) {
+			respondError(w, http.StatusForbidden, "Invitations are not available. Ask your workspace admin to add you directly.")
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "Failed to list invitations")
 		return
 	}
@@ -603,6 +707,10 @@ func (h *WorkspaceHandlers) AcceptInvitationByID(w http.ResponseWriter, r *http.
 
 	member, err := h.RBAC.AcceptInvitationByID(id, userID, userEmail)
 	if err != nil {
+		if errors.Is(err, rbac.ErrInvitationsDisabled) {
+			respondError(w, http.StatusForbidden, "Invitations are not available. Ask your workspace admin to add you directly.")
+			return
+		}
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
 			respondError(w, http.StatusNotFound, "Invitation not found")
 			return
@@ -653,6 +761,10 @@ func (h *WorkspaceHandlers) DeclineInvitationByID(w http.ResponseWriter, r *http
 
 	err := h.RBAC.DeclineInvitationByID(id, userEmail)
 	if err != nil {
+		if errors.Is(err, rbac.ErrInvitationsDisabled) {
+			respondError(w, http.StatusForbidden, "Invitations are not available. Ask your workspace admin to add you directly.")
+			return
+		}
 		if errors.Is(err, rbac.ErrInvitationNotFound) {
 			respondError(w, http.StatusNotFound, "Invitation not found")
 			return

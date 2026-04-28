@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/core"
 import { workspaceUpdateSchema, invitationSchema } from "@/domains/admin"
-import { Button, Input, Field, FieldLabel, FieldError, Tabs, TabsContent, TabsList, TabsTrigger, Badge, Skeleton, ConfirmDialog, Alert, AlertDescription, TableEmptyState, type ConfirmDialogDetail } from "@/ui"
+import { apiGetPublicConfig } from "@/domains/config"
+import type { PublicConfig } from "@/domains/config"
+import { Button, Input, Field, FieldLabel, FieldError, Tabs, TabsContent, TabsList, TabsTrigger, Badge, Skeleton, ConfirmDialog, Alert, AlertDescription, TableEmptyState, Checkbox, type ConfirmDialogDetail } from "@/ui"
 import {
   Card,
   CardContent,
@@ -47,6 +49,8 @@ import {
   KeyRound,
   ScrollText,
   Mail,
+  Eye,
+  EyeOff,
 } from "lucide-react"
 import Link from "next/link"
 import { ZodError } from "zod"
@@ -62,6 +66,7 @@ import {
   usePendingInvitations,
   useRevokeInvitation,
   useResendInvitation,
+  useAddMember,
 } from "@/features/admin/hooks/use-workspaces"
 import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 
@@ -77,6 +82,19 @@ export const WorkspaceDetailView = () => {
   const { data: membersRes } = useWorkspaceMembers(validWorkspaceId)
   const { data: rolesRes } = useWorkspaceRoles(validWorkspaceId)
   const { data: invitationsRes } = usePendingInvitations(validWorkspaceId)
+
+  // Public config for conditional UI
+  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
+  const didFetchConfig = useRef(false)
+  useEffect(() => {
+    if (didFetchConfig.current) return
+    didFetchConfig.current = true
+    apiGetPublicConfig()
+      .then((res) => setPublicConfig(res.data))
+      .catch(() => {})
+  }, [])
+
+  const registrationEnabled = publicConfig?.registrationEnabled ?? false
 
   const workspace = workspaceRes?.data ?? null
   const members = membersRes?.data ?? []
@@ -123,6 +141,18 @@ export const WorkspaceDetailView = () => {
   // Edit field errors
   const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({})
 
+  // Add member form
+  const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false)
+  const [addMemberEmail, setAddMemberEmail] = useState("")
+  const [addMemberFirstName, setAddMemberFirstName] = useState("")
+  const [addMemberLastName, setAddMemberLastName] = useState("")
+  const [addMemberRoleId, setAddMemberRoleId] = useState<string | null>(null)
+  const [addMemberSetPassword, setAddMemberSetPassword] = useState(false)
+  const [addMemberPassword, setAddMemberPassword] = useState("")
+  const [addMemberShowPassword, setAddMemberShowPassword] = useState(false)
+  const [addMemberError, setAddMemberError] = useState("")
+  const [addMemberFieldErrors, setAddMemberFieldErrors] = useState<Record<string, string>>({})
+
   // Remove member confirmation
   const [memberToRemove, setMemberToRemove] = useState<{
     userId: string
@@ -137,6 +167,7 @@ export const WorkspaceDetailView = () => {
   const updateRoleMutation = useUpdateMemberRole()
   const revokeMutation = useRevokeInvitation()
   const resendMutation = useResendInvitation()
+  const addMemberMutation = useAddMember()
 
   const handleSave = async () => {
     setEditFieldErrors({})
@@ -202,6 +233,49 @@ export const WorkspaceDetailView = () => {
   const handleRemoveMember = async (userId: string) => {
     await removeMutation.mutateAsync({ workspaceId: validWorkspaceId, userId })
     setMemberToRemove(null)
+  }
+
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAddMemberError("")
+    setAddMemberFieldErrors({})
+
+    const fieldErrors: Record<string, string> = {}
+    if (!addMemberEmail.trim()) fieldErrors.email = "Email is required"
+    if (!addMemberFirstName.trim()) fieldErrors.firstName = "First name is required"
+    if (!addMemberLastName.trim()) fieldErrors.lastName = "Last name is required"
+    if (!addMemberRoleId) fieldErrors.roleId = "Please select a role"
+    if (addMemberSetPassword && addMemberPassword.length < 8) {
+      fieldErrors.password = "Password must be at least 8 characters"
+    }
+    if (Object.keys(fieldErrors).length > 0) {
+      setAddMemberFieldErrors(fieldErrors)
+      return
+    }
+
+    try {
+      await addMemberMutation.mutateAsync({
+        workspaceId: validWorkspaceId,
+        data: {
+          email: addMemberEmail,
+          firstName: addMemberFirstName,
+          lastName: addMemberLastName,
+          roleId: addMemberRoleId!,
+          ...(addMemberSetPassword && addMemberPassword ? { password: addMemberPassword } : {}),
+        },
+      })
+      setAddMemberDialogOpen(false)
+      setAddMemberEmail("")
+      setAddMemberFirstName("")
+      setAddMemberLastName("")
+      setAddMemberRoleId(null)
+      setAddMemberSetPassword(false)
+      setAddMemberPassword("")
+    } catch (err) {
+      setAddMemberError(
+        err instanceof Error ? err.message : "Failed to add member"
+      )
+    }
   }
 
   const confirmRemoveMember = (userId: string, firstName?: string, lastName?: string, email?: string) => {
@@ -293,7 +367,158 @@ export const WorkspaceDetailView = () => {
         <TabsContent value="members" className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-medium">Team Members</h2>
+            <div className="flex items-center gap-2">
             {canInvite && (
+              <Dialog
+                open={addMemberDialogOpen}
+                onOpenChange={(open) => setAddMemberDialogOpen(open)}
+              >
+                <DialogTrigger
+                  render={
+                    <Button size="sm">
+                      <UserPlus className="mr-2 size-4" />
+                      Add Member
+                    </Button>
+                  }
+                />
+                <DialogContent className="sm:max-w-md">
+                  <form onSubmit={handleAddMember}>
+                    <DialogHeader>
+                      <DialogTitle>Add Member</DialogTitle>
+                      <DialogDescription>
+                        Create a user account and add them to this workspace.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      {addMemberError && (
+                        <Alert variant="destructive" className="text-center bg-destructive/10 border-destructive">
+                          <AlertDescription>{addMemberError}</AlertDescription>
+                        </Alert>
+                      )}
+                      <Field data-invalid={!!addMemberFieldErrors.email}>
+                        <FieldLabel htmlFor="add-member-email">Email</FieldLabel>
+                        <Input
+                          id="add-member-email"
+                          type="email"
+                          placeholder="user@example.com"
+                          value={addMemberEmail}
+                          onChange={(e) => setAddMemberEmail(e.target.value)}
+                          required
+                        />
+                        {addMemberFieldErrors.email && <FieldError>{addMemberFieldErrors.email}</FieldError>}
+                      </Field>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field data-invalid={!!addMemberFieldErrors.firstName}>
+                          <FieldLabel htmlFor="add-member-first-name">First Name</FieldLabel>
+                          <Input
+                            id="add-member-first-name"
+                            placeholder="Jane"
+                            value={addMemberFirstName}
+                            onChange={(e) => setAddMemberFirstName(e.target.value)}
+                            required
+                          />
+                          {addMemberFieldErrors.firstName && <FieldError>{addMemberFieldErrors.firstName}</FieldError>}
+                        </Field>
+                        <Field data-invalid={!!addMemberFieldErrors.lastName}>
+                          <FieldLabel htmlFor="add-member-last-name">Last Name</FieldLabel>
+                          <Input
+                            id="add-member-last-name"
+                            placeholder="Doe"
+                            value={addMemberLastName}
+                            onChange={(e) => setAddMemberLastName(e.target.value)}
+                            required
+                          />
+                          {addMemberFieldErrors.lastName && <FieldError>{addMemberFieldErrors.lastName}</FieldError>}
+                        </Field>
+                      </div>
+                      <Field data-invalid={!!addMemberFieldErrors.roleId}>
+                        <FieldLabel>Role</FieldLabel>
+                        <Select
+                          value={addMemberRoleId != null ? String(addMemberRoleId) : undefined}
+                          onValueChange={(v) => setAddMemberRoleId(v || null)}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue>{addMemberRoleId != null ? capitalize(roles.find(r => r.id === addMemberRoleId)?.name ?? "") : "Select a role"}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {roles.filter((role) => role.name.toLowerCase() !== "owner").map((role) => (
+                              <SelectItem key={role.id} value={String(role.id)}>
+                                {capitalize(role.name)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {addMemberFieldErrors.roleId && <FieldError>{addMemberFieldErrors.roleId}</FieldError>}
+                      </Field>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="add-member-set-password"
+                            checked={addMemberSetPassword}
+                            onCheckedChange={(checked) => {
+                              setAddMemberSetPassword(checked === true)
+                              if (!checked) {
+                                setAddMemberPassword("")
+                                setAddMemberShowPassword(false)
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor="add-member-set-password"
+                            className="text-sm font-medium leading-none cursor-pointer"
+                          >
+                            Set initial password
+                          </label>
+                        </div>
+                        {addMemberSetPassword && (
+                          <div className="relative">
+                            <Field data-invalid={!!addMemberFieldErrors.password}>
+                              <FieldLabel htmlFor="add-member-password">Password</FieldLabel>
+                              <Input
+                                id="add-member-password"
+                                type={addMemberShowPassword ? "text" : "password"}
+                                placeholder="At least 8 characters"
+                                value={addMemberPassword}
+                                onChange={(e) => setAddMemberPassword(e.target.value)}
+                              />
+                              {addMemberFieldErrors.password && <FieldError>{addMemberFieldErrors.password}</FieldError>}
+                            </Field>
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              type="button"
+                              className="absolute right-2 top-7.5 text-muted-foreground hover:text-foreground transition-colors"
+                              onClick={() => setAddMemberShowPassword((prev) => !prev)}
+                              aria-label={addMemberShowPassword ? "Hide password" : "Show password"}
+                              tabIndex={-1}
+                            >
+                              {addMemberShowPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                            </Button>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              User will be required to change this password on first login.
+                            </p>
+                          </div>
+                        )}
+                        {!addMemberSetPassword && (
+                          <p className="text-xs text-muted-foreground">
+                            User will receive an email to set their own password.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit" disabled={addMemberMutation.isPending || !addMemberRoleId}>
+                        {addMemberMutation.isPending && (
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                        )}
+                        Add Member
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )}
+            {canInvite && registrationEnabled && (
             <Dialog
               open={inviteDialogOpen}
               onOpenChange={(open) => setInviteDialogOpen(open)}
@@ -364,6 +589,7 @@ export const WorkspaceDetailView = () => {
               </DialogContent>
             </Dialog>
             )}
+            </div>
           </div>
 
           <Card>
@@ -457,7 +683,8 @@ export const WorkspaceDetailView = () => {
             </CardContent>
           </Card>
 
-          {/* Invitations - visible to all roles, actions gated by canManageMembers */}
+          {/* Invitations - only visible when registration is enabled */}
+          {registrationEnabled && (
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Mail className="size-4" />
@@ -572,6 +799,7 @@ export const WorkspaceDetailView = () => {
               </CardContent>
             </Card>
           </div>
+          )}
 
           {/* Remove Member Confirmation Dialog */}
           <ConfirmDialog

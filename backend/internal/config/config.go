@@ -56,6 +56,10 @@ type Config struct {
 	StaleAutoRemoveMonths        int
 	PackageCountWarningThreshold int
 	RequireEmailVerification     bool
+
+	// Registration control
+	RegistrationEnabled     bool
+	AllowedEmailDomains     []string
 }
 
 // NewConfig loads configuration from environment variables with sensible defaults for optional fields.
@@ -105,6 +109,9 @@ func NewConfig() (*Config, error) {
 		StaleAutoRemoveMonths:        envIntOrDefault("STALE_AUTO_REMOVE_MONTHS", 0),
 		PackageCountWarningThreshold: envIntOrDefault("PACKAGE_COUNT_WARNING_THRESHOLD", 0),
 		RequireEmailVerification:     envBoolOrDefault("REQUIRE_EMAIL_VERIFICATION", false),
+
+		// Registration control
+		RegistrationEnabled:     envBoolOrDefault("REGISTRATION_ENABLED", false),
 	}
 
 	// Parse comma-separated previous JWT secrets
@@ -112,6 +119,15 @@ func NewConfig() (*Config, error) {
 		for _, s := range strings.Split(prev, ",") {
 			if trimmed := strings.TrimSpace(s); trimmed != "" {
 				cfg.JWTSecretPrevious = append(cfg.JWTSecretPrevious, trimmed)
+			}
+		}
+	}
+
+	// Parse comma-separated allowed email domains
+	if domains := os.Getenv("ALLOWED_EMAIL_DOMAINS"); domains != "" {
+		for _, d := range strings.Split(domains, ",") {
+			if trimmed := strings.TrimSpace(d); trimmed != "" {
+				cfg.AllowedEmailDomains = append(cfg.AllowedEmailDomains, trimmed)
 			}
 		}
 	}

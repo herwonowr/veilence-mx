@@ -37,6 +37,7 @@ type User struct {
 	IsActive       bool
 	EmailVerified  bool
 	LastLoginAt    *time.Time
+	MustChangePassword bool
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }

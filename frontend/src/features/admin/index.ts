@@ -16,6 +16,7 @@ export {
   useRevokeInvitation,
   useResendInvitation,
   useAuditLogs,
+  useAddMember,
   workspaceKeys,
 } from "@/features/admin/hooks/use-workspaces"
 

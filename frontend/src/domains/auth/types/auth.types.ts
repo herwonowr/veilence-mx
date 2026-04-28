@@ -5,15 +5,21 @@ export interface User {
   lastName: string
   isActive: boolean
   emailVerified: boolean
+  mustChangePassword: boolean
   lastLoginAt: string | null
   createdAt: string
   updatedAt: string
+}
+
+export interface MeResponse extends User {
+  allowedEmailDomains: string[]
 }
 
 export interface LoginResponse {
   user: User
   accessToken: string
   refreshToken: string
+  mustChangePassword?: boolean
 }
 
 export interface ProfileUpdateRequest {

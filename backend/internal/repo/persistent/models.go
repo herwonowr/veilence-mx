@@ -214,6 +214,7 @@ type User struct {
 	LastName      string         `gorm:"type:varchar(100)" json:"lastName"`
 	IsActive      bool           `gorm:"not null;default:true" json:"isActive"`
 	EmailVerified bool           `gorm:"not null;default:false" json:"emailVerified"`
+	MustChangePassword bool      `gorm:"not null;default:false" json:"mustChangePassword"`
 	LastLoginAt   *time.Time     `json:"lastLoginAt,omitempty"`
 	CreatedAt     time.Time      `json:"createdAt"`
 	UpdatedAt     time.Time      `json:"updatedAt"`

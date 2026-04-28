@@ -16,6 +16,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/poller"
 	"github.com/veilence/veilence-mx/backend/pkg/queue"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/setup"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
 )
 
@@ -34,6 +35,8 @@ type Handlers struct {
 	Dashboard     *DashboardHandlers
 	Queue         *QueueHandlers
 	Health        *HealthHandlers
+	Setup         *SetupHandlers
+	Config        *ConfigHandlers
 }
 
 // AuthHandlers handles authentication and API key endpoints.
@@ -116,6 +119,7 @@ func NewHandlers(
 	settingService usecase.SettingService,
 	dashboardService usecase.DashboardService,
 	healthService usecase.HealthService,
+	setupService *setup.Service,
 ) *Handlers {
 	return &Handlers{
 		Auth: &AuthHandlers{
@@ -162,6 +166,13 @@ func NewHandlers(
 		},
 		Health: &HealthHandlers{
 			HealthSvc: healthService,
+		},
+		Setup: &SetupHandlers{
+			Setup: setupService,
+		},
+		Config: &ConfigHandlers{
+			Setup: setupService,
+			Auth:  authService,
 		},
 	}
 }

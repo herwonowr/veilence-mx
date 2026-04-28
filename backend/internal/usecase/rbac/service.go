@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"maps"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
@@ -31,13 +32,18 @@ var (
 	ErrInvitationEmailMismatch = errors.New("Invitation email does not match accepting user")
 	ErrInvitationRevoked    = errors.New("Invitation has been revoked")
 	ErrInvitationDeclined   = errors.New("Invitation has been declined")
+	ErrInvitationsDisabled  = errors.New("invitations are disabled when registration is off")
 )
 
 // Service provides RBAC and workspace management operations.
 type Service struct {
-	repo          RBACRepository
-	emailSender   InvitationEmailSender // nil = no email delivery (dev mode)
-	userResolver  UserEmailResolver     // nil = falls back to user ID in emails
+	repo                RBACRepository
+	emailSender         InvitationEmailSender  // nil = no email delivery (dev mode)
+	userResolver        UserEmailResolver      // nil = falls back to user ID in emails
+	registrationEnabled bool
+	allowedEmailDomains []string
+	userCreator         UserAccountCreator     // nil = add-user not available
+	passwordResetInit   PasswordResetInitiator // nil = password reset emails not sent
 }
 
 // NewService creates a new RBAC service.
@@ -55,6 +61,26 @@ type ServiceOption func(*Service)
 // WithUserEmailResolver sets the user email resolver for invitation emails.
 func WithUserEmailResolver(r UserEmailResolver) ServiceOption {
 	return func(s *Service) { s.userResolver = r }
+}
+
+// WithRegistrationEnabled sets whether open registration and invitations are enabled.
+func WithRegistrationEnabled(enabled bool) ServiceOption {
+	return func(s *Service) { s.registrationEnabled = enabled }
+}
+
+// WithAllowedEmailDomains sets the allowed email domains for domain validation.
+func WithAllowedEmailDomains(domains []string) ServiceOption {
+	return func(s *Service) { s.allowedEmailDomains = domains }
+}
+
+// WithUserAccountCreator sets the user account creator for the add-user flow.
+func WithUserAccountCreator(c UserAccountCreator) ServiceOption {
+	return func(s *Service) { s.userCreator = c }
+}
+
+// WithPasswordResetInitiator sets the password reset initiator for sending set-password emails.
+func WithPasswordResetInitiator(p PasswordResetInitiator) ServiceOption {
+	return func(s *Service) { s.passwordResetInit = p }
 }
 
 
@@ -271,7 +297,17 @@ func (s *Service) GetWorkspaceMembers(workspaceID string) ([]entity.WorkspaceMem
 // Returns the invitation and the raw token (for inclusion in the invitation URL).
 // Only the SHA-256 hash of the token is stored in the database.
 func (s *Service) InviteMember(workspaceID string, email string, roleID string, invitedBy string, inviterEmail string) (*entity.Invitation, string, error) {
+	if !s.registrationEnabled {
+		return nil, "", ErrInvitationsDisabled
+	}
+
 	ctx := ctx_bg()
+
+	// Normalize and validate email domain
+	email = normalizeEmailRBAC(email)
+	if err := s.validateEmailDomainRBAC(email); err != nil {
+		return nil, "", err
+	}
 
 	// Verify the role exists and belongs to this workspace
 	role, err := s.repo.FindRoleByIDAndWorkspace(ctx, roleID, workspaceID)
@@ -325,6 +361,10 @@ func (s *Service) InviteMember(workspaceID string, email string, roleID string, 
 // The userEmail is compared against the invitation email to prevent unauthorized
 // acceptance. If the emails don't match, ErrInvitationEmailMismatch is returned.
 func (s *Service) AcceptInvitation(token string, userID string, userEmail string) (*entity.WorkspaceMember, error) {
+	if !s.registrationEnabled {
+		return nil, ErrInvitationsDisabled
+	}
+
 	ctx := ctx_bg()
 
 	invitation, err := s.repo.FindInvitationByTokenHash(ctx, hashToken(token))
@@ -389,6 +429,10 @@ func (s *Service) AcceptInvitation(token string, userID string, userEmail string
 // The userEmail is compared against the invitation email to prevent unauthorized
 // decline. If the emails don't match, ErrInvitationEmailMismatch is returned.
 func (s *Service) DeclineInvitationByToken(token string, userEmail string) error {
+	if !s.registrationEnabled {
+		return ErrInvitationsDisabled
+	}
+
 	ctx := ctx_bg()
 
 	invitation, err := s.repo.FindInvitationByTokenHash(ctx, hashToken(token))
@@ -426,6 +470,9 @@ func (s *Service) DeclineInvitationByToken(token string, userEmail string) error
 // frontend to show the user what workspace they are being invited to before
 // accepting. Does not require authentication.
 func (s *Service) GetInvitationByToken(token string) (*entity.Invitation, error) {
+	if !s.registrationEnabled {
+		return nil, ErrInvitationsDisabled
+	}
 	invitation, err := s.repo.FindInvitationByTokenHash(ctx_bg(), hashToken(token))
 	if err != nil || invitation == nil {
 		return nil, ErrInvitationNotFound
@@ -436,12 +483,18 @@ func (s *Service) GetInvitationByToken(token string) (*entity.Invitation, error)
 // ListPendingInvitations returns all pending (not accepted, not expired)
 // invitations for a workspace.
 func (s *Service) ListPendingInvitations(workspaceID string) ([]entity.Invitation, error) {
+	if !s.registrationEnabled {
+		return nil, ErrInvitationsDisabled
+	}
 	return s.repo.FindPendingInvitations(ctx_bg(), workspaceID)
 }
 
 // RevokeInvitation deletes a pending invitation by ID and workspace. Only pending
 // (not accepted) invitations can be revoked.
 func (s *Service) RevokeInvitation(workspaceID, invitationID string) error {
+	if !s.registrationEnabled {
+		return ErrInvitationsDisabled
+	}
 	if err := s.repo.DeletePendingInvitation(ctx_bg(), workspaceID, invitationID); err != nil {
 		return ErrInvitationNotFound
 	}
@@ -453,6 +506,10 @@ func (s *Service) RevokeInvitation(workspaceID, invitationID string) error {
 // invitation email. Only pending (not accepted, not expired) invitations can
 // be resent. Returns the invitation and the new raw token.
 func (s *Service) ResendInvitation(workspaceID, invitationID string) (*entity.Invitation, string, error) {
+	if !s.registrationEnabled {
+		return nil, "", ErrInvitationsDisabled
+	}
+
 	ctx := ctx_bg()
 
 	invitation, err := s.repo.FindInvitationByID(ctx, workspaceID, invitationID)
@@ -499,6 +556,10 @@ func (s *Service) ResendInvitation(workspaceID, invitationID string) (*entity.In
 // DeclineInvitationByID declines an invitation by ID. The userEmail must
 // match the invitation email. Only pending invitations can be declined.
 func (s *Service) DeclineInvitationByID(invitationID string, userEmail string) error {
+	if !s.registrationEnabled {
+		return ErrInvitationsDisabled
+	}
+
 	ctx := ctx_bg()
 
 	invitation, err := s.repo.FindInvitationByIDGlobal(ctx, invitationID)
@@ -535,6 +596,10 @@ func (s *Service) DeclineInvitationByID(invitationID string, userEmail string) e
 // AcceptInvitationByID accepts a pending invitation by ID and creates a membership.
 // The userEmail must match the invitation email.
 func (s *Service) AcceptInvitationByID(invitationID string, userID string, userEmail string) (*entity.WorkspaceMember, error) {
+	if !s.registrationEnabled {
+		return nil, ErrInvitationsDisabled
+	}
+
 	ctx := ctx_bg()
 
 	invitation, err := s.repo.FindInvitationByIDGlobal(ctx, invitationID)
@@ -593,6 +658,9 @@ func (s *Service) AcceptInvitationByID(invitationID string, userID string, userE
 
 // ListMyInvitations returns all pending invitations for a given email address.
 func (s *Service) ListMyInvitations(email string) ([]entity.Invitation, error) {
+	if !s.registrationEnabled {
+		return nil, ErrInvitationsDisabled
+	}
 	return s.repo.FindPendingInvitationsByEmail(ctx_bg(), email)
 }
 
@@ -732,6 +800,136 @@ func generateToken() (string, error) {
 func hashToken(token string) string {
 	h := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(h[:])
+}
+
+// normalizeEmailRBAC lowercases, trims whitespace, and strips +tag suffixes from emails.
+func normalizeEmailRBAC(email string) string {
+	email = strings.TrimSpace(email)
+	email = strings.ToLower(email)
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) != 2 {
+		return email
+	}
+	local := parts[0]
+	if idx := strings.Index(local, "+"); idx != -1 {
+		local = local[:idx]
+	}
+	return local + "@" + parts[1]
+}
+
+// validateEmailDomainRBAC checks the email domain against the allowed domains list.
+func (s *Service) validateEmailDomainRBAC(email string) error {
+	if len(s.allowedEmailDomains) == 0 {
+		return nil
+	}
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) != 2 {
+		return errors.New("invalid email address")
+	}
+	domain := strings.ToLower(parts[1])
+	for _, allowed := range s.allowedEmailDomains {
+		if domain == strings.ToLower(strings.TrimSpace(allowed)) {
+			return nil
+		}
+	}
+	return errors.New("email domain is not allowed")
+}
+
+// AddUserToWorkspace creates a user account (if needed) and adds them as a workspace member.
+// The entire operation is wrapped in a transaction to prevent orphaned users.
+func (s *Service) AddUserToWorkspace(workspaceID, email, firstName, lastName, roleID, password string) (*entity.WorkspaceMember, bool, error) {
+	ctx := ctx_bg()
+
+	// Validate role exists, belongs to workspace, is not owner
+	role, err := s.repo.FindRoleByIDAndWorkspace(ctx, roleID, workspaceID)
+	if err != nil || role == nil {
+		return nil, false, ErrRoleNotFound
+	}
+	if role.Name == entity.RoleOwner {
+		return nil, false, errors.New("cannot assign owner role")
+	}
+
+	email = normalizeEmailRBAC(email)
+
+	var member *entity.WorkspaceMember
+	var userCreated bool
+
+	err = s.repo.WithTransaction(ctx, func(tx RBACRepository) error {
+		// Check if user exists
+		var existingUser *entity.User
+		if s.userCreator != nil && s.userResolver != nil {
+			u, findErr := s.userResolver.FindByEmail(ctx, email)
+			if findErr == nil {
+				existingUser = u
+			}
+		}
+
+		if existingUser != nil {
+			// User exists - check if already a member
+			count, _ := tx.CountMembersByUserAndWorkspace(ctx, existingUser.ID, workspaceID)
+			if count > 0 {
+				return ErrAlreadyMember
+			}
+
+			// Just add as member (ignore password if provided)
+			member = &entity.WorkspaceMember{
+				WorkspaceID: workspaceID,
+				UserID:      existingUser.ID,
+				RoleID:      roleID,
+				JoinedAt:    time.Now(),
+			}
+			if err := tx.CreateMember(ctx, member); err != nil {
+				return fmt.Errorf("creating membership: %w", err)
+			}
+			userCreated = false
+		} else {
+			// Create new user
+			if s.userCreator == nil {
+				return errors.New("user account creator not configured")
+			}
+
+			var newUser *entity.User
+			if password != "" {
+				u, err := s.userCreator.CreateUserWithPassword(ctx, email, firstName, lastName, password)
+				if err != nil {
+					return fmt.Errorf("creating user with password: %w", err)
+				}
+				newUser = u
+			} else {
+				u, err := s.userCreator.CreateUserWithoutPassword(ctx, email, firstName, lastName)
+				if err != nil {
+					return fmt.Errorf("creating user without password: %w", err)
+				}
+				newUser = u
+			}
+
+			member = &entity.WorkspaceMember{
+				WorkspaceID: workspaceID,
+				UserID:      newUser.ID,
+				RoleID:      roleID,
+				JoinedAt:    time.Now(),
+			}
+			if err := tx.CreateMember(ctx, member); err != nil {
+				return fmt.Errorf("creating membership: %w", err)
+			}
+			userCreated = true
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, false, err
+	}
+
+	// Send password reset email for new users without a password (best-effort, after transaction)
+	if userCreated && password == "" && s.passwordResetInit != nil {
+		if err := s.passwordResetInit.InitiatePasswordReset(ctx, email); err != nil {
+			slog.Error("failed to send set-password email for new user", "email", email, "error", err)
+		}
+	}
+
+	slog.Info("user added to workspace", "workspace_id", workspaceID, "email", email, "user_created", userCreated)
+	return member, userCreated, nil
 }
 
 // ctx_bg returns a background context. Many RBAC methods don't receive

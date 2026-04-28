@@ -13,4 +13,6 @@ var (
 	ErrConflict = errors.New("conflict")
 	// ErrValidation indicates a business-rule validation failure (e.g. invalid setting value).
 	ErrValidation = errors.New("validation")
+	// ErrSetupAlreadyCompleted indicates that the initial setup has already been completed.
+	ErrSetupAlreadyCompleted = errors.New("setup already completed")
 )

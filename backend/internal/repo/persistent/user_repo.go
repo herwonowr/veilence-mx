@@ -62,34 +62,44 @@ func (r *UserRepo) Update(ctx context.Context, user *entity.User) error {
 	return nil
 }
 
+func (r *UserRepo) CountAll(ctx context.Context) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&User{}).Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("counting all users: %w", err)
+	}
+	return count, nil
+}
+
 // --- Converters ---
 
 func userToDomain(m *User) *entity.User {
 	return &entity.User{
-		ID:            m.ID,
-		Email:         m.Email,
-		PasswordHash:  m.PasswordHash,
-		FirstName:     m.FirstName,
-		LastName:      m.LastName,
-		IsActive:      m.IsActive,
-		EmailVerified: m.EmailVerified,
-		LastLoginAt:   m.LastLoginAt,
-		CreatedAt:     m.CreatedAt,
-		UpdatedAt:     m.UpdatedAt,
+		ID:                 m.ID,
+		Email:              m.Email,
+		PasswordHash:       m.PasswordHash,
+		FirstName:          m.FirstName,
+		LastName:           m.LastName,
+		IsActive:           m.IsActive,
+		EmailVerified:      m.EmailVerified,
+		MustChangePassword: m.MustChangePassword,
+		LastLoginAt:        m.LastLoginAt,
+		CreatedAt:          m.CreatedAt,
+		UpdatedAt:          m.UpdatedAt,
 	}
 }
 
 func userToModel(d *entity.User) *User {
 	return &User{
-		ID:            d.ID,
-		Email:         d.Email,
-		PasswordHash:  d.PasswordHash,
-		FirstName:     d.FirstName,
-		LastName:      d.LastName,
-		IsActive:      d.IsActive,
-		EmailVerified: d.EmailVerified,
-		LastLoginAt:   d.LastLoginAt,
-		CreatedAt:     d.CreatedAt,
-		UpdatedAt:     d.UpdatedAt,
+		ID:                 d.ID,
+		Email:              d.Email,
+		PasswordHash:       d.PasswordHash,
+		FirstName:          d.FirstName,
+		LastName:           d.LastName,
+		IsActive:           d.IsActive,
+		EmailVerified:      d.EmailVerified,
+		MustChangePassword: d.MustChangePassword,
+		LastLoginAt:        d.LastLoginAt,
+		CreatedAt:          d.CreatedAt,
+		UpdatedAt:          d.UpdatedAt,
 	}
 }

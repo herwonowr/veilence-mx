@@ -1,12 +1,14 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
 import { useAuth } from "@/core"
 import { registerSchema } from "@/domains/auth"
+import { apiGetPublicConfig } from "@/domains/config"
+import type { PublicConfig } from "@/domains/config"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
   Card,
@@ -15,12 +17,31 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui"
-import { Loader2, Eye, EyeOff, MailCheck } from "lucide-react"
+import { Loader2, Eye, EyeOff, MailCheck, Info } from "lucide-react"
 import { ZodError } from "zod"
 
 export const RegisterForm = () => {
   const { register } = useAuth()
   const router = useRouter()
+
+  // Public config for registration gating
+  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
+  const [configLoading, setConfigLoading] = useState(true)
+  const didFetchConfig = useRef(false)
+  useEffect(() => {
+    if (didFetchConfig.current) return
+    didFetchConfig.current = true
+    apiGetPublicConfig()
+      .then((res) => {
+        setPublicConfig(res.data)
+        // Redirect to login if registration is disabled
+        if (res.data && !res.data.registrationEnabled) {
+          router.replace("/login")
+        }
+      })
+      .catch(() => {})
+      .finally(() => setConfigLoading(false))
+  }, [router])
 
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
@@ -96,6 +117,11 @@ export const RegisterForm = () => {
     }
   }
 
+  // Don't render while checking config or if registration is disabled
+  if (configLoading || (publicConfig && !publicConfig.registrationEnabled)) {
+    return null
+  }
+
   if (registrationSuccess) {
     return (
       <div className="w-full max-w-sm px-4">
@@ -134,6 +160,14 @@ export const RegisterForm = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {publicConfig?.hasEmailDomainRestriction && (
+              <Alert variant="default" className="bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800">
+                <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <AlertDescription className="text-blue-800 dark:text-blue-300">
+                  Email domain restrictions apply. Contact your admin if you have issues.
+                </AlertDescription>
+              </Alert>
+            )}
             {serverError && (
               <Alert variant="destructive" className="text-center bg-destructive/10 border-destructive">
                 <AlertDescription>{serverError}</AlertDescription>

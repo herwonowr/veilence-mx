@@ -82,6 +82,14 @@ func (h *AuthHandlers) Register(w http.ResponseWriter, r *http.Request) {
 
 	_, err := h.Auth.Register(req.Email, req.Password, req.FirstName, req.LastName)
 	if err != nil {
+		if errors.Is(err, auth.ErrRegistrationDisabled) {
+			respondError(w, http.StatusForbidden, "Registration is disabled")
+			return
+		}
+		if errors.Is(err, auth.ErrEmailDomainNotAllowed) {
+			respondError(w, http.StatusForbidden, "Email domain is not allowed")
+			return
+		}
 		if errors.Is(err, auth.ErrEmailAlreadyRegistered) {
 			respondAppError(w, Conflict("email already registered"))
 			return
@@ -154,13 +162,12 @@ func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 	h.Audit.LogAuthEvent(r.Context(), "login", user.ID, fmt.Sprintf("user %s logged in", user.Email))
 
 	respondJSON(w, http.StatusOK, map[string]any{
-		"user":         response.UserFromEntity(user),
-		"accessToken":  tokens.AccessToken,
-		"refreshToken": tokens.RefreshToken,
+		"user":               response.UserFromEntity(user),
+		"accessToken":        tokens.AccessToken,
+		"refreshToken":       tokens.RefreshToken,
+		"mustChangePassword": user.MustChangePassword,
 	}, nil)
 }
-
-// RefreshToken handles token refresh using a refresh token.
 func (h *AuthHandlers) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	var req refreshRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -221,10 +228,21 @@ func (h *AuthHandlers) GetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON(w, http.StatusOK, response.UserFromEntity(user), nil)
+	userResp := response.UserFromEntity(user)
+	respondJSON(w, http.StatusOK, map[string]any{
+		"id":                 userResp.ID,
+		"email":              userResp.Email,
+		"firstName":          userResp.FirstName,
+		"lastName":           userResp.LastName,
+		"isActive":           userResp.IsActive,
+		"emailVerified":      userResp.EmailVerified,
+		"mustChangePassword": userResp.MustChangePassword,
+		"lastLoginAt":        userResp.LastLoginAt,
+		"createdAt":          userResp.CreatedAt,
+		"updatedAt":          userResp.UpdatedAt,
+		"allowedEmailDomains": h.Auth.AllowedEmailDomains(),
+	}, nil)
 }
-
-// CreateAPIKey creates a new API key for the authenticated user.
 // Requires workspace context (X-Workspace-ID header or workspace_id query param).
 // The API key's role cannot exceed the user's own workspace role.
 func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
@@ -645,6 +663,10 @@ func (h *AuthHandlers) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	if err := h.Auth.ChangePassword(userID, req.CurrentPassword, req.NewPassword, currentTokenHash); err != nil {
 		if errors.Is(err, auth.ErrInvalidPassword) {
 			respondAppError(w, BadRequest("current password is incorrect"))
+			return
+		}
+		if errors.Is(err, auth.ErrPasswordSameAsCurrent) {
+			respondAppError(w, BadRequest("new password must be different from current password"))
 			return
 		}
 		if errors.Is(err, entity.ErrValidation) {

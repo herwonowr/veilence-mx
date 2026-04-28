@@ -58,6 +58,15 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 			r.Post("/resend-verification", h.Auth.ResendVerificationByEmail)
 		})
 
+		// Public setup routes (no authentication required, rate limited)
+		r.Route("/setup", func(r chi.Router) {
+			r.Use(rateLimitGroup.ForCategory(middleware.CategoryAuth))
+			r.Post("/initialize", h.Setup.Initialize)
+		})
+
+		// Public config route (no authentication required)
+		r.Get("/config/public", h.Config.GetPublicConfig)
+
 		// Public invitation info (no auth required, so frontend can show
 		// "you've been invited to X" before the user logs in)
 		r.Get("/invitations/{token}", h.Workspace.GetInvitationInfo)
@@ -65,6 +74,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 		// Protected routes (authentication required)
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Auth(authService))
+			r.Use(middleware.RequireMustChangePassword(authService))
 
 			// Protected auth routes
 			r.Post("/auth/logout", h.Auth.Logout)
@@ -194,6 +204,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 					// Members
 					r.Get("/members/me/role", h.Workspace.GetCurrentMemberRole) // No extra permission - any workspace member can read their own role
 					r.With(middleware.RequirePermission(rbacService, "members", "read")).Get("/members", h.Workspace.ListMembers)
+					r.With(middleware.RequirePermission(rbacService, "members", "invite")).Post("/members", h.Workspace.AddMember)
 					r.With(middleware.RequirePermission(rbacService, "members", "invite")).Post("/invitations", h.Workspace.InviteMember)
 					r.With(middleware.RequirePermission(rbacService, "members", "read")).Get("/invitations", h.Workspace.ListPendingInvitations)
 					r.With(middleware.RequirePermission(rbacService, "members", "invite")).Delete("/invitations/{id}", h.Workspace.RevokeInvitation)

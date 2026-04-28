@@ -1,7 +1,10 @@
 "use client"
 
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/core"
+import { apiGetPublicConfig } from "@/domains/config"
+import type { PublicConfig } from "@/domains/config"
 import type { MyInvitation } from "@/domains/admin"
 import {
   useMyInvitations,
@@ -35,8 +38,51 @@ export const MyInvitationsView = () => {
   const acceptMutation = useAcceptInvitationById()
   const declineMutation = useDeclineInvitationById()
 
+  // Public config
+  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
+  const didFetchConfig = useRef(false)
+  useEffect(() => {
+    if (didFetchConfig.current) return
+    didFetchConfig.current = true
+    apiGetPublicConfig()
+      .then((res) => setPublicConfig(res.data))
+      .catch(() => {})
+  }, [])
+
   const invitations = invitationsRes?.data ?? []
   const pendingInvitations = invitations.filter((inv) => inv.status === "pending")
+
+  // When registration is disabled, show empty state
+  if (publicConfig && !publicConfig.registrationEnabled) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">My Invitations</h1>
+            <p className="text-muted-foreground mt-1">
+              Invitations are not available when registration is disabled.
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => router.push("/workspaces")}>
+            Back to Workspaces
+          </Button>
+        </div>
+        <Card>
+          <CardContent>
+            <EmptyState
+              icon={<Mail className="h-12 w-12" />}
+              title="Invitations not available"
+              description="Invitations are not available when registration is disabled. Contact your workspace admin to be added directly."
+            >
+              <Button variant="outline" onClick={() => router.push("/workspaces")}>
+                Go to Workspaces
+              </Button>
+            </EmptyState>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   const handleAccept = async (invitation: MyInvitation) => {
     await acceptMutation.mutateAsync(invitation.id)

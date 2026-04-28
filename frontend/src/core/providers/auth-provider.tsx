@@ -20,6 +20,7 @@ interface User {
   lastName: string
   isActive: boolean
   emailVerified: boolean
+  mustChangePassword: boolean
   lastLoginAt: string | null
   createdAt: string
   updatedAt: string
@@ -40,6 +41,7 @@ interface LoginResponse {
   user: User
   accessToken: string
   refreshToken: string
+  mustChangePassword?: boolean
 }
 
 import { sanitizeErrorMessage } from "@/core/error-sanitizer"
@@ -73,7 +75,7 @@ interface AuthContextValue {
   workspaces: Workspace[]
   workspacesLoading: boolean
   workspacesError: string | null
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<{ mustChangePassword?: boolean }>
   register: (data: {
     email: string
     password: string
@@ -212,7 +214,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       storeTokens(data.accessToken, data.refreshToken)
       setUser(data.user)
-      await refreshWorkspaces()
+      if (!data.mustChangePassword) {
+        await refreshWorkspaces()
+      }
+      return { mustChangePassword: data.mustChangePassword }
     },
     [refreshWorkspaces]
   )

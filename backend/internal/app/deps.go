@@ -35,6 +35,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/releaseuc"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/settinguc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/setup"
 	"github.com/veilence/veilence-mx/backend/pkg/anthropic"
 	"github.com/veilence/veilence-mx/backend/pkg/copilotapi"
 	"github.com/veilence/veilence-mx/backend/pkg/hasher"
@@ -270,14 +271,20 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	tokenProvider := &tokenProviderAdapter{provider: token.New(cfg.JWTSecret, previousSecrets...)}
 	passwordHasher := hasher.New()
 
-	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, authEmailSender, cfg.RequireEmailVerification, rateLimiter, tokenProvider, passwordHasher)
-	slog.Info("auth service initialized", "require_email_verification", cfg.RequireEmailVerification, "email_sender_configured", authEmailSender != nil)
+	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, authEmailSender, cfg.RequireEmailVerification, rateLimiter, tokenProvider, passwordHasher, cfg.RegistrationEnabled, cfg.AllowedEmailDomains)
+	slog.Info("auth service initialized", "require_email_verification", cfg.RequireEmailVerification, "email_sender_configured", authEmailSender != nil, "registration_enabled", cfg.RegistrationEnabled)
 	auditLogRepo := persistent.NewAuditLogRepo(db)
 	rbacRepo := persistent.NewRBACRepo(db)
 	if err := rbac.SeedPermissions(rbacRepo); err != nil {
 		return nil, fmt.Errorf("seeding permissions: %w", err)
 	}
-	rbacService := rbac.NewService(rbacRepo, invitationEmailSender, rbac.WithUserEmailResolver(userRepo))
+	rbacService := rbac.NewService(rbacRepo, invitationEmailSender,
+		rbac.WithUserEmailResolver(userRepo),
+		rbac.WithRegistrationEnabled(cfg.RegistrationEnabled),
+		rbac.WithAllowedEmailDomains(cfg.AllowedEmailDomains),
+		rbac.WithUserAccountCreator(authService),
+		rbac.WithPasswordResetInitiator(authService),
+	)
 	auditService := audit.NewService(auditLogRepo)
 	dashboardRepo := persistent.NewDashboardRepo(db)
 	alertNoteRepo := persistent.NewAlertNoteRepo(db)
@@ -294,6 +301,9 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	settingService := settinguc.New(settingRepo)
 	dashboardService := dashboarduc.New(dashboardRepo, releaseRepo, diffRepo, analysisRepo, jobQueue)
 	healthService := healthuc.New(dbPinger{db: db}, jobQueue)
+
+	// Setup service (initial platform setup)
+	setupService := setup.NewService(userRepo, rbacRepo, passwordHasher, tokenProvider)
 
 	// Digest scheduler
 	digestRepo := persistent.NewDigestRepo(db)
@@ -316,6 +326,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		settingService,
 		dashboardService,
 		healthService,
+		setupService,
 	)
 	router := restapi.NewRouter(h, cfg.FrontendURL, authService, rbacService)
 

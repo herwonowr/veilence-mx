@@ -9,30 +9,32 @@ import (
 // UserResponse is the JSON representation of a user.
 // Replaces direct serialization of entity.User.
 type UserResponse struct {
-	ID            string     `json:"id"`
-	Email         string     `json:"email"`
-	FirstName     string     `json:"firstName"`
-	LastName      string     `json:"lastName"`
-	IsActive      bool       `json:"isActive"`
-	EmailVerified bool       `json:"emailVerified"`
-	LastLoginAt   *time.Time `json:"lastLoginAt,omitempty"`
-	CreatedAt     time.Time  `json:"createdAt"`
-	UpdatedAt     time.Time  `json:"updatedAt"`
+	ID                 string     `json:"id"`
+	Email              string     `json:"email"`
+	FirstName          string     `json:"firstName"`
+	LastName           string     `json:"lastName"`
+	IsActive           bool       `json:"isActive"`
+	EmailVerified      bool       `json:"emailVerified"`
+	MustChangePassword bool       `json:"mustChangePassword"`
+	LastLoginAt        *time.Time `json:"lastLoginAt,omitempty"`
+	CreatedAt          time.Time  `json:"createdAt"`
+	UpdatedAt          time.Time  `json:"updatedAt"`
 }
 
 // UserFromEntity maps a domain User to a response DTO.
 // PasswordHash is intentionally excluded.
 func UserFromEntity(u *entity.User) UserResponse {
 	return UserResponse{
-		ID:            u.ID,
-		Email:         u.Email,
-		FirstName:     u.FirstName,
-		LastName:      u.LastName,
-		IsActive:      u.IsActive,
-		EmailVerified: u.EmailVerified,
-		LastLoginAt:   u.LastLoginAt,
-		CreatedAt:     u.CreatedAt,
-		UpdatedAt:     u.UpdatedAt,
+		ID:                 u.ID,
+		Email:              u.Email,
+		FirstName:          u.FirstName,
+		LastName:           u.LastName,
+		IsActive:           u.IsActive,
+		EmailVerified:      u.EmailVerified,
+		MustChangePassword: u.MustChangePassword,
+		LastLoginAt:        u.LastLoginAt,
+		CreatedAt:          u.CreatedAt,
+		UpdatedAt:          u.UpdatedAt,
 	}
 }
 

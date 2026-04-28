@@ -10,7 +10,7 @@ const getClientSnapshot = () => true
 const getServerSnapshot = () => false
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const hasMounted = useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerSnapshot)
@@ -20,6 +20,13 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       router.push(`/login?redirect=${encodeURIComponent(pathname)}`)
     }
   }, [isLoading, isAuthenticated, router, pathname])
+
+  // Guard: redirect to /change-password when mustChangePassword is true
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user?.mustChangePassword && pathname !== "/change-password") {
+      router.push("/change-password")
+    }
+  }, [isLoading, isAuthenticated, user, pathname, router])
 
   if (!hasMounted || isLoading) {
     return (
@@ -36,6 +43,11 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!isAuthenticated) {
+    return null
+  }
+
+  // Block rendering while mustChangePassword and not on /change-password
+  if (user?.mustChangePassword && pathname !== "/change-password") {
     return null
   }
 

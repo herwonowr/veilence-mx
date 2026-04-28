@@ -18,6 +18,7 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (*entity.User, error)
 	Create(ctx context.Context, user *entity.User) error
 	Update(ctx context.Context, user *entity.User) error
+	CountAll(ctx context.Context) (int64, error)
 }
 
 // RefreshTokenRepository defines persistence operations for RefreshToken entities.
@@ -480,6 +481,18 @@ type WebhookSender interface {
 type SlackSender interface {
 	// SendSlack posts a text message to a Slack incoming webhook URL.
 	SendSlack(webhookURL string, text string) error
+}
+
+// UserAccountCreator creates user accounts. Used by the RBAC service
+// for the "Add User to Workspace" flow without importing the auth package.
+type UserAccountCreator interface {
+	CreateUserWithoutPassword(ctx context.Context, email, firstName, lastName string) (*entity.User, error)
+	CreateUserWithPassword(ctx context.Context, email, firstName, lastName, password string) (*entity.User, error)
+}
+
+// PasswordResetInitiator triggers a password-set email for newly created users.
+type PasswordResetInitiator interface {
+	InitiatePasswordReset(ctx context.Context, email string) error
 }
 
 // DigestRepository defines the persistence operations needed by the digest scheduler.

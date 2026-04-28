@@ -60,6 +60,7 @@ var csrfExemptPaths = map[string]bool{
 	"/api/auth/refresh":             true,
 	"/api/auth/verify-email":        true,
 	"/api/auth/resend-verification": true,
+	"/api/setup/initialize":         true,
 }
 
 // CSRF returns a middleware implementing the double-submit cookie pattern.

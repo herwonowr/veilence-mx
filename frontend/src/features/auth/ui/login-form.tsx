@@ -1,12 +1,14 @@
 "use client"
 
-import { Suspense, useCallback, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
 import { useAuth, sanitizeErrorMessage } from "@/core"
 import { loginSchema, apiSendVerificationEmailByEmail } from "@/domains/auth"
+import { apiGetPublicConfig } from "@/domains/config"
+import type { PublicConfig } from "@/domains/config"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
   Card,
@@ -69,6 +71,17 @@ const LoginFormInner = () => {
   const { login } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  // Public config for conditional UI
+  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
+  const didFetchConfig = useRef(false)
+  useEffect(() => {
+    if (didFetchConfig.current) return
+    didFetchConfig.current = true
+    apiGetPublicConfig()
+      .then((res) => setPublicConfig(res.data))
+      .catch(() => {})
+  }, [])
 
   // SEC-S3-004: Validate redirect is a same-origin relative path to prevent open redirect
   const rawRedirect = searchParams.get("redirect") ?? "/"
@@ -171,14 +184,18 @@ const LoginFormInner = () => {
     try {
       const data = loginSchema.parse({ email, password })
       setLoading(true)
-      await login(data.email, data.password)
+      const result = await login(data.email, data.password)
 
       // Successful login - reset throttle state
       setFailedAttempts(0)
       setLockoutUntil(null)
       clearAttempts()
 
-      router.push(redirect)
+      if (result?.mustChangePassword) {
+        router.push("/change-password")
+      } else {
+        router.push(redirect)
+      }
     } catch (err) {
       if (err instanceof ZodError) {
         const fieldErrors: Record<string, string> = {}
@@ -321,6 +338,7 @@ const LoginFormInner = () => {
               Sign In
             </Button>
           </form>
+          {(publicConfig === null || publicConfig.registrationEnabled) && (
           <div className="mt-4 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
             <Link
@@ -330,6 +348,7 @@ const LoginFormInner = () => {
               Create account
             </Link>
           </div>
+          )}
           <div className="mt-2 text-center">
             <Link
               href="/forgot-password"

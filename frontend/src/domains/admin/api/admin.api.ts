@@ -145,6 +145,28 @@ export const apiDeclineInvitationByToken = async (
     { method: "POST" }
   )
 
+export interface AddMemberRequest {
+  email: string
+  firstName: string
+  lastName: string
+  roleId: string
+  password?: string
+}
+
+export interface AddMemberResponse {
+  member: WorkspaceMember
+  userCreated: boolean
+}
+
+export const apiAddMember = async (
+  workspaceId: string,
+  data: AddMemberRequest
+): Promise<ApiResponse<AddMemberResponse>> =>
+  fetchApi<AddMemberResponse>(`/api/workspaces/${workspaceId}/members/add`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+
 export const apiGetMyInvitations = async (): Promise<ApiResponse<MyInvitation[]>> =>
   fetchApi<MyInvitation[]>("/api/invitations/mine")
 

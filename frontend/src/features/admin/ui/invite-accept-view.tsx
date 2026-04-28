@@ -1,7 +1,10 @@
 "use client"
 
+import { useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/core"
+import { apiGetPublicConfig } from "@/domains/config"
+import type { PublicConfig } from "@/domains/config"
 import {
   useInvitationByToken,
   useAcceptInvitation,
@@ -19,7 +22,7 @@ import {
   AlertTitle,
   AlertDescription,
 } from "@/ui"
-import { CheckCircle2, XCircle, Clock, Loader2, Mail } from "lucide-react"
+import { CheckCircle2, XCircle, Clock, Loader2, Mail, ShieldOff } from "lucide-react"
 import { toast } from "sonner"
 
 export const InviteAcceptView = () => {
@@ -27,6 +30,19 @@ export const InviteAcceptView = () => {
   const router = useRouter()
   const token = params.token
   const { isAuthenticated, isLoading: authLoading, refreshWorkspaces } = useAuth()
+
+  // Public config to check if invitations are available
+  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
+  const [configLoading, setConfigLoading] = useState(true)
+  const didFetchConfig = useRef(false)
+  useEffect(() => {
+    if (didFetchConfig.current) return
+    didFetchConfig.current = true
+    apiGetPublicConfig()
+      .then((res) => setPublicConfig(res.data))
+      .catch(() => {})
+      .finally(() => setConfigLoading(false))
+  }, [])
 
   const {
     data: invitationResponse,
@@ -80,12 +96,32 @@ export const InviteAcceptView = () => {
     router.push(`/register?redirect=/invite/${token}`)
   }
 
-  if (authLoading || invitationLoading) {
+  if (authLoading || invitationLoading || configLoading) {
     return (
       <Card className="w-full max-w-md">
         <CardContent className="flex items-center justify-center py-12">
           <Loader2 className="size-8 animate-spin text-muted-foreground" />
         </CardContent>
+      </Card>
+    )
+  }
+
+  // When registration is disabled, invitations are not available
+  if (publicConfig && !publicConfig.registrationEnabled) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <ShieldOff className="mx-auto size-12 text-muted-foreground" />
+          <CardTitle className="mt-4">Invitations Not Available</CardTitle>
+          <CardDescription>
+            Invitations are not available. Contact your workspace admin to add you to a workspace.
+          </CardDescription>
+        </CardHeader>
+        <CardFooter className="justify-center">
+          <Button variant="outline" onClick={() => router.push("/login")}>
+            Go to Login
+          </Button>
+        </CardFooter>
       </Card>
     )
   }
