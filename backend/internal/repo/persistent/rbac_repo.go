@@ -223,7 +223,12 @@ func (r *RBACRepo) FindWorkspacesByUserID(ctx context.Context, userID string, pa
 	}
 
 	offset := (params.Page - 1) * params.Limit
-	var models []Workspace
+	// Local struct to capture the joined role name - GORM ignores gorm:"-" fields during scan
+	type result struct {
+		Workspace
+		RoleName string
+	}
+	var models []result
 	if err := q.Select("workspaces.*, roles.name as role_name").
 		Order("workspaces.name ASC").Offset(offset).Limit(params.Limit).
 		Find(&models).Error; err != nil {
@@ -232,7 +237,7 @@ func (r *RBACRepo) FindWorkspacesByUserID(ctx context.Context, userID string, pa
 
 	workspaces := make([]entity.Workspace, len(models))
 	for i, m := range models {
-		ws := workspaceModelToEntity(m)
+		ws := workspaceModelToEntity(m.Workspace)
 		ws.Role = m.RoleName
 		workspaces[i] = *ws
 	}

@@ -265,7 +265,6 @@ type Workspace struct {
 	Description string         `gorm:"type:text" json:"description"`
 	OwnerID     string         `gorm:"type:uuid;not null" json:"ownerId"`
 	IsActive    bool           `gorm:"not null;default:true" json:"isActive"`
-	RoleName    string         `gorm:"-" json:"-"` // populated by JOIN queries, not a DB column
 	CreatedAt   time.Time      `json:"createdAt"`
 	UpdatedAt   time.Time      `json:"updatedAt"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
