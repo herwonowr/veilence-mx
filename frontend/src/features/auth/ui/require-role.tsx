@@ -17,6 +17,8 @@ interface RequireRoleProps {
   children: React.ReactNode
   /** Shown when the user lacks the required role. Defaults to an Access Denied page. */
   fallback?: React.ReactNode
+  /** When provided, checks role in this workspace instead of the active workspace. */
+  workspaceId?: string
 }
 
 const AccessDenied = () => (
@@ -40,8 +42,9 @@ export const RequireRole = ({
   minimumRole,
   children,
   fallback,
+  workspaceId,
 }: RequireRoleProps) => {
-  const { role, isPending } = useCurrentWorkspaceRole()
+  const { role, isPending } = useCurrentWorkspaceRole(workspaceId)
 
   if (isPending) {
     return <RoleSkeleton />

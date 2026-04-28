@@ -40,19 +40,20 @@ export const hasMinimumRole = (
   return getRoleLevel(userRole) >= getRoleLevel(minimumRole)
 }
 
-export const useCurrentWorkspaceRole = (): {
+export const useCurrentWorkspaceRole = (workspaceId?: string): {
   role: WorkspaceRole | null
   isPending: boolean
 } => {
   const { currentWorkspace } = useAuth()
+  const effectiveWorkspaceId = workspaceId ?? currentWorkspace?.id
 
   const { data, isPending } = useQuery({
-    queryKey: workspaceRoleKeys.current(currentWorkspace?.id ?? ""),
+    queryKey: workspaceRoleKeys.current(effectiveWorkspaceId ?? ""),
     queryFn: () =>
       fetchApi<{ role: string }>(
-        `/api/workspaces/${currentWorkspace!.id}/members/me/role`,
+        `/api/workspaces/${effectiveWorkspaceId!}/members/me/role`,
       ),
-    enabled: !!currentWorkspace,
+    enabled: !!effectiveWorkspaceId,
   })
 
   const roleName = data?.data?.role?.toLowerCase()

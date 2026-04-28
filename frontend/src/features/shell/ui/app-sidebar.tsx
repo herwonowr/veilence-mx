@@ -13,7 +13,7 @@ import {
   ShieldAlert,
   Settings,
   Activity,
-  Building2,
+  Layers,
   Key,
   LogOut,
   User,
@@ -72,7 +72,7 @@ const navItems: NavItem[] = [
   { title: "Releases", href: ROUTES.RELEASES, icon: Activity },
   { title: "Alerts", href: ROUTES.ALERTS, icon: ShieldAlert },
   { title: "Notifications", href: ROUTES.NOTIFICATIONS, icon: BellDot },
-  { title: "Workspaces", href: ROUTES.WORKSPACES, icon: Building2 },
+  { title: "Workspaces", href: ROUTES.WORKSPACES, icon: Layers },
 ]
 
 const settingsItems: NavItem[] = [

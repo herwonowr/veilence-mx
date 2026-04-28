@@ -11,7 +11,7 @@ import {
   Radio,
   Settings,
   Activity,
-  Building2,
+  Layers,
   Key,
   User,
   ListOrdered,
@@ -40,7 +40,7 @@ const commandItems: CommandItem[] = [
   { id: "releases", label: "Releases", href: ROUTES.RELEASES, icon: Activity, group: "Navigation", keywords: ["versions", "updates"] },
   { id: "alerts", label: "Alerts", href: ROUTES.ALERTS, icon: ShieldAlert, group: "Navigation", keywords: ["notifications", "warnings", "threats"] },
   { id: "notifications", label: "Notifications", href: ROUTES.NOTIFICATIONS, icon: BellDot, group: "Navigation", keywords: ["inbox", "messages", "updates"] },
-  { id: "workspaces", label: "Workspaces", href: ROUTES.WORKSPACES, icon: Building2, group: "Navigation", keywords: ["teams"] },
+  { id: "workspaces", label: "Workspaces", href: ROUTES.WORKSPACES, icon: Layers, group: "Navigation", keywords: ["teams"] },
   // Management
   { id: "settings", label: "Settings", href: ROUTES.SETTINGS, icon: Settings, group: "Management", keywords: ["preferences", "configuration"], minRole: "admin" },
   { id: "channels", label: "Channels", href: ROUTES.SETTINGS_NOTIFICATIONS, icon: Radio, group: "Management", keywords: ["notifications", "webhooks", "slack"], minRole: "admin" },

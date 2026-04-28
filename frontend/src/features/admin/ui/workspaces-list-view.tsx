@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/ui"
-import { Building2, Plus, Loader2, Users, Package, Mail } from "lucide-react"
+import { Layers, Plus, Loader2, Users, Package, Mail } from "lucide-react"
 import Link from "next/link"
 import { useWorkspaces } from "@/features/admin/hooks/use-workspaces"
 import { useMyInvitations } from "@/features/admin/hooks/use-my-invitations"
@@ -46,6 +46,14 @@ export const WorkspacesListView = () => {
   // subsequent navigations to ?create=true cause shouldCreateWorkspace to become true,
   // which we OR into the derived dialogOpen below.
   const [dialogOpenByUser, setDialogOpenByUser] = useState(shouldCreateWorkspace)
+
+  // Sync dialog state from URL param during render (React-sanctioned pattern
+  // for adjusting state when a prop/derived value changes).
+  // This ensures the dialog stays open even after the URL cleanup below.
+  if (shouldCreateWorkspace && !dialogOpenByUser) {
+    setDialogOpenByUser(true)
+  }
+
   const dialogOpen = dialogOpenByUser || shouldCreateWorkspace
 
   const setDialogOpen = useCallback((open: boolean) => {
@@ -210,7 +218,7 @@ export const WorkspacesListView = () => {
         <Card>
           <CardContent>
             <EmptyState
-              icon={<Building2 className="h-12 w-12" />}
+              icon={<Layers className="h-12 w-12" />}
               title="No workspaces yet"
               description="Create your first workspace to get started."
             >

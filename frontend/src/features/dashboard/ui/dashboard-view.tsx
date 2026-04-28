@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/ui"
 import type { Classification } from "@/domains/common"
-import { Package, Activity, AlertTriangle, Shield, Clock, CheckCircle, RefreshCw, Building2, Plus, Mail } from "lucide-react"
+import { Package, Activity, AlertTriangle, Shield, Clock, CheckCircle, RefreshCw, Layers, Plus, Mail } from "lucide-react"
 import { DashboardCharts } from "@/features/dashboard/ui/dashboard-charts"
 import { formatEcosystem } from "@/domains/common"
 import { useDashboardStats, useRecentReleases, useChartData, useDashboardStalePackages, useDashboardSettings } from "@/features/dashboard/hooks/use-dashboard"
@@ -46,7 +46,7 @@ const DashboardOnboarding = ({ hasAnyWorkspace, user }: OnboardingProps) => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+        <Layers className="h-12 w-12 text-muted-foreground mb-4" />
         <h1 className="text-2xl font-bold mb-2">
           Welcome to Veilence-MX{user?.firstName ? `, ${user.firstName}` : ""}!
         </h1>

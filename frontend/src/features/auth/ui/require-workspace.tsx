@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useAuth, ROUTES } from "@/core"
-import { Building2 } from "lucide-react"
+import { Layers } from "lucide-react"
 import { Button } from "@/ui"
 
 interface RequireWorkspaceProps {
@@ -22,7 +22,7 @@ export const RequireWorkspace = ({ children, feature }: RequireWorkspaceProps) =
 
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <Building2 className="h-10 w-10 text-muted-foreground mb-4" />
+      <Layers className="h-10 w-10 text-muted-foreground mb-4" />
       <h2 className="text-xl font-semibold mb-2">
         {hasAnyWorkspace ? "No workspace selected" : "Workspace required"}
       </h2>

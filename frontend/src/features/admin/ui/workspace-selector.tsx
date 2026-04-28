@@ -3,8 +3,8 @@
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth, ROUTES } from "@/core"
-import { Building2, ChevronsUpDown, Plus, Settings, AlertCircle, Loader2, Check } from "lucide-react"
-import { Button, Input } from "@/ui"
+import { Layers2, ChevronsUpDown, Plus, Settings, AlertCircle, Loader2, Check } from "lucide-react"
+import { Button, Input, ScrollArea } from "@/ui"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,7 +66,7 @@ export const WorkspaceSelector = () => {
             ) : noWorkspacesIdle ? (
               <Plus className="size-4 text-green-500" />
             ) : (
-              <Building2 className="size-4" />
+              <Layers2 className="size-4" />
             )}
             <div className="flex flex-1 flex-col text-left text-sm leading-tight">
               <span className="truncate font-medium">
@@ -97,6 +97,7 @@ export const WorkspaceSelector = () => {
                   placeholder="Search workspaces..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.stopPropagation()}
                   className="h-7 text-xs"
                   aria-label="Filter workspaces"
                   autoFocus
@@ -104,6 +105,7 @@ export const WorkspaceSelector = () => {
               </div>
             )}
 
+            <ScrollArea className="max-h-64">
             <DropdownMenuGroup>
               <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
 
@@ -137,10 +139,10 @@ export const WorkspaceSelector = () => {
                   key={ws.id}
                   onClick={() => {
                     setCurrentWorkspace(ws)
-                    router.refresh()
+                    router.push(ROUTES.DASHBOARD)
                   }}
                 >
-                  <Building2 className="mr-2 size-4 shrink-0" />
+                  <Layers2 className="mr-2 size-4 shrink-0" />
                   <span className="truncate">{ws.name}</span>
                   {currentWorkspace?.id === ws.id && (
                     <Check className="ml-auto size-4 shrink-0 text-muted-foreground" />
@@ -162,6 +164,7 @@ export const WorkspaceSelector = () => {
                 </div>
               )}
             </DropdownMenuGroup>
+            </ScrollArea>
 
             <DropdownMenuSeparator />
 
