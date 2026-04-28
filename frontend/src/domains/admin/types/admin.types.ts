@@ -5,6 +5,7 @@ export interface Workspace {
   description: string
   ownerId: string
   isActive: boolean
+  role: string
   packageCount?: number | null
   memberCount?: number | null
   createdAt: string
@@ -29,6 +30,8 @@ export interface Role {
   name: string
   description: string
   isSystem: boolean
+  createdAt: string
+  updatedAt: string
   permissions?: Permission[]
 }
 
@@ -90,4 +93,17 @@ export interface AuditLogParams {
   to_date?: string
   page?: number
   limit?: number
+}
+
+export interface AddMemberRequest {
+  email: string
+  firstName: string
+  lastName: string
+  roleId: string
+  password?: string
+}
+
+export interface AddMemberResponse {
+  member: WorkspaceMember
+  userCreated: boolean
 }

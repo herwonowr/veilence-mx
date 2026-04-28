@@ -100,6 +100,8 @@ func (r *DifferRepo) CreateDiff(ctx context.Context, diff *entity.Diff) error {
 		FileChangesCount: diff.FileChangesCount,
 		LinesAdded:       diff.LinesAdded,
 		LinesRemoved:     diff.LinesRemoved,
+		Truncated:        diff.Truncated,
+		OriginalSize:     diff.OriginalSize,
 	}
 	if err := r.db.WithContext(ctx).Create(&model).Error; err != nil {
 		return fmt.Errorf("DifferRepo.CreateDiff: %w", err)

@@ -2,9 +2,7 @@ package response
 
 import "time"
 
-// RoleResponse is the JSON representation of a workspace role.
-// Mapped from persistent.Role at the handler level because the RBAC
-// service currently returns persistent types (pre-existing arch compromise).
+// RoleResponse is the JSON representation of a role.
 type RoleResponse struct {
 	ID          string               `json:"id"`
 	WorkspaceID string               `json:"workspaceId"`

@@ -369,8 +369,8 @@ const WorkspaceCard = ({ workspace }: { workspace: Workspace }) => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">{workspace.name}</CardTitle>
-            <Badge variant={workspace.isActive ? "secondary" : "outline"}>
-              {workspace.isActive ? "Active" : "Inactive"}
+            <Badge variant={["owner", "admin"].includes(workspace.role) ? "secondary" : "outline"}>
+              {workspace.role.charAt(0).toUpperCase() + workspace.role.slice(1)}
             </Badge>
           </div>
           <CardDescription className="font-mono text-xs">
@@ -413,7 +413,7 @@ const WorkspacesTable = ({ workspaces }: { workspaces: Workspace[] }) => {
             <TableHead>Members</TableHead>
             <TableHead>Packages</TableHead>
             <TableHead>Created</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>Role</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -443,8 +443,8 @@ const WorkspacesTable = ({ workspaces }: { workspaces: Workspace[] }) => {
                 {new Date(ws.createdAt).toLocaleDateString()}
               </TableCell>
               <TableCell>
-                <Badge variant={ws.isActive ? "secondary" : "outline"}>
-                  {ws.isActive ? "Active" : "Inactive"}
+                <Badge variant={["owner", "admin"].includes(ws.role) ? "secondary" : "outline"}>
+                  {ws.role.charAt(0).toUpperCase() + ws.role.slice(1)}
                 </Badge>
               </TableCell>
             </TableRow>

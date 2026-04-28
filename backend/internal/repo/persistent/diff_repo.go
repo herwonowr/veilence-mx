@@ -2,7 +2,6 @@ package persistent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -18,74 +17,6 @@ type DiffRepo struct {
 // NewDiffRepo creates a new DiffRepo.
 func NewDiffRepo(db *gorm.DB) *DiffRepo {
 	return &DiffRepo{db: db}
-}
-
-func (r *DiffRepo) FindByID(ctx context.Context, id string) (*entity.Diff, error) {
-	var m Diff
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("diff %w", entity.ErrNotFound)
-		}
-		return nil, fmt.Errorf("finding diff: %w", err)
-	}
-	return diffToDomain(&m), nil
-}
-
-func (r *DiffRepo) FindByIDAndWorkspace(ctx context.Context, id, workspaceID string) (*entity.Diff, error) {
-	var m Diff
-	err := r.db.WithContext(ctx).
-		Joins("JOIN releases ON releases.id = diffs.release_id").
-		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("diffs.id = ? AND packages.workspace_id = ?", id, workspaceID).
-		Select("diffs.*").
-		First(&m).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("diff %w", entity.ErrNotFound)
-		}
-		return nil, fmt.Errorf("finding diff: %w", err)
-	}
-	return diffToDomain(&m), nil
-}
-
-func (r *DiffRepo) FindByReleaseID(ctx context.Context, releaseID string) ([]entity.Diff, error) {
-	var ms []Diff
-	if err := r.db.WithContext(ctx).Where("release_id = ?", releaseID).Find(&ms).Error; err != nil {
-		return nil, fmt.Errorf("finding diffs by release: %w", err)
-	}
-	result := make([]entity.Diff, len(ms))
-	for i := range ms {
-		result[i] = *diffToDomain(&ms[i])
-	}
-	return result, nil
-}
-
-func (r *DiffRepo) FindByReleaseIDAndWorkspace(ctx context.Context, releaseID, workspaceID string) ([]entity.Diff, error) {
-	var ms []Diff
-	err := r.db.WithContext(ctx).
-		Joins("JOIN releases ON releases.id = diffs.release_id").
-		Joins("JOIN packages ON packages.id = releases.package_id").
-		Where("diffs.release_id = ? AND packages.workspace_id = ?", releaseID, workspaceID).
-		Select("diffs.*").
-		Find(&ms).Error
-	if err != nil {
-		return nil, fmt.Errorf("finding diffs by release: %w", err)
-	}
-	result := make([]entity.Diff, len(ms))
-	for i := range ms {
-		result[i] = *diffToDomain(&ms[i])
-	}
-	return result, nil
-}
-
-func (r *DiffRepo) Create(ctx context.Context, diff *entity.Diff) error {
-	m := diffToModel(diff)
-	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
-		return fmt.Errorf("creating diff: %w", err)
-	}
-	diff.ID = m.ID
-	diff.CreatedAt = m.CreatedAt
-	return nil
 }
 
 func (r *DiffRepo) FindFirstByReleaseID(ctx context.Context, releaseID string) (*entity.Diff, error) {
@@ -133,20 +64,5 @@ func diffToDomain(m *Diff) *entity.Diff {
 		Truncated:        m.Truncated,
 		OriginalSize:     m.OriginalSize,
 		CreatedAt:        m.CreatedAt,
-	}
-}
-
-func diffToModel(d *entity.Diff) *Diff {
-	return &Diff{
-		ID:               d.ID,
-		ReleaseID:        d.ReleaseID,
-		PrevReleaseID:    d.PrevReleaseID,
-		DiffContent:      d.DiffContent,
-		FileChangesCount: d.FileChangesCount,
-		LinesAdded:       d.LinesAdded,
-		LinesRemoved:     d.LinesRemoved,
-		Truncated:        d.Truncated,
-		OriginalSize:     d.OriginalSize,
-		CreatedAt:        d.CreatedAt,
 	}
 }

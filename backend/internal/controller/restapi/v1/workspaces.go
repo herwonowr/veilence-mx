@@ -91,7 +91,7 @@ func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Reques
 	for i, o := range res.Workspaces {
 		result[i] = response.WorkspaceResponse{
 			ID: o.ID, Name: o.Name, Slug: o.Slug, Description: o.Description,
-			OwnerID: o.OwnerID, IsActive: o.IsActive, CreatedAt: o.CreatedAt, UpdatedAt: o.UpdatedAt,
+			OwnerID: o.OwnerID, IsActive: o.IsActive, Role: o.Role, CreatedAt: o.CreatedAt, UpdatedAt: o.UpdatedAt,
 		}
 
 		// Populate package count

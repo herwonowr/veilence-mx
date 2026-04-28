@@ -10,6 +10,7 @@ type Workspace struct {
 	Description string
 	OwnerID     string
 	IsActive    bool
+	Role        string // Contextual field populated by queries, not always present.
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

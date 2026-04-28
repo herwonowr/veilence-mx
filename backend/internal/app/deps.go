@@ -132,8 +132,8 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	notificationChannelRepo := persistent.NewNotificationChannelRepo(db)
 	notificationRuleRepo := persistent.NewNotificationRuleRepo(db)
 	notificationRepo := persistent.NewNotificationRepo(db)
-	workspaceMemberRepo := persistent.NewWorkspaceMemberRepo(db)
-	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, workspaceMemberRepo, smtpConfig, emailNotifSender, webhookSender, slackSender)
+	workspaceLister := persistent.NewRBACRepo(db)
+	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, workspaceLister, smtpConfig, emailNotifSender, webhookSender, slackSender)
 
 	// Pipeline
 	pollerRepo := persistent.NewPollerRepo(db)
@@ -299,7 +299,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	alertService := alertuc.New(alertRepo, auditService)
 	releaseService := releaseuc.New(packageRepo, releaseRepo, diffRepo, analysisRepo, jobQueue)
 	settingService := settinguc.New(settingRepo)
-	dashboardService := dashboarduc.New(dashboardRepo, releaseRepo, diffRepo, analysisRepo, jobQueue)
+	dashboardService := dashboarduc.New(dashboardRepo, releaseRepo, jobQueue)
 	healthService := healthuc.New(dbPinger{db: db}, jobQueue)
 
 	// Setup service (initial platform setup)
@@ -466,7 +466,9 @@ func (a *tokenProviderAdapter) ValidateAccessToken(tokenString string) (*usecase
 	}, nil
 }
 
-// seedSettingsDefaults seeds default settings values into the database.
+// seedSettingsDefaults seeds global/system-level default settings into the database.
+// These are platform-wide defaults (not workspace-scoped), so WorkspaceID is left
+// empty. Workspace-specific overrides are created separately via the settings API.
 func seedSettingsDefaults(cfg *config.Config, db *gorm.DB) {
 	seedDefaults := map[string]string{
 		entity.SettingMonitoringInterval:           cfg.MonitoringInterval.String(),

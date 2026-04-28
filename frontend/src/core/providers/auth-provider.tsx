@@ -34,7 +34,7 @@ interface Workspace {
   slug: string
   description: string
   ownerId: string
-  isActive: boolean
+  role: string
   createdAt: string
   updatedAt: string
 }

@@ -1,12 +1,12 @@
+"use client"
+
 export {
   useWorkspaces,
   useWorkspace,
-  useCreateWorkspace,
   useUpdateWorkspace,
   useDeleteWorkspace,
   useWorkspaceMembers,
   useWorkspaceRoles,
-  usePermissions,
   useInviteMember,
   useRemoveMember,
   useUpdateMemberRole,

@@ -10,6 +10,8 @@ import type {
   Invitation,
   InvitationInfo,
   MyInvitation,
+  AddMemberRequest,
+  AddMemberResponse,
 } from "@/domains/admin/types/admin.types"
 
 export const apiGetWorkspaces = async (
@@ -152,19 +154,6 @@ export const apiDeclineInvitationByToken = async (
     `/api/workspaces/${workspaceId}/invitations/${token}/decline`,
     { method: "POST" }
   )
-
-export interface AddMemberRequest {
-  email: string
-  firstName: string
-  lastName: string
-  roleId: string
-  password?: string
-}
-
-export interface AddMemberResponse {
-  member: WorkspaceMember
-  userCreated: boolean
-}
 
 export const apiAddMember = async (
   workspaceId: string,

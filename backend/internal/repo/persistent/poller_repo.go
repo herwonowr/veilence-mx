@@ -75,7 +75,7 @@ func (r *PollerRepo) FindActivePackagesByWorkspace(ctx context.Context, workspac
 
 	packages := make([]entity.Package, len(models))
 	for i, m := range models {
-		packages[i] = packageModelToEntity(m)
+		packages[i] = *packageToDomain(&m)
 	}
 	return packages, nil
 }
@@ -156,7 +156,7 @@ func (r *PollerRepo) FindPackageByWorkspaceAndName(ctx context.Context, workspac
 	if result.RowsAffected == 0 {
 		return nil, nil
 	}
-	pkg := packageModelToEntity(model)
+	pkg := *packageToDomain(&model)
 	return &pkg, nil
 }
 
@@ -230,23 +230,3 @@ func (r *PollerRepo) GetSetting(ctx context.Context, workspaceID string, key str
 	return setting.Value, nil
 }
 
-// packageModelToEntity converts a persistent.Package to entity.Package.
-func packageModelToEntity(m Package) entity.Package {
-	return entity.Package{
-		ID:                     m.ID,
-		WorkspaceID:            m.WorkspaceID,
-		Name:                   m.Name,
-		Ecosystem:              entity.Ecosystem(m.Ecosystem),
-		LatestVersion:          m.LatestVersion,
-		Description:            m.Description,
-		Source:                 entity.PackageSource(m.Source),
-		Status:                 entity.PackageStatus(m.Status),
-		Rank:                   m.Rank,
-		DownloadCount:          m.DownloadCount,
-		DownloadCountUpdatedAt: m.DownloadCountUpdatedAt,
-		BlockedAt:              m.BlockedAt,
-		BlockedReason:          m.BlockedReason,
-		CreatedAt:              m.CreatedAt,
-		UpdatedAt:              m.UpdatedAt,
-	}
-}

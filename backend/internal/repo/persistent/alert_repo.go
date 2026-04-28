@@ -21,17 +21,6 @@ func NewAlertRepo(db *gorm.DB) *AlertRepo {
 	return &AlertRepo{db: db}
 }
 
-func (r *AlertRepo) FindByID(ctx context.Context, id string) (*entity.Alert, error) {
-	var m Alert
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("alert %w", entity.ErrNotFound)
-		}
-		return nil, fmt.Errorf("finding alert: %w", err)
-	}
-	return alertToDomain(&m), nil
-}
-
 func (r *AlertRepo) FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID string) (*entity.Alert, error) {
 	var m Alert
 	err := r.db.WithContext(ctx).

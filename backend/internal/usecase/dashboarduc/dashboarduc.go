@@ -16,8 +16,6 @@ const jobTypeAnalyze = "analyze"
 type UseCase struct {
 	dashboard usecase.DashboardRepository
 	releases  usecase.ReleaseRepository
-	diffs     usecase.DiffRepository
-	analyses  usecase.AnalysisRepository
 	queue     usecase.QueueEnqueuer
 }
 
@@ -25,15 +23,11 @@ type UseCase struct {
 func New(
 	dashboard usecase.DashboardRepository,
 	releases usecase.ReleaseRepository,
-	diffs usecase.DiffRepository,
-	analyses usecase.AnalysisRepository,
 	queue usecase.QueueEnqueuer,
 ) *UseCase {
 	return &UseCase{
 		dashboard: dashboard,
 		releases:  releases,
-		diffs:     diffs,
-		analyses:  analyses,
 		queue:     queue,
 	}
 }

@@ -1,7 +1,6 @@
 import { fetchApi, getStoredRefreshToken } from "@/core"
 import type { ApiResponse } from "@/domains/common"
-import type { User, LoginResponse, ProfileUpdateRequest, PasswordChangeRequest, Session } from "@/domains/auth/types/auth.types"
-import type { ApiKeyInfo, CreateApiKeyRequest } from "@/domains/account/types/account.types"
+import type { User, MeResponse, LoginResponse, ProfileUpdateRequest, PasswordChangeRequest, Session } from "@/domains/auth/types/auth.types"
 
 export const apiLogin = async (
   email: string,
@@ -42,8 +41,8 @@ export const apiLogout = async (
     body: JSON.stringify({ refreshToken }),
   })
 
-export const apiGetMe = async (): Promise<ApiResponse<User>> =>
-  fetchApi<User>("/api/auth/me")
+export const apiGetMe = async (): Promise<ApiResponse<MeResponse>> =>
+  fetchApi<MeResponse>("/api/auth/me")
 
 export const apiUpdateProfile = async (
   data: ProfileUpdateRequest
@@ -112,19 +111,6 @@ export const apiRevokeSession = async (
     method: "DELETE",
   })
 
-// ─── API Keys ────────────────────────────────────────────
-
-export const apiCreateApiKey = async (
-  data: CreateApiKeyRequest
-): Promise<ApiResponse<ApiKeyInfo & { apiKey: string }>> =>
-  fetchApi<ApiKeyInfo & { apiKey: string }>("/api/auth/api-keys", {
-    method: "POST",
-    body: JSON.stringify(data),
-  })
-
-export const apiGetApiKeys = async (): Promise<ApiResponse<ApiKeyInfo[]>> =>
-  fetchApi<ApiKeyInfo[]>("/api/auth/api-keys")
-
 export const apiVerifyEmail = async (
   token: string
 ): Promise<ApiResponse<{ message: string }>> =>
@@ -133,8 +119,3 @@ export const apiVerifyEmail = async (
     body: JSON.stringify({ token }),
     skipAuth: true,
   })
-
-export const apiDeleteApiKey = async (
-  id: string
-): Promise<ApiResponse<null>> =>
-  fetchApi<null>(`/api/auth/api-keys/${id}`, { method: "DELETE" })

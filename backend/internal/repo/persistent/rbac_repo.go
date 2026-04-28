@@ -209,6 +209,7 @@ func (r *RBACRepo) SoftDeleteWorkspace(ctx context.Context, id string) error {
 func (r *RBACRepo) FindWorkspacesByUserID(ctx context.Context, userID string, params entity.WorkspaceListParams) (*entity.WorkspaceListResult, error) {
 	q := r.db.WithContext(ctx).Model(&Workspace{}).
 		Joins("JOIN workspace_members ON workspace_members.workspace_id = workspaces.id").
+		Joins("JOIN roles ON roles.id = workspace_members.role_id").
 		Where("workspace_members.user_id = ? AND workspaces.deleted_at IS NULL", userID)
 
 	if params.Search != "" {
@@ -223,13 +224,17 @@ func (r *RBACRepo) FindWorkspacesByUserID(ctx context.Context, userID string, pa
 
 	offset := (params.Page - 1) * params.Limit
 	var models []Workspace
-	if err := q.Order("workspaces.name ASC").Offset(offset).Limit(params.Limit).Find(&models).Error; err != nil {
+	if err := q.Select("workspaces.*, roles.name as role_name").
+		Order("workspaces.name ASC").Offset(offset).Limit(params.Limit).
+		Find(&models).Error; err != nil {
 		return nil, fmt.Errorf("RBACRepo.FindWorkspacesByUserID: query: %w", err)
 	}
 
 	workspaces := make([]entity.Workspace, len(models))
 	for i, m := range models {
-		workspaces[i] = *workspaceModelToEntity(m)
+		ws := workspaceModelToEntity(m)
+		ws.Role = m.RoleName
+		workspaces[i] = *ws
 	}
 	return &entity.WorkspaceListResult{Workspaces: workspaces, Total: total}, nil
 }
@@ -642,6 +647,19 @@ func memberModelToEntity(m WorkspaceMember) entity.WorkspaceMember {
 		}
 	}
 	return member
+}
+
+// FindWorkspaceIDsByUserID returns the workspace IDs the user is a member of.
+// Implements usecase.UserWorkspaceLister.
+func (r *RBACRepo) FindWorkspaceIDsByUserID(ctx context.Context, userID string) ([]string, error) {
+	var ids []string
+	err := r.db.WithContext(ctx).Model(&WorkspaceMember{}).
+		Where("user_id = ?", userID).
+		Pluck("workspace_id", &ids).Error
+	if err != nil {
+		return nil, fmt.Errorf("listing workspace IDs for user: %w", err)
+	}
+	return ids, nil
 }
 
 func invitationModelToEntity(m Invitation) *entity.Invitation {

@@ -1,5 +1,3 @@
-import type { Classification, ReleaseStatus } from "@/domains/common"
-
 export interface DashboardStats {
   totalPackages: number
   totalReleases: number
@@ -14,19 +12,4 @@ export interface ChartData {
   ecosystems: { ecosystem: string; count: number }[]
   alertsBySeverity: { severity: string; count: number }[]
   releaseStatuses: { status: string; count: number }[]
-}
-
-export interface RecentRelease {
-  id: string
-  packageId: string
-  version: string
-  publishedAt: string
-  tarballUrl: string
-  sha256: string
-  status: ReleaseStatus
-  errorMessage?: string
-  createdAt: string
-  packageName: string
-  packageEcosystem: string
-  classification?: Classification
 }

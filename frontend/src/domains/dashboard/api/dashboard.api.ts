@@ -1,6 +1,7 @@
 import { fetchApi } from "@/core"
 import type { ApiResponse } from "@/domains/common"
-import type { DashboardStats, ChartData, RecentRelease } from "@/domains/dashboard/types/dashboard.types"
+import type { DashboardStats, ChartData } from "@/domains/dashboard/types/dashboard.types"
+import type { RecentRelease } from "@/domains/releases/types/releases.types"
 
 export const getDashboardStats = async (): Promise<ApiResponse<DashboardStats>> =>
   fetchApi<DashboardStats>("/api/dashboard/stats")

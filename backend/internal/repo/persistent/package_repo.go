@@ -102,20 +102,6 @@ func (r *PackageRepo) FindActiveByWorkspaceID(ctx context.Context, workspaceID s
 	return result, nil
 }
 
-func (r *PackageRepo) FindByWorkspaceAndName(ctx context.Context, workspaceID string, name string, ecosystem entity.Ecosystem) (*entity.Package, error) {
-	var m Package
-	err := r.db.WithContext(ctx).
-		Where("workspace_id = ? AND name = ? AND ecosystem = ?", workspaceID, name, string(ecosystem)).
-		First(&m).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("package %w", entity.ErrNotFound)
-		}
-		return nil, fmt.Errorf("finding package by name: %w", err)
-	}
-	return packageToDomain(&m), nil
-}
-
 func (r *PackageRepo) Create(ctx context.Context, pkg *entity.Package) error {
 	m := packageToModel(pkg)
 	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {

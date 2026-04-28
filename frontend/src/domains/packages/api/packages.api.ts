@@ -1,6 +1,7 @@
 import { fetchApi } from "@/core"
 import type { ApiResponse } from "@/domains/common"
-import type { Package, Release, BulkImportResult, AnalysisHistoryEntry, StalePackage } from "@/domains/packages/types/packages.types"
+import type { Package, BulkImportResult, AnalysisHistoryEntry, StalePackage } from "@/domains/packages/types/packages.types"
+import type { Release } from "@/domains/releases/types/releases.types"
 
 export const getPackages = async (params?: {
   ecosystem?: string

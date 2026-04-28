@@ -49,7 +49,6 @@ type PackageRepository interface {
 	FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID string) (*entity.Package, error)
 	FindByWorkspaceID(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
 	FindActiveByWorkspaceID(ctx context.Context, workspaceID string) ([]entity.Package, error)
-	FindByWorkspaceAndName(ctx context.Context, workspaceID string, name string, ecosystem entity.Ecosystem) (*entity.Package, error)
 	Create(ctx context.Context, pkg *entity.Package) error
 	Update(ctx context.Context, pkg *entity.Package) error
 	BlockPackage(ctx context.Context, workspaceID, pkgID string, reason string) error
@@ -69,42 +68,28 @@ type PackageRepository interface {
 
 // ReleaseRepository defines persistence operations for Release entities.
 type ReleaseRepository interface {
-	FindByID(ctx context.Context, id string) (*entity.Release, error)
-	FindByIDWithPackage(ctx context.Context, id string) (*entity.Release, *entity.Package, error)
 	FindByIDWithPackageAndWorkspace(ctx context.Context, id, workspaceID string) (*entity.Release, *entity.Package, error)
-	FindByPackageID(ctx context.Context, packageID string, page, limit int) ([]entity.Release, int64, error)
 	FindByPackageIDAndWorkspace(ctx context.Context, packageID, workspaceID string, page, limit int) ([]entity.Release, int64, error)
-	FindByWorkspaceID(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.Release, int64, error)
 	FindByWorkspaceIDWithDetails(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error)
 	FindByPackageIDAll(ctx context.Context, packageID string) ([]entity.Release, error)
 	UpdateStatus(ctx context.Context, id string, status entity.ReleaseStatus) error
-	Create(ctx context.Context, release *entity.Release) error
-	Update(ctx context.Context, release *entity.Release) error
 }
 
 // DiffRepository defines persistence operations for Diff entities.
 type DiffRepository interface {
-	FindByID(ctx context.Context, id string) (*entity.Diff, error)
-	FindByIDAndWorkspace(ctx context.Context, id, workspaceID string) (*entity.Diff, error)
-	FindByReleaseID(ctx context.Context, releaseID string) ([]entity.Diff, error)
-	FindByReleaseIDAndWorkspace(ctx context.Context, releaseID, workspaceID string) ([]entity.Diff, error)
 	FindFirstByReleaseID(ctx context.Context, releaseID string) (*entity.Diff, error)
 	FindByReleaseIDs(ctx context.Context, releaseIDs []string) ([]entity.Diff, error)
-	Create(ctx context.Context, diff *entity.Diff) error
 }
 
 // AnalysisRepository defines persistence operations for Analysis entities.
 type AnalysisRepository interface {
-	FindByID(ctx context.Context, id string) (*entity.Analysis, error)
 	FindByDiffID(ctx context.Context, diffID string) ([]entity.Analysis, error)
 	FindByDiffIDs(ctx context.Context, diffIDs []string) ([]entity.Analysis, error)
 	Create(ctx context.Context, analysis *entity.Analysis) error
-	CountByDiffID(ctx context.Context, diffID string) (int64, error)
 }
 
 // AlertRepository defines persistence operations for Alert entities.
 type AlertRepository interface {
-	FindByID(ctx context.Context, id string) (*entity.Alert, error)
 	FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID string) (*entity.Alert, error)
 	FindByIDWithPackage(ctx context.Context, id, workspaceID string) (*entity.Alert, *entity.Package, error)
 	FindByWorkspaceID(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.Alert, int64, error)
@@ -130,42 +115,6 @@ type SettingRepository interface {
 	FindByKey(ctx context.Context, workspaceID string, key string) (*entity.Setting, error)
 	Upsert(ctx context.Context, setting *entity.Setting) error
 	UpsertByWorkspaceAndKey(ctx context.Context, workspaceID string, key, value string) error
-}
-
-// WorkspaceRepository defines persistence operations for Workspace entities.
-type WorkspaceRepository interface {
-	FindByID(ctx context.Context, id string) (*entity.Workspace, error)
-	FindBySlug(ctx context.Context, slug string) (*entity.Workspace, error)
-	CountBySlug(ctx context.Context, slug string, excludeID *string) (int64, error)
-	Create(ctx context.Context, ws *entity.Workspace) error
-	Update(ctx context.Context, ws *entity.Workspace) error
-	SoftDelete(ctx context.Context, id string) error
-	FindByUserID(ctx context.Context, userID string) ([]entity.Workspace, error)
-}
-
-// WorkspaceMemberRepository defines persistence operations for WorkspaceMember entities.
-type WorkspaceMemberRepository interface {
-	FindByWorkspaceID(ctx context.Context, workspaceID string) ([]entity.WorkspaceMember, error)
-	FindByUserAndWorkspace(ctx context.Context, userID, workspaceID string) (*entity.WorkspaceMember, error)
-	CountByUserAndWorkspace(ctx context.Context, userID, workspaceID string) (int64, error)
-	Create(ctx context.Context, member *entity.WorkspaceMember) error
-	Update(ctx context.Context, member *entity.WorkspaceMember) error
-	DeleteByUserAndWorkspace(ctx context.Context, userID, workspaceID string) error
-}
-
-// RoleRepository defines persistence operations for Role entities.
-type RoleRepository interface {
-	FindByID(ctx context.Context, id string) (*entity.Role, error)
-	FindByIDAndWorkspace(ctx context.Context, id, workspaceID string) (*entity.Role, error)
-	FindByWorkspaceID(ctx context.Context, workspaceID string) ([]entity.Role, error)
-	Create(ctx context.Context, role *entity.Role) error
-}
-
-// PermissionRepository defines persistence operations for Permission entities.
-type PermissionRepository interface {
-	FindAll(ctx context.Context) ([]entity.Permission, error)
-	FindOrCreate(ctx context.Context, perm *entity.Permission) error
-	CheckUserPermission(ctx context.Context, userID, workspaceID string, resource, action string) (bool, error)
 }
 
 // AuditLogRepository defines persistence operations for AuditLog entities.

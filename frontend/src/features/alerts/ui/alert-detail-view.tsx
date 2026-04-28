@@ -102,7 +102,7 @@ export const AlertDetailView = ({
                 className="text-primary hover:underline font-medium"
               >
                 {alert.packageName}
-                <span className="text-xs text-muted-foreground ml-1">({formatEcosystem(alert.packageEcosystem)})</span>
+                <span className="text-xs text-muted-foreground ml-1">({formatEcosystem(alert.packageEcosystem ?? "")})</span>
               </Link>
             </div>
             <div>

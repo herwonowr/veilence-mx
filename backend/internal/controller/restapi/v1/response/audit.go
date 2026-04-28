@@ -3,8 +3,6 @@ package response
 import "time"
 
 // AuditLogResponse is the JSON representation of an audit log entry.
-// Mapped from persistent.AuditLog at the handler level because the audit
-// service currently returns persistent types (pre-existing arch compromise).
 type AuditLogResponse struct {
 	ID            string    `json:"id"`
 	UserID        string    `json:"userId"`

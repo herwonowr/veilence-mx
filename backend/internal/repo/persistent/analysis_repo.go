@@ -2,7 +2,6 @@ package persistent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -18,17 +17,6 @@ type AnalysisRepo struct {
 // NewAnalysisRepo creates a new AnalysisRepo.
 func NewAnalysisRepo(db *gorm.DB) *AnalysisRepo {
 	return &AnalysisRepo{db: db}
-}
-
-func (r *AnalysisRepo) FindByID(ctx context.Context, id string) (*entity.Analysis, error) {
-	var m Analysis
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("analysis %w", entity.ErrNotFound)
-		}
-		return nil, fmt.Errorf("finding analysis: %w", err)
-	}
-	return analysisToDomain(&m), nil
 }
 
 func (r *AnalysisRepo) FindByDiffID(ctx context.Context, diffID string) ([]entity.Analysis, error) {
@@ -51,14 +39,6 @@ func (r *AnalysisRepo) Create(ctx context.Context, analysis *entity.Analysis) er
 	analysis.ID = m.ID
 	analysis.CreatedAt = m.CreatedAt
 	return nil
-}
-
-func (r *AnalysisRepo) CountByDiffID(ctx context.Context, diffID string) (int64, error) {
-	var count int64
-	if err := r.db.WithContext(ctx).Model(&Analysis{}).Where("diff_id = ?", diffID).Count(&count).Error; err != nil {
-		return 0, fmt.Errorf("counting analyses: %w", err)
-	}
-	return count, nil
 }
 
 func (r *AnalysisRepo) FindByDiffIDs(ctx context.Context, diffIDs []string) ([]entity.Analysis, error) {

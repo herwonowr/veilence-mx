@@ -1,4 +1,4 @@
-import type { Ecosystem, ReleaseStatus, Classification, AnalyzerType } from "@/domains/common"
+import type { Ecosystem, Classification, AnalyzerType } from "@/domains/common"
 
 export type PackageSource = "manual" | "discovered" | "imported"
 export type PackageStatus = "active" | "suggested" | "blocked" | "removed"
@@ -20,6 +20,8 @@ export interface Package {
   updatedAt: string
 }
 
+// These extra fields are returned by the /api/packages/stale endpoint only,
+// not by the standard package endpoints.
 export interface StalePackage extends Package {
   lastReleaseAt: string | null
   daysSinceLastRelease: number
@@ -48,14 +50,3 @@ export interface AnalysisHistoryEntry {
   publishedAt: string
 }
 
-export interface Release {
-  id: string
-  packageId: string
-  version: string
-  publishedAt: string
-  tarballUrl: string
-  sha256: string
-  status: ReleaseStatus
-  errorMessage?: string
-  createdAt: string
-}
