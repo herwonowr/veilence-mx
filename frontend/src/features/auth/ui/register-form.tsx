@@ -128,7 +128,7 @@ export const RegisterForm = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <Link href={`${ROUTES.LOGIN}?registered=true`}>
+            <Link href={ROUTES.LOGIN}>
               <Button variant="outline" className="w-full">
                 Go to Sign In
               </Button>

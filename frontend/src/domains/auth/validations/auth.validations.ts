@@ -56,11 +56,3 @@ export const newPasswordSchema = z
     message: "Passwords do not match",
     path: ["confirmPassword"],
   })
-
-// Type exports
-export type LoginFormData = z.infer<typeof loginSchema>
-export type RegisterFormData = z.infer<typeof registerSchema>
-export type ProfileFormData = z.infer<typeof profileSchema>
-export type PasswordResetFormData = z.infer<typeof passwordResetSchema>
-export type PasswordChangeFormData = z.infer<typeof passwordChangeSchema>
-export type NewPasswordFormData = z.infer<typeof newPasswordSchema>

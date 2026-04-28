@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
-import { storeTokens, storeWorkspaceId, sanitizeErrorMessage, usePublicConfig, ROUTES } from "@/core"
+import { sanitizeErrorMessage, usePublicConfig, ROUTES } from "@/core"
 import { useSetup } from "@/features/setup/hooks/use-setup"
 import {
   Button,
@@ -152,11 +152,10 @@ export const SetupWizard = () => {
         workspaceSlug,
       })
       if (result) {
-        storeTokens(result.accessToken, result.refreshToken)
-        storeWorkspaceId(result.workspace.id)
         setPassword("")
         setConfirmPassword("")
-        router.push(ROUTES.DASHBOARD)
+        try { sessionStorage.setItem("vmx_just_setup", "true") } catch {}
+        router.push(ROUTES.LOGIN)
       }
     } catch (err: unknown) {
       setServerError(sanitizeErrorMessage(err, "Setup failed"))

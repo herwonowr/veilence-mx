@@ -17,7 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui"
-import { Loader2, Eye, EyeOff, MailCheck } from "lucide-react"
+import { Loader2, Eye, EyeOff, MailCheck, CheckCircle2 } from "lucide-react"
 import { ZodError } from "zod"
 
 const MAX_FAILED_ATTEMPTS = 5
@@ -92,14 +92,19 @@ const LoginFormInner = () => {
     ? rawRedirect
     : ROUTES.DASHBOARD
 
-  const isRegistered = searchParams.get("registered") === "true"
-
-  // Clear the just-registered flag after reading it so direct URL visits don't show the banner
-  useEffect(() => {
-    if (isRegistered) {
-      try { sessionStorage.removeItem("vmx_just_registered") } catch {}
-    }
-  }, [isRegistered])
+  // One-time banners: read from sessionStorage on mount, clear immediately
+  const [showSetupBanner] = useState(() => {
+    if (typeof window === "undefined") return false
+    const flag = sessionStorage.getItem("vmx_just_setup") === "true"
+    if (flag) sessionStorage.removeItem("vmx_just_setup")
+    return flag
+  })
+  const [showRegisteredBanner] = useState(() => {
+    if (typeof window === "undefined") return false
+    const flag = sessionStorage.getItem("vmx_just_registered") === "true"
+    if (flag) sessionStorage.removeItem("vmx_just_registered")
+    return flag
+  })
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -239,7 +244,15 @@ const LoginFormInner = () => {
                 <AlertDescription>{serverError}</AlertDescription>
               </Alert>
             )}
-            {isRegistered && !emailVerificationRequired && typeof window !== "undefined" && sessionStorage.getItem("vmx_just_registered") === "true" && (
+            {showSetupBanner && (
+              <Alert variant="default" data-testid="setup-complete-banner">
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription>
+                  Account created successfully. Please sign in.
+                </AlertDescription>
+              </Alert>
+            )}
+            {showRegisteredBanner && !emailVerificationRequired && (
               <Alert variant="default" data-testid="registered-banner">
                 <MailCheck className="h-4 w-4" />
                 <AlertDescription>
