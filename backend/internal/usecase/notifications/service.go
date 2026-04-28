@@ -928,5 +928,3 @@ func ValidateWebhookSignature(secret, body []byte, signatureHeader string) bool 
 
 	return hmac.Equal(receivedMAC, expectedMAC.Sum(nil))
 }
-
-

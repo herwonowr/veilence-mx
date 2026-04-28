@@ -58,8 +58,8 @@ type Config struct {
 	RequireEmailVerification     bool
 
 	// Registration control
-	RegistrationEnabled     bool
-	AllowedEmailDomains     []string
+	RegistrationEnabled bool
+	AllowedEmailDomains []string
 }
 
 // NewConfig loads configuration from environment variables with sensible defaults for optional fields.
@@ -111,7 +111,7 @@ func NewConfig() (*Config, error) {
 		RequireEmailVerification:     envBoolOrDefault("REQUIRE_EMAIL_VERIFICATION", false),
 
 		// Registration control
-		RegistrationEnabled:     envBoolOrDefault("REGISTRATION_ENABLED", false),
+		RegistrationEnabled: envBoolOrDefault("REGISTRATION_ENABLED", false),
 	}
 
 	// Parse comma-separated previous JWT secrets

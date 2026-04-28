@@ -11,7 +11,7 @@ import (
 // PackageResponse is the JSON representation of a monitored package.
 type PackageResponse struct {
 	ID                     string     `json:"id"`
-	WorkspaceID                  string     `json:"workspaceId"`
+	WorkspaceID            string     `json:"workspaceId"`
 	Name                   string     `json:"name"`
 	Ecosystem              string     `json:"ecosystem"`
 	LatestVersion          string     `json:"latestVersion"`
@@ -30,7 +30,7 @@ type PackageResponse struct {
 func PackageFromEntity(p *entity.Package) PackageResponse {
 	return PackageResponse{
 		ID:                     p.ID,
-		WorkspaceID:                  p.WorkspaceID,
+		WorkspaceID:            p.WorkspaceID,
 		Name:                   p.Name,
 		Ecosystem:              string(p.Ecosystem),
 		LatestVersion:          p.LatestVersion,

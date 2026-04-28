@@ -179,4 +179,3 @@ func (s *Service) ListAuditLogs(workspaceID string, filters AuditLogFilters, pag
 func (s *Service) GetAuditLog(id string) (*entity.AuditLog, error) {
 	return s.repo.FindByID(context.Background(), id)
 }
-

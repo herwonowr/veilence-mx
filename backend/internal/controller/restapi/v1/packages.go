@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-
 	"github.com/google/uuid"
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
 	"github.com/veilence/veilence-mx/backend/internal/entity"
@@ -516,8 +515,8 @@ func (h *PackageHandlers) RejectPackage(w http.ResponseWriter, r *http.Request) 
 // bulkApproveRequest is the request body for bulk-approving suggested packages.
 type bulkApproveRequest struct {
 	PackageIDs []string `json:"packageIds"`
-	Ecosystem  string `json:"ecosystem"`
-	ApproveAll bool   `json:"approveAll"`
+	Ecosystem  string   `json:"ecosystem"`
+	ApproveAll bool     `json:"approveAll"`
 }
 
 // BulkApprovePackages approves multiple suggested packages at once.

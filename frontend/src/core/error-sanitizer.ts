@@ -18,6 +18,7 @@ const ERROR_PATTERNS: ReadonlyArray<{ pattern: RegExp; friendly: string }> = [
   { pattern: /invalid or expired reset token/i, friendly: "This reset link is invalid or has expired. Please request a new one." },
   { pattern: /token.*expired/i, friendly: "Your session has expired. Please sign in again." },
   { pattern: /invalid.*token/i, friendly: "Your session is invalid. Please sign in again." },
+  { pattern: /must_change_password/i, friendly: "You must change your password before continuing." },
 
   // Rate limiting (already user-friendly from api-client, but catch the fallback)
   { pattern: /rate limit/i, friendly: "Too many requests. Please wait a moment and try again." },

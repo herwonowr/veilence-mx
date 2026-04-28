@@ -75,22 +75,22 @@ func (r *SettingRepo) UpsertByWorkspaceAndKey(ctx context.Context, workspaceID s
 
 func settingToDomain(m *Setting) *entity.Setting {
 	return &entity.Setting{
-		ID:        m.ID,
-		WorkspaceID:     m.WorkspaceID,
-		Key:       m.Key,
-		Value:     m.Value,
-		CreatedAt: m.CreatedAt,
-		UpdatedAt: m.UpdatedAt,
+		ID:          m.ID,
+		WorkspaceID: m.WorkspaceID,
+		Key:         m.Key,
+		Value:       m.Value,
+		CreatedAt:   m.CreatedAt,
+		UpdatedAt:   m.UpdatedAt,
 	}
 }
 
 func settingToModel(d *entity.Setting) *Setting {
 	return &Setting{
-		ID:        d.ID,
-		WorkspaceID:     d.WorkspaceID,
-		Key:       d.Key,
-		Value:     d.Value,
-		CreatedAt: d.CreatedAt,
-		UpdatedAt: d.UpdatedAt,
+		ID:          d.ID,
+		WorkspaceID: d.WorkspaceID,
+		Key:         d.Key,
+		Value:       d.Value,
+		CreatedAt:   d.CreatedAt,
+		UpdatedAt:   d.UpdatedAt,
 	}
 }

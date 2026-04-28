@@ -41,7 +41,7 @@ export const AddPackagesStep = ({
   const [error, setError] = useState("")
 
   const handleAdd = useCallback(
-    (e: React.FormEvent) => {
+    (e: React.SyntheticEvent<HTMLFormElement>) => {
       e.preventDefault()
       const result = packageSchema.safeParse({ name, ecosystem })
       if (!result.success) {

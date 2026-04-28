@@ -52,7 +52,7 @@ export const InviteMemberDialog = ({
 
   const inviteMutation = useInviteMember()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError("")
     setFieldErrors({})

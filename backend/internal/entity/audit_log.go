@@ -4,24 +4,24 @@ import "time"
 
 // AuditLog records a user action for compliance and debugging purposes.
 type AuditLog struct {
-	ID             string
-	UserID         string
-	WorkspaceID    string
-	Action         string
-	Resource       string
-	ResourceID     string
-	Details        string
-	IPAddress      string
-	UserAgent      string
-	CorrelationID  string
-	CreatedAt      time.Time
+	ID            string
+	UserID        string
+	WorkspaceID   string
+	Action        string
+	Resource      string
+	ResourceID    string
+	Details       string
+	IPAddress     string
+	UserAgent     string
+	CorrelationID string
+	CreatedAt     time.Time
 }
 
 // AuditLogFilters holds the query parameters for filtering audit logs.
 type AuditLogFilters struct {
-	Action         string
-	Resource       string
-	UserID         string
-	FromDate       *time.Time
-	ToDate         *time.Time
+	Action   string
+	Resource string
+	UserID   string
+	FromDate *time.Time
+	ToDate   *time.Time
 }

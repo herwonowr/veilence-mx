@@ -49,7 +49,7 @@ export const RegisterForm = () => {
 
   const passwordStrength = useMemo(() => getPasswordStrength(password), [password])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setErrors({})
     setServerError("")

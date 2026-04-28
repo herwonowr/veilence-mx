@@ -16,12 +16,12 @@ import (
 
 // SMTPConfig holds SMTP server configuration for sending emails.
 type SMTPConfig struct {
-	Host       string
-	Port       string
-	Username   string
-	Password   string
-	From       string
-	SkipTLS    bool // Skip STARTTLS entirely (for plain SMTP like Mailpit)
+	Host     string
+	Port     string
+	Username string
+	Password string
+	From     string
+	SkipTLS  bool // Skip STARTTLS entirely (for plain SMTP like Mailpit)
 }
 
 // IsConfigured returns true if the SMTP configuration has the minimum required fields.

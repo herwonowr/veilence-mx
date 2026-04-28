@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	
+
 	"strings"
 	"time"
 
@@ -230,19 +230,20 @@ func (h *AuthHandlers) GetMe(w http.ResponseWriter, r *http.Request) {
 
 	userResp := response.UserFromEntity(user)
 	respondJSON(w, http.StatusOK, map[string]any{
-		"id":                 userResp.ID,
-		"email":              userResp.Email,
-		"firstName":          userResp.FirstName,
-		"lastName":           userResp.LastName,
-		"isActive":           userResp.IsActive,
-		"emailVerified":      userResp.EmailVerified,
-		"mustChangePassword": userResp.MustChangePassword,
-		"lastLoginAt":        userResp.LastLoginAt,
-		"createdAt":          userResp.CreatedAt,
-		"updatedAt":          userResp.UpdatedAt,
+		"id":                  userResp.ID,
+		"email":               userResp.Email,
+		"firstName":           userResp.FirstName,
+		"lastName":            userResp.LastName,
+		"isActive":            userResp.IsActive,
+		"emailVerified":       userResp.EmailVerified,
+		"mustChangePassword":  userResp.MustChangePassword,
+		"lastLoginAt":         userResp.LastLoginAt,
+		"createdAt":           userResp.CreatedAt,
+		"updatedAt":           userResp.UpdatedAt,
 		"allowedEmailDomains": h.Auth.AllowedEmailDomains(),
 	}, nil)
 }
+
 // Requires workspace context (X-Workspace-ID header or workspace_id query param).
 // The API key's role cannot exceed the user's own workspace role.
 func (h *AuthHandlers) CreateAPIKey(w http.ResponseWriter, r *http.Request) {

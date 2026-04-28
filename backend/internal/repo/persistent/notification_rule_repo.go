@@ -66,24 +66,24 @@ func (r *NotificationRuleRepo) DeleteByIDAndWorkspace(ctx context.Context, id, w
 
 func notifRuleToDomain(m *NotificationRule) *entity.NotificationRule {
 	return &entity.NotificationRule{
-		ID:        m.ID,
-		WorkspaceID:     m.WorkspaceID,
-		ChannelID: m.ChannelID,
-		Severity:  m.Severity,
-		IsActive:  m.IsActive,
-		CreatedAt: m.CreatedAt,
-		UpdatedAt: m.UpdatedAt,
+		ID:          m.ID,
+		WorkspaceID: m.WorkspaceID,
+		ChannelID:   m.ChannelID,
+		Severity:    m.Severity,
+		IsActive:    m.IsActive,
+		CreatedAt:   m.CreatedAt,
+		UpdatedAt:   m.UpdatedAt,
 	}
 }
 
 func notifRuleToModel(d *entity.NotificationRule) *NotificationRule {
 	return &NotificationRule{
-		ID:        d.ID,
-		WorkspaceID:     d.WorkspaceID,
-		ChannelID: d.ChannelID,
-		Severity:  d.Severity,
-		IsActive:  d.IsActive,
-		CreatedAt: d.CreatedAt,
-		UpdatedAt: d.UpdatedAt,
+		ID:          d.ID,
+		WorkspaceID: d.WorkspaceID,
+		ChannelID:   d.ChannelID,
+		Severity:    d.Severity,
+		IsActive:    d.IsActive,
+		CreatedAt:   d.CreatedAt,
+		UpdatedAt:   d.UpdatedAt,
 	}
 }

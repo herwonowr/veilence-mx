@@ -21,7 +21,7 @@ export const CreateWorkspaceStep = ({
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    (e: React.SyntheticEvent<HTMLFormElement>) => {
       e.preventDefault()
       const result = workspaceSchema.safeParse(formData)
       if (!result.success) {

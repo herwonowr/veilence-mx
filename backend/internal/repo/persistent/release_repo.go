@@ -250,7 +250,7 @@ func (r *ReleaseRepo) FindByWorkspaceIDWithDetails(ctx context.Context, workspac
 
 	var rows []releaseRow
 	err := query.
-		Select("releases.*, packages.name AS package_name, packages.ecosystem AS package_ecosystem, "+
+		Select("releases.*, packages.name AS package_name, packages.ecosystem AS package_ecosystem, " +
 			"(SELECT a.classification FROM analyses a JOIN diffs d ON d.id = a.diff_id WHERE d.release_id = releases.id ORDER BY a.created_at DESC LIMIT 1) AS classification").
 		Order(sortClause).
 		Offset((page - 1) * limit).

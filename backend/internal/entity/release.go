@@ -25,42 +25,42 @@ var InProgressStatuses = []ReleaseStatus{ReleaseStatusPending, ReleaseStatusDiff
 
 // Release represents a specific version release of a package.
 type Release struct {
-	ID             string
-	PackageID      string
-	Version        string
-	PublishedAt    time.Time
-	TarballURL     string
-	SHA256         string
-	Status         ReleaseStatus
-	ErrorMessage   string
-	CreatedAt      time.Time
-	Diffs          []Diff
+	ID           string
+	PackageID    string
+	Version      string
+	PublishedAt  time.Time
+	TarballURL   string
+	SHA256       string
+	Status       ReleaseStatus
+	ErrorMessage string
+	CreatedAt    time.Time
+	Diffs        []Diff
 }
 
 // ReleaseFilters holds optional query filters for listing releases.
 type ReleaseFilters struct {
-	Ecosystem      *Ecosystem
-	Status         *ReleaseStatus
-	Search         *string
-	Classification *string
+	Ecosystem        *Ecosystem
+	Status           *ReleaseStatus
+	Search           *string
+	Classification   *string
 	LatestPerPackage bool
 }
 
 // ReleaseDetail contains a release with its associated diff, analysis, and package info.
 type ReleaseDetail struct {
-	Release        Release
-	Package        *Package
-	Diff           *Diff
-	Analysis       *Analysis
-	IsBaseline     bool
+	Release    Release
+	Package    *Package
+	Diff       *Diff
+	Analysis   *Analysis
+	IsBaseline bool
 }
 
 // ReleaseWithDetails contains a release with package info and classification for list views.
 type ReleaseWithDetails struct {
 	Release
-	PackageName    string
+	PackageName      string
 	PackageEcosystem string
-	Classification string
+	Classification   string
 }
 
 // AnalysisHistoryEntry holds a single entry in the analysis history for a package.

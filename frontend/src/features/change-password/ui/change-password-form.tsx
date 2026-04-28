@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
@@ -22,12 +22,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui"
-import { Loader2, Eye, EyeOff, ShieldAlert } from "lucide-react"
+import { Loader2, Eye, EyeOff } from "lucide-react"
 import { ZodError } from "zod"
 
 export const ChangePasswordForm = () => {
   const router = useRouter()
-  const { user, refreshUser } = useAuth()
+  const { user, isAuthenticated, isLoading, refreshUser, refreshWorkspaces } = useAuth()
+
+  // Only users with mustChangePassword should access this page
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && !user?.mustChangePassword) {
+      router.replace(ROUTES.DASHBOARD)
+    }
+    if (!isLoading && !isAuthenticated) {
+      router.replace(ROUTES.LOGIN)
+    }
+  }, [isLoading, isAuthenticated, user, router])
 
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -41,7 +51,7 @@ export const ChangePasswordForm = () => {
 
   const passwordStrength = useMemo(() => getPasswordStrength(newPassword), [newPassword])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setErrors({})
     setServerError("")
@@ -78,7 +88,7 @@ export const ChangePasswordForm = () => {
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
-      await refreshUser()
+      await Promise.all([refreshUser(), refreshWorkspaces()])
       router.push(ROUTES.DASHBOARD)
     } catch (err: unknown) {
       setServerError(sanitizeErrorMessage(err, "Failed to change password"))
@@ -102,7 +112,6 @@ export const ChangePasswordForm = () => {
           <CardDescription>
             {user?.mustChangePassword ? (
               <span className="flex items-center justify-center gap-1.5 text-amber-600 dark:text-amber-400">
-                <ShieldAlert className="size-4" />
                 You must change your password before continuing.
               </span>
             ) : (

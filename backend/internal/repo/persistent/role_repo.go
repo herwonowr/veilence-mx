@@ -78,7 +78,7 @@ func (r *RoleRepo) Create(ctx context.Context, role *entity.Role) error {
 func roleToDomain(m *Role) *entity.Role {
 	d := &entity.Role{
 		ID:          m.ID,
-		WorkspaceID:       m.WorkspaceID,
+		WorkspaceID: m.WorkspaceID,
 		Name:        m.Name,
 		Description: m.Description,
 		IsSystem:    m.IsSystem,
@@ -101,7 +101,7 @@ func roleToDomain(m *Role) *entity.Role {
 func roleToModel(d *entity.Role) *Role {
 	m := &Role{
 		ID:          d.ID,
-		WorkspaceID:       d.WorkspaceID,
+		WorkspaceID: d.WorkspaceID,
 		Name:        d.Name,
 		Description: d.Description,
 		IsSystem:    d.IsSystem,

@@ -8,31 +8,31 @@ import (
 
 // AlertResponse is the JSON representation of a security alert.
 type AlertResponse struct {
-	ID         string    `json:"id"`
-	WorkspaceID      string    `json:"workspaceId"`
-	AnalysisID string    `json:"analysisId"`
-	ReleaseID  string    `json:"releaseId"`
-	PackageID  string    `json:"packageId"`
-	Severity   string    `json:"severity"`
-	Status     string    `json:"status"`
-	Message    string    `json:"message"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
+	ID          string    `json:"id"`
+	WorkspaceID string    `json:"workspaceId"`
+	AnalysisID  string    `json:"analysisId"`
+	ReleaseID   string    `json:"releaseId"`
+	PackageID   string    `json:"packageId"`
+	Severity    string    `json:"severity"`
+	Status      string    `json:"status"`
+	Message     string    `json:"message"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // AlertFromEntity maps a domain Alert to a response DTO.
 func AlertFromEntity(a *entity.Alert) AlertResponse {
 	return AlertResponse{
-		ID:         a.ID,
-		WorkspaceID:      a.WorkspaceID,
-		AnalysisID: a.AnalysisID,
-		ReleaseID:  a.ReleaseID,
-		PackageID:  a.PackageID,
-		Severity:   string(a.Severity),
-		Status:     string(a.Status),
-		Message:    a.Message,
-		CreatedAt:  a.CreatedAt,
-		UpdatedAt:  a.UpdatedAt,
+		ID:          a.ID,
+		WorkspaceID: a.WorkspaceID,
+		AnalysisID:  a.AnalysisID,
+		ReleaseID:   a.ReleaseID,
+		PackageID:   a.PackageID,
+		Severity:    string(a.Severity),
+		Status:      string(a.Status),
+		Message:     a.Message,
+		CreatedAt:   a.CreatedAt,
+		UpdatedAt:   a.UpdatedAt,
 	}
 }
 
@@ -72,27 +72,27 @@ func AlertDetailFromEntity(a *entity.Alert, pkg *entity.Package) AlertWithPackag
 
 // AlertNoteResponse is the JSON representation of an alert note.
 type AlertNoteResponse struct {
-	ID        string    `json:"id"`
-	AlertID   string    `json:"alertId"`
-	WorkspaceID     string    `json:"workspaceId"`
-	UserID    string    `json:"userId"`
-	UserEmail string    `json:"userEmail"`
-	Content   string    `json:"content"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID          string    `json:"id"`
+	AlertID     string    `json:"alertId"`
+	WorkspaceID string    `json:"workspaceId"`
+	UserID      string    `json:"userId"`
+	UserEmail   string    `json:"userEmail"`
+	Content     string    `json:"content"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // AlertNoteFromEntity maps a domain AlertNote to a response DTO.
 func AlertNoteFromEntity(n *entity.AlertNote) AlertNoteResponse {
 	return AlertNoteResponse{
-		ID:        n.ID,
-		WorkspaceID:     n.WorkspaceID,
-		AlertID:   n.AlertID,
-		UserID:    n.UserID,
-		UserEmail: n.UserEmail,
-		Content:   n.Content,
-		CreatedAt: n.CreatedAt,
-		UpdatedAt: n.UpdatedAt,
+		ID:          n.ID,
+		WorkspaceID: n.WorkspaceID,
+		AlertID:     n.AlertID,
+		UserID:      n.UserID,
+		UserEmail:   n.UserEmail,
+		Content:     n.Content,
+		CreatedAt:   n.CreatedAt,
+		UpdatedAt:   n.UpdatedAt,
 	}
 }
 

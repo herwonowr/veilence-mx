@@ -406,7 +406,7 @@ func (r *PackageRepo) RemoveStaleByWorkspaceID(ctx context.Context, workspaceID 
 func packageToDomain(m *Package) *entity.Package {
 	return &entity.Package{
 		ID:                     m.ID,
-		WorkspaceID:                  m.WorkspaceID,
+		WorkspaceID:            m.WorkspaceID,
 		Name:                   m.Name,
 		Ecosystem:              entity.Ecosystem(m.Ecosystem),
 		LatestVersion:          m.LatestVersion,
@@ -426,7 +426,7 @@ func packageToDomain(m *Package) *entity.Package {
 func packageToModel(d *entity.Package) *Package {
 	return &Package{
 		ID:                     d.ID,
-		WorkspaceID:                  d.WorkspaceID,
+		WorkspaceID:            d.WorkspaceID,
 		Name:                   d.Name,
 		Ecosystem:              Ecosystem(d.Ecosystem),
 		LatestVersion:          d.LatestVersion,

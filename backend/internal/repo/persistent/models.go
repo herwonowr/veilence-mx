@@ -40,7 +40,7 @@ const (
 // Package is the GORM model for monitored packages.
 type Package struct {
 	ID                     string        `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	WorkspaceID                  string        `gorm:"type:uuid;not null;index" json:"workspaceId"`
+	WorkspaceID            string        `gorm:"type:uuid;not null;index" json:"workspaceId"`
 	Name                   string        `gorm:"not null" json:"name"`
 	Ecosystem              Ecosystem     `gorm:"column:ecosystem;not null;type:varchar(10)" json:"ecosystem"`
 	LatestVersion          string        `gorm:"type:varchar(100)" json:"latestVersion"`
@@ -170,34 +170,34 @@ const (
 
 // Alert is the GORM model for security alerts.
 type Alert struct {
-	ID         string        `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	WorkspaceID      string        `gorm:"type:uuid;not null;index" json:"workspaceId"`
-	AnalysisID string        `gorm:"type:uuid;not null;index" json:"analysisId"`
-	Analysis   Analysis      `gorm:"foreignKey:AnalysisID" json:"-"`
-	ReleaseID  *string       `gorm:"type:uuid;index" json:"releaseId"`
-	Release    Release       `gorm:"foreignKey:ReleaseID" json:"-"`
-	PackageID  string        `gorm:"type:uuid;not null;index" json:"packageId"`
-	Package    Package       `gorm:"foreignKey:PackageID" json:"-"`
-	Severity   AlertSeverity `gorm:"not null;type:varchar(20)" json:"severity"`
-	Status     AlertStatus   `gorm:"not null;type:varchar(20);default:'new'" json:"status"`
-	Message    string        `gorm:"type:text" json:"message"`
-	CreatedAt  time.Time     `json:"createdAt"`
-	UpdatedAt  time.Time     `json:"updatedAt"`
+	ID          string        `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	WorkspaceID string        `gorm:"type:uuid;not null;index" json:"workspaceId"`
+	AnalysisID  string        `gorm:"type:uuid;not null;index" json:"analysisId"`
+	Analysis    Analysis      `gorm:"foreignKey:AnalysisID" json:"-"`
+	ReleaseID   *string       `gorm:"type:uuid;index" json:"releaseId"`
+	Release     Release       `gorm:"foreignKey:ReleaseID" json:"-"`
+	PackageID   string        `gorm:"type:uuid;not null;index" json:"packageId"`
+	Package     Package       `gorm:"foreignKey:PackageID" json:"-"`
+	Severity    AlertSeverity `gorm:"not null;type:varchar(20)" json:"severity"`
+	Status      AlertStatus   `gorm:"not null;type:varchar(20);default:'new'" json:"status"`
+	Message     string        `gorm:"type:text" json:"message"`
+	CreatedAt   time.Time     `json:"createdAt"`
+	UpdatedAt   time.Time     `json:"updatedAt"`
 }
 
 func (Alert) TableName() string { return "alerts" }
 
 // AlertNote is the GORM model for alert notes/comments.
 type AlertNote struct {
-	ID        string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	AlertID   string    `gorm:"type:uuid;not null;index" json:"alertId"`
-	Alert     Alert     `gorm:"foreignKey:AlertID" json:"-"`
-	WorkspaceID string      `gorm:"type:uuid;not null;index" json:"workspaceId"`
-	UserID    string    `gorm:"type:uuid;not null;index" json:"userId"`
-	UserEmail string    `gorm:"type:varchar(255)" json:"userEmail"`
-	Content   string    `gorm:"not null;type:text" json:"content"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID          string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	AlertID     string    `gorm:"type:uuid;not null;index" json:"alertId"`
+	Alert       Alert     `gorm:"foreignKey:AlertID" json:"-"`
+	WorkspaceID string    `gorm:"type:uuid;not null;index" json:"workspaceId"`
+	UserID      string    `gorm:"type:uuid;not null;index" json:"userId"`
+	UserEmail   string    `gorm:"type:varchar(255)" json:"userEmail"`
+	Content     string    `gorm:"not null;type:text" json:"content"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 func (AlertNote) TableName() string { return "alert_notes" }
@@ -206,18 +206,18 @@ func (AlertNote) TableName() string { return "alert_notes" }
 
 // User is the GORM model for system users.
 type User struct {
-	ID            string         `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	Email         string         `gorm:"uniqueIndex;not null;type:varchar(255)" json:"email"`
-	PasswordHash  string         `gorm:"type:varchar(255)" json:"-"`
-	FirstName     string         `gorm:"type:varchar(100)" json:"firstName"`
-	LastName      string         `gorm:"type:varchar(100)" json:"lastName"`
-	IsActive      bool           `gorm:"not null;default:true" json:"isActive"`
-	EmailVerified bool           `gorm:"not null;default:false" json:"emailVerified"`
-	MustChangePassword bool      `gorm:"not null;default:false" json:"mustChangePassword"`
-	LastLoginAt   *time.Time     `json:"lastLoginAt,omitempty"`
-	CreatedAt     time.Time      `json:"createdAt"`
-	UpdatedAt     time.Time      `json:"updatedAt"`
-	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                 string         `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	Email              string         `gorm:"uniqueIndex;not null;type:varchar(255)" json:"email"`
+	PasswordHash       string         `gorm:"type:varchar(255)" json:"-"`
+	FirstName          string         `gorm:"type:varchar(100)" json:"firstName"`
+	LastName           string         `gorm:"type:varchar(100)" json:"lastName"`
+	IsActive           bool           `gorm:"not null;default:true" json:"isActive"`
+	EmailVerified      bool           `gorm:"not null;default:false" json:"emailVerified"`
+	MustChangePassword bool           `gorm:"not null;default:false" json:"mustChangePassword"`
+	LastLoginAt        *time.Time     `json:"lastLoginAt,omitempty"`
+	CreatedAt          time.Time      `json:"createdAt"`
+	UpdatedAt          time.Time      `json:"updatedAt"`
+	DeletedAt          gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (User) TableName() string { return "users" }
@@ -276,15 +276,15 @@ func (Workspace) TableName() string { return "workspaces" }
 
 // WorkspaceMember is the GORM model for workspace memberships.
 type WorkspaceMember struct {
-	ID        string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	WorkspaceID string      `gorm:"type:uuid;not null;uniqueIndex:idx_workspace_user" json:"workspaceId"`
-	UserID    string    `gorm:"type:uuid;not null;uniqueIndex:idx_workspace_user" json:"userId"`
-	RoleID    string    `gorm:"type:uuid;not null" json:"roleId"`
-	Role      Role      `gorm:"foreignKey:RoleID" json:"role"`
-	User      User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
-	JoinedAt  time.Time `gorm:"not null" json:"joinedAt"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID          string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	WorkspaceID string    `gorm:"type:uuid;not null;uniqueIndex:idx_workspace_user" json:"workspaceId"`
+	UserID      string    `gorm:"type:uuid;not null;uniqueIndex:idx_workspace_user" json:"userId"`
+	RoleID      string    `gorm:"type:uuid;not null" json:"roleId"`
+	Role        Role      `gorm:"foreignKey:RoleID" json:"role"`
+	User        User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	JoinedAt    time.Time `gorm:"not null" json:"joinedAt"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 func (WorkspaceMember) TableName() string { return "workspace_members" }
@@ -294,7 +294,7 @@ func (WorkspaceMember) TableName() string { return "workspace_members" }
 // Role is the GORM model for roles.
 type Role struct {
 	ID          string       `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	WorkspaceID       string       `gorm:"type:uuid;not null;index" json:"workspaceId"`
+	WorkspaceID string       `gorm:"type:uuid;not null;index" json:"workspaceId"`
 	Name        string       `gorm:"not null;type:varchar(50)" json:"name"`
 	Description string       `gorm:"type:text" json:"description"`
 	IsSystem    bool         `gorm:"not null;default:false" json:"isSystem"`
@@ -353,16 +353,16 @@ var SystemPermissions = []Permission{
 
 // Invitation is the GORM model for workspace invitations.
 type Invitation struct {
-	ID         string     `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	WorkspaceID      string     `gorm:"type:uuid;not null;index" json:"workspaceId"`
-	Email      string     `gorm:"not null;type:varchar(255)" json:"email"`
-	RoleID     string     `gorm:"type:uuid;not null" json:"roleId"`
-	TokenHash  string     `gorm:"uniqueIndex;not null;type:varchar(255);column:token_hash" json:"-"`
-	InvitedBy  string     `gorm:"type:uuid;not null" json:"invitedBy"`
-	ExpiresAt  time.Time  `gorm:"not null" json:"expiresAt"`
-	AcceptedAt *time.Time `json:"acceptedAt,omitempty"`
-	DeclinedAt *time.Time `json:"declinedAt,omitempty"`
-	CreatedAt  time.Time  `json:"createdAt"`
+	ID          string     `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	WorkspaceID string     `gorm:"type:uuid;not null;index" json:"workspaceId"`
+	Email       string     `gorm:"not null;type:varchar(255)" json:"email"`
+	RoleID      string     `gorm:"type:uuid;not null" json:"roleId"`
+	TokenHash   string     `gorm:"uniqueIndex;not null;type:varchar(255);column:token_hash" json:"-"`
+	InvitedBy   string     `gorm:"type:uuid;not null" json:"invitedBy"`
+	ExpiresAt   time.Time  `gorm:"not null" json:"expiresAt"`
+	AcceptedAt  *time.Time `json:"acceptedAt,omitempty"`
+	DeclinedAt  *time.Time `json:"declinedAt,omitempty"`
+	CreatedAt   time.Time  `json:"createdAt"`
 }
 
 func (Invitation) TableName() string { return "invitations" }
@@ -390,12 +390,12 @@ func (AuditLog) TableName() string { return "audit_logs" }
 
 // Setting is the GORM model for system settings.
 type Setting struct {
-	ID        string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	WorkspaceID string      `gorm:"type:uuid;index;not null;uniqueIndex:idx_settings_workspace_key" json:"workspaceId"`
-	Key       string    `gorm:"not null;type:varchar(100);uniqueIndex:idx_settings_workspace_key" json:"key"`
-	Value     string    `gorm:"type:text" json:"value"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID          string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	WorkspaceID string    `gorm:"type:uuid;index;not null;uniqueIndex:idx_settings_workspace_key" json:"workspaceId"`
+	Key         string    `gorm:"not null;type:varchar(100);uniqueIndex:idx_settings_workspace_key" json:"key"`
+	Value       string    `gorm:"type:text" json:"value"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 func (Setting) TableName() string { return "settings" }
@@ -413,27 +413,27 @@ const (
 
 // NotificationChannel is the GORM model for notification channels.
 type NotificationChannel struct {
-	ID        string                  `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	WorkspaceID string                    `gorm:"type:uuid;not null;index" json:"workspaceId"`
-	Name      string                  `gorm:"not null;type:varchar(100)" json:"name"`
-	Type      NotificationChannelType `gorm:"not null;type:varchar(20)" json:"type"`
-	Config    string                  `gorm:"type:text" json:"config"`
-	IsActive  bool                    `gorm:"not null;default:true" json:"isActive"`
-	CreatedAt time.Time               `json:"createdAt"`
-	UpdatedAt time.Time               `json:"updatedAt"`
+	ID          string                  `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	WorkspaceID string                  `gorm:"type:uuid;not null;index" json:"workspaceId"`
+	Name        string                  `gorm:"not null;type:varchar(100)" json:"name"`
+	Type        NotificationChannelType `gorm:"not null;type:varchar(20)" json:"type"`
+	Config      string                  `gorm:"type:text" json:"config"`
+	IsActive    bool                    `gorm:"not null;default:true" json:"isActive"`
+	CreatedAt   time.Time               `json:"createdAt"`
+	UpdatedAt   time.Time               `json:"updatedAt"`
 }
 
 func (NotificationChannel) TableName() string { return "notification_channels" }
 
 // NotificationRule is the GORM model for notification rules.
 type NotificationRule struct {
-	ID        string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	WorkspaceID string      `gorm:"type:uuid;not null;index" json:"workspaceId"`
-	ChannelID string    `gorm:"type:uuid;not null;index" json:"channelId"`
-	Severity  string    `gorm:"type:varchar(20)" json:"severity"`
-	IsActive  bool      `gorm:"not null;default:true" json:"isActive"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID          string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	WorkspaceID string    `gorm:"type:uuid;not null;index" json:"workspaceId"`
+	ChannelID   string    `gorm:"type:uuid;not null;index" json:"channelId"`
+	Severity    string    `gorm:"type:varchar(20)" json:"severity"`
+	IsActive    bool      `gorm:"not null;default:true" json:"isActive"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 func (NotificationRule) TableName() string { return "notification_rules" }

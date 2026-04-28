@@ -103,4 +103,3 @@ func ValidateOneOf(value, name string, allowed []string) error {
 	}
 	return fmt.Errorf("%s must be one of: %s", name, strings.Join(allowed, ", "))
 }
-

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect, forwardRef, useImperativeHandle, useRef, useMemo } from "react"
+import { useState, useCallback, useEffect, useImperativeHandle, useRef, useMemo, type Ref } from "react"
 import { useSearchParams } from "next/navigation"
 import { useFilterParams } from "@/core"
 import {
@@ -42,6 +42,7 @@ export interface QueueJobsBrowserHandle {
 }
 
 interface QueueJobsBrowserProps {
+  ref?: Ref<QueueJobsBrowserHandle>
   diffStats?: QueueStats | null
   analyzeStats?: QueueStats | null
 }
@@ -83,9 +84,7 @@ const formatTimestamp = (unix: number): string => {
   })
 }
 
-// eslint-disable-next-line react/display-name
-export const QueueJobsBrowser = forwardRef<QueueJobsBrowserHandle, QueueJobsBrowserProps>(
-  ({ diffStats, analyzeStats }, ref) => {
+export const QueueJobsBrowser = ({ diffStats, analyzeStats, ref }: QueueJobsBrowserProps) => {
     const containerRef = useRef<HTMLDivElement>(null)
     const searchParams = useSearchParams()
 
@@ -296,7 +295,6 @@ export const QueueJobsBrowser = forwardRef<QueueJobsBrowserHandle, QueueJobsBrow
       </div>
     )
   }
-)
 
 // ─── Empty States ─────────────────────────────────────────────
 

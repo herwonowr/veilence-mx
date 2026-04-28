@@ -16,25 +16,25 @@ const (
 
 // NotificationChannel represents a configured channel for sending notifications.
 type NotificationChannel struct {
-	ID             string
-	WorkspaceID    string
-	Name           string
-	Type           NotificationChannelType
-	Config         string
-	IsActive       bool
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID          string
+	WorkspaceID string
+	Name        string
+	Type        NotificationChannelType
+	Config      string
+	IsActive    bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // NotificationRule defines a routing rule that maps severity levels to channels.
 type NotificationRule struct {
-	ID             string
-	WorkspaceID    string
-	ChannelID      string
-	Severity       string
-	IsActive       bool
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID          string
+	WorkspaceID string
+	ChannelID   string
+	Severity    string
+	IsActive    bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // Notification represents an in-app notification sent to a user or workspace.

@@ -78,7 +78,7 @@ export const WorkspacesListView = () => {
     setSlug(generateSlug(value))
   }
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError("")
     setFieldErrors({})

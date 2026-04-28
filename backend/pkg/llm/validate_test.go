@@ -30,9 +30,9 @@ func TestValidateResult_InvalidClassification(t *testing.T) {
 
 func TestValidateResult_ConfidenceClamp(t *testing.T) {
 	tests := []struct {
-		name       string
-		input      float64
-		expected   float64
+		name     string
+		input    float64
+		expected float64
 	}{
 		{"negative", -0.5, 0},
 		{"above one", 1.5, 1},

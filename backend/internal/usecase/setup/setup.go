@@ -56,9 +56,9 @@ type InitializeRequest struct {
 
 // InitializeResult holds the result of the initial setup.
 type InitializeResult struct {
-	User        *entity.User
-	Workspace   *entity.Workspace
-	AccessToken string
+	User         *entity.User
+	Workspace    *entity.Workspace
+	AccessToken  string
 	RefreshToken string
 }
 

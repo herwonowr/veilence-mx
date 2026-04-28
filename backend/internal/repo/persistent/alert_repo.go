@@ -231,31 +231,31 @@ func (r *AlertRepo) CountByWorkspaceAndStatus(ctx context.Context, workspaceID s
 
 func alertToDomain(m *Alert) *entity.Alert {
 	return &entity.Alert{
-		ID:         m.ID,
-		WorkspaceID:      m.WorkspaceID,
-		AnalysisID: m.AnalysisID,
-		ReleaseID:  derefStr(m.ReleaseID),
-		PackageID:  m.PackageID,
-		Severity:   entity.AlertSeverity(m.Severity),
-		Status:     entity.AlertStatus(m.Status),
-		Message:    m.Message,
-		CreatedAt:  m.CreatedAt,
-		UpdatedAt:  m.UpdatedAt,
+		ID:          m.ID,
+		WorkspaceID: m.WorkspaceID,
+		AnalysisID:  m.AnalysisID,
+		ReleaseID:   derefStr(m.ReleaseID),
+		PackageID:   m.PackageID,
+		Severity:    entity.AlertSeverity(m.Severity),
+		Status:      entity.AlertStatus(m.Status),
+		Message:     m.Message,
+		CreatedAt:   m.CreatedAt,
+		UpdatedAt:   m.UpdatedAt,
 	}
 }
 
 func alertToModel(d *entity.Alert) *Alert {
 	return &Alert{
-		ID:         d.ID,
-		WorkspaceID:      d.WorkspaceID,
-		AnalysisID: d.AnalysisID,
-		ReleaseID:  strToNullableUUID(d.ReleaseID),
-		PackageID:  d.PackageID,
-		Severity:   AlertSeverity(d.Severity),
-		Status:     AlertStatus(d.Status),
-		Message:    d.Message,
-		CreatedAt:  d.CreatedAt,
-		UpdatedAt:  d.UpdatedAt,
+		ID:          d.ID,
+		WorkspaceID: d.WorkspaceID,
+		AnalysisID:  d.AnalysisID,
+		ReleaseID:   strToNullableUUID(d.ReleaseID),
+		PackageID:   d.PackageID,
+		Severity:    AlertSeverity(d.Severity),
+		Status:      AlertStatus(d.Status),
+		Message:     d.Message,
+		CreatedAt:   d.CreatedAt,
+		UpdatedAt:   d.UpdatedAt,
 	}
 }
 

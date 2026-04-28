@@ -47,7 +47,7 @@ func (h *WorkspaceHandlers) CreateWorkspace(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	ws, err := h.RBAC.CreateWorkspace(userID, req.Name, req.Slug, req.Description)
+	ws, err := h.RBAC.CreateWorkspace(r.Context(), userID, req.Name, req.Slug, req.Description)
 	if err != nil {
 		if errors.Is(err, rbac.ErrSlugTaken) {
 			respondError(w, http.StatusConflict, "Workspace slug is already taken")
@@ -73,7 +73,7 @@ func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	orgs, err := h.RBAC.GetUserWorkspaces(userID)
+	orgs, err := h.RBAC.GetUserWorkspaces(r.Context(), userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to list workspaces")
 		return
@@ -92,7 +92,7 @@ func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Reques
 		}
 
 		// Populate member count
-		if members, err := h.RBAC.GetWorkspaceMembers(o.ID); err == nil {
+		if members, err := h.RBAC.GetWorkspaceMembers(r.Context(), o.ID); err == nil {
 			memberCount := int64(len(members))
 			result[i].MemberCount = &memberCount
 		}
@@ -108,7 +108,7 @@ func (h *WorkspaceHandlers) GetWorkspace(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	ws, err := h.RBAC.GetWorkspace(workspaceID)
+	ws, err := h.RBAC.GetWorkspace(r.Context(), workspaceID)
 	if err != nil {
 		if errors.Is(err, rbac.ErrWorkspaceNotFound) {
 			respondError(w, http.StatusNotFound, "Workspace not found")
@@ -139,7 +139,7 @@ func (h *WorkspaceHandlers) UpdateWorkspace(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Fetch existing workspace to fill in missing fields (support partial updates)
-	existingOrg, err := h.RBAC.GetWorkspace(workspaceID)
+	existingOrg, err := h.RBAC.GetWorkspace(r.Context(), workspaceID)
 	if err != nil {
 		respondError(w, http.StatusNotFound, "Workspace not found")
 		return
@@ -162,7 +162,7 @@ func (h *WorkspaceHandlers) UpdateWorkspace(w http.ResponseWriter, r *http.Reque
 		description = *req.Description
 	}
 
-	ws, err := h.RBAC.UpdateWorkspace(workspaceID, name, slug, description)
+	ws, err := h.RBAC.UpdateWorkspace(r.Context(), workspaceID, name, slug, description)
 	if err != nil {
 		if errors.Is(err, rbac.ErrWorkspaceNotFound) {
 			respondError(w, http.StatusNotFound, "Workspace not found")
@@ -193,9 +193,9 @@ func (h *WorkspaceHandlers) DeleteWorkspace(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Fetch workspace name before deletion for audit log readability.
-	wsForAudit, _ := h.RBAC.GetWorkspace(workspaceID)
+	wsForAudit, _ := h.RBAC.GetWorkspace(r.Context(), workspaceID)
 
-	if err := h.RBAC.DeleteWorkspace(workspaceID); err != nil {
+	if err := h.RBAC.DeleteWorkspace(r.Context(), workspaceID); err != nil {
 		if errors.Is(err, rbac.ErrWorkspaceNotFound) {
 			respondError(w, http.StatusNotFound, "Workspace not found")
 			return

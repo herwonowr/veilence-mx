@@ -86,26 +86,26 @@ func (r *NotificationChannelRepo) DeleteByIDAndWorkspace(ctx context.Context, id
 
 func notifChannelToDomain(m *NotificationChannel) *entity.NotificationChannel {
 	return &entity.NotificationChannel{
-		ID:        m.ID,
-		WorkspaceID:     m.WorkspaceID,
-		Name:      m.Name,
-		Type:      entity.NotificationChannelType(m.Type),
-		Config:    m.Config,
-		IsActive:  m.IsActive,
-		CreatedAt: m.CreatedAt,
-		UpdatedAt: m.UpdatedAt,
+		ID:          m.ID,
+		WorkspaceID: m.WorkspaceID,
+		Name:        m.Name,
+		Type:        entity.NotificationChannelType(m.Type),
+		Config:      m.Config,
+		IsActive:    m.IsActive,
+		CreatedAt:   m.CreatedAt,
+		UpdatedAt:   m.UpdatedAt,
 	}
 }
 
 func notifChannelToModel(d *entity.NotificationChannel) *NotificationChannel {
 	return &NotificationChannel{
-		ID:        d.ID,
-		WorkspaceID:     d.WorkspaceID,
-		Name:      d.Name,
-		Type:      NotificationChannelType(d.Type),
-		Config:    d.Config,
-		IsActive:  d.IsActive,
-		CreatedAt: d.CreatedAt,
-		UpdatedAt: d.UpdatedAt,
+		ID:          d.ID,
+		WorkspaceID: d.WorkspaceID,
+		Name:        d.Name,
+		Type:        NotificationChannelType(d.Type),
+		Config:      d.Config,
+		IsActive:    d.IsActive,
+		CreatedAt:   d.CreatedAt,
+		UpdatedAt:   d.UpdatedAt,
 	}
 }

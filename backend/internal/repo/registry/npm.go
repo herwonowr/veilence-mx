@@ -187,9 +187,9 @@ func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pac
 
 		for _, obj := range searchResp.Objects {
 			allRankings = append(allRankings, entity.PackageRanking{
-				Name:            obj.Package.Name,
-				DownloadCount:   obj.Downloads.Monthly,
-				Rank:            fetched + len(allRankings) - len(allRankings) + len(allRankings) + 1,
+				Name:          obj.Package.Name,
+				DownloadCount: obj.Downloads.Monthly,
+				Rank:          fetched + len(allRankings) - len(allRankings) + len(allRankings) + 1,
 			})
 		}
 

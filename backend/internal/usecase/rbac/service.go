@@ -17,27 +17,27 @@ import (
 
 // Common errors returned by the RBAC service.
 var (
-	ErrWorkspaceNotFound        = errors.New("workspace not found")
-	ErrMemberNotFound     = errors.New("member not found")
-	ErrInvitationNotFound = errors.New("invitation not found")
-	ErrInvitationExpired  = errors.New("invitation has expired")
-	ErrInvitationAccepted = errors.New("invitation already accepted")
-	ErrAlreadyMember      = errors.New("user is already a member of this workspace")
-	ErrCannotRemoveOwner  = errors.New("cannot remove the workspace owner")
-	ErrCannotChangeOwner  = errors.New("cannot change the owner's role")
-	ErrRoleNotFound       = errors.New("role not found")
-	ErrPermissionDenied   = errors.New("permission denied")
-	ErrSlugTaken            = errors.New("workspace slug is already taken")
+	ErrWorkspaceNotFound       = errors.New("workspace not found")
+	ErrMemberNotFound          = errors.New("member not found")
+	ErrInvitationNotFound      = errors.New("invitation not found")
+	ErrInvitationExpired       = errors.New("invitation has expired")
+	ErrInvitationAccepted      = errors.New("invitation already accepted")
+	ErrAlreadyMember           = errors.New("user is already a member of this workspace")
+	ErrCannotRemoveOwner       = errors.New("cannot remove the workspace owner")
+	ErrCannotChangeOwner       = errors.New("cannot change the owner's role")
+	ErrRoleNotFound            = errors.New("role not found")
+	ErrPermissionDenied        = errors.New("permission denied")
+	ErrSlugTaken               = errors.New("workspace slug is already taken")
 	ErrInvitationEmailMismatch = errors.New("invitation email does not match accepting user")
-	ErrInvitationDeclined   = errors.New("invitation has been declined")
-	ErrInvitationsDisabled  = errors.New("invitations are disabled when registration is off")
+	ErrInvitationDeclined      = errors.New("invitation has been declined")
+	ErrInvitationsDisabled     = errors.New("invitations are disabled when registration is off")
 )
 
 // Service provides RBAC and workspace management operations.
 type Service struct {
 	repo                RBACRepository
-	emailSender         InvitationEmailSender  // nil = no email delivery (dev mode)
-	userResolver        UserEmailResolver      // nil = falls back to user ID in emails
+	emailSender         InvitationEmailSender // nil = no email delivery (dev mode)
+	userResolver        UserEmailResolver     // nil = falls back to user ID in emails
 	registrationEnabled bool
 	allowedEmailDomains []string
 	userCreator         UserAccountCreator     // nil = add-user not available
@@ -81,12 +81,9 @@ func WithPasswordResetInitiator(p PasswordResetInitiator) ServiceOption {
 	return func(s *Service) { s.passwordResetInit = p }
 }
 
-
 // CreateWorkspace creates a new workspace, seeds default roles, and assigns
 // the creating user as the owner.
-func (s *Service) CreateWorkspace(userID string, name, slug, description string) (*entity.Workspace, error) {
-	ctx := ctx_bg()
-
+func (s *Service) CreateWorkspace(ctx context.Context, userID string, name, slug, description string) (*entity.Workspace, error) {
 	// Check slug uniqueness
 	count, _ := s.repo.CountWorkspacesBySlug(ctx, slug, nil)
 	if count > 0 {
@@ -146,18 +143,18 @@ func (s *Service) CreateWorkspace(userID string, name, slug, description string)
 
 // createDefaultRoles creates the four system roles (owner, admin, member, viewer)
 // with their respective permissions for the given workspace.
-func (s *Service) createDefaultRoles(ctx_unused interface{}, tx RBACRepository, workspaceID string) ([]entity.Role, error) {
-	return usecase.CreateDefaultRoles(ctx_bg(), tx, workspaceID)
+func (s *Service) createDefaultRoles(ctx context.Context, tx RBACRepository, workspaceID string) ([]entity.Role, error) {
+	return usecase.CreateDefaultRoles(ctx, tx, workspaceID)
 }
 
 // GetUserWorkspaces returns all workspaces the user is a member of.
-func (s *Service) GetUserWorkspaces(userID string) ([]entity.Workspace, error) {
-	return s.repo.FindWorkspacesByUserID(ctx_bg(), userID)
+func (s *Service) GetUserWorkspaces(ctx context.Context, userID string) ([]entity.Workspace, error) {
+	return s.repo.FindWorkspacesByUserID(ctx, userID)
 }
 
 // GetWorkspace returns a single workspace by ID.
-func (s *Service) GetWorkspace(workspaceID string) (*entity.Workspace, error) {
-	ws, err := s.repo.FindWorkspaceByID(ctx_bg(), workspaceID)
+func (s *Service) GetWorkspace(ctx context.Context, workspaceID string) (*entity.Workspace, error) {
+	ws, err := s.repo.FindWorkspaceByID(ctx, workspaceID)
 	if err != nil {
 		return nil, ErrWorkspaceNotFound
 	}
@@ -165,9 +162,7 @@ func (s *Service) GetWorkspace(workspaceID string) (*entity.Workspace, error) {
 }
 
 // UpdateWorkspace updates the workspace's name, slug, and description.
-func (s *Service) UpdateWorkspace(workspaceID string, name, slug, description string) (*entity.Workspace, error) {
-	ctx := ctx_bg()
-
+func (s *Service) UpdateWorkspace(ctx context.Context, workspaceID string, name, slug, description string) (*entity.Workspace, error) {
 	ws, err := s.repo.FindWorkspaceByID(ctx, workspaceID)
 	if err != nil {
 		return nil, ErrWorkspaceNotFound
@@ -192,8 +187,8 @@ func (s *Service) UpdateWorkspace(workspaceID string, name, slug, description st
 }
 
 // DeleteWorkspace soft-deletes the workspace.
-func (s *Service) DeleteWorkspace(workspaceID string) error {
-	if err := s.repo.SoftDeleteWorkspace(ctx_bg(), workspaceID); err != nil {
+func (s *Service) DeleteWorkspace(ctx context.Context, workspaceID string) error {
+	if err := s.repo.SoftDeleteWorkspace(ctx, workspaceID); err != nil {
 		return ErrWorkspaceNotFound
 	}
 	slog.Info("workspace deleted", "workspace_id", workspaceID)
@@ -201,19 +196,17 @@ func (s *Service) DeleteWorkspace(workspaceID string) error {
 }
 
 // GetWorkspaceMembers returns all members of a workspace with their roles and user data.
-func (s *Service) GetWorkspaceMembers(workspaceID string) ([]entity.WorkspaceMember, error) {
-	return s.repo.FindMembersByWorkspaceID(ctx_bg(), workspaceID)
+func (s *Service) GetWorkspaceMembers(ctx context.Context, workspaceID string) ([]entity.WorkspaceMember, error) {
+	return s.repo.FindMembersByWorkspaceID(ctx, workspaceID)
 }
 
 // InviteMember creates an invitation for a user to join a workspace.
 // Returns the invitation and the raw token (for inclusion in the invitation URL).
 // Only the SHA-256 hash of the token is stored in the database.
-func (s *Service) InviteMember(workspaceID string, email string, roleID string, invitedBy string, inviterEmail string) (*entity.Invitation, string, error) {
+func (s *Service) InviteMember(ctx context.Context, workspaceID string, email string, roleID string, invitedBy string, inviterEmail string) (*entity.Invitation, string, error) {
 	if !s.registrationEnabled {
 		return nil, "", ErrInvitationsDisabled
 	}
-
-	ctx := ctx_bg()
 
 	// Normalize and validate email domain
 	email = normalizeEmailRBAC(email)
@@ -272,12 +265,10 @@ func (s *Service) InviteMember(workspaceID string, email string, roleID string, 
 // AcceptInvitation accepts a pending invitation and creates a membership.
 // The userEmail is compared against the invitation email to prevent unauthorized
 // acceptance. If the emails don't match, ErrInvitationEmailMismatch is returned.
-func (s *Service) AcceptInvitation(token string, userID string, userEmail string) (*entity.WorkspaceMember, error) {
+func (s *Service) AcceptInvitation(ctx context.Context, token string, userID string, userEmail string) (*entity.WorkspaceMember, error) {
 	if !s.registrationEnabled {
 		return nil, ErrInvitationsDisabled
 	}
-
-	ctx := ctx_bg()
 
 	invitation, err := s.repo.FindInvitationByTokenHash(ctx, hashToken(token))
 	if err != nil || invitation == nil {
@@ -340,12 +331,10 @@ func (s *Service) AcceptInvitation(token string, userID string, userEmail string
 // DeclineInvitationByToken declines a pending invitation using the raw token.
 // The userEmail is compared against the invitation email to prevent unauthorized
 // decline. If the emails don't match, ErrInvitationEmailMismatch is returned.
-func (s *Service) DeclineInvitationByToken(token string, userEmail string) error {
+func (s *Service) DeclineInvitationByToken(ctx context.Context, token string, userEmail string) error {
 	if !s.registrationEnabled {
 		return ErrInvitationsDisabled
 	}
-
-	ctx := ctx_bg()
 
 	invitation, err := s.repo.FindInvitationByTokenHash(ctx, hashToken(token))
 	if err != nil || invitation == nil {
@@ -381,11 +370,11 @@ func (s *Service) DeclineInvitationByToken(token string, userEmail string) error
 // GetInvitationByToken returns invitation details by token. This allows the
 // frontend to show the user what workspace they are being invited to before
 // accepting. Does not require authentication.
-func (s *Service) GetInvitationByToken(token string) (*entity.Invitation, error) {
+func (s *Service) GetInvitationByToken(ctx context.Context, token string) (*entity.Invitation, error) {
 	if !s.registrationEnabled {
 		return nil, ErrInvitationsDisabled
 	}
-	invitation, err := s.repo.FindInvitationByTokenHash(ctx_bg(), hashToken(token))
+	invitation, err := s.repo.FindInvitationByTokenHash(ctx, hashToken(token))
 	if err != nil || invitation == nil {
 		return nil, ErrInvitationNotFound
 	}
@@ -394,20 +383,20 @@ func (s *Service) GetInvitationByToken(token string) (*entity.Invitation, error)
 
 // ListPendingInvitations returns all pending (not accepted, not expired)
 // invitations for a workspace.
-func (s *Service) ListPendingInvitations(workspaceID string) ([]entity.Invitation, error) {
+func (s *Service) ListPendingInvitations(ctx context.Context, workspaceID string) ([]entity.Invitation, error) {
 	if !s.registrationEnabled {
 		return nil, ErrInvitationsDisabled
 	}
-	return s.repo.FindPendingInvitations(ctx_bg(), workspaceID)
+	return s.repo.FindPendingInvitations(ctx, workspaceID)
 }
 
 // RevokeInvitation deletes a pending invitation by ID and workspace. Only pending
 // (not accepted) invitations can be revoked.
-func (s *Service) RevokeInvitation(workspaceID, invitationID string) error {
+func (s *Service) RevokeInvitation(ctx context.Context, workspaceID, invitationID string) error {
 	if !s.registrationEnabled {
 		return ErrInvitationsDisabled
 	}
-	if err := s.repo.DeletePendingInvitation(ctx_bg(), workspaceID, invitationID); err != nil {
+	if err := s.repo.DeletePendingInvitation(ctx, workspaceID, invitationID); err != nil {
 		return ErrInvitationNotFound
 	}
 	slog.Info("invitation revoked", "invitation_id", invitationID, "workspace_id", workspaceID)
@@ -417,12 +406,10 @@ func (s *Service) RevokeInvitation(workspaceID, invitationID string) error {
 // ResendInvitation generates a new token, extends the expiry, and resends the
 // invitation email. Only pending (not accepted, not expired) invitations can
 // be resent. Returns the invitation and the new raw token.
-func (s *Service) ResendInvitation(workspaceID, invitationID string) (*entity.Invitation, string, error) {
+func (s *Service) ResendInvitation(ctx context.Context, workspaceID, invitationID string) (*entity.Invitation, string, error) {
 	if !s.registrationEnabled {
 		return nil, "", ErrInvitationsDisabled
 	}
-
-	ctx := ctx_bg()
 
 	invitation, err := s.repo.FindInvitationByID(ctx, workspaceID, invitationID)
 	if err != nil || invitation == nil {
@@ -467,12 +454,10 @@ func (s *Service) ResendInvitation(workspaceID, invitationID string) (*entity.In
 
 // DeclineInvitationByID declines an invitation by ID. The userEmail must
 // match the invitation email. Only pending invitations can be declined.
-func (s *Service) DeclineInvitationByID(invitationID string, userEmail string) error {
+func (s *Service) DeclineInvitationByID(ctx context.Context, invitationID string, userEmail string) error {
 	if !s.registrationEnabled {
 		return ErrInvitationsDisabled
 	}
-
-	ctx := ctx_bg()
 
 	invitation, err := s.repo.FindInvitationByIDGlobal(ctx, invitationID)
 	if err != nil || invitation == nil {
@@ -507,12 +492,10 @@ func (s *Service) DeclineInvitationByID(invitationID string, userEmail string) e
 
 // AcceptInvitationByID accepts a pending invitation by ID and creates a membership.
 // The userEmail must match the invitation email.
-func (s *Service) AcceptInvitationByID(invitationID string, userID string, userEmail string) (*entity.WorkspaceMember, error) {
+func (s *Service) AcceptInvitationByID(ctx context.Context, invitationID string, userID string, userEmail string) (*entity.WorkspaceMember, error) {
 	if !s.registrationEnabled {
 		return nil, ErrInvitationsDisabled
 	}
-
-	ctx := ctx_bg()
 
 	invitation, err := s.repo.FindInvitationByIDGlobal(ctx, invitationID)
 	if err != nil || invitation == nil {
@@ -569,17 +552,15 @@ func (s *Service) AcceptInvitationByID(invitationID string, userID string, userE
 }
 
 // ListMyInvitations returns all pending invitations for a given email address.
-func (s *Service) ListMyInvitations(email string) ([]entity.Invitation, error) {
+func (s *Service) ListMyInvitations(ctx context.Context, email string) ([]entity.Invitation, error) {
 	if !s.registrationEnabled {
 		return nil, ErrInvitationsDisabled
 	}
-	return s.repo.FindPendingInvitationsByEmail(ctx_bg(), email)
+	return s.repo.FindPendingInvitationsByEmail(ctx, email)
 }
 
 // RemoveMember removes a user from a workspace. The owner cannot be removed.
-func (s *Service) RemoveMember(workspaceID, userID string) error {
-	ctx := ctx_bg()
-
+func (s *Service) RemoveMember(ctx context.Context, workspaceID, userID string) error {
 	// Check if user is the owner
 	ws, err := s.repo.FindWorkspaceByID(ctx, workspaceID)
 	if err != nil {
@@ -599,9 +580,7 @@ func (s *Service) RemoveMember(workspaceID, userID string) error {
 
 // UpdateMemberRole changes a member's role within a workspace.
 // The owner's role cannot be changed.
-func (s *Service) UpdateMemberRole(workspaceID, userID, newRoleID string) (*entity.WorkspaceMember, error) {
-	ctx := ctx_bg()
-
+func (s *Service) UpdateMemberRole(ctx context.Context, workspaceID, userID, newRoleID string) (*entity.WorkspaceMember, error) {
 	// Check if user is the owner
 	ws, err := s.repo.FindWorkspaceByID(ctx, workspaceID)
 	if err != nil {
@@ -639,8 +618,8 @@ func (s *Service) UpdateMemberRole(workspaceID, userID, newRoleID string) (*enti
 
 // CheckPermission verifies whether a user has a specific permission within a workspace.
 // Returns nil if permitted, ErrPermissionDenied otherwise.
-func (s *Service) CheckPermission(userID, workspaceID string, resource, action string) error {
-	ok, err := s.repo.CheckUserPermission(ctx_bg(), userID, workspaceID, resource, action)
+func (s *Service) CheckPermission(ctx context.Context, userID, workspaceID string, resource, action string) error {
+	ok, err := s.repo.CheckUserPermission(ctx, userID, workspaceID, resource, action)
 	if err != nil {
 		return fmt.Errorf("checking permission: %w", err)
 	}
@@ -654,8 +633,8 @@ func (s *Service) CheckPermission(userID, workspaceID string, resource, action s
 // within a workspace. This is used for API key auth where the key has an assigned
 // role rather than a user membership.
 // Returns nil if permitted, ErrPermissionDenied otherwise.
-func (s *Service) CheckRolePermission(workspaceID string, roleName, resource, action string) error {
-	ok, err := s.repo.CheckRolePermission(ctx_bg(), workspaceID, roleName, resource, action)
+func (s *Service) CheckRolePermission(ctx context.Context, workspaceID string, roleName, resource, action string) error {
+	ok, err := s.repo.CheckRolePermission(ctx, workspaceID, roleName, resource, action)
 	if err != nil {
 		return fmt.Errorf("checking role permission: %w", err)
 	}
@@ -666,18 +645,18 @@ func (s *Service) CheckRolePermission(workspaceID string, roleName, resource, ac
 }
 
 // GetWorkspaceRoles returns all roles for a workspace.
-func (s *Service) GetWorkspaceRoles(workspaceID string) ([]entity.Role, error) {
-	return s.repo.FindRolesByWorkspaceID(ctx_bg(), workspaceID)
+func (s *Service) GetWorkspaceRoles(ctx context.Context, workspaceID string) ([]entity.Role, error) {
+	return s.repo.FindRolesByWorkspaceID(ctx, workspaceID)
 }
 
 // GetAllPermissions returns all system permissions.
-func (s *Service) GetAllPermissions() ([]entity.Permission, error) {
-	return s.repo.FindAllPermissions(ctx_bg())
+func (s *Service) GetAllPermissions(ctx context.Context) ([]entity.Permission, error) {
+	return s.repo.FindAllPermissions(ctx)
 }
 
 // GetUserMembership returns the user's membership record for a workspace.
-func (s *Service) GetUserMembership(userID, workspaceID string) (*entity.WorkspaceMember, error) {
-	member, err := s.repo.FindMemberByUserAndWorkspace(ctx_bg(), userID, workspaceID)
+func (s *Service) GetUserMembership(ctx context.Context, userID, workspaceID string) (*entity.WorkspaceMember, error) {
+	member, err := s.repo.FindMemberByUserAndWorkspace(ctx, userID, workspaceID)
 	if err != nil || member == nil {
 		return nil, ErrMemberNotFound
 	}
@@ -686,8 +665,7 @@ func (s *Service) GetUserMembership(userID, workspaceID string) (*entity.Workspa
 
 // SeedPermissions inserts all system permissions into the database if they
 // don't already exist. This is idempotent and safe to call on every startup.
-func SeedPermissions(repo RBACRepository) error {
-	ctx := ctx_bg()
+func SeedPermissions(ctx context.Context, repo RBACRepository) error {
 	for _, perm := range entity.SystemPermissions {
 		if err := repo.SeedPermission(ctx, perm); err != nil {
 			return fmt.Errorf("seeding permission %s:%s: %w", perm.Resource, perm.Action, err)
@@ -832,6 +810,9 @@ func (s *Service) AddUserToWorkspace(ctx context.Context, workspaceID, email, fi
 		return nil, false, err
 	}
 
+	// Attach role so callers (e.g. audit log) can use the name instead of the ID.
+	member.Role = role
+
 	// Send password reset email for new users without a password (best-effort, after transaction)
 	if userCreated && password == "" && s.passwordResetInit != nil {
 		if err := s.passwordResetInit.InitiatePasswordReset(ctx, email); err != nil {
@@ -841,12 +822,6 @@ func (s *Service) AddUserToWorkspace(ctx context.Context, workspaceID, email, fi
 
 	slog.Info("user added to workspace", "workspace_id", workspaceID, "email", email, "user_created", userCreated)
 	return member, userCreated, nil
-}
-
-// ctx_bg returns a background context. Many RBAC methods don't receive
-// a context parameter (legacy API), so we use background context internally.
-func ctx_bg() context.Context {
-	return context.Background()
 }
 
 // resolveInviterEmail looks up a user's email by ID. Falls back to the raw ID

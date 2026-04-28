@@ -74,7 +74,7 @@ func RequireWorkspace(svc *rbac.Service) func(http.Handler) http.Handler {
 				return
 			}
 
-			member, err := svc.GetUserMembership(userID, workspaceID)
+			member, err := svc.GetUserMembership(r.Context(), userID, workspaceID)
 			if err != nil {
 				slog.Debug("workspace membership check failed",
 					"user_id", userID,
@@ -116,7 +116,7 @@ func RequirePermission(svc *rbac.Service, resource, action string) func(http.Han
 			// than the user's actual workspace membership role.
 			if auth.AuthMethodFromContext(r.Context()) == auth.AuthMethodAPIKey {
 				apiKeyRole := string(auth.APIKeyRoleFromContext(r.Context()))
-				if err := svc.CheckRolePermission(workspaceID, apiKeyRole, resource, action); err != nil {
+				if err := svc.CheckRolePermission(r.Context(), workspaceID, apiKeyRole, resource, action); err != nil {
 					slog.Debug("API key permission denied",
 						"user_id", userID,
 						"workspace_id", workspaceID,
@@ -131,7 +131,7 @@ func RequirePermission(svc *rbac.Service, resource, action string) func(http.Han
 				return
 			}
 
-			if err := svc.CheckPermission(userID, workspaceID, resource, action); err != nil {
+			if err := svc.CheckPermission(r.Context(), userID, workspaceID, resource, action); err != nil {
 				slog.Debug("permission denied",
 					"user_id", userID,
 					"workspace_id", workspaceID,

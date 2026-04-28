@@ -275,7 +275,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	slog.Info("auth service initialized", "require_email_verification", cfg.RequireEmailVerification, "email_sender_configured", authEmailSender != nil, "registration_enabled", cfg.RegistrationEnabled)
 	auditLogRepo := persistent.NewAuditLogRepo(db)
 	rbacRepo := persistent.NewRBACRepo(db)
-	if err := rbac.SeedPermissions(rbacRepo); err != nil {
+	if err := rbac.SeedPermissions(ctx, rbacRepo); err != nil {
 		return nil, fmt.Errorf("seeding permissions: %w", err)
 	}
 	rbacService := rbac.NewService(rbacRepo, invitationEmailSender,
@@ -475,9 +475,9 @@ func seedSettingsDefaults(cfg *config.Config, db *gorm.DB) {
 		entity.SettingDiscoveryAutoApprove:         fmt.Sprintf("%t", cfg.DiscoveryAutoApprove),
 		entity.SettingStaleAutoRemoveMonths:        fmt.Sprintf("%d", cfg.StaleAutoRemoveMonths),
 		entity.SettingPackageCountWarningThreshold: fmt.Sprintf("%d", cfg.PackageCountWarningThreshold),
-		entity.SettingEmailDigestEnabled:            "false",
-		entity.SettingEmailDigestFrequency:          "daily",
-		entity.SettingEmailDigestRecipients:         "",
+		entity.SettingEmailDigestEnabled:           "false",
+		entity.SettingEmailDigestFrequency:         "daily",
+		entity.SettingEmailDigestRecipients:        "",
 	}
 	for key, value := range seedDefaults {
 		db.Where("key = ?", key).FirstOrCreate(&persistent.Setting{Key: key, Value: value})

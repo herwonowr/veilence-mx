@@ -64,10 +64,10 @@ func TestParseResponse_InvalidClassification_DefaultsSuspicious(t *testing.T) {
 
 func TestExtractJSONObject(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   string
-		want    string
-		wantOK  bool
+		name   string
+		input  string
+		want   string
+		wantOK bool
 	}{
 		{"simple", `{"a":1}`, `{"a":1}`, true},
 		{"nested", `{"a":{"b":2}}`, `{"a":{"b":2}}`, true},

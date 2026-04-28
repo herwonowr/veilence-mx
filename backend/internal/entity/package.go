@@ -60,40 +60,40 @@ type Package struct {
 
 // PackageFilters holds optional query filters for listing packages.
 type PackageFilters struct {
-	Ecosystem      *Ecosystem
-	Source         *PackageSource
-	Status         *PackageStatus
-	Search         *string
+	Ecosystem *Ecosystem
+	Source    *PackageSource
+	Status    *PackageStatus
+	Search    *string
 }
 
 // ImportEntry represents a single package in a bulk import request.
 type ImportEntry struct {
-	Name           string
-	Ecosystem      Ecosystem
+	Name      string
+	Ecosystem Ecosystem
 }
 
 // ImportErrorEntry represents a single error in the import result.
 type ImportErrorEntry struct {
-	Name           string
-	Error          string
+	Name  string
+	Error string
 }
 
 // ImportResult summarizes the outcome of a bulk import.
 type ImportResult struct {
-	Imported       int
-	Skipped        int
-	Errors         []ImportErrorEntry
+	Imported int
+	Skipped  int
+	Errors   []ImportErrorEntry
 }
 
 // PackageDownloadUpdate holds download metrics for a single package.
 type PackageDownloadUpdate struct {
-	PackageID       string
-	DownloadCount   int64
+	PackageID     string
+	DownloadCount int64
 }
 
 // PackageRanking holds a package's ranking data from a registry.
 type PackageRanking struct {
-	Name            string
-	DownloadCount   int64
-	Rank            int
+	Name          string
+	DownloadCount int64
+	Rank          int
 }

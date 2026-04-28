@@ -56,11 +56,11 @@ func (uc *UseCase) CreatePackage(ctx context.Context, workspaceID string, name s
 	}
 
 	pkg := &entity.Package{
-		WorkspaceID:     workspaceID,
-		Name:      name,
-		Ecosystem: ecosystem,
-		Source:    entity.PackageSourceManual,
-		Status:   entity.PackageStatusActive,
+		WorkspaceID: workspaceID,
+		Name:        name,
+		Ecosystem:   ecosystem,
+		Source:      entity.PackageSourceManual,
+		Status:      entity.PackageStatusActive,
 	}
 
 	if err := uc.repo.Create(ctx, pkg); err != nil {
@@ -90,11 +90,11 @@ func (uc *UseCase) ImportPackages(ctx context.Context, workspaceID string, entri
 		}
 
 		pkg := &entity.Package{
-			WorkspaceID:     workspaceID,
-			Name:      entry.Name,
-			Ecosystem: entry.Ecosystem,
-			Source:    entity.PackageSourceImported,
-			Status:   entity.PackageStatusActive,
+			WorkspaceID: workspaceID,
+			Name:        entry.Name,
+			Ecosystem:   entry.Ecosystem,
+			Source:      entity.PackageSourceImported,
+			Status:      entity.PackageStatusActive,
 		}
 
 		if err := uc.repo.Create(ctx, pkg); err != nil {

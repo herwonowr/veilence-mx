@@ -148,7 +148,7 @@ export const ApiKeysView = () => {
     setPendingRole(null)
   }
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setCreateError("")
     setFieldErrors({})

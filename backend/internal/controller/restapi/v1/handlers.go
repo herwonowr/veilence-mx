@@ -9,14 +9,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/veilence/veilence-mx/backend/internal/usecase"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/notifications"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/poller"
-	"github.com/veilence/veilence-mx/backend/pkg/queue"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/setup"
-	"github.com/veilence/veilence-mx/backend/internal/usecase"
+	"github.com/veilence/veilence-mx/backend/pkg/queue"
 )
 
 // Handlers aggregates all handler groups and exposes them to the router.

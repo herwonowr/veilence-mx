@@ -41,9 +41,9 @@ export const RequireRole = ({
   children,
   fallback,
 }: RequireRoleProps) => {
-  const { role, isLoading } = useCurrentWorkspaceRole()
+  const { role, isPending } = useCurrentWorkspaceRole()
 
-  if (isLoading) {
+  if (isPending) {
     return <RoleSkeleton />
   }
 

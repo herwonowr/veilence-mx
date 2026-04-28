@@ -15,7 +15,7 @@ func (h *WorkspaceHandlers) ListRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roles, err := h.RBAC.GetWorkspaceRoles(workspaceID)
+	roles, err := h.RBAC.GetWorkspaceRoles(r.Context(), workspaceID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to list roles")
 		return
@@ -41,7 +41,7 @@ func (h *WorkspaceHandlers) ListRoles(w http.ResponseWriter, r *http.Request) {
 
 // ListPermissions handles GET /api/permissions - lists all available system permissions.
 func (h *WorkspaceHandlers) ListPermissions(w http.ResponseWriter, r *http.Request) {
-	perms, err := h.RBAC.GetAllPermissions()
+	perms, err := h.RBAC.GetAllPermissions(r.Context())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to list permissions")
 		return

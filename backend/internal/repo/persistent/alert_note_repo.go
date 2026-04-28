@@ -87,26 +87,26 @@ func (r *AlertNoteRepo) Delete(ctx context.Context, id, workspaceID string) erro
 
 func alertNoteToDomain(m *AlertNote) *entity.AlertNote {
 	return &entity.AlertNote{
-		ID:        m.ID,
-		AlertID:   m.AlertID,
-		WorkspaceID:     m.WorkspaceID,
-		UserID:    m.UserID,
-		UserEmail: m.UserEmail,
-		Content:   m.Content,
-		CreatedAt: m.CreatedAt,
-		UpdatedAt: m.UpdatedAt,
+		ID:          m.ID,
+		AlertID:     m.AlertID,
+		WorkspaceID: m.WorkspaceID,
+		UserID:      m.UserID,
+		UserEmail:   m.UserEmail,
+		Content:     m.Content,
+		CreatedAt:   m.CreatedAt,
+		UpdatedAt:   m.UpdatedAt,
 	}
 }
 
 func alertNoteToModel(d *entity.AlertNote) *AlertNote {
 	return &AlertNote{
-		ID:        d.ID,
-		AlertID:   d.AlertID,
-		WorkspaceID:     d.WorkspaceID,
-		UserID:    d.UserID,
-		UserEmail: d.UserEmail,
-		Content:   d.Content,
-		CreatedAt: d.CreatedAt,
-		UpdatedAt: d.UpdatedAt,
+		ID:          d.ID,
+		AlertID:     d.AlertID,
+		WorkspaceID: d.WorkspaceID,
+		UserID:      d.UserID,
+		UserEmail:   d.UserEmail,
+		Content:     d.Content,
+		CreatedAt:   d.CreatedAt,
+		UpdatedAt:   d.UpdatedAt,
 	}
 }

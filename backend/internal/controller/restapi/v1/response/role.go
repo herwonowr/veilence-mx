@@ -7,7 +7,7 @@ import "time"
 // service currently returns persistent types (pre-existing arch compromise).
 type RoleResponse struct {
 	ID          string               `json:"id"`
-	WorkspaceID       string               `json:"workspaceId"`
+	WorkspaceID string               `json:"workspaceId"`
 	Name        string               `json:"name"`
 	Description string               `json:"description"`
 	IsSystem    bool                 `json:"isSystem"`

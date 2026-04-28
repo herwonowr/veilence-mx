@@ -42,11 +42,11 @@ export const hasMinimumRole = (
 
 export const useCurrentWorkspaceRole = (): {
   role: WorkspaceRole | null
-  isLoading: boolean
+  isPending: boolean
 } => {
   const { currentWorkspace } = useAuth()
 
-  const { data, isLoading } = useQuery({
+  const { data, isPending } = useQuery({
     queryKey: workspaceRoleKeys.current(currentWorkspace?.id ?? ""),
     queryFn: () =>
       fetchApi<{ role: string }>(
@@ -62,7 +62,7 @@ export const useCurrentWorkspaceRole = (): {
     roleName === "member" ||
     roleName === "viewer"
   ) {
-    return { role: roleName, isLoading }
+    return { role: roleName, isPending }
   }
-  return { role: null, isLoading }
+  return { role: null, isPending }
 }

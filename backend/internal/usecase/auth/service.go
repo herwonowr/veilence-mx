@@ -64,19 +64,19 @@ type TokenPair struct {
 
 // Service provides authentication operations.
 type Service struct {
-	users              usecase.UserRepository
-	refreshTokens      usecase.RefreshTokenRepository
-	apiKeys            usecase.APIKeyRepository
-	passwordResets     usecase.PasswordResetTokenRepository
-	emailVerifications usecase.EmailVerificationTokenRepository
-	sessions           usecase.SessionRepository
-	emailSender        usecase.AuthEmailSender // nil = no email delivery (dev mode)
+	users                    usecase.UserRepository
+	refreshTokens            usecase.RefreshTokenRepository
+	apiKeys                  usecase.APIKeyRepository
+	passwordResets           usecase.PasswordResetTokenRepository
+	emailVerifications       usecase.EmailVerificationTokenRepository
+	sessions                 usecase.SessionRepository
+	emailSender              usecase.AuthEmailSender // nil = no email delivery (dev mode)
 	requireEmailVerification bool                    // from env: REQUIRE_EMAIL_VERIFICATION
 	rateLimiter              usecase.RateLimiter     // nil = no rate limiting
-	tokenProvider      usecase.TokenProvider
-	hasher             usecase.PasswordHasher
-	registrationEnabled   bool
-	allowedEmailDomains   []string
+	tokenProvider            usecase.TokenProvider
+	hasher                   usecase.PasswordHasher
+	registrationEnabled      bool
+	allowedEmailDomains      []string
 }
 
 // NewService creates a new auth service with the given repositories and token/password providers.

@@ -8,27 +8,27 @@ import (
 
 // NotificationChannelResponse is the JSON representation of a notification channel.
 type NotificationChannelResponse struct {
-	ID        string                        `json:"id"`
-	WorkspaceID     string                        `json:"workspaceId"`
-	Name      string                        `json:"name"`
-	Type      entity.NotificationChannelType `json:"type"`
-	Config    string                        `json:"config"`
-	IsActive  bool                          `json:"isActive"`
-	CreatedAt time.Time                     `json:"createdAt"`
-	UpdatedAt time.Time                     `json:"updatedAt"`
+	ID          string                         `json:"id"`
+	WorkspaceID string                         `json:"workspaceId"`
+	Name        string                         `json:"name"`
+	Type        entity.NotificationChannelType `json:"type"`
+	Config      string                         `json:"config"`
+	IsActive    bool                           `json:"isActive"`
+	CreatedAt   time.Time                      `json:"createdAt"`
+	UpdatedAt   time.Time                      `json:"updatedAt"`
 }
 
 // NotificationChannelFromEntity maps a domain NotificationChannel to a response DTO.
 func NotificationChannelFromEntity(c *entity.NotificationChannel) NotificationChannelResponse {
 	return NotificationChannelResponse{
-		ID:        c.ID,
-		WorkspaceID:     c.WorkspaceID,
-		Name:      c.Name,
-		Type:      c.Type,
-		Config:    c.Config,
-		IsActive:  c.IsActive,
-		CreatedAt: c.CreatedAt,
-		UpdatedAt: c.UpdatedAt,
+		ID:          c.ID,
+		WorkspaceID: c.WorkspaceID,
+		Name:        c.Name,
+		Type:        c.Type,
+		Config:      c.Config,
+		IsActive:    c.IsActive,
+		CreatedAt:   c.CreatedAt,
+		UpdatedAt:   c.UpdatedAt,
 	}
 }
 
@@ -43,25 +43,25 @@ func NotificationChannelsFromEntities(channels []entity.NotificationChannel) []N
 
 // NotificationRuleResponse is the JSON representation of a notification rule.
 type NotificationRuleResponse struct {
-	ID        string    `json:"id"`
-	WorkspaceID     string    `json:"workspaceId"`
-	ChannelID string    `json:"channelId"`
-	Severity  string    `json:"severity"`
-	IsActive  bool      `json:"isActive"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID          string    `json:"id"`
+	WorkspaceID string    `json:"workspaceId"`
+	ChannelID   string    `json:"channelId"`
+	Severity    string    `json:"severity"`
+	IsActive    bool      `json:"isActive"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // NotificationRuleFromEntity maps a domain NotificationRule to a response DTO.
 func NotificationRuleFromEntity(r *entity.NotificationRule) NotificationRuleResponse {
 	return NotificationRuleResponse{
-		ID:        r.ID,
-		WorkspaceID:     r.WorkspaceID,
-		ChannelID: r.ChannelID,
-		Severity:  r.Severity,
-		IsActive:  r.IsActive,
-		CreatedAt: r.CreatedAt,
-		UpdatedAt: r.UpdatedAt,
+		ID:          r.ID,
+		WorkspaceID: r.WorkspaceID,
+		ChannelID:   r.ChannelID,
+		Severity:    r.Severity,
+		IsActive:    r.IsActive,
+		CreatedAt:   r.CreatedAt,
+		UpdatedAt:   r.UpdatedAt,
 	}
 }
 
@@ -77,7 +77,7 @@ func NotificationRulesFromEntities(rules []entity.NotificationRule) []Notificati
 // NotificationResponse is the JSON representation of an in-app notification.
 type NotificationResponse struct {
 	ID            string    `json:"id"`
-	WorkspaceID         string    `json:"workspaceId"`
+	WorkspaceID   string    `json:"workspaceId"`
 	UserID        string    `json:"userId"`
 	ChannelID     string    `json:"channelId"`
 	Severity      string    `json:"severity"`
@@ -95,7 +95,7 @@ type NotificationResponse struct {
 func NotificationFromEntity(n *entity.Notification) NotificationResponse {
 	return NotificationResponse{
 		ID:            n.ID,
-		WorkspaceID:         n.WorkspaceID,
+		WorkspaceID:   n.WorkspaceID,
 		UserID:        n.UserID,
 		ChannelID:     n.ChannelID,
 		Severity:      n.Severity,

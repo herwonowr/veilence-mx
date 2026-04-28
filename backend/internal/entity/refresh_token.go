@@ -6,9 +6,9 @@ import "time"
 // Only the SHA-256 hash of the token is stored -- the plaintext token
 // is returned to the client once and never persisted.
 type RefreshToken struct {
-	ID             string
-	UserID         string
-	TokenHash      string
-	ExpiresAt      time.Time
-	CreatedAt      time.Time
+	ID        string
+	UserID    string
+	TokenHash string
+	ExpiresAt time.Time
+	CreatedAt time.Time
 }
