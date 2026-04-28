@@ -24,7 +24,6 @@ export const RegisterForm = () => {
   const { register } = useAuth()
   const router = useRouter()
 
-  // Public config for registration gating
   const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
   const [configLoading, setConfigLoading] = useState(true)
   const didFetchConfig = useRef(false)
@@ -55,7 +54,6 @@ export const RegisterForm = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [registrationSuccess, setRegistrationSuccess] = useState(false)
 
-  // Password strength calculation
   const passwordStrength = useMemo(() => {
     if (!password) return null
     let score = 0

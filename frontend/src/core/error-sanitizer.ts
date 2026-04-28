@@ -1,5 +1,5 @@
 /**
- * SEC-S4-10: Error message sanitization utility.
+ * Error message sanitization utility.
  *
  * Maps raw API / network errors to user-friendly strings so that
  * stack traces, internal status codes, or database details are never

@@ -63,7 +63,6 @@ export const WorkspaceDetailView = () => {
   const { data: rolesRes } = useWorkspaceRoles(validWorkspaceId)
   const { data: invitationsRes } = usePendingInvitations(validWorkspaceId)
 
-  // Public config for conditional UI
   const { config: publicConfig, fetchConfig } = usePublicConfig()
   const didFetchConfig = useRef(false)
   useEffect(() => {
@@ -79,7 +78,6 @@ export const WorkspaceDetailView = () => {
   const roles = rolesRes?.data ?? []
   const invitations = invitationsRes?.data ?? []
 
-  // SEC-S3-007: Determine current user's permissions in this workspace
   const { role: currentRole } = useCurrentWorkspaceRole()
   const currentMember = members.find((m) => m.userId === user?.id)
   const currentPermissions = currentMember?.role?.permissions ?? []

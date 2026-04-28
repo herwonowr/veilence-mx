@@ -36,7 +36,6 @@ export const MyInvitationsView = () => {
   const acceptMutation = useAcceptInvitationById()
   const declineMutation = useDeclineInvitationById()
 
-  // Public config
   const { config: publicConfig, fetchConfig } = usePublicConfig()
   const didFetchConfig = useRef(false)
   useEffect(() => {

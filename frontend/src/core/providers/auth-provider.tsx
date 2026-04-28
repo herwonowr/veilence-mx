@@ -58,7 +58,6 @@ import {
   fetchApi,
 } from "@/core/http"
 
-// SEC-S4-10: Inactivity timeout constants (milliseconds)
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
 const INACTIVITY_WARNING_MS = 25 * 60 * 1000  // 25 minutes (warn 5 min before logout)
 const ACTIVITY_EVENTS: ReadonlyArray<keyof WindowEventMap> = [
@@ -269,7 +268,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(null)
     setCurrentWorkspaceState(null)
     setWorkspaces([])
-    // SEC-S3-002: Clear React Query cache to prevent stale data leaking between sessions
+    // Clear React Query cache to prevent stale data leaking between sessions
     queryClient.clear()
   }, [queryClient])
 
@@ -343,7 +342,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const setCurrentWorkspace = useCallback((workspace: Workspace) => {
     setCurrentWorkspaceState(workspace)
     storeWorkspaceId(workspace.id)
-    // V101-10: Invalidate all React Query caches when switching workspaces
+    // Invalidate all React Query caches when switching workspaces
     // so stale workspace-scoped data is refetched for the new workspace context
     queryClient.invalidateQueries()
   }, [queryClient])

@@ -1,6 +1,5 @@
 import { fetchApi } from "@/core"
 import type { ApiResponse } from "@/domains/common"
-// Pragmatic exception: intra-domain deep import to avoid circular dependency via barrel
 import type { PublicConfig } from "@/domains/config/types/config.types"
 
 export const apiGetPublicConfig = async (): Promise<ApiResponse<PublicConfig>> =>

@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -236,15 +235,6 @@ func parseSort(r *http.Request, allowedColumns map[string]string, defaultSort st
 	}
 
 	return col + " " + sortDir
-}
-
-// escapeLike escapes LIKE special characters (%, _) to prevent
-// wildcard injection when building LIKE queries from user input.
-func escapeLike(s string) string {
-	s = strings.ReplaceAll(s, "\\", "\\\\")
-	s = strings.ReplaceAll(s, "%", "\\%")
-	s = strings.ReplaceAll(s, "_", "\\_")
-	return s
 }
 
 // parseUUID extracts a URL parameter by name and validates it as a UUID.

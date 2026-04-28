@@ -30,7 +30,6 @@ var (
 	ErrPermissionDenied   = errors.New("permission denied")
 	ErrSlugTaken            = errors.New("workspace slug is already taken")
 	ErrInvitationEmailMismatch = errors.New("invitation email does not match accepting user")
-	ErrInvitationRevoked    = errors.New("invitation has been revoked")
 	ErrInvitationDeclined   = errors.New("invitation has been declined")
 	ErrInvitationsDisabled  = errors.New("invitations are disabled when registration is off")
 )

@@ -29,7 +29,6 @@ export const InviteAcceptView = () => {
   const token = params.token
   const { isAuthenticated, isLoading: authLoading, refreshWorkspaces } = useAuth()
 
-  // Public config to check if invitations are available
   const { config: publicConfig, isLoading: configLoading, fetchConfig } = usePublicConfig()
   const didFetchConfig = useRef(false)
   useEffect(() => {

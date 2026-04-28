@@ -31,7 +31,6 @@ type RefreshTokenRepository interface {
 	DeleteByUserIDExceptTokenHash(ctx context.Context, userID string, exceptTokenHash string) error
 }
 
-// DashboardRepository
 // APIKeyRepository defines persistence operations for APIKey entities.
 type APIKeyRepository interface {
 	FindByID(ctx context.Context, id string) (*entity.APIKey, error)

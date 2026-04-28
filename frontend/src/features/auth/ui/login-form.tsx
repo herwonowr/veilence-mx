@@ -20,7 +20,6 @@ import {
 import { Loader2, Eye, EyeOff, MailCheck } from "lucide-react"
 import { ZodError } from "zod"
 
-// SEC-S4-10: Login throttling constants
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_DURATION_SECONDS = 60
 const SESSION_STORAGE_KEY = "vmx_login_attempts"
@@ -72,7 +71,6 @@ const LoginFormInner = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // Public config for conditional UI
   const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
   const didFetchConfig = useRef(false)
   useEffect(() => {
@@ -83,7 +81,7 @@ const LoginFormInner = () => {
       .catch(() => {})
   }, [])
 
-  // SEC-S3-004: Validate redirect is a same-origin relative path to prevent open redirect
+  // Validate redirect is a same-origin relative path to prevent open redirect
   const rawRedirect = searchParams.get("redirect") ?? "/"
   const redirect = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
     ? rawRedirect
@@ -110,7 +108,6 @@ const LoginFormInner = () => {
   const [resendLoading, setResendLoading] = useState(false)
   const [resendSuccess, setResendSuccess] = useState(false)
 
-  // SEC-S4-10: Login attempt throttling
   const [failedAttempts, setFailedAttempts] = useState(() => getStoredAttempts().count)
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(
     () => getStoredAttempts().lockoutUntil

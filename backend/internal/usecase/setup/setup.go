@@ -14,10 +14,9 @@ import (
 
 // Service handles the initial setup flow for a fresh installation.
 type Service struct {
-	users       usecase.UserRepository
-	rbacRepo    usecase.RBACRepository
-	authCreator usecase.UserAccountCreator
-	hasher      usecase.PasswordHasher
+	users         usecase.UserRepository
+	rbacRepo      usecase.RBACRepository
+	hasher        usecase.PasswordHasher
 	tokenProvider usecase.TokenProvider
 }
 
