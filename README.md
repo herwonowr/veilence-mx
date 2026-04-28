@@ -8,6 +8,15 @@ Veilence-MX watches package ecosystems for new releases, generates diffs between
 
 Packages are monitored in two modes: Top-N (automatically tracks the most popular packages by downloads) and Manual (user-specified packages).
 
+## Screenshots
+
+| | | |
+|---|---|---|
+| ![Dashboard](assets/veilence-mx-2.png) | ![Packages](assets/veilence-mx-3.png) | ![Release Analysis](assets/veilence-mx-6.png) |
+| Dashboard | Packages | Release Analysis |
+| ![Alerts](assets/veilence-mx-7.png) | ![Notifications](assets/veilence-mx-9.png) | ![Settings](assets/veilence-mx-13.png) |
+| Alerts | Notifications | Settings |
+
 ## Features
 
 ### Package Monitoring
