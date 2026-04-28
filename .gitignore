@@ -18,7 +18,9 @@ CLAUDE.md
 AGENTS.md
 backend/CLAUDE.md
 backend/AGENTS.md
+backend/BACKEND_ARCHITECTURE.md
 frontend/CLAUDE.md
 frontend/AGENTS.md
+frontend/FRONTEND_ARCHITECTURE.md
 _workspace/
 .playwright-mcp
