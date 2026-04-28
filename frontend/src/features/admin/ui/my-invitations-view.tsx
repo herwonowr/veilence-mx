@@ -1,8 +1,7 @@
 "use client"
 
-import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth, usePublicConfig, ROUTES } from "@/core"
+import { useAuth, usePublicConfigQuery, ROUTES } from "@/core"
 import type { MyInvitation } from "@/domains/admin"
 import {
   useMyInvitations,
@@ -36,19 +35,13 @@ export const MyInvitationsView = () => {
   const acceptMutation = useAcceptInvitationById()
   const declineMutation = useDeclineInvitationById()
 
-  const { config: publicConfig, fetchConfig } = usePublicConfig()
-  const didFetchConfig = useRef(false)
-  useEffect(() => {
-    if (didFetchConfig.current) return
-    didFetchConfig.current = true
-    fetchConfig()
-  }, [fetchConfig])
+  const { registrationEnabled } = usePublicConfigQuery()
 
   const invitations = invitationsRes?.data ?? []
   const pendingInvitations = invitations.filter((inv) => inv.status === "pending")
 
   // When registration is disabled, show empty state
-  if (publicConfig && !publicConfig.registrationEnabled) {
+  if (!registrationEnabled) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">

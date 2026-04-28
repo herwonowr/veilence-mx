@@ -1,13 +1,12 @@
 "use client"
 
-import { Suspense, useEffect, useRef, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ROUTES } from "@/core"
+import { ROUTES, usePublicConfigQuery } from "@/core"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
 import { apiResetPassword, newPasswordSchema } from "@/domains/auth"
-import { apiGetPublicConfig } from "@/domains/config"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
   Card,
@@ -25,18 +24,13 @@ const ResetPasswordFormInner = () => {
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
 
-  const didFetchConfig = useRef(false)
+  const { setupRequired } = usePublicConfigQuery()
+
   useEffect(() => {
-    if (didFetchConfig.current) return
-    didFetchConfig.current = true
-    apiGetPublicConfig()
-      .then((res) => {
-        if (res.data.setupRequired) {
-          router.replace(ROUTES.SETUP)
-        }
-      })
-      .catch(() => {})
-  }, [router])
+    if (setupRequired) {
+      router.replace(ROUTES.SETUP)
+    }
+  }, [setupRequired, router])
 
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")

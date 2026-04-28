@@ -1,13 +1,12 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
 import { apiForgotPassword, passwordResetSchema } from "@/domains/auth"
-import { apiGetPublicConfig } from "@/domains/config"
-import { sanitizeErrorMessage, ROUTES } from "@/core"
+import { sanitizeErrorMessage, ROUTES, usePublicConfigQuery } from "@/core"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
   Card,
@@ -22,18 +21,13 @@ import { ZodError } from "zod"
 export const ForgotPasswordForm = () => {
   const router = useRouter()
 
-  const didFetchConfig = useRef(false)
+  const { setupRequired } = usePublicConfigQuery()
+
   useEffect(() => {
-    if (didFetchConfig.current) return
-    didFetchConfig.current = true
-    apiGetPublicConfig()
-      .then((res) => {
-        if (res.data.setupRequired) {
-          router.replace(ROUTES.SETUP)
-        }
-      })
-      .catch(() => {})
-  }, [router])
+    if (setupRequired) {
+      router.replace(ROUTES.SETUP)
+    }
+  }, [setupRequired, router])
 
   const [email, setEmail] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})

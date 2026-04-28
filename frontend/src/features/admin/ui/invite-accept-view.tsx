@@ -1,8 +1,7 @@
 "use client"
 
-import { useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useAuth, usePublicConfig, ROUTES } from "@/core"
+import { useAuth, usePublicConfigQuery, ROUTES } from "@/core"
 import {
   useInvitationByToken,
   useAcceptInvitation,
@@ -29,13 +28,7 @@ export const InviteAcceptView = () => {
   const token = params.token
   const { isAuthenticated, isLoading: authLoading, refreshWorkspaces } = useAuth()
 
-  const { config: publicConfig, isLoading: configLoading, fetchConfig } = usePublicConfig()
-  const didFetchConfig = useRef(false)
-  useEffect(() => {
-    if (didFetchConfig.current) return
-    didFetchConfig.current = true
-    fetchConfig()
-  }, [fetchConfig])
+  const { registrationEnabled, isLoading: configLoading } = usePublicConfigQuery()
 
   const {
     data: invitationResponse,
@@ -100,7 +93,7 @@ export const InviteAcceptView = () => {
   }
 
   // When registration is disabled, invitations are not available
-  if (publicConfig && !publicConfig.registrationEnabled) {
+  if (!configLoading && !registrationEnabled) {
     return (
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">

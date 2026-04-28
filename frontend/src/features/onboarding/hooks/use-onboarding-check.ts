@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { useAuth } from "@/core"
+import { useAuth, usePublicConfigQuery } from "@/core"
 import { apiGetMyInvitations } from "@/domains/admin"
 
 export const onboardingKeys = {
@@ -10,6 +10,7 @@ export const onboardingKeys = {
 
 export const useOnboardingCheck = () => {
   const { isAuthenticated, isLoading, workspaces, workspacesLoading } = useAuth()
+  const { registrationEnabled } = usePublicConfigQuery()
 
   const {
     data: invitationsResponse,
@@ -17,7 +18,7 @@ export const useOnboardingCheck = () => {
   } = useQuery({
     queryKey: onboardingKeys.check,
     queryFn: () => apiGetMyInvitations(),
-    enabled: isAuthenticated && !isLoading && !workspacesLoading && workspaces.length === 0,
+    enabled: registrationEnabled && isAuthenticated && !isLoading && !workspacesLoading && workspaces.length === 0,
     staleTime: 30 * 1000,
   })
 

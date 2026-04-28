@@ -1,14 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
-import { useAuth, ROUTES } from "@/core"
+import { useAuth, ROUTES, usePublicConfigQuery } from "@/core"
 import { registerSchema, getPasswordStrength } from "@/domains/auth"
-import { apiGetPublicConfig } from "@/domains/config"
-import type { PublicConfig } from "@/domains/config"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
   Card,
@@ -24,27 +22,18 @@ export const RegisterForm = () => {
   const { register } = useAuth()
   const router = useRouter()
 
-  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
-  const [configLoading, setConfigLoading] = useState(true)
-  const didFetchConfig = useRef(false)
+  const { setupRequired, registrationEnabled, hasEmailDomainRestriction, isLoading: configLoading } = usePublicConfigQuery()
+
   useEffect(() => {
-    if (didFetchConfig.current) return
-    didFetchConfig.current = true
-    apiGetPublicConfig()
-      .then((res) => {
-        setPublicConfig(res.data)
-        if (res.data.setupRequired) {
-          router.replace(ROUTES.SETUP)
-          return
-        }
-        // Redirect to login if registration is disabled
-        if (res.data && !res.data.registrationEnabled) {
-          router.replace(ROUTES.LOGIN)
-        }
-      })
-      .catch(() => {})
-      .finally(() => setConfigLoading(false))
-  }, [router])
+    if (configLoading) return
+    if (setupRequired) {
+      router.replace(ROUTES.SETUP)
+      return
+    }
+    if (!registrationEnabled) {
+      router.replace(ROUTES.LOGIN)
+    }
+  }, [configLoading, setupRequired, registrationEnabled, router])
 
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
@@ -109,7 +98,7 @@ export const RegisterForm = () => {
   }
 
   // Don't render while checking config or if registration is disabled
-  if (configLoading || (publicConfig && !publicConfig.registrationEnabled)) {
+  if (configLoading || !registrationEnabled) {
     return null
   }
 
@@ -151,7 +140,7 @@ export const RegisterForm = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
-            {publicConfig?.hasEmailDomainRestriction && (
+            {hasEmailDomainRestriction && (
               <Alert variant="default" className="bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800">
                 <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 <AlertDescription className="text-blue-800 dark:text-blue-300">

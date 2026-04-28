@@ -1,10 +1,10 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
-import { sanitizeErrorMessage, usePublicConfig, ROUTES } from "@/core"
+import { sanitizeErrorMessage, usePublicConfigQuery, ROUTES } from "@/core"
 import { useSetup } from "@/features/setup/hooks/use-setup"
 import {
   Button,
@@ -67,21 +67,14 @@ const toSlug = (name: string): string =>
 export const SetupWizard = () => {
   const router = useRouter()
   const { initialize, isLoading: setupLoading } = useSetup()
-  const { config, isLoading: configLoading, fetchConfig } = usePublicConfig()
-
-  const didInit = useRef(false)
-  useEffect(() => {
-    if (didInit.current) return
-    didInit.current = true
-    fetchConfig()
-  }, [fetchConfig])
+  const { config, isLoading: configLoading, setupRequired } = usePublicConfigQuery()
 
   // Redirect if setup is not required
   useEffect(() => {
-    if (!configLoading && config && !config.setupRequired) {
+    if (!configLoading && config && !setupRequired) {
       router.replace(ROUTES.LOGIN)
     }
-  }, [configLoading, config, router])
+  }, [configLoading, config, setupRequired, router])
 
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
@@ -174,7 +167,7 @@ export const SetupWizard = () => {
     )
   }
 
-  if (config && !config.setupRequired) {
+  if (config && !setupRequired) {
     return null
   }
 

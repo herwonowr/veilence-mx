@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useAuth, usePublicConfig, ROUTES, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
+import { useAuth, usePublicConfigQuery, ROUTES, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 import { workspaceUpdateSchema } from "@/domains/admin"
 import {
   Button,
@@ -62,15 +62,7 @@ export const WorkspaceDetailView = () => {
   const { data: rolesRes } = useWorkspaceRoles(validWorkspaceId)
   const { data: invitationsRes } = usePendingInvitations(validWorkspaceId)
 
-  const { config: publicConfig, fetchConfig } = usePublicConfig()
-  const didFetchConfig = useRef(false)
-  useEffect(() => {
-    if (didFetchConfig.current) return
-    didFetchConfig.current = true
-    fetchConfig()
-  }, [fetchConfig])
-
-  const registrationEnabled = publicConfig?.registrationEnabled ?? false
+  const { registrationEnabled } = usePublicConfigQuery()
 
   const workspace = workspaceRes?.data ?? null
   const members = membersRes?.data ?? []

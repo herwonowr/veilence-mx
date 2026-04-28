@@ -1,14 +1,12 @@
 "use client"
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react"
+import { Suspense, useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
-import { useAuth, sanitizeErrorMessage, ROUTES } from "@/core"
+import { useAuth, sanitizeErrorMessage, ROUTES, usePublicConfigQuery } from "@/core"
 import { loginSchema, apiSendVerificationEmailByEmail } from "@/domains/auth"
-import { apiGetPublicConfig } from "@/domains/config"
-import type { PublicConfig } from "@/domains/config"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
   Card,
@@ -71,20 +69,13 @@ const LoginFormInner = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
-  const didFetchConfig = useRef(false)
+  const { setupRequired, registrationEnabled } = usePublicConfigQuery()
+
   useEffect(() => {
-    if (didFetchConfig.current) return
-    didFetchConfig.current = true
-    apiGetPublicConfig()
-      .then((res) => {
-        setPublicConfig(res.data)
-        if (res.data.setupRequired) {
-          router.replace(ROUTES.SETUP)
-        }
-      })
-      .catch(() => {})
-  }, [router])
+    if (setupRequired) {
+      router.replace(ROUTES.SETUP)
+    }
+  }, [setupRequired, router])
 
   // Validate redirect is a same-origin relative path to prevent open redirect
   const rawRedirect = searchParams.get("redirect") ?? ROUTES.DASHBOARD
@@ -351,7 +342,7 @@ const LoginFormInner = () => {
               Sign In
             </Button>
           </form>
-          {publicConfig?.registrationEnabled && (
+          {registrationEnabled && (
           <div className="mt-4 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
             <Link

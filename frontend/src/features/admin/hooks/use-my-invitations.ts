@@ -7,17 +7,21 @@ import {
   apiDeclineInvitationById,
 } from "@/domains/admin"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/core"
+import { sanitizeErrorMessage, usePublicConfigQuery } from "@/core"
 
 export const myInvitationKeys = {
   all: ["my-invitations"] as const,
 }
 
-export const useMyInvitations = () =>
-  useQuery({
+export const useMyInvitations = () => {
+  const { registrationEnabled } = usePublicConfigQuery()
+
+  return useQuery({
     queryKey: myInvitationKeys.all,
     queryFn: () => apiGetMyInvitations(),
+    enabled: registrationEnabled,
   })
+}
 
 export const useAcceptInvitationById = () => {
   const queryClient = useQueryClient()
