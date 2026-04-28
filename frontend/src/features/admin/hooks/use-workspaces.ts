@@ -35,7 +35,7 @@ import type {
 } from "@/domains/admin"
 import type { AddMemberRequest } from "@/domains/admin"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/core"
+import { sanitizeErrorMessage, usePublicConfigQuery } from "@/core"
 
 export const workspaceKeys = {
   all: ["workspaces"] as const,
@@ -187,10 +187,12 @@ export const usePendingInvitations = (
   workspaceId: string,
   options?: Partial<UseQueryOptions<ApiResponse<Invitation[]>>>
 ) => {
+  const { registrationEnabled } = usePublicConfigQuery()
+
   return useQuery({
     queryKey: workspaceKeys.invitations(workspaceId),
     queryFn: () => apiGetPendingInvitations(workspaceId),
-    enabled: !!workspaceId,
+    enabled: !!workspaceId && registrationEnabled,
     ...options,
   })
 }

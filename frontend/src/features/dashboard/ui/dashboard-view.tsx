@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useLocalStorage, useAuth, ROUTES } from "@/core"
+import { useLocalStorage, useAuth, ROUTES, usePublicConfigQuery } from "@/core"
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Skeleton, TableSkeleton, TableError, Alert, AlertDescription, Label, Switch, TableEmptyState, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, type SkeletonColumn } from "@/ui"
 import {
   Table,
@@ -37,6 +37,7 @@ interface OnboardingProps {
 
 const DashboardOnboarding = ({ hasAnyWorkspace, user }: OnboardingProps) => {
   const router = useRouter()
+  const { registrationEnabled } = usePublicConfigQuery()
   const { data: invitationsRes } = useMyInvitations()
   const pendingCount = (invitationsRes?.data ?? []).filter(
     (inv) => inv.status === "pending"
@@ -68,7 +69,7 @@ const DashboardOnboarding = ({ hasAnyWorkspace, user }: OnboardingProps) => {
         </div>
       </div>
 
-      {pendingCount > 0 && (
+      {registrationEnabled && pendingCount > 0 && (
         <Card className="max-w-md mx-auto">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -104,6 +105,7 @@ const DashboardData = () => {
 
   const refetchInterval = autoRefresh && intervalSec > 0 ? intervalSec * 1000 : false
 
+  const { registrationEnabled } = usePublicConfigQuery()
   const { data: invitationsRes } = useMyInvitations()
   const pendingCount = (invitationsRes?.data ?? []).filter(
     (inv) => inv.status === "pending"
@@ -145,7 +147,7 @@ const DashboardData = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <div className="flex flex-wrap items-center gap-4">
-          {pendingCount > 0 && (
+          {registrationEnabled && pendingCount > 0 && (
             <Link href="/workspaces/invitations" className="flex items-center gap-2">
               <Button variant="outline" size="sm">
                 <Mail className="mr-2 h-4 w-4" />

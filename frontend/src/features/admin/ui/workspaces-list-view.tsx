@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useAuth, ROUTES } from "@/core"
+import { useAuth, ROUTES, usePublicConfigQuery } from "@/core"
 import { apiCreateWorkspace, workspaceSchema } from "@/domains/admin"
 import type { Workspace } from "@/domains/admin"
 import { Button, Input, Field, FieldLabel, FieldDescription, FieldError, Badge, EmptyState, Alert, AlertDescription } from "@/ui"
@@ -30,6 +30,7 @@ import { ZodError } from "zod"
 
 export const WorkspacesListView = () => {
   const { refreshWorkspaces, setCurrentWorkspace } = useAuth()
+  const { registrationEnabled } = usePublicConfigQuery()
   const { data: workspacesRes } = useWorkspaces()
   const { data: myInvitationsRes } = useMyInvitations()
   const workspaces = workspacesRes?.data ?? []
@@ -119,17 +120,19 @@ export const WorkspacesListView = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Workspaces</h1>
         <div className="flex items-center gap-3">
-          <Link href="/workspaces/invitations">
-            <Button variant="outline">
-              <Mail className="mr-2 size-4" />
-              View Invitations
-              {pendingInvitationCount > 0 && (
-                <Badge variant="destructive" className="ml-2">
-                  {pendingInvitationCount}
-                </Badge>
-              )}
-            </Button>
-          </Link>
+          {registrationEnabled && (
+            <Link href="/workspaces/invitations">
+              <Button variant="outline">
+                <Mail className="mr-2 size-4" />
+                View Invitations
+                {pendingInvitationCount > 0 && (
+                  <Badge variant="destructive" className="ml-2">
+                    {pendingInvitationCount}
+                  </Badge>
+                )}
+              </Button>
+            </Link>
+          )}
           <Dialog open={dialogOpen} onOpenChange={(open) => setDialogOpen(open)}>
           <DialogTrigger
             render={
