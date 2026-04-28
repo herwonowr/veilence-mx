@@ -24,14 +24,14 @@ CREATE UNIQUE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_deleted_at ON users(deleted_at);
 
 -- =========================================================================
--- Workspaces (originally "organizations", renamed in 000004)
+-- Workspaces
 -- =========================================================================
 CREATE TABLE workspaces (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
     slug VARCHAR(100) NOT NULL,
     description TEXT,
-    owner_id UUID NOT NULL,
+    owner_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -45,7 +45,7 @@ CREATE INDEX idx_workspaces_deleted_at ON workspaces(deleted_at);
 -- =========================================================================
 CREATE TABLE roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     name VARCHAR(50) NOT NULL,
     description TEXT,
     is_system BOOLEAN NOT NULL DEFAULT false,
@@ -71,13 +71,13 @@ CREATE TABLE role_permissions (
 );
 
 -- =========================================================================
--- Workspace members (originally "org_members", renamed in 000004)
+-- Workspace members
 -- =========================================================================
 CREATE TABLE workspace_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL,
-    user_id UUID NOT NULL,
-    role_id UUID NOT NULL,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role_id UUID NOT NULL REFERENCES roles(id) ON DELETE RESTRICT,
     joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -89,11 +89,11 @@ CREATE UNIQUE INDEX idx_workspace_user ON workspace_members(workspace_id, user_i
 -- =========================================================================
 CREATE TABLE invitations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     email VARCHAR(255) NOT NULL,
-    role_id UUID NOT NULL,
+    role_id UUID NOT NULL REFERENCES roles(id) ON DELETE RESTRICT,
     token_hash VARCHAR(255) NOT NULL,
-    invited_by UUID NOT NULL,
+    invited_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expires_at TIMESTAMPTZ NOT NULL,
     accepted_at TIMESTAMPTZ,
     declined_at TIMESTAMPTZ,
@@ -108,7 +108,7 @@ CREATE INDEX idx_invitations_email_pending ON invitations(email) WHERE accepted_
 -- =========================================================================
 CREATE TABLE refresh_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash VARCHAR(255) NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -117,12 +117,12 @@ CREATE UNIQUE INDEX idx_refresh_tokens_token_hash ON refresh_tokens(token_hash);
 CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
 
 -- =========================================================================
--- API keys (scope renamed to role in 000005, workspace_id added in 000005)
+-- API keys
 -- =========================================================================
 CREATE TABLE api_keys (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL,
-    workspace_id UUID NOT NULL,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     key_hash VARCHAR(255) NOT NULL,
     key_prefix VARCHAR(10) NOT NULL,
@@ -162,7 +162,7 @@ CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
 -- =========================================================================
 CREATE TABLE password_reset_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash VARCHAR(255) NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     used_at TIMESTAMPTZ,
@@ -176,7 +176,7 @@ CREATE INDEX idx_password_reset_tokens_user_id ON password_reset_tokens(user_id)
 -- =========================================================================
 CREATE TABLE email_verification_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash VARCHAR(255) NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -185,11 +185,11 @@ CREATE UNIQUE INDEX idx_email_verification_tokens_token_hash ON email_verificati
 CREATE INDEX idx_email_verification_tokens_user_id ON email_verification_tokens(user_id);
 
 -- =========================================================================
--- Packages (with download fields from 000002, workspace rename from 000004)
+-- Packages
 -- =========================================================================
 CREATE TABLE packages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     ecosystem VARCHAR(10) NOT NULL,
     latest_version VARCHAR(100),
@@ -215,7 +215,7 @@ CREATE INDEX idx_packages_workspace_status ON packages(workspace_id, status);
 -- =========================================================================
 CREATE TABLE releases (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    package_id UUID NOT NULL,
+    package_id UUID NOT NULL REFERENCES packages(id) ON DELETE CASCADE,
     version VARCHAR(100) NOT NULL,
     published_at TIMESTAMPTZ,
     tarball_url TEXT,
@@ -234,12 +234,12 @@ CREATE INDEX idx_releases_status ON releases(status);
 -- =========================================================================
 CREATE TABLE diffs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    release_id UUID NOT NULL,
-    prev_release_id UUID NOT NULL,
+    release_id UUID NOT NULL REFERENCES releases(id) ON DELETE CASCADE,
+    prev_release_id UUID NOT NULL REFERENCES releases(id) ON DELETE CASCADE,
     diff_content TEXT,
-    file_changes_count BIGINT DEFAULT 0,
-    lines_added BIGINT DEFAULT 0,
-    lines_removed BIGINT DEFAULT 0,
+    file_changes_count INTEGER DEFAULT 0,
+    lines_added INTEGER DEFAULT 0,
+    lines_removed INTEGER DEFAULT 0,
     truncated BOOLEAN NOT NULL DEFAULT false,
     original_size INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -251,7 +251,7 @@ CREATE INDEX idx_diffs_release_id ON diffs(release_id);
 -- =========================================================================
 CREATE TABLE analyses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    diff_id UUID NOT NULL,
+    diff_id UUID NOT NULL REFERENCES diffs(id) ON DELETE CASCADE,
     classification VARCHAR(20) NOT NULL,
     confidence DOUBLE PRECISION NOT NULL,
     reasoning TEXT,
@@ -267,10 +267,10 @@ CREATE INDEX idx_analyses_diff_id ON analyses(diff_id);
 -- =========================================================================
 CREATE TABLE alerts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL,
-    analysis_id UUID NOT NULL,
-    package_id UUID NOT NULL,
-    release_id UUID,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    analysis_id UUID REFERENCES analyses(id) ON DELETE SET NULL,
+    package_id UUID NOT NULL REFERENCES packages(id) ON DELETE CASCADE,
+    release_id UUID REFERENCES releases(id) ON DELETE SET NULL,
     severity VARCHAR(20) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'new',
     message TEXT,
@@ -289,9 +289,9 @@ CREATE INDEX idx_alerts_workspace_severity ON alerts(workspace_id, severity);
 -- =========================================================================
 CREATE TABLE alert_notes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    alert_id UUID NOT NULL,
-    workspace_id UUID NOT NULL,
-    user_id UUID NOT NULL,
+    alert_id UUID NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     user_email VARCHAR(255),
     content TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -299,13 +299,14 @@ CREATE TABLE alert_notes (
 );
 CREATE INDEX idx_alert_notes_alert_id ON alert_notes(alert_id);
 CREATE INDEX idx_alert_notes_workspace_id ON alert_notes(workspace_id);
+CREATE INDEX idx_alert_notes_user_id ON alert_notes(user_id);
 
 -- =========================================================================
 -- Settings
 -- =========================================================================
 CREATE TABLE settings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     key VARCHAR(100) NOT NULL,
     value TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -318,8 +319,8 @@ CREATE UNIQUE INDEX idx_settings_workspace_key ON settings(workspace_id, key);
 -- =========================================================================
 CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID,
-    workspace_id UUID,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    workspace_id UUID REFERENCES workspaces(id) ON DELETE SET NULL,
     action VARCHAR(50) NOT NULL,
     resource VARCHAR(50) NOT NULL,
     resource_id UUID,
@@ -340,7 +341,7 @@ CREATE INDEX idx_audit_logs_workspace_created ON audit_logs(workspace_id, create
 -- =========================================================================
 CREATE TABLE notification_channels (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     type VARCHAR(20) NOT NULL,
     config TEXT,
@@ -355,8 +356,8 @@ CREATE INDEX idx_notification_channels_workspace_id ON notification_channels(wor
 -- =========================================================================
 CREATE TABLE notification_rules (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL,
-    channel_id UUID NOT NULL,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    channel_id UUID NOT NULL REFERENCES notification_channels(id) ON DELETE CASCADE,
     severity VARCHAR(20),
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -366,13 +367,13 @@ CREATE INDEX idx_notification_rules_workspace_id ON notification_rules(workspace
 CREATE INDEX idx_notification_rules_channel_id ON notification_rules(channel_id);
 
 -- =========================================================================
--- Notifications (with event fields from 000003)
+-- Notifications
 -- =========================================================================
 CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL,
-    user_id UUID,
-    channel_id UUID,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    channel_id UUID REFERENCES notification_channels(id) ON DELETE SET NULL,
     title VARCHAR(255) NOT NULL,
     message TEXT,
     severity VARCHAR(20) NOT NULL DEFAULT '',
@@ -389,3 +390,4 @@ CREATE INDEX idx_notifications_channel_id ON notifications(channel_id);
 CREATE INDEX idx_notifications_workspace_user_read ON notifications(workspace_id, user_id, is_read);
 CREATE INDEX idx_notifications_event_type ON notifications(event_type);
 CREATE INDEX idx_notifications_severity ON notifications(severity);
+CREATE INDEX idx_notifications_reference_id ON notifications(reference_id);
