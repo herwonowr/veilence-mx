@@ -11,7 +11,24 @@ Packages are monitored in two modes: Top-N (automatically tracks the most popula
 ## Architecture
 
 ```
-Poller -> Differ -> Analyzer (LLM) -> Alerts -> Dashboard
+                    +-----------+     +-----------+     +----------------+
+  Python / NPM     |           |     |           |     |                |
+  Ecosystems ------>  Poller   +----->  Differ   +----->  Analyzer      |
+                    |           |     |           |     |  (LLM)        |
+                    +-----+-----+     +-----------+     +-------+--------+
+                          |                                     |
+                    +-----v-----+                         +-----v--------+
+                    |           |                         |              |
+                    | PostgreSQL|                         |    Alerts    |
+                    | Redis     |                         |              |
+                    |           |                         +-----+--------+
+                    +-----+-----+                               |
+                          |                               +-----v--------+
+                    +-----v-----+                         |              |
+                    |           |                         |  Dashboard   |
+                    |  REST API |                         |  (Next.js)   |
+                    |  (Chi v5) |                         |              |
+                    +-----------+                         +--------------+
 ```
 
 1. **Poll** - Discovers new releases from Python and NPM ecosystems
