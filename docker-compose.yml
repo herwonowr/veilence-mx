@@ -66,6 +66,8 @@ services:
       SMTP_PORT: "1025"
       SMTP_FROM: noreply@veilence-mx.dev
       SMTP_USE_TLS: "false"
+      REGISTRATION_ENABLED: "false"
+      ALLOWED_EMAIL_DOMAINS: ""
     depends_on:
       postgres:
         condition: service_healthy
