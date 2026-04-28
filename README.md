@@ -23,7 +23,7 @@ Packages are monitored in two modes: Top-N (automatically tracks the most popula
 - ✅ Python and NPM ecosystem support
 - ✅ Top-N automatic discovery by download count
 - ✅ Manual package addition
-- ✅ Bulk import (CSV/JSON)
+- ✅ Bulk import (requirements.txt / package.json)
 - ✅ Package suggestions with approve/reject workflow
 - ✅ Block/unblock packages
 - ✅ Stale package detection and auto-removal
