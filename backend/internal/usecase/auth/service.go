@@ -203,7 +203,7 @@ func (s *Service) Register(email, password, firstName, lastName string) (*entity
 		return nil, fmt.Errorf("checking existing user: %w", err)
 	}
 
-	if err := entity.ValidatePassword(password); err != nil {
+	if err := entity.ValidatePasswordWithContext(password, email); err != nil {
 		return nil, err
 	}
 
@@ -290,7 +290,7 @@ func (s *Service) CreateUserWithPassword(ctx context.Context, email, firstName, 
 		return nil, err
 	}
 
-	if err := entity.ValidatePassword(password); err != nil {
+	if err := entity.ValidatePasswordWithContext(password, email); err != nil {
 		return nil, err
 	}
 
@@ -749,8 +749,14 @@ func (s *Service) ResetPassword(rawToken, newPassword string) error {
 		return ErrResetTokenInvalid
 	}
 
+	// Fetch user for context-aware password validation
+	user, err := s.users.FindByID(ctx, stored.UserID)
+	if err != nil {
+		return fmt.Errorf("finding user: %w", err)
+	}
+
 	// Hash the new password
-	if err := entity.ValidatePassword(newPassword); err != nil {
+	if err := entity.ValidatePasswordWithContext(newPassword, user.Email); err != nil {
 		return err
 	}
 
@@ -760,11 +766,6 @@ func (s *Service) ResetPassword(rawToken, newPassword string) error {
 	}
 
 	// Update the user's password
-	user, err := s.users.FindByID(ctx, stored.UserID)
-	if err != nil {
-		return fmt.Errorf("finding user: %w", err)
-	}
-
 	user.PasswordHash = passwordHash
 	// Completing a password reset proves email ownership - if the user hasn't
 	// verified yet, mark them verified now so they can log in immediately.
@@ -1052,7 +1053,7 @@ func (s *Service) ChangePassword(userID string, currentPassword, newPassword, cu
 		return ErrPasswordSameAsCurrent
 	}
 
-	if err := entity.ValidatePassword(newPassword); err != nil {
+	if err := entity.ValidatePasswordWithContext(newPassword, user.Email); err != nil {
 		return err
 	}
 

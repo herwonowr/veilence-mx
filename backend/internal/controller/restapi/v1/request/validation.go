@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"unicode"
+	"unicode/utf8"
+
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 )
 
 // Common validation errors.
@@ -36,47 +38,20 @@ func ValidateEmail(email string) error {
 	return nil
 }
 
-// MaxPasswordLength is the maximum password length accepted, matching bcrypt's
-// 72-byte input limit. Passwords longer than this are silently truncated by
-// bcrypt, which can lead to surprising authentication behavior.
-const MaxPasswordLength = 72
-
 // ValidatePassword validates that the given password meets security
-// requirements: at least 8 characters, at most 72 characters (bcrypt limit),
-// containing at least one uppercase letter, one lowercase letter, and one digit.
+// requirements per NIST SP 800-63B: length bounds only, no composition rules.
+// Uses entity.PasswordMaxLength as the single source of truth for max length.
 func ValidatePassword(password string) error {
 	if password == "" {
 		return fmt.Errorf("password %w", ErrRequired)
 	}
-	if len(password) < 8 {
-		return errors.New("password must be at least 8 characters")
+	n := utf8.RuneCountInString(password)
+	if n < entity.PasswordMinLength {
+		return fmt.Errorf("password must be at least %d characters", entity.PasswordMinLength)
 	}
-	if len(password) > MaxPasswordLength {
-		return fmt.Errorf("password %w (%d characters max)", ErrTooLong, MaxPasswordLength)
+	if n > entity.PasswordMaxLength {
+		return fmt.Errorf("password %w (%d characters max)", ErrTooLong, entity.PasswordMaxLength)
 	}
-
-	var hasUpper, hasLower, hasDigit bool
-	for _, ch := range password {
-		switch {
-		case unicode.IsUpper(ch):
-			hasUpper = true
-		case unicode.IsLower(ch):
-			hasLower = true
-		case unicode.IsDigit(ch):
-			hasDigit = true
-		}
-	}
-
-	if !hasUpper {
-		return errors.New("password must contain at least one uppercase letter")
-	}
-	if !hasLower {
-		return errors.New("password must contain at least one lowercase letter")
-	}
-	if !hasDigit {
-		return errors.New("password must contain at least one digit")
-	}
-
 	return nil
 }
 

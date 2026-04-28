@@ -74,7 +74,7 @@ func (s *Service) Initialize(ctx context.Context, req InitializeRequest) (*Initi
 		return nil, entity.ErrSetupAlreadyCompleted
 	}
 
-	if err := entity.ValidatePassword(req.Password); err != nil {
+	if err := entity.ValidatePasswordWithContext(req.Password, req.Email); err != nil {
 		return nil, err
 	}
 

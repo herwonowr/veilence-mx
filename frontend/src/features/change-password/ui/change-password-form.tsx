@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import { useAuth, sanitizeErrorMessage, ROUTES } from "@/core"
-import { apiChangePassword, passwordChangeSchema } from "@/domains/auth"
+import { apiChangePassword, passwordChangeSchema, getPasswordStrength } from "@/domains/auth"
 import {
   Button,
   Input,
@@ -39,18 +39,7 @@ export const ChangePasswordForm = () => {
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  const passwordStrength = useMemo(() => {
-    if (!newPassword) return null
-    let score = 0
-    if (newPassword.length >= 8) score++
-    if (/[A-Z]/.test(newPassword)) score++
-    if (/[0-9]/.test(newPassword)) score++
-    if (/[^A-Za-z0-9]/.test(newPassword)) score++
-
-    if (score <= 1) return { label: "Weak", color: "bg-red-500", width: "w-1/3" } as const
-    if (score <= 2) return { label: "Medium", color: "bg-yellow-500", width: "w-2/3" } as const
-    return { label: "Strong", color: "bg-green-500", width: "w-full" } as const
-  }, [newPassword])
+  const passwordStrength = useMemo(() => getPasswordStrength(newPassword), [newPassword])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

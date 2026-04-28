@@ -69,6 +69,9 @@ export const AddMemberDialog = ({
     if (setPassword && password.length < 8) {
       errs.password = "Password must be at least 8 characters"
     }
+    if (setPassword && password.length > 72) {
+      errs.password = "Password must be at most 72 characters"
+    }
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs)
       return

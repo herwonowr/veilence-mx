@@ -25,13 +25,17 @@ import {
 } from "@/ui"
 import { Loader2, Eye, EyeOff, Rocket } from "lucide-react"
 import { z, ZodError } from "zod"
+import { getPasswordStrength } from "@/domains/auth"
 
 const setupSchema = z
   .object({
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
     email: z.email("Please enter a valid email address"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(72, "Password must be at most 72 characters"),
     confirmPassword: z.string().min(1, "Please confirm your password"),
     workspaceName: z
       .string()
@@ -92,18 +96,7 @@ export const SetupWizard = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  const passwordStrength = useMemo(() => {
-    if (!password) return null
-    let score = 0
-    if (password.length >= 8) score++
-    if (/[A-Z]/.test(password)) score++
-    if (/[0-9]/.test(password)) score++
-    if (/[^A-Za-z0-9]/.test(password)) score++
-
-    if (score <= 1) return { label: "Weak", color: "bg-red-500", width: "w-1/3" } as const
-    if (score <= 2) return { label: "Medium", color: "bg-yellow-500", width: "w-2/3" } as const
-    return { label: "Strong", color: "bg-green-500", width: "w-full" } as const
-  }, [password])
+  const passwordStrength = useMemo(() => getPasswordStrength(password), [password])
 
   const handleWorkspaceNameChange = useCallback(
     (value: string) => {

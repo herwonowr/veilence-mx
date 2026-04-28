@@ -6,7 +6,7 @@ import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
 import { useAuth, ROUTES } from "@/core"
-import { registerSchema } from "@/domains/auth"
+import { registerSchema, getPasswordStrength } from "@/domains/auth"
 import { apiGetPublicConfig } from "@/domains/config"
 import type { PublicConfig } from "@/domains/config"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
@@ -58,18 +58,7 @@ export const RegisterForm = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [registrationSuccess, setRegistrationSuccess] = useState(false)
 
-  const passwordStrength = useMemo(() => {
-    if (!password) return null
-    let score = 0
-    if (password.length >= 8) score++
-    if (/[A-Z]/.test(password)) score++
-    if (/[0-9]/.test(password)) score++
-    if (/[^A-Za-z0-9]/.test(password)) score++
-
-    if (score <= 1) return { label: "Weak", color: "bg-red-500", width: "w-1/3" } as const
-    if (score <= 2) return { label: "Medium", color: "bg-yellow-500", width: "w-2/3" } as const
-    return { label: "Strong", color: "bg-green-500", width: "w-full" } as const
-  }, [password])
+  const passwordStrength = useMemo(() => getPasswordStrength(password), [password])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -1,5 +1,14 @@
 import { z } from "zod"
 
+const PASSWORD_MIN = 8
+const PASSWORD_MAX = 72
+
+/** Password schema: length validation matching backend rules (8-72 chars). */
+const passwordChecked = z
+  .string()
+  .min(PASSWORD_MIN, `Password must be at least ${PASSWORD_MIN} characters`)
+  .max(PASSWORD_MAX, `Password must be at most ${PASSWORD_MAX} characters`)
+
 export const loginSchema = z.object({
   email: z.email("Please enter a valid email address"),
   password: z.string().min(1, "Password is required"),
@@ -10,7 +19,7 @@ export const registerSchema = z
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
     email: z.email("Please enter a valid email address"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
+    password: passwordChecked,
     confirmPassword: z.string().min(1, "Please confirm your password"),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -30,7 +39,7 @@ export const passwordResetSchema = z.object({
 export const passwordChangeSchema = z
   .object({
     currentPassword: z.string().min(1, "Current password is required"),
-    newPassword: z.string().min(8, "New password must be at least 8 characters"),
+    newPassword: passwordChecked,
     confirmPassword: z.string().min(1, "Please confirm your new password"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
@@ -40,7 +49,7 @@ export const passwordChangeSchema = z
 
 export const newPasswordSchema = z
   .object({
-    password: z.string().min(8, "Password must be at least 8 characters"),
+    password: passwordChecked,
     confirmPassword: z.string().min(1, "Please confirm your password"),
   })
   .refine((data) => data.password === data.confirmPassword, {
