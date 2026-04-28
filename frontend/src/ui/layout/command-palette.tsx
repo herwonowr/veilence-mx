@@ -18,7 +18,7 @@ import {
   Monitor,
   Search,
 } from "lucide-react"
-import { cn, useAuth, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
+import { cn, useAuth, useCurrentWorkspaceRole, hasMinimumRole, ROUTES } from "@/core"
 import { Kbd } from "@/ui/components/kbd"
 import type { LucideIcon } from "lucide-react"
 
@@ -35,20 +35,20 @@ interface CommandItem {
 
 const commandItems: CommandItem[] = [
   // Navigation
-  { id: "dashboard", label: "Dashboard", href: "/", icon: LayoutDashboard, group: "Navigation", keywords: ["home", "overview", "stats"] },
-  { id: "packages", label: "Packages", href: "/packages", icon: Package, group: "Navigation", keywords: ["python", "npm", "dependencies"] },
-  { id: "releases", label: "Releases", href: "/releases", icon: Activity, group: "Navigation", keywords: ["versions", "updates"] },
-  { id: "alerts", label: "Alerts", href: "/alerts", icon: ShieldAlert, group: "Navigation", keywords: ["notifications", "warnings", "threats"] },
-  { id: "notifications", label: "Notifications", href: "/notifications", icon: BellDot, group: "Navigation", keywords: ["inbox", "messages", "updates"] },
-  { id: "workspaces", label: "Workspaces", href: "/workspaces", icon: Building2, group: "Navigation", keywords: ["teams"] },
+  { id: "dashboard", label: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard, group: "Navigation", keywords: ["home", "overview", "stats"] },
+  { id: "packages", label: "Packages", href: ROUTES.PACKAGES, icon: Package, group: "Navigation", keywords: ["python", "npm", "dependencies"] },
+  { id: "releases", label: "Releases", href: ROUTES.RELEASES, icon: Activity, group: "Navigation", keywords: ["versions", "updates"] },
+  { id: "alerts", label: "Alerts", href: ROUTES.ALERTS, icon: ShieldAlert, group: "Navigation", keywords: ["notifications", "warnings", "threats"] },
+  { id: "notifications", label: "Notifications", href: ROUTES.NOTIFICATIONS, icon: BellDot, group: "Navigation", keywords: ["inbox", "messages", "updates"] },
+  { id: "workspaces", label: "Workspaces", href: ROUTES.WORKSPACES, icon: Building2, group: "Navigation", keywords: ["teams"] },
   // Management
-  { id: "settings", label: "Settings", href: "/settings", icon: Settings, group: "Management", keywords: ["preferences", "configuration"], minRole: "admin" },
-  { id: "channels", label: "Channels", href: "/settings/notifications", icon: Radio, group: "Management", keywords: ["notifications", "webhooks", "slack"], minRole: "admin" },
-  { id: "queue", label: "Queue Monitor", href: "/settings/queue", icon: ListOrdered, group: "Management", keywords: ["jobs", "workers", "processing"], minRole: "admin" },
-  { id: "api-keys", label: "API Keys", href: "/settings/api-keys", icon: Key, group: "Management", keywords: ["tokens", "authentication"] },
+  { id: "settings", label: "Settings", href: ROUTES.SETTINGS, icon: Settings, group: "Management", keywords: ["preferences", "configuration"], minRole: "admin" },
+  { id: "channels", label: "Channels", href: ROUTES.SETTINGS_NOTIFICATIONS, icon: Radio, group: "Management", keywords: ["notifications", "webhooks", "slack"], minRole: "admin" },
+  { id: "queue", label: "Queue Monitor", href: ROUTES.SETTINGS_QUEUE, icon: ListOrdered, group: "Management", keywords: ["jobs", "workers", "processing"], minRole: "admin" },
+  { id: "api-keys", label: "API Keys", href: ROUTES.SETTINGS_API_KEYS, icon: Key, group: "Management", keywords: ["tokens", "authentication"] },
   // Account
-  { id: "account", label: "Account", href: "/account", icon: User, group: "Account", keywords: ["profile", "email", "password"] },
-  { id: "sessions", label: "Sessions", href: "/settings/sessions", icon: Monitor, group: "Account", keywords: ["active", "devices"] },
+  { id: "account", label: "Account", href: ROUTES.ACCOUNT, icon: User, group: "Account", keywords: ["profile", "email", "password"] },
+  { id: "sessions", label: "Sessions", href: ROUTES.SETTINGS_SESSIONS, icon: Monitor, group: "Account", keywords: ["active", "devices"] },
 ]
 
 export const CommandPalette = () => {

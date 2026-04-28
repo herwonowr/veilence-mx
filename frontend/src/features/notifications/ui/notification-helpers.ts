@@ -9,6 +9,7 @@ import {
   Trash2,
 } from "lucide-react"
 import type { Notification } from "@/domains/notifications"
+import { ROUTES } from "@/core"
 
 // ---------------------------------------------------------------------------
 // Severity
@@ -134,17 +135,17 @@ export const getNotificationLink = (notification: Notification): string => {
   switch (notification.referenceType) {
     case "alert":
       return notification.referenceId
-        ? `/alerts/${notification.referenceId}`
-        : "/alerts"
+        ? ROUTES.ALERT_DETAIL(notification.referenceId)
+        : ROUTES.ALERTS
     case "release":
       return notification.referenceId
-        ? `/releases/${notification.referenceId}`
-        : "/releases"
+        ? ROUTES.RELEASE_DETAIL(notification.referenceId)
+        : ROUTES.RELEASES
     case "package":
       return notification.referenceId
-        ? `/packages/${notification.referenceId}`
-        : "/packages"
+        ? ROUTES.PACKAGE_DETAIL(notification.referenceId)
+        : ROUTES.PACKAGES
     default:
-      return "/dashboard"
+      return ROUTES.DASHBOARD
   }
 }

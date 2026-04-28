@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
-import { useDebouncedValue, useSortParams, useFilterParams } from "@/core"
+import { useDebouncedValue, useSortParams, useFilterParams, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, Button, Badge, TableSkeleton, TableError, TableEmptyState, DataTablePagination, SearchInput, SortableHeader, Label, type SkeletonColumn } from "@/ui"
 import {
@@ -55,7 +55,6 @@ import {
   useRejectPackage,
   useBulkApprovePackages,
 } from "@/features/packages/hooks/use-packages"
-import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 
 const VALID_ECOSYSTEMS: Ecosystem[] = ["python", "npm"]
 

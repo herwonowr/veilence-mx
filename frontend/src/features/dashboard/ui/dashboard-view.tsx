@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useLocalStorage, useAuth } from "@/core"
+import { useLocalStorage, useAuth, ROUTES } from "@/core"
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Skeleton, TableSkeleton, TableError, Alert, AlertDescription, Label, Switch, TableEmptyState, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, type SkeletonColumn } from "@/ui"
 import {
   Table,
@@ -56,12 +56,12 @@ const DashboardOnboarding = ({ hasAnyWorkspace, user }: OnboardingProps) => {
         </p>
         <div className="flex flex-wrap items-center gap-3">
           {!hasAnyWorkspace && (
-            <Button onClick={() => router.push("/workspaces")}>
+            <Button onClick={() => router.push(ROUTES.WORKSPACES)}>
               <Plus className="mr-2 h-4 w-4" />
               Create Workspace
             </Button>
           )}
-          <Button variant="outline" onClick={() => router.push("/packages")}>
+          <Button variant="outline" onClick={() => router.push(ROUTES.PACKAGES)}>
             <Package className="mr-2 h-4 w-4" />
             {hasAnyWorkspace ? "Go to Packages" : "Browse Packages"}
           </Button>
@@ -306,7 +306,7 @@ const DashboardData = () => {
                 <TableRow
                   key={release.id}
                   clickable
-                  onClick={() => router.push(`/releases/${release.id}`)}
+                  onClick={() => router.push(ROUTES.RELEASE_DETAIL(release.id))}
                 >
                   <TableCell className="font-medium">
                     <Link

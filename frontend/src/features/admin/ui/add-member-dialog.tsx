@@ -147,7 +147,7 @@ export const AddMemberDialog = ({
                 <FieldLabel htmlFor="add-member-first-name">First Name</FieldLabel>
                 <Input
                   id="add-member-first-name"
-                  placeholder="Jane"
+                  placeholder="First name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   required
@@ -158,7 +158,7 @@ export const AddMemberDialog = ({
                 <FieldLabel htmlFor="add-member-last-name">Last Name</FieldLabel>
                 <Input
                   id="add-member-last-name"
-                  placeholder="Doe"
+                  placeholder="Last name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   required

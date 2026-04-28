@@ -3,9 +3,8 @@
 import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { useFilterParams, useDebouncedValue } from "@/core"
+import { useFilterParams, useDebouncedValue, ROUTES, cn } from "@/core"
 import { Button, buttonVariants, Input, Label, Badge, Skeleton, TableEmptyState, FilterChips, Calendar, Popover, PopoverContent, PopoverTrigger, type ActiveFilter } from "@/ui"
-import { cn } from "@/core"
 import {
   Card,
   CardContent,
@@ -140,7 +139,7 @@ export const AuditLogView = () => {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <p className="text-lg font-medium text-destructive">Invalid workspace ID</p>
-        <Button variant="outline" className="mt-4" onClick={() => router.push("/workspaces")}>
+        <Button variant="outline" className="mt-4" onClick={() => router.push(ROUTES.WORKSPACES)}>
           Back to Workspaces
         </Button>
       </div>

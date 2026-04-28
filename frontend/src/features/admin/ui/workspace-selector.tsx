@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/core"
+import { useAuth, ROUTES } from "@/core"
 import { Building2, ChevronsUpDown, Plus, Settings, AlertCircle, Loader2, Check } from "lucide-react"
 import { Button, Input } from "@/ui"
 import {
@@ -167,13 +167,13 @@ export const WorkspaceSelector = () => {
 
             {/* Action links */}
             <DropdownMenuItem
-              onClick={() => router.push("/workspaces?create=true")}
+              onClick={() => router.push(`${ROUTES.WORKSPACES}?create=true`)}
             >
               <Plus className="mr-2 size-4" />
               Create Workspace
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => router.push("/workspaces")}
+              onClick={() => router.push(ROUTES.WORKSPACES)}
             >
               <Settings className="mr-2 size-4" />
               Manage Workspaces

@@ -12,8 +12,7 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/ui"
-import { cn } from "@/core"
-import { useAuth } from "@/core"
+import { cn, useAuth } from "@/core"
 import type { Notification } from "@/domains/notifications"
 import {
   useUnreadCount,

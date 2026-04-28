@@ -15,8 +15,7 @@ import {
   ChevronRight,
   Info,
 } from "lucide-react"
-import type { QueueStats } from "@/domains/queue"
-import type { QueueJobStatus, QueueJobType } from "@/domains/queue"
+import type { QueueStats, QueueJobStatus, QueueJobType } from "@/domains/queue"
 
 interface QueueStatsCardProps {
   title: string

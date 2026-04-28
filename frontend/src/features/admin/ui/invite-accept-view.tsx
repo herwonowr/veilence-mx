@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useAuth, usePublicConfig } from "@/core"
+import { useAuth, usePublicConfig, ROUTES } from "@/core"
 import {
   useInvitationByToken,
   useAcceptInvitation,
@@ -57,7 +57,7 @@ export const InviteAcceptView = () => {
       })
       await refreshWorkspaces()
       toast.success("Invitation accepted! Redirecting to dashboard...")
-      router.push("/")
+      router.push(ROUTES.DASHBOARD)
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to accept invitation"
@@ -73,7 +73,7 @@ export const InviteAcceptView = () => {
         token,
       })
       toast.success("Invitation declined.")
-      router.push("/workspaces")
+      router.push(ROUTES.WORKSPACES)
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to decline invitation"
@@ -82,11 +82,11 @@ export const InviteAcceptView = () => {
   }
 
   const handleLogin = () => {
-    router.push(`/login?redirect=/invite/${token}`)
+    router.push(`${ROUTES.LOGIN}?redirect=${ROUTES.INVITE}/${token}`)
   }
 
   const handleRegister = () => {
-    router.push(`/register?redirect=/invite/${token}`)
+    router.push(`${ROUTES.REGISTER}?redirect=${ROUTES.INVITE}/${token}`)
   }
 
   if (authLoading || invitationLoading || configLoading) {
@@ -111,7 +111,7 @@ export const InviteAcceptView = () => {
           </CardDescription>
         </CardHeader>
         <CardFooter className="justify-center">
-          <Button variant="outline" onClick={() => router.push("/login")}>
+          <Button variant="outline" onClick={() => router.push(ROUTES.LOGIN)}>
             Go to Login
           </Button>
         </CardFooter>
@@ -130,7 +130,7 @@ export const InviteAcceptView = () => {
           </CardDescription>
         </CardHeader>
         <CardFooter className="justify-center">
-          <Button variant="outline" onClick={() => router.push("/login")}>
+          <Button variant="outline" onClick={() => router.push(ROUTES.LOGIN)}>
             Go to Login
           </Button>
         </CardFooter>
@@ -149,7 +149,7 @@ export const InviteAcceptView = () => {
           </CardDescription>
         </CardHeader>
         <CardFooter className="justify-center">
-          <Button onClick={() => router.push("/")}>Go to Dashboard</Button>
+          <Button onClick={() => router.push(ROUTES.DASHBOARD)}>Go to Dashboard</Button>
         </CardFooter>
       </Card>
     )
@@ -167,7 +167,7 @@ export const InviteAcceptView = () => {
           </CardDescription>
         </CardHeader>
         <CardFooter className="justify-center">
-          <Button variant="outline" onClick={() => router.push("/login")}>
+          <Button variant="outline" onClick={() => router.push(ROUTES.LOGIN)}>
             Go to Login
           </Button>
         </CardFooter>

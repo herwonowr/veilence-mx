@@ -2,8 +2,8 @@
 
 import { use } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { notFound } from "next/navigation"
+import { useRouter, notFound } from "next/navigation"
+import { ROUTES } from "@/core"
 import { Card, CardContent, CardHeader, CardTitle, Badge, Skeleton, DetailError } from "@/ui"
 import {
   Table,
@@ -145,7 +145,7 @@ export const PackageDetailView = ({
                 <TableRow
                   key={release.id}
                   clickable
-                  onClick={() => router.push(`/releases/${release.id}`)}
+                  onClick={() => router.push(ROUTES.RELEASE_DETAIL(release.id))}
                 >
                   <TableCell className="font-mono font-medium">
                     <Link

@@ -3,8 +3,7 @@
 import { useRef, useCallback } from "react"
 import { Search, X, Loader2 } from "lucide-react"
 import { Input } from "@/ui/components/input"
-import { cn } from "@/core"
-import { useDebouncedValue } from "@/core"
+import { cn, useDebouncedValue } from "@/core"
 
 interface SearchInputProps {
   value: string

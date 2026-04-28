@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/core"
+import { useAuth, ROUTES } from "@/core"
 import { Building2 } from "lucide-react"
 import { Button } from "@/ui"
 
@@ -32,7 +32,7 @@ export const RequireWorkspace = ({ children, feature }: RequireWorkspaceProps) =
           : `Create a workspace to start viewing ${feature ?? "this page"}.`}
       </p>
       {!hasAnyWorkspace && (
-        <Button onClick={() => router.push("/workspaces")}>
+        <Button onClick={() => router.push(ROUTES.WORKSPACES)}>
           Create Workspace
         </Button>
       )}

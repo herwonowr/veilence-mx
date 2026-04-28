@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
-import { apiForgotPassword } from "@/domains/auth"
-import { passwordResetSchema } from "@/domains/auth"
-import { sanitizeErrorMessage } from "@/core"
+import { apiForgotPassword, passwordResetSchema } from "@/domains/auth"
+import { apiGetPublicConfig } from "@/domains/config"
+import { sanitizeErrorMessage, ROUTES } from "@/core"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
   Card,
@@ -19,6 +20,21 @@ import { Loader2, ArrowLeft, CheckCircle2 } from "lucide-react"
 import { ZodError } from "zod"
 
 export const ForgotPasswordForm = () => {
+  const router = useRouter()
+
+  const didFetchConfig = useRef(false)
+  useEffect(() => {
+    if (didFetchConfig.current) return
+    didFetchConfig.current = true
+    apiGetPublicConfig()
+      .then((res) => {
+        if (res.data.setupRequired) {
+          router.replace(ROUTES.SETUP)
+        }
+      })
+      .catch(() => {})
+  }, [router])
+
   const [email, setEmail] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [serverError, setServerError] = useState("")
@@ -81,7 +97,7 @@ export const ForgotPasswordForm = () => {
               </Button>
               <div className="text-center">
                 <Link
-                  href="/login"
+                  href={ROUTES.LOGIN}
                   className="w-fit inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
                 >
                   <ArrowLeft className="size-3" />
@@ -107,7 +123,7 @@ export const ForgotPasswordForm = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {serverError && (
               <Alert variant="destructive" className="text-center bg-destructive/10 border-destructive">
                 <AlertDescription>{serverError}</AlertDescription>
@@ -121,7 +137,6 @@ export const ForgotPasswordForm = () => {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
                 autoComplete="email"
               />
               {errors.email && <FieldError>{errors.email}</FieldError>}
@@ -133,7 +148,7 @@ export const ForgotPasswordForm = () => {
           </form>
           <div className="mt-4 text-center">
             <Link
-              href="/login"
+              href={ROUTES.LOGIN}
               className="w-fit inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
             >
               <ArrowLeft className="size-3" />

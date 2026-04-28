@@ -4,7 +4,7 @@ import { useCallback, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { useAuth, sanitizeErrorMessage } from "@/core"
+import { useAuth, sanitizeErrorMessage, ROUTES } from "@/core"
 import { apiCreateWorkspace } from "@/domains/admin"
 import { updateSettings, onboardingSettingsSchema } from "@/domains/settings"
 import { createPackage, discoverPackages } from "@/domains/packages"
@@ -210,7 +210,7 @@ export const useOnboarding = () => {
       queryClient.invalidateQueries({ queryKey: onboardingKeys.check })
       queryClient.invalidateQueries({ queryKey: ["packages"] })
       queryClient.invalidateQueries({ queryKey: ["settings"] })
-      router.push("/")
+      router.push(ROUTES.DASHBOARD)
     } catch (error) {
       toast.error(
         sanitizeErrorMessage(

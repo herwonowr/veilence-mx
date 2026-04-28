@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth, usePublicConfig } from "@/core"
+import { useAuth, usePublicConfig, ROUTES } from "@/core"
 import type { MyInvitation } from "@/domains/admin"
 import {
   useMyInvitations,
@@ -58,7 +58,7 @@ export const MyInvitationsView = () => {
               Invitations are not available when registration is disabled.
             </p>
           </div>
-          <Button variant="outline" onClick={() => router.push("/workspaces")}>
+          <Button variant="outline" onClick={() => router.push(ROUTES.WORKSPACES)}>
             Back to Workspaces
           </Button>
         </div>
@@ -69,7 +69,7 @@ export const MyInvitationsView = () => {
               title="Invitations not available"
               description="Invitations are not available when registration is disabled. Contact your workspace admin to be added directly."
             >
-              <Button variant="outline" onClick={() => router.push("/workspaces")}>
+              <Button variant="outline" onClick={() => router.push(ROUTES.WORKSPACES)}>
                 Go to Workspaces
               </Button>
             </EmptyState>
@@ -82,7 +82,7 @@ export const MyInvitationsView = () => {
   const handleAccept = async (invitation: MyInvitation) => {
     await acceptMutation.mutateAsync(invitation.id)
     await refreshWorkspaces()
-    router.push("/workspaces")
+    router.push(ROUTES.WORKSPACES)
   }
 
   const handleDecline = async (invitation: MyInvitation) => {
@@ -108,7 +108,7 @@ export const MyInvitationsView = () => {
             Pending workspace invitations sent to you.
           </p>
         </div>
-        <Button variant="outline" onClick={() => router.push("/workspaces")}>
+        <Button variant="outline" onClick={() => router.push(ROUTES.WORKSPACES)}>
           Back to Workspaces
         </Button>
       </div>
@@ -121,7 +121,7 @@ export const MyInvitationsView = () => {
               title="No pending invitations"
               description="You don't have any pending workspace invitations."
             >
-              <Button variant="outline" onClick={() => router.push("/workspaces")}>
+              <Button variant="outline" onClick={() => router.push(ROUTES.WORKSPACES)}>
                 Go to Workspaces
               </Button>
             </EmptyState>

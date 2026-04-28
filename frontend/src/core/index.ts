@@ -11,6 +11,9 @@ export { AuthProvider, useAuth } from "@/core/providers/auth-provider"
 export { QueryProvider } from "@/core/providers/query-provider"
 export { ThemeProvider } from "@/core/providers/theme-provider"
 
+// Routes
+export { ROUTES, PUBLIC_PATHS, AUTH_PAGE_PATHS, NO_CHROME_PATHS } from "@/core/routes"
+
 // Hooks
 export { useIsMobile } from "@/core/hooks/use-mobile"
 export { useDebouncedValue } from "@/core/hooks/use-debounced-value"

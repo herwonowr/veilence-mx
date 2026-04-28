@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
-import { useAuth } from "@/core"
+import { useAuth, ROUTES } from "@/core"
 import { registerSchema } from "@/domains/auth"
 import { apiGetPublicConfig } from "@/domains/config"
 import type { PublicConfig } from "@/domains/config"
@@ -33,9 +33,13 @@ export const RegisterForm = () => {
     apiGetPublicConfig()
       .then((res) => {
         setPublicConfig(res.data)
+        if (res.data.setupRequired) {
+          router.replace(ROUTES.SETUP)
+          return
+        }
         // Redirect to login if registration is disabled
         if (res.data && !res.data.registrationEnabled) {
-          router.replace("/login")
+          router.replace(ROUTES.LOGIN)
         }
       })
       .catch(() => {})
@@ -94,7 +98,7 @@ export const RegisterForm = () => {
         setRegistrationSuccess(true)
         return
       }
-      router.push("/workspaces?create=true")
+      router.push(`${ROUTES.WORKSPACES}?create=true`)
     } catch (err) {
       if (err instanceof ZodError) {
         const fieldErrors: Record<string, string> = {}
@@ -135,7 +139,7 @@ export const RegisterForm = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <Link href="/login?registered=true">
+            <Link href={`${ROUTES.LOGIN}?registered=true`}>
               <Button variant="outline" className="w-full">
                 Go to Sign In
               </Button>
@@ -157,7 +161,7 @@ export const RegisterForm = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {publicConfig?.hasEmailDomainRestriction && (
               <Alert variant="default" className="bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800">
                 <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -175,10 +179,9 @@ export const RegisterForm = () => {
               <FieldLabel htmlFor="firstName">First Name</FieldLabel>
               <Input
                 id="firstName"
-                placeholder="John"
+                placeholder="First name"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                required
                 autoComplete="given-name"
               />
               {errors.firstName && <FieldError>{errors.firstName}</FieldError>}
@@ -187,10 +190,9 @@ export const RegisterForm = () => {
               <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
               <Input
                 id="lastName"
-                placeholder="Doe"
+                placeholder="Last name"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                required
                 autoComplete="family-name"
               />
               {errors.lastName && <FieldError>{errors.lastName}</FieldError>}
@@ -203,7 +205,6 @@ export const RegisterForm = () => {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
                 autoComplete="email"
               />
               {errors.email && <FieldError>{errors.email}</FieldError>}
@@ -217,7 +218,6 @@ export const RegisterForm = () => {
                   placeholder="At least 8 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required
                   autoComplete="new-password"
                 />
                 {errors.password && <FieldError>{errors.password}</FieldError>}
@@ -259,7 +259,6 @@ export const RegisterForm = () => {
                   placeholder="Confirm your password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
                   autoComplete="new-password"
                 />
                 {errors.confirmPassword && <FieldError>{errors.confirmPassword}</FieldError>}
@@ -288,7 +287,7 @@ export const RegisterForm = () => {
           <div className="mt-4 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link
-              href="/login"
+              href={ROUTES.LOGIN}
               className="font-medium text-primary underline-offset-4 hover:underline"
             >
               Sign in

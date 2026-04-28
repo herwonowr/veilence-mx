@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
-import { storeTokens, storeWorkspaceId, sanitizeErrorMessage, usePublicConfig } from "@/core"
+import { storeTokens, storeWorkspaceId, sanitizeErrorMessage, usePublicConfig, ROUTES } from "@/core"
 import { useSetup } from "@/features/setup/hooks/use-setup"
 import {
   Button,
@@ -75,7 +75,7 @@ export const SetupWizard = () => {
   // Redirect if setup is not required
   useEffect(() => {
     if (!configLoading && config && !config.setupRequired) {
-      router.replace("/login")
+      router.replace(ROUTES.LOGIN)
     }
   }, [configLoading, config, router])
 
@@ -163,7 +163,7 @@ export const SetupWizard = () => {
         storeWorkspaceId(result.workspace.id)
         setPassword("")
         setConfirmPassword("")
-        router.push("/")
+        router.push(ROUTES.DASHBOARD)
       }
     } catch (err: unknown) {
       setServerError(sanitizeErrorMessage(err, "Setup failed"))
@@ -203,7 +203,7 @@ export const SetupWizard = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {serverError && (
               <Alert
                 variant="destructive"
@@ -218,10 +218,9 @@ export const SetupWizard = () => {
                 <FieldLabel htmlFor="firstName">First Name</FieldLabel>
                 <Input
                   id="firstName"
-                  placeholder="John"
+                  placeholder="First name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  required
                   autoComplete="given-name"
                 />
                 {errors.firstName && (
@@ -232,10 +231,9 @@ export const SetupWizard = () => {
                 <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
                 <Input
                   id="lastName"
-                  placeholder="Doe"
+                  placeholder="Last name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  required
                   autoComplete="family-name"
                 />
                 {errors.lastName && (
@@ -252,7 +250,6 @@ export const SetupWizard = () => {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
                 autoComplete="email"
               />
               {errors.email && <FieldError>{errors.email}</FieldError>}
@@ -267,7 +264,6 @@ export const SetupWizard = () => {
                   placeholder="At least 8 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required
                   autoComplete="new-password"
                 />
                 {errors.password && (
@@ -314,10 +310,9 @@ export const SetupWizard = () => {
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm your password"
+                  placeholder="Confirm password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
                   autoComplete="new-password"
                 />
                 {errors.confirmPassword && (
@@ -354,10 +349,9 @@ export const SetupWizard = () => {
                   </FieldLabel>
                   <Input
                     id="workspaceName"
-                    placeholder="My Organization"
+                    placeholder="Acme Corp"
                     value={workspaceName}
                     onChange={(e) => handleWorkspaceNameChange(e.target.value)}
-                    required
                   />
                   {errors.workspaceName && (
                     <FieldError>{errors.workspaceName}</FieldError>
@@ -369,10 +363,9 @@ export const SetupWizard = () => {
                   </FieldLabel>
                   <Input
                     id="workspaceSlug"
-                    placeholder="my-organization"
+                    placeholder="acme-corp"
                     value={workspaceSlug}
                     onChange={(e) => handleSlugChange(e.target.value)}
-                    required
                   />
                   {errors.workspaceSlug && (
                     <FieldError>{errors.workspaceSlug}</FieldError>

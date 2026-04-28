@@ -4,7 +4,7 @@ import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
-import { useAuth, sanitizeErrorMessage } from "@/core"
+import { useAuth, sanitizeErrorMessage, ROUTES } from "@/core"
 import { apiChangePassword, passwordChangeSchema } from "@/domains/auth"
 import {
   Button,
@@ -90,7 +90,7 @@ export const ChangePasswordForm = () => {
       setNewPassword("")
       setConfirmPassword("")
       await refreshUser()
-      router.push("/")
+      router.push(ROUTES.DASHBOARD)
     } catch (err: unknown) {
       setServerError(sanitizeErrorMessage(err, "Failed to change password"))
     } finally {
@@ -122,7 +122,7 @@ export const ChangePasswordForm = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {serverError && (
               <Alert
                 variant="destructive"
@@ -140,10 +140,9 @@ export const ChangePasswordForm = () => {
                 <Input
                   id="currentPassword"
                   type={showCurrentPassword ? "text" : "password"}
-                  placeholder="Enter your current password"
+                  placeholder="Current password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  required
                   autoComplete="current-password"
                 />
                 {errors.currentPassword && (
@@ -178,7 +177,6 @@ export const ChangePasswordForm = () => {
                   placeholder="At least 8 characters"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  required
                   autoComplete="new-password"
                 />
                 {errors.newPassword && (
@@ -227,10 +225,9 @@ export const ChangePasswordForm = () => {
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm your new password"
+                  placeholder="Confirm new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
                   autoComplete="new-password"
                 />
                 {errors.confirmPassword && (

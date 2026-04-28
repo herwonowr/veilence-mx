@@ -42,7 +42,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/ui"
-import { useAuth, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
+import { useAuth, useCurrentWorkspaceRole, hasMinimumRole, ROUTES } from "@/core"
 import { useShellDashboardStats } from "@/features/shell/hooks/use-shell-stats"
 import type { LucideIcon } from "lucide-react"
 
@@ -67,19 +67,19 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { title: "Dashboard", href: "/", icon: LayoutDashboard },
-  { title: "Packages", href: "/packages", icon: Package },
-  { title: "Releases", href: "/releases", icon: Activity },
-  { title: "Alerts", href: "/alerts", icon: ShieldAlert },
-  { title: "Notifications", href: "/notifications", icon: BellDot },
-  { title: "Workspaces", href: "/workspaces", icon: Building2 },
+  { title: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
+  { title: "Packages", href: ROUTES.PACKAGES, icon: Package },
+  { title: "Releases", href: ROUTES.RELEASES, icon: Activity },
+  { title: "Alerts", href: ROUTES.ALERTS, icon: ShieldAlert },
+  { title: "Notifications", href: ROUTES.NOTIFICATIONS, icon: BellDot },
+  { title: "Workspaces", href: ROUTES.WORKSPACES, icon: Building2 },
 ]
 
 const settingsItems: NavItem[] = [
-  { title: "Settings", href: "/settings", icon: Settings, minRole: "admin" },
-  { title: "Channels", href: "/settings/notifications", icon: Radio, minRole: "admin" },
-  { title: "Queue Monitor", href: "/settings/queue", icon: ListOrdered, minRole: "admin" },
-  { title: "API Keys", href: "/settings/api-keys", icon: Key },
+  { title: "Settings", href: ROUTES.SETTINGS, icon: Settings, minRole: "admin" },
+  { title: "Channels", href: ROUTES.SETTINGS_NOTIFICATIONS, icon: Radio, minRole: "admin" },
+  { title: "Queue Monitor", href: ROUTES.SETTINGS_QUEUE, icon: ListOrdered, minRole: "admin" },
+  { title: "API Keys", href: ROUTES.SETTINGS_API_KEYS, icon: Key },
 ]
 
 export const AppSidebar = ({
@@ -114,7 +114,7 @@ export const AppSidebar = ({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              render={<Link href="/" />}
+              render={<Link href={ROUTES.DASHBOARD} />}
               tooltip="Veilence-MX"
               className="h-auto hover:bg-transparent"
             >
@@ -155,7 +155,7 @@ export const AppSidebar = ({
                       <item.icon />
                       <span>{item.title}</span>
                     </SidebarMenuButton>
-                    {item.href === "/alerts" && alertCount > 0 && (
+                    {item.href === ROUTES.ALERTS && alertCount > 0 && (
                       <SidebarMenuBadge>{alertCount}</SidebarMenuBadge>
                     )}
                   </SidebarMenuItem>
@@ -173,8 +173,8 @@ export const AppSidebar = ({
                 .filter((item) => !item.minRole || hasMinimumRole(role, item.minRole))
                 .map((item) => {
                 const isActive =
-                  item.href === "/settings"
-                    ? pathname === "/settings"
+                  item.href === ROUTES.SETTINGS
+                    ? pathname === ROUTES.SETTINGS
                     : pathname === item.href || pathname.startsWith(item.href + "/")
                 return (
                   <SidebarMenuItem key={item.href}>
@@ -224,13 +224,13 @@ export const AppSidebar = ({
                   className="w-56"
                 >
                   <DropdownMenuItem
-                    render={<Link href="/account" />}
+                    render={<Link href={ROUTES.ACCOUNT} />}
                   >
                     <User className="mr-2 size-4" />
                     Account
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    render={<Link href="/settings/sessions" />}
+                    render={<Link href={ROUTES.SETTINGS_SESSIONS} />}
                   >
                     <Monitor className="mr-2 size-4" />
                     Sessions

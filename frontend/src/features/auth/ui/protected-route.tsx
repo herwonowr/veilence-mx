@@ -2,7 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { useAuth } from "@/core"
+import { useAuth, ROUTES } from "@/core"
 import { Skeleton } from "@/ui"
 
 const emptySubscribe = () => () => {}
@@ -17,14 +17,14 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push(`/login?redirect=${encodeURIComponent(pathname)}`)
+      router.push(`${ROUTES.LOGIN}?redirect=${encodeURIComponent(pathname)}`)
     }
   }, [isLoading, isAuthenticated, router, pathname])
 
   // Guard: redirect to /change-password when mustChangePassword is true
   useEffect(() => {
-    if (!isLoading && isAuthenticated && user?.mustChangePassword && pathname !== "/change-password") {
-      router.push("/change-password")
+    if (!isLoading && isAuthenticated && user?.mustChangePassword && pathname !== ROUTES.CHANGE_PASSWORD) {
+      router.push(ROUTES.CHANGE_PASSWORD)
     }
   }, [isLoading, isAuthenticated, user, pathname, router])
 
@@ -47,7 +47,7 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   // Block rendering while mustChangePassword and not on /change-password
-  if (user?.mustChangePassword && pathname !== "/change-password") {
+  if (user?.mustChangePassword && pathname !== ROUTES.CHANGE_PASSWORD) {
     return null
   }
 

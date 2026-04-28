@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useAuth, usePublicConfig } from "@/core"
+import { useAuth, usePublicConfig, ROUTES, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 import { workspaceUpdateSchema } from "@/domains/admin"
 import {
   Button,
@@ -44,7 +44,6 @@ import {
   useDeleteWorkspace,
   usePendingInvitations,
 } from "@/features/admin"
-import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 import { AddMemberDialog } from "@/features/admin/ui/add-member-dialog"
 import { InviteMemberDialog } from "@/features/admin/ui/invite-member-dialog"
 import { MembersSection } from "@/features/admin/ui/members-section"
@@ -135,14 +134,14 @@ export const WorkspaceDetailView = () => {
   const handleDelete = async () => {
     await deleteMutation.mutateAsync(validWorkspaceId)
     await refreshWorkspaces()
-    router.push("/workspaces")
+    router.push(ROUTES.WORKSPACES)
   }
 
   if (!workspaceId) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <p className="text-lg font-medium text-destructive">Invalid workspace ID</p>
-        <Button variant="outline" className="mt-4" onClick={() => router.push("/workspaces")}>
+        <Button variant="outline" className="mt-4" onClick={() => router.push(ROUTES.WORKSPACES)}>
           Back to Workspaces
         </Button>
       </div>
@@ -162,7 +161,7 @@ export const WorkspaceDetailView = () => {
     return (
       <div className="text-center py-12">
         <h2 className="text-xl font-medium">Workspace not found</h2>
-        <Button variant="link" onClick={() => router.push("/workspaces")}>
+        <Button variant="link" onClick={() => router.push(ROUTES.WORKSPACES)}>
           Back to Workspaces
         </Button>
       </div>

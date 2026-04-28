@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { ROUTES, PUBLIC_PATHS, AUTH_PAGE_PATHS } from "@/core/routes"
 
 /**
  * SSR route protection proxy.
@@ -10,37 +11,26 @@ import { NextRequest, NextResponse } from "next/server"
  * This is NOT a security boundary - the backend JWT check is authoritative.
  */
 
-const PUBLIC_PATHS = [
-  "/login",
-  "/register",
-  "/forgot-password",
-  "/reset-password",
-  "/verify-email",
-]
-
 const AUTH_COOKIE = "vmx_authenticated"
 
 const isPublicPath = (pathname: string): boolean =>
-  PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
-  pathname.startsWith("/invitations")
+  PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 
 const isAuthPagePath = (pathname: string): boolean =>
-  ["/login", "/register", "/forgot-password", "/reset-password"].some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
-  )
+  AUTH_PAGE_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 
 export const proxy = (request: NextRequest): NextResponse => {
   const { pathname } = request.nextUrl
   const hasAuthCookie = request.cookies.has(AUTH_COOKIE)
 
-  // Authenticated user hitting an auth page → redirect to dashboard
+  // Authenticated user hitting an auth page - redirect to dashboard
   if (hasAuthCookie && isAuthPagePath(pathname)) {
-    return NextResponse.redirect(new URL("/", request.url))
+    return NextResponse.redirect(new URL(ROUTES.DASHBOARD, request.url))
   }
 
-  // Unauthenticated user hitting a protected page → redirect to login
+  // Unauthenticated user hitting a protected page - redirect to login
   if (!hasAuthCookie && !isPublicPath(pathname)) {
-    const loginUrl = new URL("/login", request.url)
+    const loginUrl = new URL(ROUTES.LOGIN, request.url)
     loginUrl.searchParams.set("redirect", pathname)
     return NextResponse.redirect(loginUrl)
   }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useAuth } from "@/core"
+import { useAuth, ROUTES } from "@/core"
 import { apiCreateWorkspace, workspaceSchema } from "@/domains/admin"
 import type { Workspace } from "@/domains/admin"
 import { Button, Input, Field, FieldLabel, FieldDescription, FieldError, Badge, EmptyState, Alert, AlertDescription } from "@/ui"
@@ -61,7 +61,7 @@ export const WorkspacesListView = () => {
   // When URL has ?create=true, clean it up so re-navigation works
   useEffect(() => {
     if (shouldCreateWorkspace) {
-      router.replace("/workspaces", { scroll: false })
+      router.replace(ROUTES.WORKSPACES, { scroll: false })
     }
   }, [shouldCreateWorkspace, router])
 
@@ -106,7 +106,7 @@ export const WorkspacesListView = () => {
       setName("")
       setSlug("")
       setDescription("")
-      router.push(`/workspaces/${data.id}`)
+      router.push(ROUTES.WORKSPACE_DETAIL(data.id))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create workspace")
     } finally {
@@ -157,7 +157,7 @@ export const WorkspacesListView = () => {
                   <FieldLabel htmlFor="workspace-name">Name</FieldLabel>
                   <Input
                     id="workspace-name"
-                    placeholder="My Workspace"
+                    placeholder="Acme Corp"
                     value={name}
                     onChange={(e) => handleNameChange(e.target.value)}
                     required
@@ -168,7 +168,7 @@ export const WorkspacesListView = () => {
                   <FieldLabel htmlFor="workspace-slug">Slug</FieldLabel>
                   <Input
                     id="workspace-slug"
-                    placeholder="my-workspace"
+                    placeholder="acme-corp"
                     value={slug}
                     onChange={(e) => setSlug(e.target.value)}
                     required

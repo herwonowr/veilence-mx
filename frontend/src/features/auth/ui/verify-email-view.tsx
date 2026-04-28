@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
+import { ROUTES } from "@/core"
 import Link from "next/link"
 import { apiVerifyEmail } from "@/domains/auth"
 import { Button } from "@/ui"
@@ -83,7 +84,7 @@ const VerifyEmailViewInner = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Link href="/login" className="block">
+            <Link href={ROUTES.LOGIN} className="block">
               <Button className="w-full">Go to sign in</Button>
             </Link>
           </CardContent>
@@ -110,7 +111,7 @@ const VerifyEmailViewInner = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            <Link href="/login" className="block">
+            <Link href={ROUTES.LOGIN} className="block">
               <Button className="w-full" variant="outline">
                 <ArrowLeft className="mr-2 size-3" />
                 Back to sign in

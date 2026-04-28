@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, useCurrentWorkspaceRole, hasMinimumRole, type ColumnBreakpoints } from "@/core"
+import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, useCurrentWorkspaceRole, hasMinimumRole, ROUTES, type ColumnBreakpoints } from "@/core"
 import { Card, CardContent, CardHeader, Badge, Button, SearchInput, Label, TableSkeleton, TableError, TableEmptyState, FilterChips, DataTablePagination, SortableHeader, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
   Select,
@@ -353,7 +353,7 @@ const AlertsContent = () => {
                   <TableRow
                     key={row.id}
                     clickable
-                    onClick={() => router.push(`/alerts/${row.original.id}`)}
+                    onClick={() => router.push(ROUTES.ALERT_DETAIL(row.original.id))}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className={cell.column.columnDef.meta?.cellClassName}>

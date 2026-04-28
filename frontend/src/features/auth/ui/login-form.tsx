@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
-import { useAuth, sanitizeErrorMessage } from "@/core"
+import { useAuth, sanitizeErrorMessage, ROUTES } from "@/core"
 import { loginSchema, apiSendVerificationEmailByEmail } from "@/domains/auth"
 import { apiGetPublicConfig } from "@/domains/config"
 import type { PublicConfig } from "@/domains/config"
@@ -77,15 +77,20 @@ const LoginFormInner = () => {
     if (didFetchConfig.current) return
     didFetchConfig.current = true
     apiGetPublicConfig()
-      .then((res) => setPublicConfig(res.data))
+      .then((res) => {
+        setPublicConfig(res.data)
+        if (res.data.setupRequired) {
+          router.replace(ROUTES.SETUP)
+        }
+      })
       .catch(() => {})
-  }, [])
+  }, [router])
 
   // Validate redirect is a same-origin relative path to prevent open redirect
-  const rawRedirect = searchParams.get("redirect") ?? "/"
+  const rawRedirect = searchParams.get("redirect") ?? ROUTES.DASHBOARD
   const redirect = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
     ? rawRedirect
-    : "/"
+    : ROUTES.DASHBOARD
 
   const isRegistered = searchParams.get("registered") === "true"
 
@@ -189,7 +194,7 @@ const LoginFormInner = () => {
       clearAttempts()
 
       if (result?.mustChangePassword) {
-        router.push("/change-password")
+        router.push(ROUTES.CHANGE_PASSWORD)
       } else {
         router.push(redirect)
       }
@@ -228,7 +233,7 @@ const LoginFormInner = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {serverError && (
               <Alert variant="destructive" className="text-center bg-destructive/10 border-destructive">
                 <AlertDescription>{serverError}</AlertDescription>
@@ -291,7 +296,6 @@ const LoginFormInner = () => {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
                 autoComplete="email"
               />
               {errors.email && <FieldError>{errors.email}</FieldError>}
@@ -305,7 +309,6 @@ const LoginFormInner = () => {
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required
                   autoComplete="current-password"
                 />
                 {errors.password && <FieldError>{errors.password}</FieldError>}
@@ -339,7 +342,7 @@ const LoginFormInner = () => {
           <div className="mt-4 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
             <Link
-              href="/register"
+              href={ROUTES.REGISTER}
               className="font-medium text-primary underline-offset-4 hover:underline"
             >
               Create account
@@ -348,7 +351,7 @@ const LoginFormInner = () => {
           )}
           <div className="mt-2 text-center">
             <Link
-              href="/forgot-password"
+              href={ROUTES.FORGOT_PASSWORD}
               className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
             >
               Forgot your password?

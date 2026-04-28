@@ -53,7 +53,7 @@ export const CreateWorkspaceStep = ({
       <Field>
         <FieldLabel>Workspace Name</FieldLabel>
         <Input
-          placeholder="My Organization"
+          placeholder="Acme Corp"
           value={formData.name}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => onUpdateField("name", e.target.value)}
         />
@@ -63,7 +63,7 @@ export const CreateWorkspaceStep = ({
       <Field>
         <FieldLabel>Slug</FieldLabel>
         <Input
-          placeholder="my-organization"
+          placeholder="acme-corp"
           value={formData.slug}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => onUpdateField("slug", e.target.value)}
         />
@@ -78,7 +78,7 @@ export const CreateWorkspaceStep = ({
           Description <span className="text-muted-foreground">(optional)</span>
         </FieldLabel>
         <Textarea
-          placeholder="Brief description of your workspace"
+          placeholder="Optional description"
           rows={2}
           value={formData.description}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onUpdateField("description", e.target.value)}

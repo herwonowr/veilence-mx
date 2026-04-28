@@ -2,11 +2,9 @@
 
 import { usePathname } from "next/navigation"
 import { SidebarInset, SidebarProvider, CommandPalette } from "@/ui"
-import { useAuth } from "@/core"
+import { useAuth, NO_CHROME_PATHS } from "@/core"
 import { SiteHeader } from "@/features/shell/ui/site-header"
 import { AppSidebar } from "@/features/shell/ui/app-sidebar"
-
-const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password"]
 
 export const AppShell = ({
   children,
@@ -21,7 +19,7 @@ export const AppShell = ({
 }) => {
   const pathname = usePathname()
   const { isAuthenticated, isLoading } = useAuth()
-  const isAuthRoute = AUTH_ROUTES.some((r) => pathname.startsWith(r))
+  const isAuthRoute = NO_CHROME_PATHS.some((r) => pathname.startsWith(r))
 
   // For auth routes, always render plain (no app chrome)
   if (isAuthRoute) {

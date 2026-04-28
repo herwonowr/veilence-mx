@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, type ColumnBreakpoints } from "@/core"
+import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, ROUTES, type ColumnBreakpoints } from "@/core"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, Badge, TableSkeleton, TableError, TableEmptyState, Button, Label, FilterChips, SearchInput, DataTablePagination, SortableHeader, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
@@ -336,7 +336,7 @@ export const ReleasesListView = () => {
                   <TableRow
                     key={row.id}
                     clickable
-                    onClick={() => router.push(`/releases/${row.original.id}`)}
+                    onClick={() => router.push(ROUTES.RELEASE_DETAIL(row.original.id))}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>

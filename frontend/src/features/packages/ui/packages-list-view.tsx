@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, useCurrentWorkspaceRole, hasMinimumRole, type ColumnBreakpoints } from "@/core"
+import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, useCurrentWorkspaceRole, hasMinimumRole, ROUTES, type ColumnBreakpoints } from "@/core"
 import { Button, Badge, Input, Textarea, Card, CardContent, CardHeader, TableSkeleton, TableError, TableEmptyState, FilterChips, SearchInput, Field, FieldLabel, FieldError, Label, DataTablePagination, SortableHeader, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
   Table,
@@ -38,7 +38,7 @@ import {
 } from "@/ui"
 import type { Package, PackageSource, PackageStatus } from "@/domains/packages"
 import type { Ecosystem } from "@/domains/common"
-import { formatPopularity, formatFreshness, popularityLabel } from "@/domains/packages"
+import { formatPopularity, formatFreshness, popularityLabel, packageSchema } from "@/domains/packages"
 import { Plus, Trash2, RefreshCw, Upload, Ban, ShieldCheck, Radar } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
 import Link from "next/link"
@@ -56,7 +56,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/ui"
-import { packageSchema } from "@/domains/packages"
 import { ZodError } from "zod"
 import {
   usePackages,
@@ -680,7 +679,7 @@ export const PackagesListView = () => {
                     key={row.id}
                     clickable
                     className={row.original.status === "blocked" ? "opacity-50" : undefined}
-                    onClick={() => router.push(`/packages/${row.original.id}`)}
+                    onClick={() => router.push(ROUTES.PACKAGE_DETAIL(row.original.id))}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className={cell.column.columnDef.meta?.cellClassName}>

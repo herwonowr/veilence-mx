@@ -1,12 +1,13 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { ROUTES } from "@/core"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
-import { apiResetPassword } from "@/domains/auth"
-import { newPasswordSchema } from "@/domains/auth"
+import { apiResetPassword, newPasswordSchema } from "@/domains/auth"
+import { apiGetPublicConfig } from "@/domains/config"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
   Card,
@@ -23,6 +24,19 @@ const ResetPasswordFormInner = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
+
+  const didFetchConfig = useRef(false)
+  useEffect(() => {
+    if (didFetchConfig.current) return
+    didFetchConfig.current = true
+    apiGetPublicConfig()
+      .then((res) => {
+        if (res.data.setupRequired) {
+          router.replace(ROUTES.SETUP)
+        }
+      })
+      .catch(() => {})
+  }, [router])
 
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -47,12 +61,12 @@ const ResetPasswordFormInner = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <Link href="/forgot-password" className="block">
+              <Link href={ROUTES.FORGOT_PASSWORD} className="block">
                 <Button className="w-full">Request New Link</Button>
               </Link>
               <div className="text-center">
                 <Link
-                  href="/login"
+                  href={ROUTES.LOGIN}
                   className="w-fit inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
                 >
                   <ArrowLeft className="size-3" />
@@ -76,7 +90,7 @@ const ResetPasswordFormInner = () => {
       setLoading(true)
       await apiResetPassword(token!, data.password)
       toast.success("Password reset successfully. You can now sign in.")
-      router.push("/login")
+      router.push(ROUTES.LOGIN)
     } catch (err) {
       if (err instanceof ZodError) {
         const fieldErrors: Record<string, string> = {}
@@ -113,7 +127,7 @@ const ResetPasswordFormInner = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {serverError && (
               <Alert variant="destructive" className="text-center bg-destructive/10 border-destructive">
                 <AlertDescription>{serverError}</AlertDescription>
@@ -127,7 +141,6 @@ const ResetPasswordFormInner = () => {
                 placeholder="At least 8 characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
                 autoComplete="new-password"
               />
               {errors.password && <FieldError>{errors.password}</FieldError>}
@@ -137,10 +150,9 @@ const ResetPasswordFormInner = () => {
               <Input
                 id="confirmPassword"
                 type="password"
-                placeholder="Confirm your new password"
+                placeholder="Confirm new password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                required
                 autoComplete="new-password"
               />
               {errors.confirmPassword && <FieldError>{errors.confirmPassword}</FieldError>}
@@ -152,7 +164,7 @@ const ResetPasswordFormInner = () => {
           </form>
           <div className="mt-4 text-center">
             <Link
-              href="/login"
+              href={ROUTES.LOGIN}
               className="w-fit inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
             >
               <ArrowLeft className="size-3" />
