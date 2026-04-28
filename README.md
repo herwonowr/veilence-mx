@@ -25,7 +25,7 @@ Poller (PyPI/npm) --> Differ (unified LCS diff) --> Analyzer (LLM) --> Alerts --
 - **Backend**: Go 1.23+, Chi v5, GORM, PostgreSQL 16, Redis 7 - Clean Architecture (entity/usecase/repo/controller)
 - **Frontend**: Next.js 16 (App Router), React 19, TypeScript strict, TailwindCSS v4, shadcn/ui - Clean Architecture (app/features/domains/core/ui)
 - **LLM**: Multiple providers - copilot-api (default), OpenAI, Anthropic, Ollama
-- **Auth**: JWT (access + refresh tokens), RBAC (Owner/Admin/Member/Viewer), multi-tenant workspaces
+- **Auth**: JWT (access + refresh tokens), RBAC (Owner/Admin/Member/Viewer), multi-tenant workspaces, registration controls
 - **Notifications**: Email (SMTP), Slack webhooks, custom webhooks with configurable rules
 
 ## Features
@@ -34,7 +34,7 @@ Poller (PyPI/npm) --> Differ (unified LCS diff) --> Analyzer (LLM) --> Alerts --
 - **Release Analysis** - Unified diff generation with LCS algorithm, LLM-powered threat classification
 - **Alert Management** - Triage workflow (new -> acknowledged -> resolved), notes, filtering
 - **Dashboard** - Stats, charts, recent releases, stale package detection, pending invitations
-- **Workspaces** - Multi-tenant with member management, invitation flow, RBAC
+- **Workspaces** - Multi-tenant with member management, direct user addition, invitation flow, RBAC
 - **Notifications** - Email/Slack/webhook channels with configurable alert rules
 - **API Keys** - Scoped API access with permission management
 - **Audit Logs** - Full audit trail with human-readable details
@@ -62,7 +62,8 @@ make db-up    # Starts PostgreSQL + Redis
 ```bash
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env.local
-# Review both files - defaults work out of the box
+# Review both files - defaults work for local development
+# Key settings: REGISTRATION_ENABLED (default: false), ALLOWED_EMAIL_DOMAINS
 ```
 
 ### 3. Start copilot-api (LLM Proxy)
@@ -81,7 +82,19 @@ make dev-backend
 
 The backend starts on `http://localhost:8080`, auto-migrates the database, and begins polling registries.
 
-### 5. Start Frontend
+### 5. Initial Setup
+
+On first run, the frontend redirects to `/setup` where you create the first admin user and workspace. Alternatively, call the API directly:
+
+```bash
+curl -X POST http://localhost:8080/api/setup/initialize \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"yourpassword","firstName":"Admin","lastName":"User","workspaceName":"My Workspace","workspaceSlug":"my-workspace"}'
+```
+
+After setup, the admin can add users directly to workspaces. Public registration is disabled by default - set `REGISTRATION_ENABLED=true` in `backend/.env` to allow open sign-ups.
+
+### 6. Start Frontend
 
 ```bash
 cd frontend && npm install
