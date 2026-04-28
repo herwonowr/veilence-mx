@@ -35,7 +35,7 @@ dev-copilot:
 
 # Backend
 dev-backend:
-	cd backend && go run ./cmd/server/
+	cd backend && go run ./cmd/server/ serve
 
 build-backend:
 	cd backend && go build ./...

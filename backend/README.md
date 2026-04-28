@@ -98,11 +98,13 @@ backend/
 
    ```bash
    # From the backend/ directory
-   go run ./cmd/server
+   go run ./cmd/server serve
 
    # Or from the repository root
    make dev-backend
    ```
+
+   Available subcommands: `serve` (start HTTP server), `migrate` (run migrations), `seed` (seed data).
 
    The server starts on `http://localhost:8080` by default. Database tables are created automatically on first run.
 
