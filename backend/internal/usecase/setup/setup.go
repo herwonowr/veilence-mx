@@ -118,49 +118,25 @@ func (s *Service) Initialize(ctx context.Context, req InitializeRequest) (*Initi
 		}
 
 		// Create default roles
-		allPerms, err := tx.FindAllPermissions(ctx)
+		roles, err := usecase.CreateDefaultRoles(ctx, tx, workspace.ID)
 		if err != nil {
-			return fmt.Errorf("loading permissions: %w", err)
+			return fmt.Errorf("creating default roles: %w", err)
 		}
 
-		permMap := make(map[string]entity.Permission)
-		for _, p := range allPerms {
-			key := p.Resource + ":" + p.Action
-			permMap[key] = p
-		}
-
-		lookupPerms := func(keys []string) []entity.Permission {
-			var perms []entity.Permission
-			for _, key := range keys {
-				if p, ok := permMap[key]; ok {
-					perms = append(perms, p)
-				}
+		// Find the owner role ID
+		var ownerRoleID string
+		for _, role := range roles {
+			if role.Name == entity.RoleOwner {
+				ownerRoleID = role.ID
+				break
 			}
-			return perms
-		}
-
-		// All permission keys
-		var allKeys []string
-		for k := range permMap {
-			allKeys = append(allKeys, k)
-		}
-
-		ownerRole := entity.Role{
-			WorkspaceID: workspace.ID,
-			Name:        entity.RoleOwner,
-			Description: "Full access to the workspace",
-			IsSystem:    true,
-			Permissions: lookupPerms(allKeys),
-		}
-		if err := tx.CreateRole(ctx, &ownerRole); err != nil {
-			return fmt.Errorf("creating owner role: %w", err)
 		}
 
 		// Create member with owner role
 		member := &entity.WorkspaceMember{
 			WorkspaceID: workspace.ID,
 			UserID:      user.ID,
-			RoleID:      ownerRole.ID,
+			RoleID:      ownerRoleID,
 			JoinedAt:    time.Now(),
 		}
 		if err := tx.CreateMember(ctx, member); err != nil {

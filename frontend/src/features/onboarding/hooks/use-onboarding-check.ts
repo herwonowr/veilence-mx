@@ -9,7 +9,7 @@ export const onboardingKeys = {
 }
 
 export const useOnboardingCheck = () => {
-  const { isAuthenticated, isLoading, workspaces, workspacesLoading } = useAuth()
+  const { isAuthenticated, isLoading, workspaces, workspacesLoading, user } = useAuth()
   const { registrationEnabled } = usePublicConfigQuery()
 
   const {
@@ -34,6 +34,7 @@ export const useOnboardingCheck = () => {
     !isLoading &&
     !workspacesLoading &&
     !invitationsLoading &&
+    !user?.mustChangePassword &&
     workspaces.length === 0 &&
     invitations.length === 0
 

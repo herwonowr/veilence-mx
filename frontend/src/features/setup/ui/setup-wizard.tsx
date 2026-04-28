@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
-import { sanitizeErrorMessage, usePublicConfigQuery, ROUTES } from "@/core"
+import { sanitizeErrorMessage, usePublicConfigQuery, publicConfigKeys, ROUTES } from "@/core"
 import { useSetup } from "@/features/setup/hooks/use-setup"
 import {
   Button,
@@ -66,6 +67,7 @@ const toSlug = (name: string): string =>
 
 export const SetupWizard = () => {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { initialize, isLoading: setupLoading } = useSetup()
   const { config, isLoading: configLoading, setupRequired } = usePublicConfigQuery()
 
@@ -148,6 +150,7 @@ export const SetupWizard = () => {
         setPassword("")
         setConfirmPassword("")
         try { sessionStorage.setItem("vmx_just_setup", "true") } catch {}
+        await queryClient.invalidateQueries({ queryKey: publicConfigKeys.all })
         router.push(ROUTES.LOGIN)
       }
     } catch (err: unknown) {

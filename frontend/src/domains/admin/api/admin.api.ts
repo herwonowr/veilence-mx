@@ -162,7 +162,7 @@ export const apiAddMember = async (
   workspaceId: string,
   data: AddMemberRequest
 ): Promise<ApiResponse<AddMemberResponse>> =>
-  fetchApi<AddMemberResponse>(`/api/workspaces/${workspaceId}/members/add`, {
+  fetchApi<AddMemberResponse>(`/api/workspaces/${workspaceId}/members`, {
     method: "POST",
     body: JSON.stringify(data),
   })
