@@ -11,5 +11,14 @@
 *.swp
 *.swo
 
+# AI agents
+.claude/
+.mcp.json
+CLAUDE.md
+AGENTS.md
+backend/CLAUDE.md
+backend/AGENTS.md
+frontend/CLAUDE.md
+frontend/AGENTS.md
+_workspace/
 .playwright-mcp
-_workspace
