@@ -33,7 +33,7 @@ import type {
   AuditLog,
   Invitation,
 } from "@/domains/admin"
-import type { AddMemberRequest } from "@/domains/admin/api/admin.api"
+import type { AddMemberRequest } from "@/domains/admin"
 import { toast } from "sonner"
 import { sanitizeErrorMessage } from "@/core"
 

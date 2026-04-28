@@ -17,14 +17,14 @@ import (
 
 // Sentinel errors returned by auth operations.
 var (
-	ErrEmailAlreadyRegistered    = errors.New("Email already registered")
-	ErrAPIKeyNotFound            = errors.New("API key not found")
-	ErrResetTokenInvalid         = errors.New("Invalid or expired reset token")
-	ErrResetTokenUsed            = errors.New("Reset token already used")
-	ErrVerificationInvalid       = errors.New("Invalid or expired verification token")
-	ErrInsufficientRole          = errors.New("API key role insufficient for this operation")
-	ErrRoleExceedsUserRole       = errors.New("Cannot create API key with role higher than your workspace role")
-	ErrSessionNotFound           = errors.New("Session not found")
+	ErrEmailAlreadyRegistered    = errors.New("email already registered")
+	ErrAPIKeyNotFound            = errors.New("api key not found")
+	ErrResetTokenInvalid         = errors.New("invalid or expired reset token")
+	ErrResetTokenUsed            = errors.New("reset token already used")
+	ErrVerificationInvalid       = errors.New("invalid or expired verification token")
+	ErrInsufficientRole          = errors.New("api key role insufficient for this operation")
+	ErrRoleExceedsUserRole       = errors.New("cannot create API key with role higher than your workspace role")
+	ErrSessionNotFound           = errors.New("session not found")
 	ErrEmailVerificationRequired = errors.New("email_verification_required")
 	ErrRegistrationDisabled      = errors.New("registration is disabled")
 	ErrEmailDomainNotAllowed     = errors.New("email domain is not allowed")
@@ -472,12 +472,10 @@ func (s *Service) ValidateAccessToken(tokenString string) (*usecase.TokenClaims,
 }
 
 // GetUserByID retrieves a user by their ID.
-func (s *Service) GetUserByID(id string) (*entity.User, error) {
-	ctx := context.Background()
-
+func (s *Service) GetUserByID(ctx context.Context, id string) (*entity.User, error) {
 	user, err := s.users.FindByID(ctx, id)
 	if err != nil {
-		return nil, errors.New("User not found")
+		return nil, errors.New("user not found")
 	}
 	return user, nil
 }
@@ -515,7 +513,7 @@ func (s *Service) ValidateAPIKey(rawKey string) (string, string, entity.APIKeyRo
 		if s.checkAPIKeyHash(rawKey, key.KeyHash) {
 			// Check expiration
 			if key.ExpiresAt != nil && time.Now().After(*key.ExpiresAt) {
-				return "", "", "", "", errors.New("API key expired")
+				return "", "", "", "", errors.New("api key expired")
 			}
 
 			// Update last used
@@ -944,7 +942,7 @@ func (s *Service) ListSessions(userID string) ([]entity.Session, error) {
 }
 
 // ErrCannotRevokeCurrentSession is returned when trying to delete the current session.
-var ErrCannotRevokeCurrentSession = errors.New("Cannot revoke the current session")
+var ErrCannotRevokeCurrentSession = errors.New("cannot revoke the current session")
 
 // GuardCurrentSession checks whether the given session ID corresponds to the
 // caller's current session (identified by currentTokenHash). Returns an error

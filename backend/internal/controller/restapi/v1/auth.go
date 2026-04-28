@@ -222,7 +222,7 @@ func (h *AuthHandlers) GetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.Auth.GetUserByID(userID)
+	user, err := h.Auth.GetUserByID(r.Context(), userID)
 	if err != nil {
 		respondError(w, http.StatusNotFound, "User not found")
 		return

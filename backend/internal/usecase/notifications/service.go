@@ -366,10 +366,10 @@ func (s *Service) sendEmail(channel entity.NotificationChannel, title, message s
 // ---------------------------------------------------------------------------
 
 // ErrSSRFBlocked is returned when a URL targets a private/internal address.
-var ErrSSRFBlocked = errors.New("URL targets a private or internal address")
+var ErrSSRFBlocked = errors.New("url targets a private or internal address")
 
 // ErrInvalidSlackURL is returned when a Slack webhook URL doesn't match the expected entity.
-var ErrInvalidSlackURL = errors.New("Slack webhook URL must use https://hooks.slack.com")
+var ErrInvalidSlackURL = errors.New("slack webhook URL must use https://hooks.slack.com")
 
 // ValidateWebhookURL validates that a URL is safe for outbound HTTP requests.
 // It blocks private IP ranges, localhost, link-local addresses, and non-HTTP(S) schemes.

@@ -18,6 +18,7 @@ export interface SetupResponse {
     lastLoginAt: string | null
     createdAt: string
     updatedAt: string
+    mustChangePassword: boolean
   }
   accessToken: string
   refreshToken: string

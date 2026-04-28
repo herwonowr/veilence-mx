@@ -2,11 +2,22 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useAuth } from "@/core"
-import { workspaceUpdateSchema, invitationSchema } from "@/domains/admin"
-import { apiGetPublicConfig } from "@/domains/config"
-import type { PublicConfig } from "@/domains/config"
-import { Button, Input, Field, FieldLabel, FieldError, Tabs, TabsContent, TabsList, TabsTrigger, Badge, Skeleton, ConfirmDialog, Alert, AlertDescription, TableEmptyState, Checkbox, type ConfirmDialogDetail } from "@/ui"
+import { useAuth, usePublicConfig } from "@/core"
+import { workspaceUpdateSchema } from "@/domains/admin"
+import {
+  Button,
+  Input,
+  Field,
+  FieldLabel,
+  FieldError,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Badge,
+  Skeleton,
+  ConfirmDialog,
+} from "@/ui"
 import {
   Card,
   CardContent,
@@ -15,42 +26,13 @@ import {
   CardTitle,
 } from "@/ui"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/ui"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/ui"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/ui"
-import {
   ArrowLeft,
   Loader2,
   Save,
   Trash2,
-  UserPlus,
-  UserMinus,
   ShieldCheck,
   KeyRound,
   ScrollText,
-  Mail,
-  Eye,
-  EyeOff,
 } from "lucide-react"
 import Link from "next/link"
 import { ZodError } from "zod"
@@ -60,18 +42,16 @@ import {
   useWorkspaceRoles,
   useUpdateWorkspace,
   useDeleteWorkspace,
-  useInviteMember,
-  useRemoveMember,
-  useUpdateMemberRole,
   usePendingInvitations,
-  useRevokeInvitation,
-  useResendInvitation,
-  useAddMember,
-} from "@/features/admin/hooks/use-workspaces"
+} from "@/features/admin"
 import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
+import { AddMemberDialog } from "@/features/admin/ui/add-member-dialog"
+import { InviteMemberDialog } from "@/features/admin/ui/invite-member-dialog"
+import { MembersSection } from "@/features/admin/ui/members-section"
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 export const WorkspaceDetailView = () => {
-  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
   const params = useParams<{ id: string }>()
   const workspaceId = params.id
   const validWorkspaceId = workspaceId ?? ""
@@ -84,15 +64,13 @@ export const WorkspaceDetailView = () => {
   const { data: invitationsRes } = usePendingInvitations(validWorkspaceId)
 
   // Public config for conditional UI
-  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
+  const { config: publicConfig, fetchConfig } = usePublicConfig()
   const didFetchConfig = useRef(false)
   useEffect(() => {
     if (didFetchConfig.current) return
     didFetchConfig.current = true
-    apiGetPublicConfig()
-      .then((res) => setPublicConfig(res.data))
-      .catch(() => {})
-  }, [])
+    fetchConfig()
+  }, [fetchConfig])
 
   const registrationEnabled = publicConfig?.registrationEnabled ?? false
 
@@ -102,7 +80,6 @@ export const WorkspaceDetailView = () => {
   const invitations = invitationsRes?.data ?? []
 
   // SEC-S3-007: Determine current user's permissions in this workspace
-  // Use both permission-based checks (from member data) and role hierarchy
   const { role: currentRole } = useCurrentWorkspaceRole()
   const currentMember = members.find((m) => m.userId === user?.id)
   const currentPermissions = currentMember?.role?.permissions ?? []
@@ -123,6 +100,7 @@ export const WorkspaceDetailView = () => {
   const [editName, setEditName] = useState("")
   const [editDescription, setEditDescription] = useState("")
   const [prevWorkspaceId, setPrevWorkspaceId] = useState<string | null>(null)
+  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({})
 
   // React-recommended "store previous props" pattern for syncing derived state
   if (workspace && prevWorkspaceId !== workspace.id) {
@@ -131,43 +109,8 @@ export const WorkspaceDetailView = () => {
     setEditDescription(workspace.description ?? "")
   }
 
-  // Invite form
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
-  const [inviteEmail, setInviteEmail] = useState("")
-  const [inviteRoleId, setInviteRoleId] = useState<string | null>(null)
-  const [inviteError, setInviteError] = useState("")
-  const [inviteFieldErrors, setInviteFieldErrors] = useState<Record<string, string>>({})
-
-  // Edit field errors
-  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({})
-
-  // Add member form
-  const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false)
-  const [addMemberEmail, setAddMemberEmail] = useState("")
-  const [addMemberFirstName, setAddMemberFirstName] = useState("")
-  const [addMemberLastName, setAddMemberLastName] = useState("")
-  const [addMemberRoleId, setAddMemberRoleId] = useState<string | null>(null)
-  const [addMemberSetPassword, setAddMemberSetPassword] = useState(false)
-  const [addMemberPassword, setAddMemberPassword] = useState("")
-  const [addMemberShowPassword, setAddMemberShowPassword] = useState(false)
-  const [addMemberError, setAddMemberError] = useState("")
-  const [addMemberFieldErrors, setAddMemberFieldErrors] = useState<Record<string, string>>({})
-
-  // Remove member confirmation
-  const [memberToRemove, setMemberToRemove] = useState<{
-    userId: string
-    name: string
-    details: ConfirmDialogDetail[]
-  } | null>(null)
-
   const updateMutation = useUpdateWorkspace()
   const deleteMutation = useDeleteWorkspace()
-  const inviteMutation = useInviteMember()
-  const removeMutation = useRemoveMember()
-  const updateRoleMutation = useUpdateMemberRole()
-  const revokeMutation = useRevokeInvitation()
-  const resendMutation = useResendInvitation()
-  const addMemberMutation = useAddMember()
 
   const handleSave = async () => {
     setEditFieldErrors({})
@@ -195,104 +138,6 @@ export const WorkspaceDetailView = () => {
     await deleteMutation.mutateAsync(validWorkspaceId)
     await refreshWorkspaces()
     router.push("/workspaces")
-  }
-
-  const handleInvite = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setInviteError("")
-    setInviteFieldErrors({})
-    try {
-      invitationSchema.parse({ email: inviteEmail, roleId: inviteRoleId ? Number(inviteRoleId) : undefined })
-    } catch (err) {
-      if (err instanceof ZodError) {
-        const errs: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") errs[key] = issue.message
-        }
-        setInviteFieldErrors(errs)
-      }
-      return
-    }
-    if (!inviteRoleId) return
-    try {
-      await inviteMutation.mutateAsync({
-        workspaceId: validWorkspaceId,
-        data: { email: inviteEmail, roleId: inviteRoleId },
-      })
-      setInviteDialogOpen(false)
-      setInviteEmail("")
-      setInviteRoleId(null)
-    } catch (err) {
-      setInviteError(
-        err instanceof Error ? err.message : "Failed to send invitation"
-      )
-    }
-  }
-
-  const handleRemoveMember = async (userId: string) => {
-    await removeMutation.mutateAsync({ workspaceId: validWorkspaceId, userId })
-    setMemberToRemove(null)
-  }
-
-  const handleAddMember = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setAddMemberError("")
-    setAddMemberFieldErrors({})
-
-    const fieldErrors: Record<string, string> = {}
-    if (!addMemberEmail.trim()) fieldErrors.email = "Email is required"
-    if (!addMemberFirstName.trim()) fieldErrors.firstName = "First name is required"
-    if (!addMemberLastName.trim()) fieldErrors.lastName = "Last name is required"
-    if (!addMemberRoleId) fieldErrors.roleId = "Please select a role"
-    if (addMemberSetPassword && addMemberPassword.length < 8) {
-      fieldErrors.password = "Password must be at least 8 characters"
-    }
-    if (Object.keys(fieldErrors).length > 0) {
-      setAddMemberFieldErrors(fieldErrors)
-      return
-    }
-
-    try {
-      await addMemberMutation.mutateAsync({
-        workspaceId: validWorkspaceId,
-        data: {
-          email: addMemberEmail,
-          firstName: addMemberFirstName,
-          lastName: addMemberLastName,
-          roleId: addMemberRoleId!,
-          ...(addMemberSetPassword && addMemberPassword ? { password: addMemberPassword } : {}),
-        },
-      })
-      setAddMemberDialogOpen(false)
-      setAddMemberEmail("")
-      setAddMemberFirstName("")
-      setAddMemberLastName("")
-      setAddMemberRoleId(null)
-      setAddMemberSetPassword(false)
-      setAddMemberPassword("")
-    } catch (err) {
-      setAddMemberError(
-        err instanceof Error ? err.message : "Failed to add member"
-      )
-    }
-  }
-
-  const confirmRemoveMember = (userId: string, firstName?: string, lastName?: string, email?: string) => {
-    const name = [firstName, lastName].filter(Boolean).join(" ") || "this member"
-    setMemberToRemove({
-      userId,
-      name,
-      details: [
-        { label: "Member", value: name },
-        ...(email ? [{ label: "Email", value: email }] : []),
-        { label: "Workspace", value: workspace?.name ?? "" },
-      ],
-    })
-  }
-
-  const handleUpdateRole = (userId: string, roleId: string) => {
-    updateRoleMutation.mutate({ workspaceId: validWorkspaceId, userId, roleId })
   }
 
   if (!workspaceId) {
@@ -368,452 +213,36 @@ export const WorkspaceDetailView = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-medium">Team Members</h2>
             <div className="flex items-center gap-2">
-            {canInvite && (
-              <Dialog
-                open={addMemberDialogOpen}
-                onOpenChange={(open) => setAddMemberDialogOpen(open)}
-              >
-                <DialogTrigger
-                  render={
-                    <Button size="sm">
-                      <UserPlus className="mr-2 size-4" />
-                      Add Member
-                    </Button>
-                  }
+              {canInvite && (
+                <AddMemberDialog
+                  workspaceId={validWorkspaceId}
+                  roles={roles}
+                  capitalize={capitalize}
                 />
-                <DialogContent className="sm:max-w-md">
-                  <form onSubmit={handleAddMember}>
-                    <DialogHeader>
-                      <DialogTitle>Add Member</DialogTitle>
-                      <DialogDescription>
-                        Create a user account and add them to this workspace.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      {addMemberError && (
-                        <Alert variant="destructive" className="text-center bg-destructive/10 border-destructive">
-                          <AlertDescription>{addMemberError}</AlertDescription>
-                        </Alert>
-                      )}
-                      <Field data-invalid={!!addMemberFieldErrors.email}>
-                        <FieldLabel htmlFor="add-member-email">Email</FieldLabel>
-                        <Input
-                          id="add-member-email"
-                          type="email"
-                          placeholder="user@example.com"
-                          value={addMemberEmail}
-                          onChange={(e) => setAddMemberEmail(e.target.value)}
-                          required
-                        />
-                        {addMemberFieldErrors.email && <FieldError>{addMemberFieldErrors.email}</FieldError>}
-                      </Field>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Field data-invalid={!!addMemberFieldErrors.firstName}>
-                          <FieldLabel htmlFor="add-member-first-name">First Name</FieldLabel>
-                          <Input
-                            id="add-member-first-name"
-                            placeholder="Jane"
-                            value={addMemberFirstName}
-                            onChange={(e) => setAddMemberFirstName(e.target.value)}
-                            required
-                          />
-                          {addMemberFieldErrors.firstName && <FieldError>{addMemberFieldErrors.firstName}</FieldError>}
-                        </Field>
-                        <Field data-invalid={!!addMemberFieldErrors.lastName}>
-                          <FieldLabel htmlFor="add-member-last-name">Last Name</FieldLabel>
-                          <Input
-                            id="add-member-last-name"
-                            placeholder="Doe"
-                            value={addMemberLastName}
-                            onChange={(e) => setAddMemberLastName(e.target.value)}
-                            required
-                          />
-                          {addMemberFieldErrors.lastName && <FieldError>{addMemberFieldErrors.lastName}</FieldError>}
-                        </Field>
-                      </div>
-                      <Field data-invalid={!!addMemberFieldErrors.roleId}>
-                        <FieldLabel>Role</FieldLabel>
-                        <Select
-                          value={addMemberRoleId != null ? String(addMemberRoleId) : undefined}
-                          onValueChange={(v) => setAddMemberRoleId(v || null)}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue>{addMemberRoleId != null ? capitalize(roles.find(r => r.id === addMemberRoleId)?.name ?? "") : "Select a role"}</SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {roles.filter((role) => role.name.toLowerCase() !== "owner").map((role) => (
-                              <SelectItem key={role.id} value={String(role.id)}>
-                                {capitalize(role.name)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {addMemberFieldErrors.roleId && <FieldError>{addMemberFieldErrors.roleId}</FieldError>}
-                      </Field>
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="add-member-set-password"
-                            checked={addMemberSetPassword}
-                            onCheckedChange={(checked) => {
-                              setAddMemberSetPassword(checked === true)
-                              if (!checked) {
-                                setAddMemberPassword("")
-                                setAddMemberShowPassword(false)
-                              }
-                            }}
-                          />
-                          <label
-                            htmlFor="add-member-set-password"
-                            className="text-sm font-medium leading-none cursor-pointer"
-                          >
-                            Set initial password
-                          </label>
-                        </div>
-                        {addMemberSetPassword && (
-                          <div className="relative">
-                            <Field data-invalid={!!addMemberFieldErrors.password}>
-                              <FieldLabel htmlFor="add-member-password">Password</FieldLabel>
-                              <Input
-                                id="add-member-password"
-                                type={addMemberShowPassword ? "text" : "password"}
-                                placeholder="At least 8 characters"
-                                value={addMemberPassword}
-                                onChange={(e) => setAddMemberPassword(e.target.value)}
-                              />
-                              {addMemberFieldErrors.password && <FieldError>{addMemberFieldErrors.password}</FieldError>}
-                            </Field>
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              type="button"
-                              className="absolute right-2 top-7.5 text-muted-foreground hover:text-foreground transition-colors"
-                              onClick={() => setAddMemberShowPassword((prev) => !prev)}
-                              aria-label={addMemberShowPassword ? "Hide password" : "Show password"}
-                              tabIndex={-1}
-                            >
-                              {addMemberShowPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                            </Button>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              User will be required to change this password on first login.
-                            </p>
-                          </div>
-                        )}
-                        {!addMemberSetPassword && (
-                          <p className="text-xs text-muted-foreground">
-                            User will receive an email to set their own password.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button type="submit" disabled={addMemberMutation.isPending || !addMemberRoleId}>
-                        {addMemberMutation.isPending && (
-                          <Loader2 className="mr-2 size-4 animate-spin" />
-                        )}
-                        Add Member
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            )}
-            {canInvite && registrationEnabled && (
-            <Dialog
-              open={inviteDialogOpen}
-              onOpenChange={(open) => setInviteDialogOpen(open)}
-            >
-              <DialogTrigger
-                render={
-                  <Button size="sm">
-                    <UserPlus className="mr-2 size-4" />
-                    Invite Member
-                  </Button>
-                }
-              />
-              <DialogContent className="sm:max-w-md">
-                <form onSubmit={handleInvite}>
-                  <DialogHeader>
-                    <DialogTitle>Invite Member</DialogTitle>
-                    <DialogDescription>
-                      Send an invitation to join this workspace.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    {inviteError && (
-                      <Alert variant="destructive" className="text-center bg-destructive/10 border-destructive">
-                        <AlertDescription>{inviteError}</AlertDescription>
-                      </Alert>
-                    )}
-                    <Field data-invalid={!!inviteFieldErrors.email}>
-                      <FieldLabel htmlFor="invite-email">Email</FieldLabel>
-                      <Input
-                        id="invite-email"
-                        type="email"
-                        placeholder="user@example.com"
-                        value={inviteEmail}
-                        onChange={(e) => setInviteEmail(e.target.value)}
-                        required
-                      />
-                      {inviteFieldErrors.email && <FieldError>{inviteFieldErrors.email}</FieldError>}
-                    </Field>
-                    <Field data-invalid={!!inviteFieldErrors.roleId}>
-                      <FieldLabel>Role</FieldLabel>
-                      <Select
-                        value={inviteRoleId != null ? String(inviteRoleId) : undefined}
-                        onValueChange={(v) => setInviteRoleId(v || null)}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue>{inviteRoleId != null ? capitalize(roles.find(r => r.id === inviteRoleId)?.name ?? "") : "Select a role"}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {roles.filter((role) => role.name.toLowerCase() !== "owner").map((role) => (
-                            <SelectItem key={role.id} value={String(role.id)}>
-                              {capitalize(role.name)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {inviteFieldErrors.roleId && <FieldError>{inviteFieldErrors.roleId}</FieldError>}
-                    </Field>
-                  </div>
-                  <DialogFooter>
-                    <Button type="submit" disabled={inviteMutation.isPending || !inviteRoleId}>
-                      {inviteMutation.isPending && (
-                        <Loader2 className="mr-2 size-4 animate-spin" />
-                      )}
-                      Send Invitation
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-            )}
+              )}
+              {canInvite && registrationEnabled && (
+                <InviteMemberDialog
+                  workspaceId={validWorkspaceId}
+                  roles={roles}
+                  capitalize={capitalize}
+                />
+              )}
             </div>
           </div>
 
-          <Card>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="w-[1%] whitespace-nowrap text-right">
-                      <span className="sr-only">Actions</span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {members.map((member) => (
-                    <TableRow key={member.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">
-                            {member.firstName} {member.lastName}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {member.email}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {member.userId === workspace.ownerId || !canUpdateRole ? (
-                          <Badge variant="secondary">
-                            {member.role?.name ? capitalize(member.role.name) : member.userId === workspace.ownerId ? "Owner" : "No role"}
-                          </Badge>
-                        ) : (
-                          <Select
-                            value={String(member.roleId)}
-                            onValueChange={(v) =>
-                              handleUpdateRole(member.userId, String(v))
-                            }
-                            disabled={member.userId === user?.id}
-                          >
-                            <SelectTrigger className="w-28">
-                              <SelectValue>{member.role?.name ? capitalize(member.role.name) : "No role"}</SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {roles.filter((role) => role.name.toLowerCase() !== "owner").map((role) => (
-                                <SelectItem key={role.id} value={String(role.id)}>
-                                  {capitalize(role.name)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {new Date(member.joinedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {member.userId !== user?.id && canRemove && (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Remove member ${member.firstName} ${member.lastName}`}
-                            onClick={() =>
-                              confirmRemoveMember(
-                                member.userId,
-                                member.firstName,
-                                member.lastName,
-                                member.email
-                              )
-                            }
-                          >
-                            <UserMinus className="size-4 text-destructive" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {members.length === 0 && (
-                    <TableRow>
-                      <TableCell
-                        colSpan={4}
-                        className="text-center py-8 text-muted-foreground"
-                      >
-                        No members found
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          {/* Invitations - only visible when registration is enabled */}
-          {registrationEnabled && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Mail className="size-4" />
-              Invitations ({invitations.length})
-            </h3>
-            <Card>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Invited</TableHead>
-                      <TableHead>Expires</TableHead>
-                      {canManageMembers && (
-                      <TableHead className="w-[1%] whitespace-nowrap text-right">
-                        <span className="sr-only">Actions</span>
-                      </TableHead>
-                      )}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {invitations.length === 0 && (
-                      <TableEmptyState
-                        colSpan={canManageMembers ? 6 : 5}
-                        icon={<Mail className="size-8" />}
-                        title="No invitations"
-                        description={canManageMembers ? "Invite members to join this workspace." : "No pending invitations for this workspace."}
-                      />
-                    )}
-                    {invitations.map((invitation) => {
-                      const role = roles.find((r) => r.id === invitation.roleId)
-                      const status = invitation.status
-                      const statusVariant = status === "accepted"
-                        ? "default"
-                        : status === "expired"
-                          ? "destructive"
-                          : "secondary"
-                      const dateOptions: Intl.DateTimeFormatOptions = {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      }
-                      return (
-                        <TableRow key={invitation.id}>
-                          <TableCell>
-                            <span className="font-medium">{invitation.email}</span>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">
-                              {role ? capitalize(role.name) : "Unknown"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={statusVariant}>
-                              {capitalize(status)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {new Date(invitation.createdAt).toLocaleDateString("en-US", dateOptions)}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {new Date(invitation.expiresAt).toLocaleDateString("en-US", dateOptions)}
-                          </TableCell>
-                          {canManageMembers && (
-                          <TableCell className="text-right">
-                            {canInvite && status === "pending" && (
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="xs"
-                                  aria-label={`Resend invitation for ${invitation.email}`}
-                                  disabled={resendMutation.isPending}
-                                  onClick={() =>
-                                    resendMutation.mutate({
-                                      workspaceId: validWorkspaceId,
-                                      invitationId: invitation.id,
-                                    })
-                                  }
-                                >
-                                  {resendMutation.isPending ? (
-                                    <Loader2 className="mr-1 size-3 animate-spin" />
-                                  ) : null}
-                                  Resend
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  size="xs"
-                                  aria-label={`Revoke invitation for ${invitation.email}`}
-                                  disabled={revokeMutation.isPending}
-                                  onClick={() =>
-                                    revokeMutation.mutate({
-                                      workspaceId: validWorkspaceId,
-                                      invitationId: invitation.id,
-                                    })
-                                  }
-                                >
-                                  Revoke
-                                </Button>
-                              </div>
-                            )}
-                          </TableCell>
-                          )}
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-          )}
-
-          {/* Remove Member Confirmation Dialog */}
-          <ConfirmDialog
-            open={!!memberToRemove}
-            onOpenChange={(open) => { if (!open) setMemberToRemove(null) }}
-            title="Remove Member?"
-            description={`Are you sure you want to remove ${memberToRemove?.name ?? "this member"} from this workspace? They will lose access to all workspace resources.`}
-            details={memberToRemove?.details}
-            actionLabel="Remove"
-            onConfirm={async () => {
-              if (memberToRemove) {
-                await handleRemoveMember(memberToRemove.userId)
-              }
-            }}
+          <MembersSection
+            workspaceId={validWorkspaceId}
+            workspace={workspace}
+            members={members}
+            roles={roles}
+            invitations={invitations}
+            currentUserId={user?.id}
+            canInvite={canInvite}
+            canRemove={canRemove}
+            canUpdateRole={canUpdateRole}
+            canManageMembers={canManageMembers}
+            registrationEnabled={registrationEnabled}
+            capitalize={capitalize}
           />
         </TabsContent>
 

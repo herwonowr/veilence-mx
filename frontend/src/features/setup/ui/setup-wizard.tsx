@@ -4,9 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
-import { storeTokens, storeWorkspaceId, sanitizeErrorMessage } from "@/core"
+import { storeTokens, storeWorkspaceId, sanitizeErrorMessage, usePublicConfig } from "@/core"
 import { useSetup } from "@/features/setup/hooks/use-setup"
-import { usePublicConfig } from "@/features/setup/hooks/use-public-config"
 import {
   Button,
   Input,
@@ -162,6 +161,8 @@ export const SetupWizard = () => {
       if (result) {
         storeTokens(result.accessToken, result.refreshToken)
         storeWorkspaceId(result.workspace.id)
+        setPassword("")
+        setConfirmPassword("")
         router.push("/")
       }
     } catch (err: unknown) {

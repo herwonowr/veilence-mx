@@ -86,6 +86,9 @@ export const ChangePasswordForm = () => {
     try {
       setLoading(true)
       await apiChangePassword({ currentPassword, newPassword })
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
       await refreshUser()
       router.push("/")
     } catch (err: unknown) {

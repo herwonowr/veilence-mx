@@ -69,12 +69,16 @@ const isSafeMessage = (msg: string): boolean => {
   return !unsafePatterns.some((p) => p.test(msg))
 }
 
+/** Capitalize the first letter of a string for user-facing display. */
+const capitalizeFirst = (s: string): string =>
+  s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)
+
 /**
  * Sanitise an error into a user-friendly message.
  *
  * @param error - The caught error (Error, string, or unknown).
  * @param fallback - Optional fallback message. Defaults to "Something went wrong. Please try again."
- * @returns A safe, user-facing message string.
+ * @returns A safe, user-facing message string with the first letter capitalized.
  */
 export const sanitizeErrorMessage = (error: unknown, fallback?: string): string => {
   const raw = extractRawMessage(error)
@@ -86,9 +90,10 @@ export const sanitizeErrorMessage = (error: unknown, fallback?: string): string 
   }
 
   // Fallback: if the message looks "safe" (short, no stack-trace markers),
-  // pass it through. Otherwise return the provided fallback or a generic message.
+  // pass it through with capitalized first letter (backend sends lowercase).
+  // Otherwise return the provided fallback or a generic message.
   if (isSafeMessage(raw)) {
-    return raw
+    return capitalizeFirst(raw)
   }
 
   return fallback ?? "Something went wrong. Please try again."

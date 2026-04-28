@@ -12,7 +12,9 @@ import {
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 // Core-local interfaces - auth-provider needs User/Workspace shapes but core/ cannot import domains/
-// These types are structurally identical to domains/auth and domains/admin equivalents.
+// Canonical types: @/domains/auth/types/auth.types.ts (User, LoginResponse)
+// Canonical types: @/domains/admin/types/admin.types.ts (Workspace)
+// Keep these in sync with the canonical types above.
 interface User {
   id: string
   email: string

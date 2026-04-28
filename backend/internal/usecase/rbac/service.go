@@ -18,20 +18,20 @@ import (
 
 // Common errors returned by the RBAC service.
 var (
-	ErrWorkspaceNotFound        = errors.New("Workspace not found")
-	ErrMemberNotFound     = errors.New("Member not found")
-	ErrInvitationNotFound = errors.New("Invitation not found")
-	ErrInvitationExpired  = errors.New("Invitation has expired")
-	ErrInvitationAccepted = errors.New("Invitation already accepted")
-	ErrAlreadyMember      = errors.New("User is already a member of this workspace")
-	ErrCannotRemoveOwner  = errors.New("Cannot remove the workspace owner")
-	ErrCannotChangeOwner  = errors.New("Cannot change the owner's role")
-	ErrRoleNotFound       = errors.New("Role not found")
-	ErrPermissionDenied   = errors.New("Permission denied")
-	ErrSlugTaken            = errors.New("Workspace slug is already taken")
-	ErrInvitationEmailMismatch = errors.New("Invitation email does not match accepting user")
-	ErrInvitationRevoked    = errors.New("Invitation has been revoked")
-	ErrInvitationDeclined   = errors.New("Invitation has been declined")
+	ErrWorkspaceNotFound        = errors.New("workspace not found")
+	ErrMemberNotFound     = errors.New("member not found")
+	ErrInvitationNotFound = errors.New("invitation not found")
+	ErrInvitationExpired  = errors.New("invitation has expired")
+	ErrInvitationAccepted = errors.New("invitation already accepted")
+	ErrAlreadyMember      = errors.New("user is already a member of this workspace")
+	ErrCannotRemoveOwner  = errors.New("cannot remove the workspace owner")
+	ErrCannotChangeOwner  = errors.New("cannot change the owner's role")
+	ErrRoleNotFound       = errors.New("role not found")
+	ErrPermissionDenied   = errors.New("permission denied")
+	ErrSlugTaken            = errors.New("workspace slug is already taken")
+	ErrInvitationEmailMismatch = errors.New("invitation email does not match accepting user")
+	ErrInvitationRevoked    = errors.New("invitation has been revoked")
+	ErrInvitationDeclined   = errors.New("invitation has been declined")
 	ErrInvitationsDisabled  = errors.New("invitations are disabled when registration is off")
 )
 
@@ -123,7 +123,7 @@ func (s *Service) CreateWorkspace(userID string, name, slug, description string)
 			}
 		}
 		if ownerRole == nil {
-			return errors.New("Owner role not created")
+			return errors.New("owner role not created")
 		}
 
 		member := &entity.WorkspaceMember{
@@ -317,7 +317,7 @@ func (s *Service) InviteMember(workspaceID string, email string, roleID string, 
 
 	// Cannot invite as owner
 	if role.Name == entity.RoleOwner {
-		return nil, "", errors.New("Cannot invite user as owner")
+		return nil, "", errors.New("cannot invite user as owner")
 	}
 
 	// Generate secure token
@@ -837,8 +837,7 @@ func (s *Service) validateEmailDomainRBAC(email string) error {
 
 // AddUserToWorkspace creates a user account (if needed) and adds them as a workspace member.
 // The entire operation is wrapped in a transaction to prevent orphaned users.
-func (s *Service) AddUserToWorkspace(workspaceID, email, firstName, lastName, roleID, password string) (*entity.WorkspaceMember, bool, error) {
-	ctx := ctx_bg()
+func (s *Service) AddUserToWorkspace(ctx context.Context, workspaceID, email, firstName, lastName, roleID, password string) (*entity.WorkspaceMember, bool, error) {
 
 	// Validate role exists, belongs to workspace, is not owner
 	role, err := s.repo.FindRoleByIDAndWorkspace(ctx, roleID, workspaceID)

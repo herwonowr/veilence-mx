@@ -1,5 +1,6 @@
 import { fetchApi } from "@/core"
 import type { ApiResponse } from "@/domains/common"
+// Pragmatic exception: intra-domain deep import to avoid circular dependency via barrel
 import type { SetupRequest, SetupResponse } from "@/domains/setup/types/setup.types"
 
 export const apiInitializeSetup = async (

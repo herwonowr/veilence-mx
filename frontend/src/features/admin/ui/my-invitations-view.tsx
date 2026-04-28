@@ -1,16 +1,14 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/core"
-import { apiGetPublicConfig } from "@/domains/config"
-import type { PublicConfig } from "@/domains/config"
+import { useAuth, usePublicConfig } from "@/core"
 import type { MyInvitation } from "@/domains/admin"
 import {
   useMyInvitations,
   useAcceptInvitationById,
   useDeclineInvitationById,
-} from "@/features/admin/hooks/use-my-invitations"
+} from "@/features/admin"
 import {
   Card,
   CardContent,
@@ -39,15 +37,13 @@ export const MyInvitationsView = () => {
   const declineMutation = useDeclineInvitationById()
 
   // Public config
-  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
+  const { config: publicConfig, fetchConfig } = usePublicConfig()
   const didFetchConfig = useRef(false)
   useEffect(() => {
     if (didFetchConfig.current) return
     didFetchConfig.current = true
-    apiGetPublicConfig()
-      .then((res) => setPublicConfig(res.data))
-      .catch(() => {})
-  }, [])
+    fetchConfig()
+  }, [fetchConfig])
 
   const invitations = invitationsRes?.data ?? []
   const pendingInvitations = invitations.filter((inv) => inv.status === "pending")

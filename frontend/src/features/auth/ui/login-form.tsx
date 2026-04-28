@@ -338,7 +338,7 @@ const LoginFormInner = () => {
               Sign In
             </Button>
           </form>
-          {(publicConfig === null || publicConfig.registrationEnabled) && (
+          {publicConfig?.registrationEnabled && (
           <div className="mt-4 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
             <Link

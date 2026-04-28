@@ -187,7 +187,7 @@ func (h *WorkspaceHandlers) AddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	member, _, err := h.RBAC.AddUserToWorkspace(workspaceID, req.Email, req.FirstName, req.LastName, req.RoleID, req.Password)
+	member, userCreated, err := h.RBAC.AddUserToWorkspace(r.Context(), workspaceID, req.Email, req.FirstName, req.LastName, req.RoleID, req.Password)
 	if err != nil {
 		if errors.Is(err, rbac.ErrRoleNotFound) {
 			respondError(w, http.StatusBadRequest, "Role not found in this workspace")
@@ -207,7 +207,10 @@ func (h *WorkspaceHandlers) AddMember(w http.ResponseWriter, r *http.Request) {
 
 	h.Audit.LogAction(r.Context(), "add", "member", member.ID, fmt.Sprintf("added %s with role %s", req.Email, req.RoleID))
 
-	respondJSON(w, http.StatusCreated, member, nil)
+	respondJSON(w, http.StatusCreated, map[string]any{
+		"member":      member,
+		"userCreated": userCreated,
+	}, nil)
 }
 
 // InviteMember handles POST /api/workspaces/{workspaceId}/invitations - invites a user to the workspace.

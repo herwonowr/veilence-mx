@@ -1,15 +1,13 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useAuth } from "@/core"
-import { apiGetPublicConfig } from "@/domains/config"
-import type { PublicConfig } from "@/domains/config"
+import { useAuth, usePublicConfig } from "@/core"
 import {
   useInvitationByToken,
   useAcceptInvitation,
   useDeclineInvitationByToken,
-} from "@/features/admin/hooks/use-invitation"
+} from "@/features/admin"
 import {
   Card,
   CardHeader,
@@ -32,17 +30,13 @@ export const InviteAcceptView = () => {
   const { isAuthenticated, isLoading: authLoading, refreshWorkspaces } = useAuth()
 
   // Public config to check if invitations are available
-  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
-  const [configLoading, setConfigLoading] = useState(true)
+  const { config: publicConfig, isLoading: configLoading, fetchConfig } = usePublicConfig()
   const didFetchConfig = useRef(false)
   useEffect(() => {
     if (didFetchConfig.current) return
     didFetchConfig.current = true
-    apiGetPublicConfig()
-      .then((res) => setPublicConfig(res.data))
-      .catch(() => {})
-      .finally(() => setConfigLoading(false))
-  }, [])
+    fetchConfig()
+  }, [fetchConfig])
 
   const {
     data: invitationResponse,
