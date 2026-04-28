@@ -14,6 +14,7 @@ CREATE TABLE users (
     last_name VARCHAR(100),
     is_active BOOLEAN NOT NULL DEFAULT true,
     email_verified BOOLEAN NOT NULL DEFAULT false,
+    must_change_password BOOLEAN NOT NULL DEFAULT false,
     last_login_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -255,7 +256,7 @@ CREATE TABLE analyses (
     confidence DOUBLE PRECISION NOT NULL,
     reasoning TEXT,
     model_used VARCHAR(100),
-    analyzer_type VARCHAR(10) NOT NULL,
+    analyzer_type VARCHAR(20) NOT NULL,
     raw_response TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
