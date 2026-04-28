@@ -8,35 +8,6 @@ Veilence-MX watches package ecosystems for new releases, generates diffs between
 
 Packages are monitored in two modes: Top-N (automatically tracks the most popular packages by downloads) and Manual (user-specified packages).
 
-## Architecture
-
-```
-                    +-----------+     +-----------+     +----------------+
-  Python / NPM     |           |     |           |     |                |
-  Ecosystems ------>  Poller   +----->  Differ   +----->  Analyzer      |
-                    |           |     |           |     |  (LLM)        |
-                    +-----+-----+     +-----------+     +-------+--------+
-                          |                                     |
-                    +-----v-----+                         +-----v--------+
-                    |           |                         |              |
-                    | PostgreSQL|                         |    Alerts    |
-                    | Redis     |                         |              |
-                    |           |                         +-----+--------+
-                    +-----+-----+                               |
-                          |                               +-----v--------+
-                    +-----v-----+                         |              |
-                    |           |                         |  Dashboard   |
-                    |  REST API |                         |  (Next.js)   |
-                    |  (Chi v5) |                         |              |
-                    +-----------+                         +--------------+
-```
-
-1. **Poll** - Discovers new releases from Python and NPM ecosystems
-2. **Diff** - Generates unified diffs between consecutive releases (LCS algorithm)
-3. **Analyze** - Sends diffs to an LLM for threat classification
-4. **Alert** - Surfaces threats for security team triage
-5. **Dashboard** - Visualizes alerts, stats, and package health
-
 ## Features
 
 - Package monitoring - Python and NPM with automatic discovery and manual import
