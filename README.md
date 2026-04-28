@@ -10,16 +10,123 @@ Packages are monitored in two modes: Top-N (automatically tracks the most popula
 
 ## Features
 
-- Package monitoring - Python and NPM with automatic discovery and manual import
-- Release analysis - Unified diff generation, LLM-powered threat classification
-- Alert management - Triage workflow (new -> acknowledged -> resolved), notes, filtering
-- Dashboard - Stats, charts, recent releases, stale package detection
-- Workspaces - Multi-tenant with member management, invitation flow, RBAC
-- Notifications - Email/Slack/webhook channels with configurable alert rules
-- API keys - Scoped API access with permission management
-- Audit logs - Full audit trail with human-readable details
-- Settings - Discovery configuration, polling intervals, auto-approve controls
-- Multi-provider LLM - copilot-api, OpenAI, Anthropic, Ollama
+### Package Monitoring
+- ✅ Python and NPM ecosystem support
+- ✅ Top-N automatic discovery by download count
+- ✅ Manual package addition
+- ✅ Bulk import (CSV/JSON)
+- ✅ Package suggestions with approve/reject workflow
+- ✅ Block/unblock packages
+- ✅ Stale package detection and auto-removal
+- ✅ Search, sort, and filter by ecosystem, source, status
+
+### Release Analysis
+- ✅ Automatic new release detection
+- ✅ Unified diff generation between versions
+- ✅ LLM-powered threat classification (benign, suspicious, malicious)
+- ✅ Confidence scores and reasoning
+- ✅ Analysis history per release
+- ✅ Re-analyze individual or all releases
+- ✅ Status tracking (pending, diffing, analyzing, completed, error)
+
+### Alerts
+- ✅ Automatic alert creation for suspicious and malicious releases
+- ✅ Triage workflow (new -> acknowledged -> resolved)
+- ✅ Severity levels (critical, high, medium, low)
+- ✅ Alert notes with timeline view
+- ✅ Search and filter by status, severity, ecosystem
+
+### Dashboard
+- ✅ Overview stats (packages, releases, pending analyses, active alerts)
+- ✅ Release activity chart (time series)
+- ✅ Classification distribution chart
+- ✅ Ecosystem distribution chart
+- ✅ Alerts by severity chart
+- ✅ Release status breakdown chart
+- ✅ Clickable stat cards with navigation to filtered views
+- ✅ Custom date range filtering
+
+### Authentication
+- ✅ Email/password registration with optional domain whitelist
+- ✅ Login with JWT (access + refresh tokens)
+- ✅ Email verification with resend
+- ✅ Forgot password / reset password flow
+- ✅ Change password
+- ✅ Force password change on first login
+- ✅ Session management (list, revoke)
+- ✅ Registration toggle (enable/disable public sign-ups)
+
+### Workspaces
+- ✅ Multi-tenant workspace isolation
+- ✅ Create, update, delete workspaces
+- ✅ Workspace switching
+- ✅ Member management (add, remove, change role)
+- ✅ Invitation flow (invite, accept, decline, resend, revoke)
+
+### RBAC
+- ✅ Four system roles: Owner, Admin, Member, Viewer
+- ✅ Resource-action permission model
+- ✅ Role-based UI gating (sidebar, command palette, actions)
+- ✅ API key role scoping
+
+### Notifications
+- ✅ In-app notifications with unread count
+- ✅ Email channels (SMTP with per-channel config)
+- ✅ Slack webhook channels
+- ✅ Custom webhook channels
+- ✅ Routing rules by alert severity
+- ✅ Channel test/enable/disable
+- ✅ Batch and delete-all operations
+- ✅ Email digest (daily/weekly/monthly)
+
+### API Keys
+- ✅ Create keys with role assignment (Viewer, Member, Admin)
+- ✅ Expiration date support
+- ✅ List with last-used tracking
+- ✅ Revoke individual keys
+- ✅ Secure prefix-only display
+
+### Audit Logs
+- ✅ Full action trail for all user operations
+- ✅ Filter by action, resource, user, date range
+- ✅ IP address and user agent tracking
+- ✅ Correlation ID for request tracing
+
+### Queue Monitoring
+- ✅ Job stats overview (pending, processing, completed, dead)
+- ✅ Job detail views per status
+- ✅ Dead job retry (individual and bulk)
+- ✅ Admin-only access
+
+### Settings
+- ✅ Discovery scan depth and interval
+- ✅ Discovery auto-approve toggle
+- ✅ Monitoring poll interval
+- ✅ Stale auto-removal threshold
+- ✅ Package count warning threshold
+- ✅ Email digest configuration
+
+### LLM Providers
+- ✅ copilot-api (GitHub Copilot proxy, default)
+- ✅ OpenAI
+- ✅ Anthropic
+- ✅ Ollama (local)
+
+### UI
+- ✅ Command palette (Cmd+K / Ctrl+K)
+- ✅ Dark/light/system theme
+- ✅ Responsive layout
+- ✅ Interactive onboarding wizard
+- ✅ Initial setup wizard (first admin + workspace)
+- ✅ Collapsible sidebar with persistence
+
+### System
+- ✅ Health and readiness endpoints
+- ✅ Version reporting
+- ✅ CSRF protection
+- ✅ Rate limiting (auth, API, sync)
+- ✅ Input sanitization
+- ✅ Request correlation IDs
 
 ## Tech Stack
 
