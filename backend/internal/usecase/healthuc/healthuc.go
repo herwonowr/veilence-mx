@@ -20,18 +20,19 @@ type RedisPinger interface {
 
 // UseCase implements usecase.HealthService.
 type UseCase struct {
-	db    DBPinger
-	redis RedisPinger
+	db      DBPinger
+	redis   RedisPinger
+	version string
 }
 
 // New creates a new health UseCase.
-func New(db DBPinger, redis RedisPinger) *UseCase {
-	return &UseCase{db: db, redis: redis}
+func New(db DBPinger, redis RedisPinger, version string) *UseCase {
+	return &UseCase{db: db, redis: redis, version: version}
 }
 
 // HealthCheck checks database and Redis connectivity.
 func (uc *UseCase) HealthCheck(ctx context.Context) *entity.HealthResponse {
-	resp := &entity.HealthResponse{Status: "ok"}
+	resp := &entity.HealthResponse{Status: "ok", Version: uc.version}
 
 	// Check database
 	dbStart := time.Now()

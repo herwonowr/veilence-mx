@@ -16,6 +16,15 @@ var version = "dev"
 func Run(cfg *config.Config) {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
 
+	// Append -dev suffix for non-production environments
+	v := Version
+	if cfg.AppEnv != "production" {
+		v = Version + "-dev"
+	}
+	version = v
+
+	slog.Info("starting veilence-mx", "version", version)
+
 	app := &cli.App{
 		Name:    "veilence-mx",
 		Usage:   "Supply Chain Monitoring Platform",

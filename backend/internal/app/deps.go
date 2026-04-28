@@ -300,7 +300,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	releaseService := releaseuc.New(packageRepo, releaseRepo, diffRepo, analysisRepo, jobQueue)
 	settingService := settinguc.New(settingRepo)
 	dashboardService := dashboarduc.New(dashboardRepo, releaseRepo, jobQueue)
-	healthService := healthuc.New(dbPinger{db: db}, jobQueue)
+	healthService := healthuc.New(dbPinger{db: db}, jobQueue, version)
 
 	// Setup service (initial platform setup)
 	setupService := setup.NewService(userRepo, rbacRepo, passwordHasher, tokenProvider)

@@ -83,6 +83,7 @@ type ChartReleaseStatusCount struct {
 // HealthResponse is the response for the health check endpoint.
 type HealthResponse struct {
 	Status   string
+	Version  string
 	Database HealthStatus
 	Redis    HealthStatus
 }

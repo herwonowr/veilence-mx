@@ -12,6 +12,7 @@ type HealthStatusResponse struct {
 // HealthResponse is the response body for the health check endpoint.
 type HealthResponse struct {
 	Status   string               `json:"status"`
+	Version  string               `json:"version"`
 	Database HealthStatusResponse `json:"database"`
 	Redis    HealthStatusResponse `json:"redis"`
 }
@@ -19,7 +20,8 @@ type HealthResponse struct {
 // HealthFromEntity maps a domain HealthResponse to a response DTO.
 func HealthFromEntity(h *entity.HealthResponse) HealthResponse {
 	return HealthResponse{
-		Status: h.Status,
+		Status:  h.Status,
+		Version: h.Version,
 		Database: HealthStatusResponse{
 			Status:  h.Database.Status,
 			Latency: h.Database.Latency,
