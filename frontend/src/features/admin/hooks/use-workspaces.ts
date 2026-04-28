@@ -39,7 +39,9 @@ import { sanitizeErrorMessage, usePublicConfigQuery } from "@/core"
 
 export const workspaceKeys = {
   all: ["workspaces"] as const,
-  lists: () => [...workspaceKeys.all, "list"] as const,
+  listsBase: () => [...workspaceKeys.all, "list"] as const,
+  lists: (params?: { search?: string; page?: number; limit?: number }) =>
+    [...workspaceKeys.listsBase(), params] as const,
   detail: (id: string) => [...workspaceKeys.all, "detail", id] as const,
   members: (workspaceId: string) => [...workspaceKeys.all, "members", workspaceId] as const,
   invitations: (workspaceId: string) => [...workspaceKeys.all, "invitations", workspaceId] as const,
@@ -50,11 +52,12 @@ export const workspaceKeys = {
 }
 
 export const useWorkspaces = (
+  params?: { search?: string; page?: number; limit?: number },
   options?: Partial<UseQueryOptions<ApiResponse<Workspace[]>>>
 ) => {
   return useQuery({
-    queryKey: workspaceKeys.lists(),
-    queryFn: () => apiGetWorkspaces(),
+    queryKey: workspaceKeys.lists(params),
+    queryFn: () => apiGetWorkspaces(params),
     ...options,
   })
 }
@@ -78,7 +81,7 @@ export const useCreateWorkspace = () => {
     mutationFn: (data: { name: string; slug: string; description?: string }) =>
       apiCreateWorkspace(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.listsBase() })
     },
     onError: (error: Error) => {
       toast.error(sanitizeErrorMessage(error, "Failed to create workspace"))
@@ -99,7 +102,7 @@ export const useUpdateWorkspace = () => {
     }) => apiUpdateWorkspace(id, data),
     onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(variables.id) })
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.listsBase() })
       toast.success("Workspace updated")
     },
     onError: (error: Error) => {
@@ -114,7 +117,7 @@ export const useDeleteWorkspace = () => {
   return useMutation({
     mutationFn: (id: string) => apiDeleteWorkspace(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.listsBase() })
       toast.success("Workspace deleted")
     },
     onError: (error: Error) => {

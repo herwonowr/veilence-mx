@@ -204,22 +204,34 @@ func (r *RBACRepo) SoftDeleteWorkspace(ctx context.Context, id string) error {
 	})
 }
 
-// FindWorkspacesByUserID returns all workspaces the user is a member of.
-func (r *RBACRepo) FindWorkspacesByUserID(ctx context.Context, userID string) ([]entity.Workspace, error) {
-	var models []Workspace
-	err := r.db.WithContext(ctx).
+// FindWorkspacesByUserID returns a paginated, optionally filtered list
+// of workspaces the user is a member of.
+func (r *RBACRepo) FindWorkspacesByUserID(ctx context.Context, userID string, params entity.WorkspaceListParams) (*entity.WorkspaceListResult, error) {
+	q := r.db.WithContext(ctx).Model(&Workspace{}).
 		Joins("JOIN workspace_members ON workspace_members.workspace_id = workspaces.id").
-		Where("workspace_members.user_id = ? AND workspaces.deleted_at IS NULL", userID).
-		Find(&models).Error
-	if err != nil {
-		return nil, fmt.Errorf("RBACRepo.FindWorkspacesByUserID: %w", err)
+		Where("workspace_members.user_id = ? AND workspaces.deleted_at IS NULL", userID)
+
+	if params.Search != "" {
+		like := "%" + params.Search + "%"
+		q = q.Where("(workspaces.name ILIKE ? OR workspaces.slug ILIKE ?)", like, like)
 	}
 
-	result := make([]entity.Workspace, len(models))
-	for i, m := range models {
-		result[i] = *workspaceModelToEntity(m)
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, fmt.Errorf("RBACRepo.FindWorkspacesByUserID: count: %w", err)
 	}
-	return result, nil
+
+	offset := (params.Page - 1) * params.Limit
+	var models []Workspace
+	if err := q.Order("workspaces.name ASC").Offset(offset).Limit(params.Limit).Find(&models).Error; err != nil {
+		return nil, fmt.Errorf("RBACRepo.FindWorkspacesByUserID: query: %w", err)
+	}
+
+	workspaces := make([]entity.Workspace, len(models))
+	for i, m := range models {
+		workspaces[i] = *workspaceModelToEntity(m)
+	}
+	return &entity.WorkspaceListResult{Workspaces: workspaces, Total: total}, nil
 }
 
 // FindAllPermissions returns all system permissions.

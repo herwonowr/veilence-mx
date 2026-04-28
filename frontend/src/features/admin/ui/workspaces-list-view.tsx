@@ -2,10 +2,28 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useAuth, ROUTES, usePublicConfigQuery } from "@/core"
+import { useAuth, ROUTES, usePublicConfigQuery, useDebouncedValue } from "@/core"
 import { apiCreateWorkspace, workspaceSchema } from "@/domains/admin"
 import type { Workspace } from "@/domains/admin"
-import { Button, Input, Field, FieldLabel, FieldDescription, FieldError, Badge, EmptyState, Alert, AlertDescription } from "@/ui"
+import {
+  Button,
+  Input,
+  Field,
+  FieldLabel,
+  FieldDescription,
+  FieldError,
+  Badge,
+  EmptyState,
+  Alert,
+  AlertDescription,
+  SearchInput,
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/ui"
 import {
   Card,
   CardContent,
@@ -22,18 +40,43 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/ui"
-import { Layers, Plus, Loader2, Users, Package, Mail } from "lucide-react"
+import { Layers, Plus, Loader2, Users, Package, Mail, LayoutGrid, Table2, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { useWorkspaces } from "@/features/admin/hooks/use-workspaces"
 import { useMyInvitations } from "@/features/admin/hooks/use-my-invitations"
 import { ZodError } from "zod"
 
+type ViewMode = "grid" | "table"
+
+const VIEW_MODE_KEY = "veilence-workspaces-view-mode"
+
+const getStoredViewMode = (): ViewMode => {
+  if (typeof window === "undefined") return "grid"
+  const stored = localStorage.getItem(VIEW_MODE_KEY)
+  return stored === "table" ? "table" : "grid"
+}
+
 export const WorkspacesListView = () => {
   const { refreshWorkspaces, setCurrentWorkspace } = useAuth()
   const { registrationEnabled } = usePublicConfigQuery()
-  const { data: workspacesRes } = useWorkspaces()
+
+  // Search and view mode state
+  const [searchQuery, setSearchQuery] = useState("")
+  const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode)
+  const [page, setPage] = useState(1)
+  const limit = 20
+
+  const debouncedSearch = useDebouncedValue(searchQuery, 300)
+
+  const { data: workspacesRes } = useWorkspaces({
+    search: debouncedSearch || undefined,
+    page,
+    limit,
+  })
   const { data: myInvitationsRes } = useMyInvitations()
   const workspaces = workspacesRes?.data ?? []
+  const meta = workspacesRes?.meta
+  const totalPages = meta ? Math.ceil(meta.total / meta.limit) : 1
   const pendingInvitationCount = (myInvitationsRes?.data ?? []).filter(
     (inv) => inv.status === "pending"
   ).length
@@ -41,15 +84,8 @@ export const WorkspacesListView = () => {
   const searchParams = useSearchParams()
   const shouldCreateWorkspace = searchParams.get("create") === "true"
 
-  // Dialog open state: initially true if URL has ?create=true, then controlled by user interaction.
-  // The shouldCreateWorkspace value is read on mount via the state initializer;
-  // subsequent navigations to ?create=true cause shouldCreateWorkspace to become true,
-  // which we OR into the derived dialogOpen below.
   const [dialogOpenByUser, setDialogOpenByUser] = useState(shouldCreateWorkspace)
 
-  // Sync dialog state from URL param during render (React-sanctioned pattern
-  // for adjusting state when a prop/derived value changes).
-  // This ensures the dialog stays open even after the URL cleanup below.
   if (shouldCreateWorkspace && !dialogOpenByUser) {
     setDialogOpenByUser(true)
   }
@@ -67,7 +103,11 @@ export const WorkspacesListView = () => {
   const [error, setError] = useState("")
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
-  // When URL has ?create=true, clean it up so re-navigation works
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode)
+    localStorage.setItem(VIEW_MODE_KEY, mode)
+  }, [])
+
   useEffect(() => {
     if (shouldCreateWorkspace) {
       router.replace(ROUTES.WORKSPACES, { scroll: false })
@@ -122,6 +162,10 @@ export const WorkspacesListView = () => {
       setCreating(false)
     }
   }
+
+  const isSearching = debouncedSearch.length > 0
+  const hasWorkspaces = workspaces.length > 0 || isSearching
+  const hasResults = workspaces.length > 0
 
   return (
     <div className="space-y-6">
@@ -214,7 +258,43 @@ export const WorkspacesListView = () => {
         </div>
       </div>
 
-      {workspaces.length === 0 ? (
+      {/* Toolbar: search + view toggle */}
+      {hasWorkspaces && (
+        <div className="flex items-center justify-between gap-4">
+          <SearchInput
+            value={searchQuery}
+            onChange={(value) => {
+              setSearchQuery(value)
+              setPage(1)
+            }}
+            placeholder="Search workspaces..."
+            aria-label="Search workspaces by name or slug"
+            className="max-w-sm"
+          />
+          <div className="flex items-center gap-1">
+            <Button
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              size="icon"
+              onClick={() => handleViewModeChange("grid")}
+              aria-label="Grid view"
+              aria-pressed={viewMode === "grid"}
+            >
+              <LayoutGrid className="size-4" />
+            </Button>
+            <Button
+              variant={viewMode === "table" ? "secondary" : "ghost"}
+              size="icon"
+              onClick={() => handleViewModeChange("table")}
+              aria-label="Table view"
+              aria-pressed={viewMode === "table"}
+            >
+              <Table2 className="size-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!hasWorkspaces ? (
         <Card>
           <CardContent>
             <EmptyState
@@ -229,11 +309,50 @@ export const WorkspacesListView = () => {
             </EmptyState>
           </CardContent>
         </Card>
-      ) : (
+      ) : !hasResults && isSearching ? (
+        <Card>
+          <CardContent>
+            <EmptyState
+              icon={<Search className="h-12 w-12" />}
+              title="No workspaces found"
+              description={`No workspaces match "${debouncedSearch}". Try a different search term.`}
+            />
+          </CardContent>
+        </Card>
+      ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {workspaces.map((ws: Workspace) => (
+          {workspaces.map((ws) => (
             <WorkspaceCard key={ws.id} workspace={ws} />
           ))}
+        </div>
+      ) : (
+        <WorkspacesTable workspaces={workspaces} />
+      )}
+
+      {/* Pagination */}
+      {hasResults && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            <ChevronLeft className="mr-1 size-4" />
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+            <ChevronRight className="ml-1 size-4" />
+          </Button>
         </div>
       )}
     </div>
@@ -278,5 +397,60 @@ const WorkspaceCard = ({ workspace }: { workspace: Workspace }) => {
         </CardContent>
       </Card>
     </Link>
+  )
+}
+
+const WorkspacesTable = ({ workspaces }: { workspaces: Workspace[] }) => {
+  const router = useRouter()
+
+  return (
+    <Card>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Slug</TableHead>
+            <TableHead>Members</TableHead>
+            <TableHead>Packages</TableHead>
+            <TableHead>Created</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {workspaces.map((ws) => (
+            <TableRow
+              key={ws.id}
+              clickable
+              onClick={() => router.push(`/workspaces/${ws.id}`)}
+            >
+              <TableCell className="font-medium">{ws.name}</TableCell>
+              <TableCell className="font-mono text-xs text-muted-foreground">
+                {ws.slug}
+              </TableCell>
+              <TableCell>
+                <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Users className="size-3.5" />
+                  {ws.memberCount ?? "-"}
+                </span>
+              </TableCell>
+              <TableCell>
+                <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Package className="size-3.5" />
+                  {ws.packageCount ?? "-"}
+                </span>
+              </TableCell>
+              <TableCell className="text-sm text-muted-foreground">
+                {new Date(ws.createdAt).toLocaleDateString()}
+              </TableCell>
+              <TableCell>
+                <Badge variant={ws.isActive ? "secondary" : "outline"}>
+                  {ws.isActive ? "Active" : "Inactive"}
+                </Badge>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
   )
 }

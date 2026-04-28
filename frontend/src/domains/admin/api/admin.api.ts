@@ -12,8 +12,16 @@ import type {
   MyInvitation,
 } from "@/domains/admin/types/admin.types"
 
-export const apiGetWorkspaces = async (): Promise<ApiResponse<Workspace[]>> =>
-  fetchApi<Workspace[]>("/api/workspaces")
+export const apiGetWorkspaces = async (
+  params?: { search?: string; page?: number; limit?: number }
+): Promise<ApiResponse<Workspace[]>> => {
+  const searchParams = new URLSearchParams()
+  if (params?.search) searchParams.set("search", params.search)
+  if (params?.page) searchParams.set("page", String(params.page))
+  if (params?.limit) searchParams.set("limit", String(params.limit))
+  const query = searchParams.toString()
+  return fetchApi<Workspace[]>(`/api/workspaces${query ? `?${query}` : ""}`)
+}
 
 export const apiGetWorkspace = async (
   id: string

@@ -147,9 +147,10 @@ func (s *Service) createDefaultRoles(ctx context.Context, tx RBACRepository, wor
 	return usecase.CreateDefaultRoles(ctx, tx, workspaceID)
 }
 
-// GetUserWorkspaces returns all workspaces the user is a member of.
-func (s *Service) GetUserWorkspaces(ctx context.Context, userID string) ([]entity.Workspace, error) {
-	return s.repo.FindWorkspacesByUserID(ctx, userID)
+// GetUserWorkspaces returns a paginated, searchable list of workspaces
+// the user is a member of.
+func (s *Service) GetUserWorkspaces(ctx context.Context, userID string, params entity.WorkspaceListParams) (*entity.WorkspaceListResult, error) {
+	return s.repo.FindWorkspacesByUserID(ctx, userID, params)
 }
 
 // GetWorkspace returns a single workspace by ID.

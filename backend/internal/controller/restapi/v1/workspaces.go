@@ -8,7 +8,7 @@ import (
 
 	validation "github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/request"
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
-
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
@@ -66,6 +66,7 @@ func (h *WorkspaceHandlers) CreateWorkspace(w http.ResponseWriter, r *http.Reque
 }
 
 // ListWorkspaces handles GET /api/workspaces - lists workspaces the user belongs to.
+// Supports pagination via ?page=&limit= and search via ?search= query params.
 func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == "" {
@@ -73,14 +74,21 @@ func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	orgs, err := h.RBAC.GetUserWorkspaces(r.Context(), userID)
+	page, limit := parsePagination(r)
+	search := r.URL.Query().Get("search")
+
+	res, err := h.RBAC.GetUserWorkspaces(r.Context(), userID, entity.WorkspaceListParams{
+		Page:   page,
+		Limit:  limit,
+		Search: search,
+	})
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to list workspaces")
 		return
 	}
 
-	result := make([]response.WorkspaceResponse, len(orgs))
-	for i, o := range orgs {
+	result := make([]response.WorkspaceResponse, len(res.Workspaces))
+	for i, o := range res.Workspaces {
 		result[i] = response.WorkspaceResponse{
 			ID: o.ID, Name: o.Name, Slug: o.Slug, Description: o.Description,
 			OwnerID: o.OwnerID, IsActive: o.IsActive, CreatedAt: o.CreatedAt, UpdatedAt: o.UpdatedAt,
@@ -97,7 +105,7 @@ func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Reques
 			result[i].MemberCount = &memberCount
 		}
 	}
-	respondJSON(w, http.StatusOK, result, nil)
+	respondJSON(w, http.StatusOK, result, &Meta{Page: page, Limit: limit, Total: res.Total})
 }
 
 // GetWorkspace handles GET /api/workspaces/{workspaceId} - returns workspace details.

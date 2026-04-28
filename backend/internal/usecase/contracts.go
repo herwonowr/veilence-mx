@@ -385,7 +385,7 @@ type RBACRepository interface {
 	FindWorkspaceByID(ctx context.Context, id string) (*entity.Workspace, error)
 	UpdateWorkspace(ctx context.Context, ws *entity.Workspace) error
 	SoftDeleteWorkspace(ctx context.Context, id string) error
-	FindWorkspacesByUserID(ctx context.Context, userID string) ([]entity.Workspace, error)
+	FindWorkspacesByUserID(ctx context.Context, userID string, params entity.WorkspaceListParams) (*entity.WorkspaceListResult, error)
 
 	// Role & Permission operations
 	FindAllPermissions(ctx context.Context) ([]entity.Permission, error)
