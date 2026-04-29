@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -200,7 +201,7 @@ func (q *Queue) Complete(ctx context.Context, job *Job) error {
 
 func (q *Queue) Fail(ctx context.Context, job *Job, jobErr error) error {
 	job.Attempts++
-	job.LastError = jobErr.Error()
+	job.LastError = sanitizeJobError(jobErr.Error())
 	job.UpdatedAt = time.Now().Unix()
 
 	q.rdb.ZRem(ctx, processingSet+job.Type, job.ID)
@@ -745,4 +746,48 @@ func (q *Queue) RequeueAllDeadForWorkspace(ctx context.Context, jobType string, 
 		count++
 	}
 	return count, nil
+}
+
+// sanitizeJobError strips internal details (SQL states, file paths, stack traces)
+// from error messages before storing them in job records visible to users.
+// The raw error is still logged server-side for debugging.
+func sanitizeJobError(msg string) string {
+	// Strip SQLSTATE codes like (SQLSTATE 22021)
+	if i := strings.Index(msg, "(SQLSTATE"); i >= 0 {
+		msg = strings.TrimSpace(msg[:i])
+	}
+
+	// Strip raw SQL error prefixes (e.g. "ERROR: invalid byte sequence ...")
+	if i := strings.Index(msg, "ERROR:"); i >= 0 {
+		prefix := strings.TrimSpace(msg[:i])
+		if prefix != "" {
+			msg = strings.TrimRight(prefix, ": ")
+		} else {
+			msg = "internal database error"
+		}
+	}
+
+	// Strip file system paths
+	if strings.Contains(msg, "/tmp/") || strings.Contains(msg, "/var/") || strings.Contains(msg, "/home/") {
+		parts := strings.Split(msg, ":")
+		var sanitized []string
+		for _, p := range parts {
+			trimmed := strings.TrimSpace(p)
+			if strings.HasPrefix(trimmed, "/") {
+				continue
+			}
+			sanitized = append(sanitized, trimmed)
+		}
+		if len(sanitized) > 0 {
+			msg = strings.Join(sanitized, ": ")
+		} else {
+			msg = "internal processing error"
+		}
+	}
+
+	if msg == "" {
+		msg = "internal error"
+	}
+
+	return msg
 }

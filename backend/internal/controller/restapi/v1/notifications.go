@@ -3,6 +3,7 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -391,10 +392,11 @@ func (h *NotificationHandlers) TestNotificationChannel(w http.ResponseWriter, r 
 	}
 
 	if err := h.Notifications.TestChannel(id, workspaceID); err != nil {
+		slog.Error("notification channel test failed", "channel_id", id, "error", err)
 		if strings.Contains(err.Error(), "not found") {
-			respondError(w, http.StatusNotFound, err.Error())
+			respondError(w, http.StatusNotFound, "Notification channel not found")
 		} else {
-			respondError(w, http.StatusBadGateway, err.Error())
+			respondError(w, http.StatusBadGateway, "Failed to send test notification")
 		}
 		return
 	}
@@ -501,7 +503,8 @@ func (h *NotificationHandlers) DeleteBatchNotifications(w http.ResponseWriter, r
 	}
 
 	if _, err := h.Notifications.DeleteBatch(r.Context(), req.IDs, workspaceID, userID); err != nil {
-		respondError(w, http.StatusBadRequest, err.Error())
+		slog.Error("failed to batch delete notifications", "error", err)
+		respondError(w, http.StatusBadRequest, "Failed to delete notifications")
 		return
 	}
 

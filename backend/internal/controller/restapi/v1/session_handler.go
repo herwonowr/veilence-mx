@@ -90,7 +90,7 @@ func (h *SessionHandlers) RevokeSession(w http.ResponseWriter, r *http.Request) 
 		rtHash := sha256.Sum256([]byte(rt))
 		currentTokenHash := hex.EncodeToString(rtHash[:])
 		if err := h.Auth.GuardCurrentSession(userID, id, currentTokenHash); err != nil {
-			respondError(w, http.StatusBadRequest, err.Error())
+			respondError(w, http.StatusBadRequest, "Cannot revoke the current session")
 			return
 		}
 	}

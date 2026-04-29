@@ -229,4 +229,3 @@ func (r *PollerRepo) GetSetting(ctx context.Context, workspaceID string, key str
 	}
 	return setting.Value, nil
 }
-

@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
@@ -371,6 +372,16 @@ func walkFiles(root string) (map[string]string, error) {
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return nil // Skip unreadable files
+		}
+
+		// Skip binary files - invalid UTF-8 causes PostgreSQL TEXT column errors
+		if !utf8.Valid(content) {
+			return nil
+		}
+
+		// Skip files containing null bytes (binary indicator)
+		if strings.ContainsRune(string(content), '\x00') {
+			return nil
 		}
 
 		files[relPath] = string(content)
