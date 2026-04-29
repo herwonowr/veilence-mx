@@ -1,5 +1,5 @@
 // Package settinguc implements the business logic for settings management.
-package settinguc
+package setting
 
 import (
 	"context"

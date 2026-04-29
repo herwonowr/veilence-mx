@@ -1,5 +1,5 @@
 // Package healthuc implements the business logic for health checks.
-package healthuc
+package health
 
 import (
 	"context"

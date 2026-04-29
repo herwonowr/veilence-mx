@@ -1,4 +1,4 @@
-package usecase
+package shared
 
 import (
 	"context"
@@ -7,12 +7,13 @@ import (
 	"slices"
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
+	"github.com/veilence/veilence-mx/backend/internal/usecase"
 )
 
 // CreateDefaultRoles creates the four system roles (owner, admin, member, viewer)
 // with their respective permissions for the given workspace. Both the setup and
 // rbac packages call this to avoid duplicating role definitions.
-func CreateDefaultRoles(ctx context.Context, repo RBACRepository, workspaceID string) ([]entity.Role, error) {
+func CreateDefaultRoles(ctx context.Context, repo usecase.RBACRepository, workspaceID string) ([]entity.Role, error) {
 	allPerms, err := repo.FindAllPermissions(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("loading permissions: %w", err)

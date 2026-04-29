@@ -1,5 +1,5 @@
 // Package alertuc implements the business logic for alert management.
-package alertuc
+package alert
 
 import (
 	"context"

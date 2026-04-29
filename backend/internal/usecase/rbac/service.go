@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
-	"github.com/veilence/veilence-mx/backend/internal/usecase"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/shared"
 )
 
 // Common errors returned by the RBAC service.
@@ -144,7 +144,7 @@ func (s *Service) CreateWorkspace(ctx context.Context, userID string, name, slug
 // createDefaultRoles creates the four system roles (owner, admin, member, viewer)
 // with their respective permissions for the given workspace.
 func (s *Service) createDefaultRoles(ctx context.Context, tx RBACRepository, workspaceID string) ([]entity.Role, error) {
-	return usecase.CreateDefaultRoles(ctx, tx, workspaceID)
+	return shared.CreateDefaultRoles(ctx, tx, workspaceID)
 }
 
 // GetUserWorkspaces returns a paginated, searchable list of workspaces

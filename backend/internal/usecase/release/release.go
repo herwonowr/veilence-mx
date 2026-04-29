@@ -1,5 +1,5 @@
 // Package releaseuc implements the business logic for release management.
-package releaseuc
+package release
 
 import (
 	"context"

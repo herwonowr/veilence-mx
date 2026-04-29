@@ -1,5 +1,5 @@
 // Package pkguc implements the business logic for package lifecycle management.
-package pkguc
+package pkg
 
 import (
 	"context"

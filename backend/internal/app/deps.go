@@ -20,21 +20,21 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/repo/persistent"
 	"github.com/veilence/veilence-mx/backend/internal/repo/registry"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/alert"
 	alertnoteuc "github.com/veilence/veilence-mx/backend/internal/usecase/alertnote"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/alertuc"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/analyzer"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/dashboarduc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/dashboard"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/differ"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/digest"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/healthuc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/health"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/notifications"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/pkguc"
+	pkguc "github.com/veilence/veilence-mx/backend/internal/usecase/pkg"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/poller"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/releaseuc"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/settinguc"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/release"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/setting"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/setup"
 	"github.com/veilence/veilence-mx/backend/pkg/anthropic"
 	"github.com/veilence/veilence-mx/backend/pkg/copilotapi"
@@ -296,11 +296,11 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	diffRepo := persistent.NewDiffRepo(db)
 	analysisRepo := persistent.NewAnalysisRepo(db)
 
-	alertService := alertuc.New(alertRepo, auditService)
-	releaseService := releaseuc.New(packageRepo, releaseRepo, diffRepo, analysisRepo, jobQueue)
-	settingService := settinguc.New(settingRepo)
-	dashboardService := dashboarduc.New(dashboardRepo, releaseRepo, jobQueue)
-	healthService := healthuc.New(dbPinger{db: db}, jobQueue, version)
+	alertService := alert.New(alertRepo, auditService)
+	releaseService := release.New(packageRepo, releaseRepo, diffRepo, analysisRepo, jobQueue)
+	settingService := setting.New(settingRepo)
+	dashboardService := dashboard.New(dashboardRepo, releaseRepo, jobQueue)
+	healthService := health.New(dbPinger{db: db}, jobQueue, version)
 
 	// Setup service (initial platform setup)
 	setupService := setup.NewService(userRepo, rbacRepo, passwordHasher, tokenProvider)
@@ -348,7 +348,7 @@ func (d *Dependencies) Close() {
 	}
 }
 
-// dbPinger adapts *gorm.DB to satisfy healthuc.DBPinger.
+// dbPinger adapts *gorm.DB to satisfy health.DBPinger.
 type dbPinger struct {
 	db *gorm.DB
 }

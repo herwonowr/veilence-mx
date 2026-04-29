@@ -10,6 +10,7 @@ import (
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/shared"
 )
 
 // Service handles the initial setup flow for a fresh installation.
@@ -118,7 +119,7 @@ func (s *Service) Initialize(ctx context.Context, req InitializeRequest) (*Initi
 		}
 
 		// Create default roles
-		roles, err := usecase.CreateDefaultRoles(ctx, tx, workspace.ID)
+		roles, err := shared.CreateDefaultRoles(ctx, tx, workspace.ID)
 		if err != nil {
 			return fmt.Errorf("creating default roles: %w", err)
 		}

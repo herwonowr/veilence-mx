@@ -1,5 +1,5 @@
 // Package dashboarduc implements the business logic for dashboard operations.
-package dashboarduc
+package dashboard
 
 import (
 	"context"
