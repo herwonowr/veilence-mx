@@ -748,46 +748,59 @@ func (q *Queue) RequeueAllDeadForWorkspace(ctx context.Context, jobType string, 
 	return count, nil
 }
 
-// sanitizeJobError strips internal details (SQL states, file paths, stack traces)
-// from error messages before storing them in job records visible to users.
-// The raw error is still logged server-side for debugging.
+// errorMapping maps known error context prefixes to safe user-facing messages.
+// The prefixes are matched against the start of the error message (after
+// lowercasing). Order matters - more specific prefixes should come first.
+var errorMapping = []struct {
+	prefix  string
+	message string
+}{
+	// Differ errors
+	{"downloading new tarball", "Failed to download package version"},
+	{"downloading previous tarball", "Failed to download previous package version"},
+	{"extracting new tarball", "Failed to extract package archive"},
+	{"extracting previous tarball", "Failed to extract previous package archive"},
+	{"generating diff", "Failed to generate diff between versions"},
+	{"saving diff", "Failed to save diff results"},
+	{"enqueuing analyze job", "Failed to queue analysis job"},
+	{"loading release", "Failed to load release data"},
+	{"unknown ecosystem", "Unsupported package ecosystem"},
+
+	// Analyzer errors
+	{"loading diff", "Failed to load diff for analysis"},
+	{"loading previous release", "Failed to load previous release for analysis"},
+	{"all providers failed", "Failed to analyze release - all providers unavailable"},
+
+	// Generic fallbacks for partial matches
+	{"downloading", "Failed to download package"},
+	{"extracting", "Failed to extract package archive"},
+	{"saving", "Failed to save results"},
+	{"loading", "Failed to load data"},
+	{"analyzing", "Failed to analyze release"},
+}
+
+// sanitizeJobError maps raw error messages to safe user-facing descriptions.
+// It checks for known context prefixes and returns a generic meaningful message.
+// The raw error is logged server-side in the Fail method for debugging.
+// This function NEVER passes through the raw error message.
 func sanitizeJobError(msg string) string {
-	// Strip SQLSTATE codes like (SQLSTATE 22021)
-	if i := strings.Index(msg, "(SQLSTATE"); i >= 0 {
-		msg = strings.TrimSpace(msg[:i])
-	}
-
-	// Strip raw SQL error prefixes (e.g. "ERROR: invalid byte sequence ...")
-	if i := strings.Index(msg, "ERROR:"); i >= 0 {
-		prefix := strings.TrimSpace(msg[:i])
-		if prefix != "" {
-			msg = strings.TrimRight(prefix, ": ")
-		} else {
-			msg = "internal database error"
+	lower := strings.ToLower(msg)
+	for _, m := range errorMapping {
+		if strings.HasPrefix(lower, m.prefix) {
+			return m.message
 		}
 	}
 
-	// Strip file system paths
-	if strings.Contains(msg, "/tmp/") || strings.Contains(msg, "/var/") || strings.Contains(msg, "/home/") {
-		parts := strings.Split(msg, ":")
-		var sanitized []string
-		for _, p := range parts {
-			trimmed := strings.TrimSpace(p)
-			if strings.HasPrefix(trimmed, "/") {
-				continue
-			}
-			sanitized = append(sanitized, trimmed)
-		}
-		if len(sanitized) > 0 {
-			msg = strings.Join(sanitized, ": ")
-		} else {
-			msg = "internal processing error"
-		}
-	}
+	slog.Warn("unmapped job error pattern, returning generic message",
+		"raw_prefix", truncateForLog(msg, 80),
+	)
+	return "Internal processing error"
+}
 
-	if msg == "" {
-		msg = "internal error"
+// truncateForLog returns the first n bytes of s for safe logging.
+func truncateForLog(s string, n int) string {
+	if len(s) <= n {
+		return s
 	}
-
-	return msg
+	return s[:n] + "..."
 }
