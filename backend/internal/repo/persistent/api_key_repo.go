@@ -2,7 +2,6 @@ package persistent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -20,33 +19,10 @@ func NewAPIKeyRepo(db *gorm.DB) *APIKeyRepo {
 	return &APIKeyRepo{db: db}
 }
 
-func (r *APIKeyRepo) FindByID(ctx context.Context, id string) (*entity.APIKey, error) {
-	var m APIKey
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("api key %w", entity.ErrNotFound)
-		}
-		return nil, fmt.Errorf("finding api key: %w", err)
-	}
-	return apiKeyToDomain(&m), nil
-}
-
 func (r *APIKeyRepo) FindActiveByPrefix(ctx context.Context, prefix string) ([]entity.APIKey, error) {
 	var ms []APIKey
 	if err := r.db.WithContext(ctx).Where("is_active = ? AND key_prefix = ?", true, prefix).Find(&ms).Error; err != nil {
 		return nil, fmt.Errorf("finding api keys by prefix: %w", err)
-	}
-	result := make([]entity.APIKey, len(ms))
-	for i := range ms {
-		result[i] = *apiKeyToDomain(&ms[i])
-	}
-	return result, nil
-}
-
-func (r *APIKeyRepo) FindByUserID(ctx context.Context, userID string) ([]entity.APIKey, error) {
-	var ms []APIKey
-	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&ms).Error; err != nil {
-		return nil, fmt.Errorf("APIKeyRepo.FindByUserID: %w", err)
 	}
 	result := make([]entity.APIKey, len(ms))
 	for i := range ms {
@@ -74,25 +50,6 @@ func (r *APIKeyRepo) Create(ctx context.Context, key *entity.APIKey) error {
 	}
 	key.ID = m.ID
 	key.CreatedAt = m.CreatedAt
-	return nil
-}
-
-func (r *APIKeyRepo) Update(ctx context.Context, key *entity.APIKey) error {
-	m := apiKeyToModel(key)
-	if err := r.db.WithContext(ctx).Save(m).Error; err != nil {
-		return fmt.Errorf("updating api key: %w", err)
-	}
-	return nil
-}
-
-func (r *APIKeyRepo) SoftDelete(ctx context.Context, userID, keyID string) error {
-	result := r.db.WithContext(ctx).Where("id = ? AND user_id = ?", keyID, userID).Delete(&APIKey{})
-	if result.Error != nil {
-		return fmt.Errorf("APIKeyRepo.SoftDelete: %w", result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("api key %w", entity.ErrNotFound)
-	}
 	return nil
 }
 

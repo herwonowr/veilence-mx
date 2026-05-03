@@ -17,8 +17,9 @@ import type { Classification } from "@/domains/common"
 import { Package, Activity, AlertTriangle, Shield, Clock, CheckCircle, RefreshCw, Layers, Plus, Mail } from "lucide-react"
 import { DashboardCharts } from "@/features/dashboard/ui/dashboard-charts"
 import { formatEcosystem } from "@/domains/common"
+import { useQuery } from "@tanstack/react-query"
+import { apiGetMyInvitations, myInvitationKeys } from "@/domains/admin"
 import { useDashboardStats, useRecentReleases, useChartData, useDashboardStalePackages, useDashboardSettings } from "@/features/dashboard/hooks/use-dashboard"
-import { useMyInvitations } from "@/features/dashboard/hooks/use-my-invitations"
 import { PendingSuggestionsCard } from "@/features/dashboard/ui/pending-suggestions-card"
 
 const classificationVariant = (c?: Classification) => {
@@ -38,7 +39,11 @@ interface OnboardingProps {
 const DashboardOnboarding = ({ hasAnyWorkspace, user }: OnboardingProps) => {
   const router = useRouter()
   const { registrationEnabled } = usePublicConfigQuery()
-  const { data: invitationsRes } = useMyInvitations()
+  const { data: invitationsRes } = useQuery({
+    queryKey: myInvitationKeys.all,
+    queryFn: () => apiGetMyInvitations(),
+    enabled: registrationEnabled,
+  })
   const pendingCount = (invitationsRes?.data ?? []).filter(
     (inv) => inv.status === "pending"
   ).length
@@ -106,7 +111,11 @@ const DashboardData = () => {
   const refetchInterval = autoRefresh && intervalSec > 0 ? intervalSec * 1000 : false
 
   const { registrationEnabled } = usePublicConfigQuery()
-  const { data: invitationsRes } = useMyInvitations()
+  const { data: invitationsRes } = useQuery({
+    queryKey: myInvitationKeys.all,
+    queryFn: () => apiGetMyInvitations(),
+    enabled: registrationEnabled,
+  })
   const pendingCount = (invitationsRes?.data ?? []).filter(
     (inv) => inv.status === "pending"
   ).length

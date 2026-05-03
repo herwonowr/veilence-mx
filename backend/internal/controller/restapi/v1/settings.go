@@ -46,10 +46,7 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 	updated, err := h.SettingSvc.UpdateSettings(r.Context(), workspaceID, req)
 	if err != nil {
 		if errors.Is(err, entity.ErrValidation) {
-			// Strip the trailing ": validation" sentinel from the message.
-			msg := err.Error()
-			msg = strings.TrimSuffix(msg, ": "+entity.ErrValidation.Error())
-			respondAppError(w, Validation(msg))
+			respondAppError(w, Validation(err.Error()))
 			return
 		}
 		respondAppError(w, Internal("failed to update settings"))

@@ -2,7 +2,6 @@ package persistent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -32,35 +31,8 @@ func (r *SettingRepo) FindByWorkspaceID(ctx context.Context, workspaceID string)
 	return result, nil
 }
 
-func (r *SettingRepo) FindByKey(ctx context.Context, workspaceID string, key string) (*entity.Setting, error) {
-	var m Setting
-	err := r.db.WithContext(ctx).Where("workspace_id = ? AND key = ?", workspaceID, key).First(&m).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("setting %w", entity.ErrNotFound)
-		}
-		return nil, fmt.Errorf("finding setting: %w", err)
-	}
-	return settingToDomain(&m), nil
-}
-
-func (r *SettingRepo) Upsert(ctx context.Context, setting *entity.Setting) error {
-	m := settingToModel(setting)
-	result := r.db.WithContext(ctx).
-		Where("workspace_id = ? AND key = ?", m.WorkspaceID, m.Key).
-		Assign(Setting{Value: m.Value}).
-		FirstOrCreate(m)
-	if result.Error != nil {
-		return fmt.Errorf("upserting setting: %w", result.Error)
-	}
-	setting.ID = m.ID
-	setting.CreatedAt = m.CreatedAt
-	setting.UpdatedAt = m.UpdatedAt
-	return nil
-}
-
 func (r *SettingRepo) UpsertByWorkspaceAndKey(ctx context.Context, workspaceID string, key, value string) error {
-	m := &Setting{WorkspaceID: workspaceID, Key: key, Value: value}
+	m := &Setting{WorkspaceID: &workspaceID, Key: key, Value: value}
 	result := r.db.WithContext(ctx).
 		Where("workspace_id = ? AND key = ?", workspaceID, key).
 		Assign(Setting{Value: value}).
@@ -71,26 +43,46 @@ func (r *SettingRepo) UpsertByWorkspaceAndKey(ctx context.Context, workspaceID s
 	return nil
 }
 
+func (r *SettingRepo) FindPlatformSettings(ctx context.Context, keys []string) ([]entity.Setting, error) {
+	var ms []Setting
+	if err := r.db.WithContext(ctx).Where("workspace_id IS NULL AND key IN ?", keys).Find(&ms).Error; err != nil {
+		return nil, fmt.Errorf("SettingRepo.FindPlatformSettings: %w", err)
+	}
+	result := make([]entity.Setting, len(ms))
+	for i := range ms {
+		result[i] = *settingToDomain(&ms[i])
+	}
+	return result, nil
+}
+
+func (r *SettingRepo) UpsertPlatformSetting(ctx context.Context, key, value string) error {
+	m := &Setting{Key: key, Value: value}
+	result := r.db.WithContext(ctx).
+		Where("workspace_id IS NULL AND key = ?", key).
+		Assign(Setting{Value: value}).
+		FirstOrCreate(m)
+	if result.Error != nil {
+		return fmt.Errorf("SettingRepo.UpsertPlatformSetting: %w", result.Error)
+	}
+	return nil
+}
+
 // --- Converters ---
+
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
 
 func settingToDomain(m *Setting) *entity.Setting {
 	return &entity.Setting{
 		ID:          m.ID,
-		WorkspaceID: m.WorkspaceID,
+		WorkspaceID: derefString(m.WorkspaceID),
 		Key:         m.Key,
 		Value:       m.Value,
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
-	}
-}
-
-func settingToModel(d *entity.Setting) *Setting {
-	return &Setting{
-		ID:          d.ID,
-		WorkspaceID: d.WorkspaceID,
-		Key:         d.Key,
-		Value:       d.Value,
-		CreatedAt:   d.CreatedAt,
-		UpdatedAt:   d.UpdatedAt,
 	}
 }

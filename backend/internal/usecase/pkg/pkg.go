@@ -28,7 +28,7 @@ func New(repo usecase.PackageRepository, audit usecase.AuditLogger) *UseCase {
 func (uc *UseCase) ListPackages(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
 	packages, total, err := uc.repo.FindByWorkspaceID(ctx, workspaceID, page, limit, sortClause, filters)
 	if err != nil {
-		return nil, 0, fmt.Errorf("PackageUseCase.ListPackages: %w", err)
+		return nil, 0, fmt.Errorf("%w", err)
 	}
 	return packages, total, nil
 }
@@ -40,7 +40,7 @@ func (uc *UseCase) GetPackage(ctx context.Context, workspaceID, pkgID string) (*
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, entity.ErrNotFound
 		}
-		return nil, fmt.Errorf("PackageUseCase.GetPackage: %w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 	return pkg, nil
 }
@@ -49,10 +49,10 @@ func (uc *UseCase) GetPackage(ctx context.Context, workspaceID, pkgID string) (*
 func (uc *UseCase) CreatePackage(ctx context.Context, workspaceID string, name string, ecosystem entity.Ecosystem) (*entity.Package, error) {
 	exists, err := uc.repo.ExistsByWorkspaceAndName(ctx, workspaceID, name, ecosystem)
 	if err != nil {
-		return nil, fmt.Errorf("PackageUseCase.CreatePackage: checking existence: %w", err)
+		return nil, fmt.Errorf("checking existence: %w", err)
 	}
 	if exists {
-		return nil, fmt.Errorf("Package already monitored: %w", entity.ErrConflict)
+		return nil, fmt.Errorf("package already monitored: %w", entity.ErrConflict)
 	}
 
 	pkg := &entity.Package{
@@ -64,7 +64,7 @@ func (uc *UseCase) CreatePackage(ctx context.Context, workspaceID string, name s
 	}
 
 	if err := uc.repo.Create(ctx, pkg); err != nil {
-		return nil, fmt.Errorf("PackageUseCase.CreatePackage: %w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	uc.audit.LogAction(ctx, "create", "package", pkg.ID,
@@ -185,12 +185,12 @@ func (uc *UseCase) ApprovePackage(ctx context.Context, workspaceID, pkgID string
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, fmt.Errorf("package %w", entity.ErrNotFound)
 		}
-		return nil, fmt.Errorf("PackageUseCase.ApprovePackage: %w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	pkg, err := uc.repo.FindByIDAndWorkspaceID(ctx, pkgID, workspaceID)
 	if err != nil {
-		return nil, fmt.Errorf("PackageUseCase.ApprovePackage: fetching approved package: %w", err)
+		return nil, fmt.Errorf("fetching approved package: %w", err)
 	}
 
 	uc.audit.LogAction(ctx, "approve", "package", pkgID,
@@ -207,14 +207,14 @@ func (uc *UseCase) RejectPackage(ctx context.Context, workspaceID, pkgID string)
 		if errors.Is(err, entity.ErrNotFound) {
 			return fmt.Errorf("package %w", entity.ErrNotFound)
 		}
-		return fmt.Errorf("PackageUseCase.RejectPackage: fetching package: %w", err)
+		return fmt.Errorf("fetching package: %w", err)
 	}
 
 	if err := uc.repo.RejectPackage(ctx, workspaceID, pkgID); err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return fmt.Errorf("package %w", entity.ErrNotFound)
 		}
-		return fmt.Errorf("PackageUseCase.RejectPackage: %w", err)
+		return fmt.Errorf("%w", err)
 	}
 
 	uc.audit.LogAction(ctx, "reject", "package", pkgID,
@@ -227,7 +227,7 @@ func (uc *UseCase) RejectPackage(ctx context.Context, workspaceID, pkgID string)
 func (uc *UseCase) BulkApprovePackages(ctx context.Context, workspaceID string, pkgIDs []string) (int, error) {
 	count, err := uc.repo.BulkApprovePackages(ctx, workspaceID, pkgIDs)
 	if err != nil {
-		return 0, fmt.Errorf("PackageUseCase.BulkApprovePackages: %w", err)
+		return 0, fmt.Errorf("%w", err)
 	}
 
 	uc.audit.LogAction(ctx, "bulk_approve", "package", "",
@@ -240,7 +240,7 @@ func (uc *UseCase) BulkApprovePackages(ctx context.Context, workspaceID string, 
 func (uc *UseCase) BulkApproveAllSuggestions(ctx context.Context, workspaceID string) (int, error) {
 	count, err := uc.repo.BulkApproveAllSuggestions(ctx, workspaceID)
 	if err != nil {
-		return 0, fmt.Errorf("PackageUseCase.BulkApproveAllSuggestions: %w", err)
+		return 0, fmt.Errorf("%w", err)
 	}
 
 	uc.audit.LogAction(ctx, "bulk_approve_all", "package", "",
@@ -253,7 +253,7 @@ func (uc *UseCase) BulkApproveAllSuggestions(ctx context.Context, workspaceID st
 func (uc *UseCase) ListSuggestions(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
 	packages, total, err := uc.repo.FindSuggestionsByWorkspaceID(ctx, workspaceID, page, limit, sortClause, filters)
 	if err != nil {
-		return nil, 0, fmt.Errorf("PackageUseCase.ListSuggestions: %w", err)
+		return nil, 0, fmt.Errorf("%w", err)
 	}
 	return packages, total, nil
 }
@@ -262,7 +262,7 @@ func (uc *UseCase) ListSuggestions(ctx context.Context, workspaceID string, page
 func (uc *UseCase) ListStalePackages(ctx context.Context, workspaceID string, staleBefore time.Time) ([]entity.Package, error) {
 	packages, err := uc.repo.FindStaleByWorkspaceID(ctx, workspaceID, staleBefore)
 	if err != nil {
-		return nil, fmt.Errorf("PackageUseCase.ListStalePackages: %w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 	return packages, nil
 }
@@ -271,7 +271,7 @@ func (uc *UseCase) ListStalePackages(ctx context.Context, workspaceID string, st
 func (uc *UseCase) CountPackages(ctx context.Context, workspaceID string) (int64, error) {
 	count, err := uc.repo.CountByWorkspace(ctx, workspaceID, nil)
 	if err != nil {
-		return 0, fmt.Errorf("PackageUseCase.CountPackages: %w", err)
+		return 0, fmt.Errorf("%w", err)
 	}
 	return count, nil
 }
@@ -287,7 +287,7 @@ func (uc *UseCase) RemoveStalePackages(ctx context.Context, workspaceID string, 
 	staleBefore := time.Now().AddDate(0, -months, 0)
 	count, err := uc.repo.RemoveStaleByWorkspaceID(ctx, workspaceID, staleBefore)
 	if err != nil {
-		return 0, fmt.Errorf("PackageUseCase.RemoveStalePackages: %w", err)
+		return 0, fmt.Errorf("%w", err)
 	}
 
 	if count > 0 {

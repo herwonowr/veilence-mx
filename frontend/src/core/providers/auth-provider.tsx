@@ -21,6 +21,7 @@ interface User {
   firstName: string
   lastName: string
   isActive: boolean
+  isSuperAdmin: boolean
   emailVerified: boolean
   mustChangePassword: boolean
   lastLoginAt: string | null

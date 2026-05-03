@@ -70,6 +70,40 @@ func (r *UserRepo) CountAll(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
+func (r *UserRepo) FindAll(ctx context.Context, page, limit int, search string) ([]entity.User, int64, error) {
+	var ms []User
+	var total int64
+
+	q := r.db.WithContext(ctx).Model(&User{})
+	if search != "" {
+		pattern := "%" + search + "%"
+		q = q.Where("email ILIKE ? OR first_name ILIKE ? OR last_name ILIKE ?", pattern, pattern, pattern)
+	}
+
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("UserRepo.FindAll: counting: %w", err)
+	}
+
+	offset := (page - 1) * limit
+	if err := q.Order("created_at DESC").Offset(offset).Limit(limit).Find(&ms).Error; err != nil {
+		return nil, 0, fmt.Errorf("UserRepo.FindAll: %w", err)
+	}
+
+	result := make([]entity.User, len(ms))
+	for i := range ms {
+		result[i] = *userToDomain(&ms[i])
+	}
+	return result, total, nil
+}
+
+func (r *UserRepo) CountSuperAdmins(ctx context.Context) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&User{}).Where("is_super_admin = ? AND is_active = ?", true, true).Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("UserRepo.CountSuperAdmins: %w", err)
+	}
+	return count, nil
+}
+
 // --- Converters ---
 
 func userToDomain(m *User) *entity.User {
@@ -80,8 +114,11 @@ func userToDomain(m *User) *entity.User {
 		FirstName:          m.FirstName,
 		LastName:           m.LastName,
 		IsActive:           m.IsActive,
+		IsSuperAdmin:       m.IsSuperAdmin,
+		DeactivatedAt:      m.DeactivatedAt,
 		EmailVerified:      m.EmailVerified,
 		MustChangePassword: m.MustChangePassword,
+		AuthProvider:       entity.AuthProvider(m.AuthProvider),
 		LastLoginAt:        m.LastLoginAt,
 		CreatedAt:          m.CreatedAt,
 		UpdatedAt:          m.UpdatedAt,
@@ -96,8 +133,11 @@ func userToModel(d *entity.User) *User {
 		FirstName:          d.FirstName,
 		LastName:           d.LastName,
 		IsActive:           d.IsActive,
+		IsSuperAdmin:       d.IsSuperAdmin,
+		DeactivatedAt:      d.DeactivatedAt,
 		EmailVerified:      d.EmailVerified,
 		MustChangePassword: d.MustChangePassword,
+		AuthProvider:       string(d.AuthProvider),
 		LastLoginAt:        d.LastLoginAt,
 		CreatedAt:          d.CreatedAt,
 		UpdatedAt:          d.UpdatedAt,

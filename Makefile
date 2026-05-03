@@ -42,6 +42,7 @@ build-backend:
 
 lint-backend:
 	cd backend && go vet ./...
+	cd backend && staticcheck ./...
 
 # Frontend
 dev-frontend:

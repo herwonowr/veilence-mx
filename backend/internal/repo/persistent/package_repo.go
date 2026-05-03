@@ -22,17 +22,6 @@ func NewPackageRepo(db *gorm.DB) *PackageRepo {
 	return &PackageRepo{db: db}
 }
 
-func (r *PackageRepo) FindByID(ctx context.Context, id string) (*entity.Package, error) {
-	var m Package
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("package %w", entity.ErrNotFound)
-		}
-		return nil, fmt.Errorf("finding package: %w", err)
-	}
-	return packageToDomain(&m), nil
-}
-
 func (r *PackageRepo) FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID string) (*entity.Package, error) {
 	var m Package
 	if err := r.db.WithContext(ctx).Where("id = ? AND workspace_id = ?", id, workspaceID).First(&m).Error; err != nil {

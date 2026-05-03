@@ -32,7 +32,7 @@ func (r *DigestRepo) FindEnabledDigestConfigs(ctx context.Context) ([]entity.Dig
 
 	var configs []entity.DigestOrgConfig
 	for _, setting := range enabledSettings {
-		wsID := setting.WorkspaceID
+		wsID := derefString(setting.WorkspaceID)
 
 		var frequency, recipients string
 		var freqSetting, recipSetting Setting

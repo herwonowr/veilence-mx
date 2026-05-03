@@ -36,7 +36,7 @@ func New(
 func (uc *UseCase) GetStats(ctx context.Context, workspaceID string) (*entity.DashboardStats, error) {
 	stats, err := uc.dashboard.GetStats(ctx, workspaceID)
 	if err != nil {
-		return nil, fmt.Errorf("DashboardUseCase.GetStats: %w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 	return stats, nil
 }
@@ -45,7 +45,7 @@ func (uc *UseCase) GetStats(ctx context.Context, workspaceID string) (*entity.Da
 func (uc *UseCase) GetRecentReleases(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error) {
 	results, total, err := uc.releases.FindByWorkspaceIDWithDetails(ctx, workspaceID, page, limit, sortClause, filters)
 	if err != nil {
-		return nil, 0, fmt.Errorf("DashboardUseCase.GetRecentReleases: %w", err)
+		return nil, 0, fmt.Errorf("%w", err)
 	}
 	return results, total, nil
 }
@@ -57,7 +57,7 @@ func (uc *UseCase) GetChartData(ctx context.Context, workspaceID string, from, t
 	// 1. Release activity
 	activityRows, err := uc.dashboard.GetReleaseActivity(ctx, workspaceID, from, to)
 	if err != nil {
-		return nil, fmt.Errorf("DashboardUseCase.GetChartData: release activity: %w", err)
+		return nil, fmt.Errorf("release activity: %w", err)
 	}
 
 	dayMap := make(map[string]int64)
@@ -75,17 +75,14 @@ func (uc *UseCase) GetChartData(ctx context.Context, workspaceID string, from, t
 	// 2. Classification distribution
 	classRows, err := uc.dashboard.GetClassificationDistribution(ctx, workspaceID, from, to)
 	if err != nil {
-		return nil, fmt.Errorf("DashboardUseCase.GetChartData: classification dist: %w", err)
+		return nil, fmt.Errorf("classification dist: %w", err)
 	}
 	baselineCount, err := uc.dashboard.GetBaselineCount(ctx, workspaceID, from, to)
 	if err != nil {
-		return nil, fmt.Errorf("DashboardUseCase.GetChartData: baseline count: %w", err)
+		return nil, fmt.Errorf("baseline count: %w", err)
 	}
 	for _, row := range classRows {
-		data.Classifications = append(data.Classifications, entity.ChartClassificationCount{
-			Classification: row.Classification,
-			Count:          row.Count,
-		})
+		data.Classifications = append(data.Classifications, entity.ChartClassificationCount(row))
 	}
 	if baselineCount > 0 {
 		data.Classifications = append(data.Classifications, entity.ChartClassificationCount{
@@ -100,13 +97,10 @@ func (uc *UseCase) GetChartData(ctx context.Context, workspaceID string, from, t
 	// 3. Ecosystem distribution
 	ecoRows, err := uc.dashboard.GetEcosystemDistribution(ctx, workspaceID)
 	if err != nil {
-		return nil, fmt.Errorf("DashboardUseCase.GetChartData: ecosystem dist: %w", err)
+		return nil, fmt.Errorf("ecosystem dist: %w", err)
 	}
 	for _, row := range ecoRows {
-		data.Ecosystems = append(data.Ecosystems, entity.ChartEcosystemCount{
-			Ecosystem: row.Ecosystem,
-			Count:     row.Count,
-		})
+		data.Ecosystems = append(data.Ecosystems, entity.ChartEcosystemCount(row))
 	}
 	if len(data.Ecosystems) == 0 {
 		data.Ecosystems = []entity.ChartEcosystemCount{}
@@ -115,7 +109,7 @@ func (uc *UseCase) GetChartData(ctx context.Context, workspaceID string, from, t
 	// 4. Alerts by severity
 	alertRows, err := uc.dashboard.GetAlertsBySeverity(ctx, workspaceID, from, to)
 	if err != nil {
-		return nil, fmt.Errorf("DashboardUseCase.GetChartData: alerts by severity: %w", err)
+		return nil, fmt.Errorf("alerts by severity: %w", err)
 	}
 	sevMap := make(map[string]int64)
 	for _, row := range alertRows {
@@ -131,13 +125,10 @@ func (uc *UseCase) GetChartData(ctx context.Context, workspaceID string, from, t
 	// 5. Release statuses
 	statusRows, err := uc.dashboard.GetReleaseStatusDistribution(ctx, workspaceID, from, to)
 	if err != nil {
-		return nil, fmt.Errorf("DashboardUseCase.GetChartData: release statuses: %w", err)
+		return nil, fmt.Errorf("release statuses: %w", err)
 	}
 	for _, row := range statusRows {
-		data.ReleaseStatuses = append(data.ReleaseStatuses, entity.ChartReleaseStatusCount{
-			Status: row.Status,
-			Count:  row.Count,
-		})
+		data.ReleaseStatuses = append(data.ReleaseStatuses, entity.ChartReleaseStatusCount(row))
 	}
 	if len(data.ReleaseStatuses) == 0 {
 		data.ReleaseStatuses = []entity.ChartReleaseStatusCount{}
@@ -149,18 +140,18 @@ func (uc *UseCase) GetChartData(ctx context.Context, workspaceID string, from, t
 // ReanalyzeAll re-queues all unanalyzed diffs for analysis, scoped to the given workspace.
 func (uc *UseCase) ReanalyzeAll(ctx context.Context, workspaceID string) (int, error) {
 	if uc.queue == nil {
-		return 0, fmt.Errorf("DashboardUseCase.ReanalyzeAll: queue not configured")
+		return 0, fmt.Errorf("queue not configured")
 	}
 
 	diffIDs, err := uc.dashboard.GetUnanalyzedDiffIDs(ctx, workspaceID)
 	if err != nil {
-		return 0, fmt.Errorf("DashboardUseCase.ReanalyzeAll: %w", err)
+		return 0, fmt.Errorf("%w", err)
 	}
 
 	queued := 0
 	for _, id := range diffIDs {
 		if _, err := uc.queue.Enqueue(ctx, jobTypeAnalyze, workspaceID, id); err != nil {
-			return queued, fmt.Errorf("DashboardUseCase.ReanalyzeAll: enqueue diff %s: %w", id, err)
+			return queued, fmt.Errorf("enqueue diff %s: %w", id, err)
 		}
 		queued++
 	}

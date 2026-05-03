@@ -40,7 +40,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/ui"
-import { Layers, Plus, Loader2, Users, Package, Mail, LayoutGrid, Table2, Search, ChevronLeft, ChevronRight } from "lucide-react"
+import { Layers, Plus, Loader2, Users, Package, Mail, LayoutGrid, Table2, Search, ChevronLeft, ChevronRight, Shield, ShieldOff } from "lucide-react"
 import Link from "next/link"
 import { useWorkspaces } from "@/features/admin/hooks/use-workspaces"
 import { useMyInvitations } from "@/features/admin/hooks/use-my-invitations"
@@ -369,9 +369,17 @@ const WorkspaceCard = ({ workspace }: { workspace: Workspace }) => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">{workspace.name}</CardTitle>
-            <Badge variant={["owner", "admin"].includes(workspace.role) ? "secondary" : "outline"}>
-              {workspace.role.charAt(0).toUpperCase() + workspace.role.slice(1)}
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              {workspace.ssoRequired && (
+                <Badge variant="outline" className="gap-1">
+                  <Shield className="size-3" />
+                  SSO
+                </Badge>
+              )}
+              <Badge variant={["owner", "admin"].includes(workspace.role) ? "secondary" : "outline"}>
+                {workspace.role.charAt(0).toUpperCase() + workspace.role.slice(1)}
+              </Badge>
+            </div>
           </div>
           <CardDescription className="font-mono text-xs">
             {workspace.slug}
@@ -412,6 +420,7 @@ const WorkspacesTable = ({ workspaces }: { workspaces: Workspace[] }) => {
             <TableHead>Slug</TableHead>
             <TableHead>Members</TableHead>
             <TableHead>Packages</TableHead>
+            <TableHead>SSO</TableHead>
             <TableHead>Created</TableHead>
             <TableHead>Role</TableHead>
           </TableRow>
@@ -438,6 +447,16 @@ const WorkspacesTable = ({ workspaces }: { workspaces: Workspace[] }) => {
                   <Package className="size-3.5" />
                   {ws.packageCount ?? "-"}
                 </span>
+              </TableCell>
+              <TableCell>
+                {ws.ssoRequired ? (
+                  <Badge variant="outline" className="gap-1">
+                    <Shield className="size-3" />
+                    {ws.ssoProvider?.toUpperCase() ?? "SSO"}
+                  </Badge>
+                ) : (
+                  <ShieldOff className="size-3.5 text-muted-foreground" />
+                )}
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
                 {new Date(ws.createdAt).toLocaleDateString()}

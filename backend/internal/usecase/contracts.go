@@ -19,6 +19,8 @@ type UserRepository interface {
 	Create(ctx context.Context, user *entity.User) error
 	Update(ctx context.Context, user *entity.User) error
 	CountAll(ctx context.Context) (int64, error)
+	FindAll(ctx context.Context, page, limit int, search string) ([]entity.User, int64, error)
+	CountSuperAdmins(ctx context.Context) (int64, error)
 }
 
 // RefreshTokenRepository defines persistence operations for RefreshToken entities.
@@ -33,19 +35,14 @@ type RefreshTokenRepository interface {
 
 // APIKeyRepository defines persistence operations for APIKey entities.
 type APIKeyRepository interface {
-	FindByID(ctx context.Context, id string) (*entity.APIKey, error)
 	FindActiveByPrefix(ctx context.Context, prefix string) ([]entity.APIKey, error)
-	FindByUserID(ctx context.Context, userID string) ([]entity.APIKey, error)
 	FindByUserIDAndWorkspaceID(ctx context.Context, userID, workspaceID string) ([]entity.APIKey, error)
 	Create(ctx context.Context, key *entity.APIKey) error
-	Update(ctx context.Context, key *entity.APIKey) error
-	SoftDelete(ctx context.Context, userID, keyID string) error
 	SoftDeleteScoped(ctx context.Context, userID, workspaceID, keyID string) error
 }
 
 // PackageRepository defines persistence operations for Package entities.
 type PackageRepository interface {
-	FindByID(ctx context.Context, id string) (*entity.Package, error)
 	FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID string) (*entity.Package, error)
 	FindByWorkspaceID(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
 	FindActiveByWorkspaceID(ctx context.Context, workspaceID string) ([]entity.Package, error)
@@ -112,9 +109,11 @@ type AlertNoteRepository interface {
 // SettingRepository defines persistence operations for Setting entities.
 type SettingRepository interface {
 	FindByWorkspaceID(ctx context.Context, workspaceID string) ([]entity.Setting, error)
-	FindByKey(ctx context.Context, workspaceID string, key string) (*entity.Setting, error)
-	Upsert(ctx context.Context, setting *entity.Setting) error
 	UpsertByWorkspaceAndKey(ctx context.Context, workspaceID string, key, value string) error
+	// FindPlatformSettings returns settings where workspace_id IS NULL for the given keys.
+	FindPlatformSettings(ctx context.Context, keys []string) ([]entity.Setting, error)
+	// UpsertPlatformSetting upserts a setting where workspace_id IS NULL.
+	UpsertPlatformSetting(ctx context.Context, key, value string) error
 }
 
 // AuditLogRepository defines persistence operations for AuditLog entities.
@@ -436,11 +435,109 @@ type SlackSender interface {
 type UserAccountCreator interface {
 	CreateUserWithoutPassword(ctx context.Context, email, firstName, lastName string) (*entity.User, error)
 	CreateUserWithPassword(ctx context.Context, email, firstName, lastName, password string) (*entity.User, error)
+	CreateSSOUser(ctx context.Context, email, firstName, lastName string, provider entity.SSOProvider) (*entity.User, error)
 }
 
 // PasswordResetInitiator triggers a password-set email for newly created users.
 type PasswordResetInitiator interface {
 	InitiatePasswordReset(ctx context.Context, email string) error
+}
+
+// SSOConfigRepository defines persistence operations for platform-level SSO configurations.
+type SSOConfigRepository interface {
+	FindAll(ctx context.Context) ([]entity.SSOConfig, error)
+	FindByID(ctx context.Context, id string) (*entity.SSOConfig, error)
+	FindEnabled(ctx context.Context) ([]entity.SSOConfig, error)
+	FindBySAMLEntityID(ctx context.Context, entityID string) (*entity.SSOConfig, error)
+	Create(ctx context.Context, config *entity.SSOConfig) error
+	Update(ctx context.Context, config *entity.SSOConfig) error
+	Delete(ctx context.Context, id string) error
+}
+
+// UserIdentityRepository defines persistence operations for external user identities.
+type UserIdentityRepository interface {
+	FindByUserID(ctx context.Context, userID string) ([]entity.UserIdentity, error)
+	FindByProviderAndProviderUserID(ctx context.Context, provider entity.AuthProvider, providerUserID string) (*entity.UserIdentity, error)
+	Create(ctx context.Context, identity *entity.UserIdentity) error
+	Update(ctx context.Context, identity *entity.UserIdentity) error
+	Delete(ctx context.Context, id string) error
+	DeleteByUserID(ctx context.Context, userID string) error
+}
+
+// SSOStateRepository defines persistence operations for SSO state parameters (CSRF).
+type SSOStateRepository interface {
+	Create(ctx context.Context, state *entity.SSOState) error
+	FindByState(ctx context.Context, state string) (*entity.SSOState, error)
+	Delete(ctx context.Context, id string) error
+	DeleteExpired(ctx context.Context) (int64, error)
+}
+
+// AuthSessionCreator issues JWT sessions. Used by SSO service to delegate JWT issuance.
+type AuthSessionCreator interface {
+	CreateSessionForUser(ctx context.Context, userID, provider string) (*TokenPair, error)
+}
+
+// TokenPair holds an access/refresh token pair returned after authentication.
+type TokenPair struct {
+	AccessToken  string
+	RefreshToken string
+	ExpiresIn    int64
+}
+
+// SAMLProvider handles SAML protocol operations.
+type SAMLProvider interface {
+	GenerateAuthnRequest(config *entity.SSOConfig) (redirectURL string, err error)
+	ValidateResponse(config *entity.SSOConfig, samlResponse string) (*SAMLAssertion, error)
+	GenerateMetadata(config *entity.SSOConfig) ([]byte, error)
+	ParseLogoutRequest(samlRequest string) (nameID string, issuer string, err error)
+	VerifyLogoutSignature(samlRequest, signature, sigAlg, pemCertificate string) error
+}
+
+// SAMLAssertion represents extracted SAML assertion data.
+// Placed in contracts.go as a return type of SAMLProvider (same pattern as TokenClaims).
+type SAMLAssertion struct {
+	NameID       string
+	Email        string
+	FirstName    string
+	LastName     string
+	Groups       []string
+	SessionIndex string
+}
+
+// SAMLMetadataFetcher fetches and parses SAML metadata from a URL.
+type SAMLMetadataFetcher interface {
+	FetchAndParse(ctx context.Context, metadataURL string) (*SAMLMetadataInfo, error)
+}
+
+// SAMLMetadataInfo holds the extracted fields from a SAML IdP metadata document.
+type SAMLMetadataInfo struct {
+	EntityID    string
+	SSOURL      string
+	SloURL      string
+	Certificate string
+}
+
+// SSOTestResult holds the outcome of an SSO config connectivity test.
+type SSOTestResult struct {
+	IdpEntityID string
+	IdpSSOURL   string
+}
+
+// OAuthTokenExchanger exchanges authorization codes for user info.
+type OAuthTokenExchanger interface {
+	ExchangeGoogle(ctx context.Context, config *entity.SSOConfig, code, codeVerifier string) (*OAuthUserInfo, error)
+	ExchangeGitHub(ctx context.Context, config *entity.SSOConfig, code, codeVerifier string) (*OAuthUserInfo, error)
+}
+
+// OAuthUserInfo represents normalized user info from an OAuth provider.
+type OAuthUserInfo struct {
+	ProviderUserID string
+	Email          string
+	FirstName      string
+	LastName       string
+	AvatarURL      string
+	Organizations  []string // GitHub orgs
+	HostedDomain   string   // Google Workspace domain
 }
 
 // DigestRepository defines the persistence operations needed by the digest scheduler.

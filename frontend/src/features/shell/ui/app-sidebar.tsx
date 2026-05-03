@@ -17,8 +17,10 @@ import {
   Key,
   LogOut,
   User,
-  ListOrdered,
+  Users,
+  Workflow,
   Monitor,
+  Shield,
 } from "lucide-react"
 import {
   Sidebar,
@@ -77,8 +79,10 @@ const navItems: NavItem[] = [
 
 const settingsItems: NavItem[] = [
   { title: "Settings", href: ROUTES.SETTINGS, icon: Settings, minRole: "admin" },
+  { title: "Security", href: ROUTES.SETTINGS_SECURITY, icon: Shield, minRole: "admin" },
+  { title: "Users", href: ROUTES.SETTINGS_USERS, icon: Users, minRole: "admin" },
   { title: "Channels", href: ROUTES.SETTINGS_NOTIFICATIONS, icon: Radio, minRole: "admin" },
-  { title: "Queue Monitor", href: ROUTES.SETTINGS_QUEUE, icon: ListOrdered, minRole: "admin" },
+  { title: "Queue Monitor", href: ROUTES.SETTINGS_QUEUE, icon: Workflow, minRole: "admin" },
   { title: "API Keys", href: ROUTES.SETTINGS_API_KEYS, icon: Key },
 ]
 

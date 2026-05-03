@@ -146,7 +146,7 @@ func (s *Service) DeleteChannel(id, workspaceID string) error {
 		return fmt.Errorf("deleting notification channel: %w", err)
 	}
 	if affected == 0 {
-		return fmt.Errorf("Notification channel not found")
+		return fmt.Errorf("notification channel not found")
 	}
 
 	slog.Info("notification channel deleted", "channel_id", id, "workspace_id", workspaceID)
@@ -161,7 +161,7 @@ func (s *Service) CreateRule(workspaceID, channelID string, severity string) (*e
 	// Verify the channel belongs to the requesting workspace
 	_, err := s.channels.FindByIDAndWorkspace(ctx, channelID, workspaceID)
 	if err != nil {
-		return nil, fmt.Errorf("Notification channel not found in this workspace")
+		return nil, fmt.Errorf("notification channel not found in this workspace")
 	}
 
 	rule := &entity.NotificationRule{
@@ -205,7 +205,7 @@ func (s *Service) DeleteRule(id, workspaceID string) error {
 		return fmt.Errorf("deleting notification rule: %w", err)
 	}
 	if affected == 0 {
-		return fmt.Errorf("Notification rule not found")
+		return fmt.Errorf("notification rule not found")
 	}
 
 	slog.Info("notification rule deleted", "rule_id", id, "workspace_id", workspaceID)
@@ -455,7 +455,7 @@ func ValidateChannelConfig(channelType entity.NotificationChannelType, config st
 			return fmt.Errorf("invalid webhook config JSON: %w", err)
 		}
 		if cfg.URL == "" {
-			return fmt.Errorf("Webhook URL is required")
+			return fmt.Errorf("webhook URL is required")
 		}
 		return ValidateWebhookURL(cfg.URL)
 
@@ -465,7 +465,7 @@ func ValidateChannelConfig(channelType entity.NotificationChannelType, config st
 			return fmt.Errorf("invalid slack config JSON: %w", err)
 		}
 		if cfg.WebhookURL == "" {
-			return fmt.Errorf("Slack webhook URL is required")
+			return fmt.Errorf("slack webhook URL is required")
 		}
 		return ValidateSlackWebhookURL(cfg.WebhookURL)
 
@@ -481,10 +481,10 @@ func ValidateChannelConfig(channelType entity.NotificationChannelType, config st
 			return fmt.Errorf("SMTP port is required")
 		}
 		if cfg.From == "" {
-			return fmt.Errorf("From address is required")
+			return fmt.Errorf("from address is required")
 		}
 		if cfg.To == "" {
-			return fmt.Errorf("To address is required")
+			return fmt.Errorf("to address is required")
 		}
 		return nil
 
@@ -666,7 +666,7 @@ func (s *Service) MarkRead(id, userID string) error {
 	// membership or direct user targeting like invitation notifications).
 	notif, err := s.notifications.FindByID(ctx, id)
 	if err != nil {
-		return fmt.Errorf("Notification not found")
+		return fmt.Errorf("notification not found")
 	}
 
 	// Allow if the notification is directly targeted to this user
@@ -678,7 +678,7 @@ func (s *Service) MarkRead(id, userID string) error {
 		}
 
 		if !containsString(wsIDs, notif.WorkspaceID) {
-			return fmt.Errorf("Notification not found")
+			return fmt.Errorf("notification not found")
 		}
 	}
 
@@ -688,7 +688,7 @@ func (s *Service) MarkRead(id, userID string) error {
 		return fmt.Errorf("marking notification as read: %w", err)
 	}
 	if affected == 0 {
-		return fmt.Errorf("Notification not found")
+		return fmt.Errorf("notification not found")
 	}
 	return nil
 }
@@ -857,14 +857,14 @@ func (s *Service) TestChannel(id, workspaceID string) error {
 
 	channel, err := s.channels.FindByIDAndWorkspace(ctx, id, workspaceID)
 	if err != nil {
-		return fmt.Errorf("Notification channel not found in this workspace")
+		return fmt.Errorf("notification channel not found in this workspace")
 	}
 
 	title := "Veilence-MX Test Notification"
 	message := "This is a test notification from Veilence-MX. If you received this, your notification channel is configured correctly."
 
 	if err := s.dispatchToChannel(*channel, title, message); err != nil {
-		return fmt.Errorf("Test notification failed: %w", err)
+		return fmt.Errorf("test notification failed: %w", err)
 	}
 
 	slog.Info("test notification dispatched",

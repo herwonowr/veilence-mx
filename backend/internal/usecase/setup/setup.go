@@ -92,7 +92,9 @@ func (s *Service) Initialize(ctx context.Context, req InitializeRequest) (*Initi
 		FirstName:     req.FirstName,
 		LastName:      req.LastName,
 		IsActive:      true,
+		IsSuperAdmin:  true, // First user is platform superadmin
 		EmailVerified: true, // First user is implicitly trusted
+		AuthProvider:  entity.AuthProviderLocal,
 	}
 
 	var workspace *entity.Workspace

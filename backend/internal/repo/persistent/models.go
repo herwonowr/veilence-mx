@@ -212,8 +212,11 @@ type User struct {
 	FirstName          string         `gorm:"type:varchar(100)" json:"firstName"`
 	LastName           string         `gorm:"type:varchar(100)" json:"lastName"`
 	IsActive           bool           `gorm:"not null;default:true" json:"isActive"`
+	IsSuperAdmin       bool           `gorm:"column:is_superadmin;not null;default:false" json:"isSuperAdmin"`
+	DeactivatedAt      *time.Time     `json:"deactivatedAt,omitempty"`
 	EmailVerified      bool           `gorm:"not null;default:false" json:"emailVerified"`
 	MustChangePassword bool           `gorm:"not null;default:false" json:"mustChangePassword"`
+	AuthProvider       string         `gorm:"not null;type:varchar(20);default:'local'" json:"authProvider"`
 	LastLoginAt        *time.Time     `json:"lastLoginAt,omitempty"`
 	CreatedAt          time.Time      `json:"createdAt"`
 	UpdatedAt          time.Time      `json:"updatedAt"`
@@ -322,33 +325,6 @@ const (
 	RoleViewer = "viewer"
 )
 
-// SystemPermissions defines all permissions available in the system.
-var SystemPermissions = []Permission{
-	{Resource: "packages", Action: "read"},
-	{Resource: "packages", Action: "write"},
-	{Resource: "packages", Action: "delete"},
-	{Resource: "alerts", Action: "read"},
-	{Resource: "alerts", Action: "write"},
-	{Resource: "releases", Action: "read"},
-	{Resource: "settings", Action: "read"},
-	{Resource: "settings", Action: "write"},
-	{Resource: "members", Action: "read"},
-	{Resource: "members", Action: "invite"},
-	{Resource: "members", Action: "remove"},
-	{Resource: "roles", Action: "read"},
-	{Resource: "roles", Action: "write"},
-	{Resource: "workspace", Action: "read"},
-	{Resource: "workspace", Action: "write"},
-	{Resource: "workspace", Action: "delete"},
-	{Resource: "api_keys", Action: "read"},
-	{Resource: "api_keys", Action: "write"},
-	{Resource: "audit", Action: "read"},
-	{Resource: "notifications", Action: "read"},
-	{Resource: "notifications", Action: "create"},
-	{Resource: "notifications", Action: "update"},
-	{Resource: "notifications", Action: "delete"},
-}
-
 // --- Invitation Models ---
 
 // Invitation is the GORM model for workspace invitations.
@@ -391,7 +367,7 @@ func (AuditLog) TableName() string { return "audit_logs" }
 // Setting is the GORM model for system settings.
 type Setting struct {
 	ID          string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	WorkspaceID string    `gorm:"type:uuid;index;not null;uniqueIndex:idx_settings_workspace_key" json:"workspaceId"`
+	WorkspaceID *string   `gorm:"type:uuid;index;uniqueIndex:idx_settings_workspace_key" json:"workspaceId"`
 	Key         string    `gorm:"not null;type:varchar(100);uniqueIndex:idx_settings_workspace_key" json:"key"`
 	Value       string    `gorm:"type:text" json:"value"`
 	CreatedAt   time.Time `json:"createdAt"`
@@ -498,6 +474,62 @@ type Session struct {
 
 func (Session) TableName() string { return "sessions" }
 
+// --- SSO Models ---
+
+// SSOConfig is the GORM model for platform-level SSO configurations.
+type SSOConfig struct {
+	ID                   string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	Provider             string    `gorm:"not null;type:varchar(20)" json:"provider"`
+	DisplayName          string    `gorm:"type:varchar(100);not null;default:''" json:"displayName"`
+	IsEnabled            bool      `gorm:"not null;default:false" json:"isEnabled"`
+	AllowedDomains       string    `gorm:"type:text" json:"allowedDomains"`
+	AutoCreateUser       bool      `gorm:"not null;default:false" json:"autoCreateUser"`
+	SAMLEntityID         string    `gorm:"type:text" json:"samlEntityId"`
+	SAMLSsoURL           string    `gorm:"type:text" json:"samlSsoUrl"`
+	SAMLCertificate      string    `gorm:"type:text" json:"samlCertificate"`
+	SAMLAttrEmail        string    `gorm:"type:varchar(100)" json:"samlAttrEmail"`
+	SAMLAttrFirstName    string    `gorm:"type:varchar(100)" json:"samlAttrFirstName"`
+	SAMLAttrLastName     string    `gorm:"type:varchar(100)" json:"samlAttrLastName"`
+	OAuthClientID        string    `gorm:"type:varchar(255);column:oauth_client_id" json:"oauthClientId"`
+	OAuthClientSecretEnc string    `gorm:"type:text;column:oauth_client_secret_enc" json:"-"`
+	GoogleHostedDomain   string    `gorm:"type:varchar(255);column:google_hosted_domain" json:"googleHostedDomain"`
+	GitHubOrgs           string    `gorm:"type:text;column:github_orgs" json:"gitHubOrgs"`
+	CreatedAt            time.Time `json:"createdAt"`
+	UpdatedAt            time.Time `json:"updatedAt"`
+}
+
+func (SSOConfig) TableName() string { return "sso_configs" }
+
+// UserIdentity is the GORM model for linked external user identities.
+type UserIdentity struct {
+	ID             string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	UserID         string    `gorm:"type:uuid;not null;index" json:"userId"`
+	Provider       string    `gorm:"not null;type:varchar(20)" json:"provider"`
+	ProviderUserID string    `gorm:"not null;type:varchar(255)" json:"providerUserId"`
+	Email          string    `gorm:"not null;type:varchar(255)" json:"email"`
+	Metadata       string    `gorm:"type:text" json:"metadata"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+}
+
+func (UserIdentity) TableName() string { return "user_identities" }
+
+// SSOState is the GORM model for pending SSO authentication state (CSRF).
+type SSOState struct {
+	ID           string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ConfigID     string    `gorm:"type:uuid;not null" json:"configId"`
+	State        string    `gorm:"not null;uniqueIndex;type:varchar(255)" json:"state"`
+	UserID       *string   `gorm:"type:uuid" json:"userId"`
+	Provider     string    `gorm:"not null;type:varchar(20)" json:"provider"`
+	RedirectURL  string    `gorm:"type:text" json:"redirectUrl"`
+	Mode         string    `gorm:"not null;type:varchar(20)" json:"mode"`
+	CodeVerifier string    `gorm:"type:text" json:"codeVerifier"`
+	ExpiresAt    time.Time `gorm:"not null" json:"expiresAt"`
+	CreatedAt    time.Time `json:"createdAt"`
+}
+
+func (SSOState) TableName() string { return "sso_states" }
+
 // AllModels is the complete list of GORM models for auto-migration and testing.
 var AllModels = []any{
 	&User{}, &RefreshToken{}, &APIKey{},
@@ -509,4 +541,5 @@ var AllModels = []any{
 	&NotificationChannel{}, &NotificationRule{}, &Notification{},
 	&PasswordResetToken{}, &EmailVerificationToken{},
 	&Session{},
+	&SSOConfig{}, &UserIdentity{}, &SSOState{},
 }

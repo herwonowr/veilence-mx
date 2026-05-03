@@ -60,6 +60,12 @@ type Config struct {
 	// Registration control
 	RegistrationEnabled bool
 	AllowedEmailDomains []string
+
+	// SSO
+	SSOEnabled       bool
+	SSOEncryptionKey string
+	SSOSAMLClockSkew time.Duration
+	SSOStateTTL      time.Duration
 }
 
 // NewConfig loads configuration from environment variables with sensible defaults for optional fields.
@@ -112,6 +118,12 @@ func NewConfig() (*Config, error) {
 
 		// Registration control
 		RegistrationEnabled: envBoolOrDefault("REGISTRATION_ENABLED", false),
+
+		// SSO
+		SSOEnabled:       envBoolOrDefault("SSO_ENABLED", false),
+		SSOEncryptionKey: os.Getenv("SSO_ENCRYPTION_KEY"),
+		SSOSAMLClockSkew: envDurationOrDefault("SSO_SAML_CLOCK_SKEW", 30*time.Second),
+		SSOStateTTL:      envDurationOrDefault("SSO_STATE_TTL", 5*time.Minute),
 	}
 
 	// Parse comma-separated previous JWT secrets
@@ -177,15 +189,18 @@ func (c *Config) Validate() error {
 		errs = append(errs, "LLM_RATE_INTERVAL must be > 0")
 	}
 
+	// SSO validation
+	if c.SSOEnabled && c.SSOEncryptionKey == "" {
+		errs = append(errs, "SSO_ENCRYPTION_KEY is required when SSO_ENABLED=true")
+	}
+	if c.SSOEnabled && c.SSOEncryptionKey != "" && len(c.SSOEncryptionKey) != 64 {
+		errs = append(errs, "SSO_ENCRYPTION_KEY must be a 64-character hex string (32 bytes)")
+	}
+
 	if len(errs) > 0 {
 		return fmt.Errorf("config validation failed:\n  - %s", strings.Join(errs, "\n  - "))
 	}
 	return nil
-}
-
-// IsSMTPConfigured returns true if SMTP host and from address are set.
-func (c *Config) IsSMTPConfigured() bool {
-	return c.SMTPHost != "" && c.SMTPFrom != ""
 }
 
 func envOrDefault(key, fallback string) string {

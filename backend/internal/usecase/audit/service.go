@@ -174,8 +174,3 @@ func (ac *AuditContext) LogChange(action string, after map[string]any) {
 func (s *Service) ListAuditLogs(workspaceID string, filters AuditLogFilters, page, limit int) ([]entity.AuditLog, int64, error) {
 	return s.repo.FindByWorkspaceID(context.Background(), workspaceID, filters, page, limit)
 }
-
-// GetAuditLog returns a single audit log entry by ID.
-func (s *Service) GetAuditLog(id string) (*entity.AuditLog, error) {
-	return s.repo.FindByID(context.Background(), id)
-}

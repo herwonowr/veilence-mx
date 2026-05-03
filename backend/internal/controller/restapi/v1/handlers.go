@@ -16,6 +16,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/poller"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/setup"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/sso"
 	"github.com/veilence/veilence-mx/backend/pkg/queue"
 )
 
@@ -36,11 +37,14 @@ type Handlers struct {
 	Health        *HealthHandlers
 	Setup         *SetupHandlers
 	Config        *ConfigHandlers
+	SSO           *SSOHandlers
+	AdminUsers    *AdminUserHandlers
 }
 
 // AuthHandlers handles authentication and API key endpoints.
 type AuthHandlers struct {
 	Auth  *auth.Service
+	SSO   *sso.Service
 	Audit *audit.Service
 }
 
@@ -119,10 +123,15 @@ func NewHandlers(
 	dashboardService usecase.DashboardService,
 	healthService usecase.HealthService,
 	setupService *setup.Service,
+	ssoService *sso.Service,
+	frontendURL string,
+	rbacRepo usecase.RBACRepository,
+	identityRepo usecase.UserIdentityRepository,
 ) *Handlers {
-	return &Handlers{
+	h := &Handlers{
 		Auth: &AuthHandlers{
 			Auth:  authService,
+			SSO:   ssoService,
 			Audit: auditService,
 		},
 		Sessions: &SessionHandlers{
@@ -170,10 +179,25 @@ func NewHandlers(
 			Setup: setupService,
 		},
 		Config: &ConfigHandlers{
-			Setup: setupService,
-			Auth:  authService,
+			Setup:      setupService,
+			Auth:       authService,
+			SSOEnabled: ssoService != nil,
+		},
+		AdminUsers: &AdminUserHandlers{
+			Auth:         authService,
+			RBACRepo:     rbacRepo,
+			IdentityRepo: identityRepo,
 		},
 	}
+
+	if ssoService != nil {
+		h.SSO = &SSOHandlers{
+			service:     ssoService,
+			frontendURL: frontendURL,
+		}
+	}
+
+	return h
 }
 
 // APIResponse is the standard JSON response envelope.

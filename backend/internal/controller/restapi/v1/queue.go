@@ -3,7 +3,6 @@ package v1
 import (
 	"log/slog"
 	"net/http"
-	"sort"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
@@ -60,47 +59,6 @@ func (h *QueueHandlers) GetQueueStats(w http.ResponseWriter, r *http.Request) {
 // GetDeadJobs returns dead-letter jobs for a given queue type, scoped to workspace.
 // When no type is specified, returns dead jobs from all queue types.
 //
-// Deprecated: Use GET /api/queue/jobs?status=dead instead. This endpoint
-// is maintained for backward compatibility and will be removed in v1.1.0.
-func (h *QueueHandlers) GetDeadJobs(w http.ResponseWriter, r *http.Request) {
-	if h.Queue == nil {
-		respondError(w, http.StatusInternalServerError, "Queue not configured")
-		return
-	}
-
-	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
-	jobType := r.URL.Query().Get("type")
-
-	if jobType != "" {
-		jobs, _, err := h.Queue.DeadJobsForWorkspace(r.Context(), jobType, workspaceID, 0, 50)
-		if err != nil {
-			slog.Error("failed to get dead jobs", "type", jobType, "error", err)
-			respondError(w, http.StatusInternalServerError, "Failed to get dead jobs")
-			return
-		}
-		respondJSON(w, http.StatusOK, jobs, nil)
-		return
-	}
-
-	// No type filter - fetch from all queue types and merge
-	var allJobs []queue.Job
-	for _, jt := range []string{queue.JobTypeDiff, queue.JobTypeAnalyze} {
-		jobs, _, err := h.Queue.DeadJobsForWorkspace(r.Context(), jt, workspaceID, 0, 50)
-		if err != nil {
-			slog.Error("failed to get dead jobs", "type", jt, "error", err)
-			respondError(w, http.StatusInternalServerError, "Failed to get dead jobs")
-			return
-		}
-		allJobs = append(allJobs, jobs...)
-	}
-
-	// Sort by most recent first (updatedAt descending)
-	sort.Slice(allJobs, func(i, j int) bool {
-		return allJobs[i].UpdatedAt > allJobs[j].UpdatedAt
-	})
-
-	respondJSON(w, http.StatusOK, allJobs, nil)
-}
 
 // RetryDeadJobs re-queues all dead-letter jobs for a given type, scoped to workspace.
 // When no type is specified, retries dead jobs from all queue types.

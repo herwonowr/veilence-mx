@@ -146,6 +146,18 @@ func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if password login is enabled at the platform level.
+	authSettings, err := h.SSO.GetAuthSettings(r.Context())
+	if err != nil {
+		slog.Error("Login: fetching auth settings", "error", err)
+		respondError(w, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+	if !authSettings.PasswordLoginEnabled {
+		respondError(w, http.StatusForbidden, "Password login is disabled. Please use SSO to sign in.")
+		return
+	}
+
 	user, tokens, err := h.Auth.Login(req.Email, req.Password, r.RemoteAddr, r.UserAgent())
 	if err != nil {
 		if errors.Is(err, auth.ErrEmailVerificationRequired) {
@@ -235,6 +247,7 @@ func (h *AuthHandlers) GetMe(w http.ResponseWriter, r *http.Request) {
 		"firstName":           userResp.FirstName,
 		"lastName":            userResp.LastName,
 		"isActive":            userResp.IsActive,
+		"isSuperAdmin":        userResp.IsSuperAdmin,
 		"emailVerified":       userResp.EmailVerified,
 		"mustChangePassword":  userResp.MustChangePassword,
 		"lastLoginAt":         userResp.LastLoginAt,

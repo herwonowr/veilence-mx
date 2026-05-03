@@ -44,6 +44,21 @@ services:
       - veilence-net
     restart: unless-stopped
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: veilence-mx-keycloak
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    volumes:
+      - ./docker/keycloak-realm.json:/opt/keycloak/data/import/veilence-dev-realm.json
+    ports:
+      - "8180:8080"
+    networks:
+      - veilence-net
+    restart: unless-stopped
+
   backend:
     build:
       context: ./backend
@@ -68,6 +83,8 @@ services:
       SMTP_USE_TLS: "false"
       REGISTRATION_ENABLED: "false"
       ALLOWED_EMAIL_DOMAINS: ""
+      SSO_ENABLED: "true"
+      SSO_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
     depends_on:
       postgres:
         condition: service_healthy

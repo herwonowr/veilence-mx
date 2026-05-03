@@ -8,6 +8,8 @@ export { VerifyEmailView } from "@/features/auth/ui/verify-email-view"
 export { ProtectedRoute } from "@/features/auth/ui/protected-route"
 export { RequireWorkspace } from "@/features/auth/ui/require-workspace"
 export { RequireRole } from "@/features/auth/ui/require-role"
+export { RequireSuperAdmin } from "@/features/auth/ui/require-super-admin"
+export { useSSOProviders } from "@/features/auth/hooks/use-sso-providers"
 export {
   useCurrentWorkspaceRole,
   hasMinimumRole,

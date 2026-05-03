@@ -88,6 +88,7 @@ func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Reques
 	}
 
 	result := make([]response.WorkspaceResponse, len(res.Workspaces))
+
 	for i, o := range res.Workspaces {
 		result[i] = response.WorkspaceResponse{
 			ID: o.ID, Name: o.Name, Slug: o.Slug, Description: o.Description,

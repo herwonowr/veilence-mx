@@ -740,6 +740,9 @@ func (s *Service) AddUserToWorkspace(ctx context.Context, workspaceID, email, fi
 	}
 
 	email = normalizeEmailRBAC(email)
+	if err := s.validateEmailDomainRBAC(email); err != nil {
+		return nil, false, err
+	}
 
 	var member *entity.WorkspaceMember
 	var userCreated bool

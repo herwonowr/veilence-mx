@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 import { Card, CardContent, Button } from "@/ui"
-import { RefreshCw, Loader2, Play, RotateCcw } from "lucide-react"
+import { RefreshCw, Loader2, Play, RotateCcw, GitCompareArrows, BrainCircuit } from "lucide-react"
 import { useQueueStats, useRetryDeadJobs, queueKeys } from "@/features/settings/hooks/use-queue"
 import { useReanalyzeAll } from "@/features/settings/hooks/use-settings"
 import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
@@ -136,12 +136,14 @@ export const QueueView = () => {
           <QueueStatsCard
             title="Diff Queue"
             type="diff"
+            icon={GitCompareArrows}
             stats={stats.diff}
             onStatusClick={handleStatusClick}
           />
           <QueueStatsCard
             title="Analyze Queue"
             type="analyze"
+            icon={BrainCircuit}
             stats={stats.analyze}
             onStatusClick={handleStatusClick}
           />

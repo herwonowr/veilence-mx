@@ -411,13 +411,15 @@ func (h *WorkspaceHandlers) GetInvitationInfo(w http.ResponseWriter, r *http.Req
 	}
 
 	// Return limited info - don't expose internal IDs
-	respondJSON(w, http.StatusOK, map[string]any{
+	resp := map[string]any{
 		"email":       invitation.Email,
 		"workspaceId": invitation.WorkspaceID,
 		"expiresAt":   invitation.ExpiresAt,
 		"accepted":    invitation.AcceptedAt != nil,
 		"expired":     time.Now().After(invitation.ExpiresAt),
-	}, nil)
+	}
+
+	respondJSON(w, http.StatusOK, resp, nil)
 }
 
 // ListPendingInvitations handles GET /api/workspaces/{workspaceId}/invitations - lists

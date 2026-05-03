@@ -154,7 +154,7 @@ func (q *Queue) Enqueue(ctx context.Context, jobType string, workspaceID, refere
 }
 
 func (q *Queue) Dequeue(ctx context.Context, jobType string) (*Job, error) {
-	jobID, err := q.rdb.RPopLPush(ctx, pendingList+jobType, pendingList+jobType+"_temp").Result()
+	jobID, err := q.rdb.LMove(ctx, pendingList+jobType, pendingList+jobType+"_temp", "RIGHT", "LEFT").Result()
 	if errors.Is(err, redis.Nil) {
 		return nil, nil
 	}
@@ -256,9 +256,11 @@ func (q *Queue) Fail(ctx context.Context, job *Job, jobErr error) error {
 func (q *Queue) RecoverStuckJobs(ctx context.Context, jobType string) (int, error) {
 	cutoff := float64(time.Now().Add(-q.lockTimeout).Unix())
 
-	stuckIDs, err := q.rdb.ZRangeByScore(ctx, processingSet+jobType, &redis.ZRangeBy{
-		Min: "-inf",
-		Max: strconv.FormatFloat(cutoff, 'f', 0, 64),
+	stuckIDs, err := q.rdb.ZRangeArgs(ctx, redis.ZRangeArgs{
+		Key:     processingSet + jobType,
+		Start:   "-inf",
+		Stop:    strconv.FormatFloat(cutoff, 'f', 0, 64),
+		ByScore: true,
 	}).Result()
 	if err != nil {
 		return 0, fmt.Errorf("finding stuck jobs: %w", err)

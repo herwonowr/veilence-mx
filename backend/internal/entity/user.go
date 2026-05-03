@@ -29,10 +29,10 @@ func ValidatePassword(password string) error {
 func ValidatePasswordWithContext(password, email string) error {
 	n := utf8.RuneCountInString(password)
 	if n < PasswordMinLength {
-		return fmt.Errorf("%w: password must be at least %d characters", ErrValidation, PasswordMinLength)
+		return &ValidationError{Message: fmt.Sprintf("password must be at least %d characters", PasswordMinLength)}
 	}
 	if n > PasswordMaxLength {
-		return fmt.Errorf("%w: password must be at most %d characters", ErrValidation, PasswordMaxLength)
+		return &ValidationError{Message: fmt.Sprintf("password must be at most %d characters", PasswordMaxLength)}
 	}
 
 	// Check against context-specific words (email local part).
@@ -42,7 +42,7 @@ func ValidatePasswordWithContext(password, email string) error {
 			localPart = email[:idx]
 		}
 		if len(localPart) >= 3 && strings.Contains(strings.ToLower(password), strings.ToLower(localPart)) {
-			return fmt.Errorf("%w: password must not contain your email address", ErrValidation)
+			return &ValidationError{Message: "password must not contain your email address"}
 		}
 	}
 
@@ -57,9 +57,12 @@ type User struct {
 	FirstName          string
 	LastName           string
 	IsActive           bool
+	IsSuperAdmin       bool
+	DeactivatedAt      *time.Time
 	EmailVerified      bool
 	LastLoginAt        *time.Time
 	MustChangePassword bool
+	AuthProvider       AuthProvider // "local", "saml", "google", "github" - tracks initial account creation method
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 }

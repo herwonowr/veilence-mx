@@ -218,6 +218,7 @@ func (s *Service) Register(email, password, firstName, lastName string) (*entity
 		FirstName:    firstName,
 		LastName:     lastName,
 		IsActive:     true,
+		AuthProvider: entity.AuthProviderLocal,
 	}
 
 	if err := s.users.Create(ctx, user); err != nil {
@@ -272,6 +273,7 @@ func (s *Service) CreateUserWithoutPassword(ctx context.Context, email, firstNam
 		LastName:      lastName,
 		IsActive:      true,
 		EmailVerified: true,
+		AuthProvider:  entity.AuthProviderLocal,
 	}
 
 	if err := s.users.Create(ctx, user); err != nil {
@@ -316,6 +318,7 @@ func (s *Service) CreateUserWithPassword(ctx context.Context, email, firstName, 
 		IsActive:           true,
 		EmailVerified:      true,
 		MustChangePassword: true,
+		AuthProvider:       entity.AuthProviderLocal,
 	}
 
 	if err := s.users.Create(ctx, user); err != nil {
@@ -324,6 +327,63 @@ func (s *Service) CreateUserWithPassword(ctx context.Context, email, firstName, 
 
 	slog.Info("user created with admin-set password", "user_id", user.ID, "email", user.Email)
 	return user, nil
+}
+
+// CreateSSOUser creates a user account for a first-time SSO login.
+// The user is created with email_verified=true, no password, and the given auth provider.
+func (s *Service) CreateSSOUser(ctx context.Context, email, firstName, lastName string, provider entity.SSOProvider) (*entity.User, error) {
+	email = normalizeEmail(email)
+
+	// Check for existing user
+	_, err := s.users.FindByEmail(ctx, email)
+	if err == nil {
+		return nil, ErrEmailAlreadyRegistered
+	}
+	if !errors.Is(err, entity.ErrNotFound) {
+		return nil, fmt.Errorf("checking existing user: %w", err)
+	}
+
+	user := &entity.User{
+		Email:         email,
+		PasswordHash:  "",
+		FirstName:     firstName,
+		LastName:      lastName,
+		IsActive:      true,
+		EmailVerified: true,
+		AuthProvider:  entity.AuthProvider(provider),
+	}
+
+	if err := s.users.Create(ctx, user); err != nil {
+		return nil, fmt.Errorf("creating SSO user: %w", err)
+	}
+
+	slog.Info("SSO user created", "user_id", user.ID, "email", user.Email, "provider", provider)
+	return user, nil
+}
+
+// CreateSessionForUser creates a JWT token pair for the given user.
+// This implements usecase.AuthSessionCreator for SSO callback flows.
+func (s *Service) CreateSessionForUser(ctx context.Context, userID, provider string) (*usecase.TokenPair, error) {
+	user, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("CreateSessionForUser: finding user: %w", err)
+	}
+
+	tokens, err := s.generateTokenPair(ctx, user)
+	if err != nil {
+		return nil, fmt.Errorf("CreateSessionForUser: generating tokens: %w", err)
+	}
+
+	// Update last login
+	now := time.Now()
+	user.LastLoginAt = &now
+	_ = s.users.Update(ctx, user)
+
+	return &usecase.TokenPair{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+		ExpiresIn:    int64(AccessTokenDuration.Seconds()),
+	}, nil
 }
 
 // InitiatePasswordReset triggers a password reset email for the given email.
@@ -516,11 +576,6 @@ func (s *Service) ValidateAPIKey(rawKey string) (string, string, entity.APIKeyRo
 				return "", "", "", "", errors.New("api key expired")
 			}
 
-			// Update last used
-			now := time.Now()
-			key.LastUsedAt = &now
-			_ = s.apiKeys.Update(ctx, &key)
-
 			// Get user email
 			user, err := s.users.FindByID(ctx, key.UserID)
 			if err != nil {
@@ -639,7 +694,7 @@ func (s *Service) ListAPIKeys(userID, workspaceID string) ([]entity.APIKey, erro
 
 	keys, err := s.apiKeys.FindByUserIDAndWorkspaceID(ctx, userID, workspaceID)
 	if err != nil {
-		return nil, fmt.Errorf("ListAPIKeys: %w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 	return keys, nil
 }
@@ -652,7 +707,7 @@ func (s *Service) RevokeAPIKey(userID, workspaceID, keyID string) error {
 		if errors.Is(err, entity.ErrNotFound) {
 			return ErrAPIKeyNotFound
 		}
-		return fmt.Errorf("RevokeAPIKey: %w", err)
+		return fmt.Errorf("%w", err)
 	}
 
 	slog.Info("API key revoked", "user_id", userID, "workspace_id", workspaceID, "key_id", keyID)
@@ -1099,4 +1154,111 @@ func generateResetToken() (string, error) {
 		return "", fmt.Errorf("generating token: %w", err)
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// --- Admin User Management ---
+
+// ErrLastSuperAdmin is returned when trying to demote/deactivate the last super admin.
+var ErrLastSuperAdmin = errors.New("cannot demote or deactivate the last super admin")
+
+// AdminListUsers returns a paginated, searchable list of all users.
+func (s *Service) AdminListUsers(ctx context.Context, page, limit int, search string) ([]entity.User, int64, error) {
+	users, total, err := s.users.FindAll(ctx, page, limit, search)
+	if err != nil {
+		return nil, 0, fmt.Errorf("AdminListUsers: %w", err)
+	}
+	return users, total, nil
+}
+
+// AdminGetUser returns a single user by ID.
+func (s *Service) AdminGetUser(ctx context.Context, userID string) (*entity.User, error) {
+	user, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("AdminGetUser: %w", err)
+	}
+	return user, nil
+}
+
+// AdminUpdateUser applies admin-level updates to a user (super admin status, active status, name).
+// callerID is the ID of the super admin performing the action - used for step-up auth.
+// confirmPassword is the caller's password for step-up verification.
+func (s *Service) AdminUpdateUser(ctx context.Context, callerID, targetUserID, confirmPassword string, updates AdminUserUpdate) (*entity.User, error) {
+	// Step-up auth: verify the caller's password.
+	caller, err := s.users.FindByID(ctx, callerID)
+	if err != nil {
+		return nil, fmt.Errorf("AdminUpdateUser: finding caller: %w", err)
+	}
+	if !s.checkPassword(confirmPassword, caller.PasswordHash) {
+		return nil, ErrInvalidPassword
+	}
+
+	target, err := s.users.FindByID(ctx, targetUserID)
+	if err != nil {
+		return nil, fmt.Errorf("AdminUpdateUser: finding target user: %w", err)
+	}
+
+	// Apply updates.
+	if updates.FirstName != nil {
+		target.FirstName = *updates.FirstName
+	}
+	if updates.LastName != nil {
+		target.LastName = *updates.LastName
+	}
+
+	// Guard: cannot remove super admin from last super admin.
+	if updates.IsSuperAdmin != nil && !*updates.IsSuperAdmin && target.IsSuperAdmin {
+		count, err := s.users.CountSuperAdmins(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("AdminUpdateUser: counting super admins: %w", err)
+		}
+		if count <= 1 {
+			return nil, ErrLastSuperAdmin
+		}
+	}
+	if updates.IsSuperAdmin != nil {
+		target.IsSuperAdmin = *updates.IsSuperAdmin
+	}
+
+	// Guard: cannot deactivate last super admin.
+	if updates.IsActive != nil && !*updates.IsActive && target.IsSuperAdmin {
+		count, err := s.users.CountSuperAdmins(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("AdminUpdateUser: counting super admins: %w", err)
+		}
+		if count <= 1 {
+			return nil, ErrLastSuperAdmin
+		}
+	}
+
+	if updates.IsActive != nil {
+		target.IsActive = *updates.IsActive
+		if !*updates.IsActive {
+			now := time.Now()
+			target.DeactivatedAt = &now
+
+			// Invalidate all sessions and refresh tokens for deactivated user.
+			if err := s.sessions.DeleteByUserID(ctx, targetUserID); err != nil {
+				slog.Error("AdminUpdateUser: failed to delete sessions", "targetUserID", targetUserID, "error", err)
+			}
+			if err := s.refreshTokens.DeleteByUserID(ctx, targetUserID); err != nil {
+				slog.Error("AdminUpdateUser: failed to delete refresh tokens", "targetUserID", targetUserID, "error", err)
+			}
+		} else {
+			target.DeactivatedAt = nil
+		}
+	}
+
+	if err := s.users.Update(ctx, target); err != nil {
+		return nil, fmt.Errorf("AdminUpdateUser: updating user: %w", err)
+	}
+
+	return target, nil
+}
+
+// AdminUserUpdate holds the partial update fields for admin user management.
+type AdminUserUpdate struct {
+	FirstName    *string
+	LastName     *string
+	IsSuperAdmin *bool
+	IsActive     *bool
 }

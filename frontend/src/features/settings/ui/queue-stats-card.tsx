@@ -10,16 +10,17 @@ import {
   Clock,
   Activity,
   CheckCircle2,
-  Skull,
-  ListOrdered,
   ChevronRight,
   Info,
+  CircleX,
 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import type { QueueStats, QueueJobStatus, QueueJobType } from "@/domains/queue"
 
 interface QueueStatsCardProps {
   title: string
   type: QueueJobType
+  icon: LucideIcon
   stats: QueueStats
   onStatusClick: (type: QueueJobType, status: QueueJobStatus) => void
 }
@@ -27,6 +28,7 @@ interface QueueStatsCardProps {
 export const QueueStatsCard = ({
   title,
   type,
+  icon: Icon,
   stats,
   onStatusClick,
 }: QueueStatsCardProps) => {
@@ -75,7 +77,7 @@ export const QueueStatsCard = ({
   const deadItem = {
     label: "Dead",
     value: stats.dead,
-    icon: <Skull className="size-4 text-destructive" />,
+    icon: <CircleX className="size-4 text-destructive" />,
     color: "text-destructive",
     status: "dead" as QueueJobStatus,
   }
@@ -84,7 +86,7 @@ export const QueueStatsCard = ({
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <ListOrdered className="size-4" />
+          <Icon className="size-4" />
           {title}
         </CardTitle>
         <p className="text-xs text-muted-foreground" aria-live="polite">

@@ -14,7 +14,7 @@ import {
   Layers,
   Key,
   User,
-  ListOrdered,
+  Workflow,
   Monitor,
   Search,
 } from "lucide-react"
@@ -44,7 +44,7 @@ const commandItems: CommandItem[] = [
   // Management
   { id: "settings", label: "Settings", href: ROUTES.SETTINGS, icon: Settings, group: "Management", keywords: ["preferences", "configuration"], minRole: "admin" },
   { id: "channels", label: "Channels", href: ROUTES.SETTINGS_NOTIFICATIONS, icon: Radio, group: "Management", keywords: ["notifications", "webhooks", "slack"], minRole: "admin" },
-  { id: "queue", label: "Queue Monitor", href: ROUTES.SETTINGS_QUEUE, icon: ListOrdered, group: "Management", keywords: ["jobs", "workers", "processing"], minRole: "admin" },
+  { id: "queue", label: "Queue Monitor", href: ROUTES.SETTINGS_QUEUE, icon: Workflow, group: "Management", keywords: ["jobs", "workers", "processing"], minRole: "admin" },
   { id: "api-keys", label: "API Keys", href: ROUTES.SETTINGS_API_KEYS, icon: Key, group: "Management", keywords: ["tokens", "authentication"] },
   // Account
   { id: "account", label: "Account", href: ROUTES.ACCOUNT, icon: User, group: "Account", keywords: ["profile", "email", "password"] },

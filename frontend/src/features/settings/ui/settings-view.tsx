@@ -92,7 +92,7 @@ export const SettingsView = () => {
         </p>
       </div>
 
-      {/* Monitoring */}
+      <div className="space-y-8">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -388,6 +388,7 @@ export const SettingsView = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }
