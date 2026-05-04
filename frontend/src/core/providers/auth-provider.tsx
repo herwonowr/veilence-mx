@@ -278,7 +278,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     queryClient.clear()
   }, [queryClient])
 
-  // SEC-S4-10: Auto-logout on inactivity
+  // Auto-logout on inactivity
   const warningToastId = useRef<string | number | undefined>(undefined)
 
   useEffect(() => {

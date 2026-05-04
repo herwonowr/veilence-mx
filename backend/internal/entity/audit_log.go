@@ -8,6 +8,7 @@ type AuditLog struct {
 	UserID        string
 	UserEmail     string
 	WorkspaceID   string
+	WorkspaceName string
 	Action        string
 	Resource      string
 	ResourceID    string
@@ -20,9 +21,12 @@ type AuditLog struct {
 
 // AuditLogFilters holds the query parameters for filtering audit logs.
 type AuditLogFilters struct {
-	Action   string
-	Resource string
-	UserID   string
-	FromDate *time.Time
-	ToDate   *time.Time
+	Action        string
+	Resource      string
+	UserID        string
+	UserEmail     string
+	WorkspaceID   string
+	WorkspaceName string
+	FromDate      *time.Time
+	ToDate        *time.Time
 }

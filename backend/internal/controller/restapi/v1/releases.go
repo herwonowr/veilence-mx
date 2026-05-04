@@ -2,6 +2,7 @@ package v1
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
@@ -77,6 +78,8 @@ func (h *PackageHandlers) ReanalyzeRelease(w http.ResponseWriter, r *http.Reques
 		respondAppError(w, Internal("failed to enqueue reanalysis"))
 		return
 	}
+
+	h.Audit.LogAction(r.Context(), "reanalyze", "release", id, fmt.Sprintf("triggered re-analysis for release %s", id))
 
 	respondJSON(w, http.StatusOK, response.ReanalyzeResponse{
 		Message: message,

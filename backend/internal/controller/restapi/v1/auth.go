@@ -168,13 +168,13 @@ func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Log failed login attempt
-		h.Audit.LogAuthEvent(r.Context(), "login_failed", "", fmt.Sprintf("failed login attempt for email %s", req.Email))
+		h.Audit.LogAuthEvent(r.Context(), "login_failed", "", req.Email, fmt.Sprintf("failed login attempt for email %s", req.Email))
 		respondAppError(w, Unauthorized("invalid email or password"))
 		return
 	}
 
 	// Log successful login
-	h.Audit.LogAuthEvent(r.Context(), "login", user.ID, fmt.Sprintf("user %s logged in", user.Email))
+	h.Audit.LogAuthEvent(r.Context(), "login", user.ID, user.Email, fmt.Sprintf("user %s logged in", user.Email))
 
 	respondJSON(w, http.StatusOK, map[string]any{
 		"user":               response.UserFromEntity(user),
@@ -224,7 +224,8 @@ func (h *AuthHandlers) Logout(w http.ResponseWriter, r *http.Request) {
 
 	// Log logout event
 	userID := auth.UserIDFromContext(r.Context())
-	h.Audit.LogAuthEvent(r.Context(), "logout", userID, "user logged out")
+	userEmail := auth.EmailFromContext(r.Context())
+	h.Audit.LogAuthEvent(r.Context(), "logout", userID, userEmail, "user logged out")
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "logged out successfully"}, nil)
 }
@@ -518,7 +519,7 @@ func (h *AuthHandlers) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.Audit.LogAuthEvent(r.Context(), "verify_email", "", "email verified via token")
+	h.Audit.LogAuthEvent(r.Context(), "verify_email", "", "", "email verified via token")
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "email verified successfully"}, nil)
 }

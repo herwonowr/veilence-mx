@@ -37,8 +37,9 @@ export const ROUTES = {
   SETTINGS_SESSIONS: "/settings/sessions",
   SETTINGS_QUEUE: "/settings/queue",
   SETTINGS_NOTIFICATIONS: "/settings/notifications",
-  SETTINGS_SECURITY: "/settings/security",
-  SETTINGS_USERS: "/settings/users",
+  ADMIN_SECURITY: "/admin/security",
+  ADMIN_USERS: "/admin/users",
+  ADMIN_AUDIT_LOGS: "/admin/audit-logs",
   ACCOUNT: "/account",
   NOTIFICATIONS: "/notifications",
 } as const
@@ -65,8 +66,9 @@ export const AUTH_PAGE_PATHS = [
 
 /** Pages that require super-admin privileges */
 export const SUPER_ADMIN_PATHS = [
-  ROUTES.SETTINGS_SECURITY,
-  ROUTES.SETTINGS_USERS,
+  ROUTES.ADMIN_SECURITY,
+  ROUTES.ADMIN_USERS,
+  ROUTES.ADMIN_AUDIT_LOGS,
 ] as const
 
 /** Pages that render without app shell (no sidebar/header) */

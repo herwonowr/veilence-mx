@@ -4,7 +4,7 @@ import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useFilterParams, useDebouncedValue, ROUTES, cn } from "@/core"
-import { Button, buttonVariants, Input, Label, Badge, Skeleton, TableEmptyState, FilterChips, Calendar, Popover, PopoverContent, PopoverTrigger, type ActiveFilter } from "@/ui"
+import { Button, buttonVariants, Input, Label, Badge, Skeleton, TableEmptyState, FilterChips, Calendar, Popover, PopoverContent, PopoverTrigger, AuditLogDetailDialog, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem, type ActiveFilter } from "@/ui"
 import {
   Card,
   CardContent,
@@ -26,8 +26,10 @@ import {
   ChevronRight,
   Filter,
   ScrollText,
+  Settings2,
 } from "lucide-react"
 import { useAuditLogs } from "@/features/admin/hooks/use-workspaces"
+import type { AuditLog } from "@/domains/admin"
 
 const formatStartOfDay = (d: Date): string => {
   const yyyy = d.getFullYear()
@@ -64,6 +66,7 @@ export const AuditLogView = () => {
   const initialTo = parseValidDate(searchParams.get("to"))
 
   // Filters
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
   const [action, setAction] = useState(initialAction)
   const [resource, setResource] = useState(initialResource)
   const debouncedAction = useDebouncedValue(action, 300)
@@ -73,6 +76,7 @@ export const AuditLogView = () => {
   const [fromOpen, setFromOpen] = useState(false)
   const [toOpen, setToOpen] = useState(false)
   const [page, setPage] = useState(1)
+  const [showDetails, setShowDetails] = useState(true)
   const limit = 20
 
   // Sync filter state → URL search params
@@ -287,6 +291,28 @@ export const AuditLogView = () => {
       {/* Table */}
       <Card>
         <CardContent>
+          <div className="flex justify-end mb-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5" />
+                }
+              >
+                <Settings2 className="size-3.5" />
+                Columns
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={showDetails}
+                  onClick={() => setShowDetails((v) => !v)}
+                >
+                  Details
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           {isLoading ? (
             <div className="space-y-2 p-4">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -300,13 +326,17 @@ export const AuditLogView = () => {
                   <TableHead>Timestamp</TableHead>
                   <TableHead>Action</TableHead>
                   <TableHead>Resource</TableHead>
-                  <TableHead>Details</TableHead>
+                  {showDetails && <TableHead>Details</TableHead>}
                   <TableHead>IP Address</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {logs.map((log) => (
-                  <TableRow key={log.id}>
+                  <TableRow
+                    key={log.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => setSelectedLog(log)}
+                  >
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                       {new Date(log.createdAt).toLocaleString()}
                     </TableCell>
@@ -316,9 +346,11 @@ export const AuditLogView = () => {
                     <TableCell>
                       <Badge variant="secondary" className="w-fit capitalize">{log.resource.replace(/_/g, " ")}</Badge>
                     </TableCell>
-                    <TableCell className="max-w-sm text-sm">
-                      {log.details || "-"}
-                    </TableCell>
+                    {showDetails && (
+                      <TableCell className="max-w-sm text-sm">
+                        {log.details || "-"}
+                      </TableCell>
+                    )}
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       {log.ipAddress || "-"}
                     </TableCell>
@@ -327,7 +359,7 @@ export const AuditLogView = () => {
                 {logs.length === 0 && (
                   hasActiveFilters ? (
                     <TableEmptyState
-                      colSpan={5}
+                      colSpan={showDetails ? 5 : 4}
                       icon={<ScrollText className="h-8 w-8" />}
                       title="No matching audit logs."
                       description="Try adjusting your filters."
@@ -338,7 +370,7 @@ export const AuditLogView = () => {
                     </TableEmptyState>
                   ) : (
                   <TableEmptyState
-                    colSpan={5}
+                    colSpan={showDetails ? 5 : 4}
                     icon={<ScrollText className="h-8 w-8" />}
                     title="No audit logs found."
                     description="Activity history will appear here as actions are performed in this workspace."
@@ -383,6 +415,11 @@ export const AuditLogView = () => {
           </div>
         </div>
       )}
+
+      <AuditLogDetailDialog
+        log={selectedLog}
+        onOpenChange={(open) => { if (!open) setSelectedLog(null) }}
+      />
     </div>
   )
 }

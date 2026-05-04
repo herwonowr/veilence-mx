@@ -6,6 +6,8 @@ import type {
   ListUsersResponse,
   PlatformUserDetail,
   UpdatePlatformUserRequest,
+  PlatformAuditLog,
+  PlatformAuditLogParams,
 } from "@/domains/platform-admin/types/platform-admin.types"
 
 // ---------------------------------------------------------------------------
@@ -18,6 +20,8 @@ export const platformAdminKeys = {
   users: (params?: Record<string, string | number | undefined>) =>
     [...platformAdminKeys.all, "users", params] as const,
   user: (id: string) => [...platformAdminKeys.all, "user", id] as const,
+  auditLogs: (params?: Record<string, string | number | undefined>) =>
+    [...platformAdminKeys.all, "audit-logs", params] as const,
 }
 
 // ---------------------------------------------------------------------------
@@ -81,6 +85,30 @@ export const apiUpdatePlatformUser = async (
 ): Promise<ApiResponse<PlatformUserDetail>> =>
   fetchApi<PlatformUserDetail>(`/api/admin/users/${id}`, {
     method: "PUT",
-    headers: { "X-Confirm-Password": confirmPassword },
-    body: JSON.stringify(req),
+    body: JSON.stringify({ ...req, confirmPassword }),
   })
+
+// ---------------------------------------------------------------------------
+// Audit logs
+// ---------------------------------------------------------------------------
+
+/** GET /api/admin/audit-logs */
+export const apiGetPlatformAuditLogs = async (
+  params: PlatformAuditLogParams
+): Promise<ApiResponse<PlatformAuditLog[]>> => {
+  const searchParams = new URLSearchParams()
+  if (params.page !== undefined) searchParams.set("page", String(params.page))
+  if (params.limit !== undefined) searchParams.set("limit", String(params.limit))
+  if (params.action) searchParams.set("action", params.action)
+  if (params.resource) searchParams.set("resource", params.resource)
+  if (params.user_email) searchParams.set("user_email", params.user_email)
+  if (params.workspace_name) searchParams.set("workspace_name", params.workspace_name)
+  if (params.from_date) searchParams.set("from_date", params.from_date)
+  if (params.to_date) searchParams.set("to_date", params.to_date)
+  if (params.sort_by) searchParams.set("sort_by", params.sort_by)
+  if (params.sort_dir) searchParams.set("sort_dir", params.sort_dir)
+  const query = searchParams.toString()
+  return fetchApi<PlatformAuditLog[]>(
+    `/api/admin/audit-logs${query ? `?${query}` : ""}`
+  )
+}

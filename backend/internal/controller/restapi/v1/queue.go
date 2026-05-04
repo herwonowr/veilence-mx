@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -78,6 +79,7 @@ func (h *QueueHandlers) RetryDeadJobs(w http.ResponseWriter, r *http.Request) {
 			respondAppError(w, Internal("failed to retry dead jobs"))
 			return
 		}
+		h.Audit.LogAction(r.Context(), "retry", "queue_job", "", fmt.Sprintf("retried %d dead %s jobs", count, jobType))
 		respondJSON(w, http.StatusOK, map[string]any{
 			"message": "dead jobs re-queued",
 			"count":   count,
@@ -96,6 +98,8 @@ func (h *QueueHandlers) RetryDeadJobs(w http.ResponseWriter, r *http.Request) {
 		}
 		totalCount += count
 	}
+
+	h.Audit.LogAction(r.Context(), "retry", "queue_job", "", fmt.Sprintf("retried %d dead jobs (all types)", totalCount))
 
 	respondJSON(w, http.StatusOK, map[string]any{
 		"message": "dead jobs re-queued",
@@ -215,6 +219,8 @@ func (h *QueueHandlers) RetryDeadJob(w http.ResponseWriter, r *http.Request) {
 		respondAppError(w, Internal("failed to retry job"))
 		return
 	}
+
+	h.Audit.LogAction(r.Context(), "retry", "queue_job", jobID, fmt.Sprintf("retried dead job %s (type: %s)", jobID, job.Type))
 
 	respondJSON(w, http.StatusOK, map[string]any{
 		"message": "Job queued for retry",

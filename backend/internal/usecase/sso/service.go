@@ -428,7 +428,7 @@ func (s *Service) resolveAndIssueJWT(ctx context.Context, email, firstName, last
 	}
 
 	if s.auditLogger != nil {
-		s.auditLogger.LogActionWithUser(ctx, newUser.ID, email, "user.sso_created", "user", newUser.ID, fmt.Sprintf("email=%s provider=%s config_id=%s", email, provider, config.ID))
+		s.auditLogger.LogActionWithUser(ctx, newUser.ID, email, "user.sso_create", "user", newUser.ID, fmt.Sprintf("email=%s provider=%s config_id=%s", email, provider, config.ID))
 	}
 
 	tokenPair, tokenErr := s.authService.CreateSessionForUser(ctx, newUser.ID, string(provider), ipAddress, userAgent)
@@ -488,7 +488,7 @@ func (s *Service) HandleSAMLSLO(ctx context.Context, samlRequest, signature, sig
 	}
 
 	if s.auditLogger != nil {
-		s.auditLogger.LogAction(ctx, "user.slo_initiated", "user", identity.UserID, fmt.Sprintf("nameID=%s", nameID))
+		s.auditLogger.LogAction(ctx, "user.slo_initiate", "user", identity.UserID, fmt.Sprintf("nameID=%s", nameID))
 	}
 
 	return nil
@@ -532,7 +532,7 @@ func (s *Service) LinkIdentity(ctx context.Context, userID string, provider enti
 	}
 
 	if s.auditLogger != nil {
-		s.auditLogger.LogAction(ctx, "sso.identity_linked", "user_identity", identity.ID, fmt.Sprintf("provider=%s", provider))
+		s.auditLogger.LogAction(ctx, "sso.identity_link", "user_identity", identity.ID, fmt.Sprintf("provider=%s", provider))
 	}
 
 	return identity, nil
@@ -574,7 +574,7 @@ func (s *Service) UnlinkIdentity(ctx context.Context, userID, identityID string)
 	}
 
 	if s.auditLogger != nil {
-		s.auditLogger.LogAction(ctx, "sso.identity_unlinked", "user_identity", identityID, fmt.Sprintf("provider=%s", target.Provider))
+		s.auditLogger.LogAction(ctx, "sso.identity_unlink", "user_identity", identityID, fmt.Sprintf("provider=%s", target.Provider))
 	}
 
 	return nil
@@ -690,7 +690,7 @@ func (s *Service) CreateSSOConfig(ctx context.Context, config *entity.SSOConfig)
 	}
 
 	if s.auditLogger != nil {
-		s.auditLogger.LogAction(ctx, "sso.config_created", "sso_config", config.ID, fmt.Sprintf("provider=%s display_name=%s", config.Provider, config.DisplayName))
+		s.auditLogger.LogAction(ctx, "sso.config_create", "sso_config", config.ID, fmt.Sprintf("provider=%s display_name=%s", config.Provider, config.DisplayName))
 	}
 
 	return config, nil
@@ -709,7 +709,7 @@ func (s *Service) UpdateSSOConfig(ctx context.Context, id string, config *entity
 	}
 
 	if s.auditLogger != nil {
-		s.auditLogger.LogAction(ctx, "sso.config_updated", "sso_config", id, fmt.Sprintf("provider=%s display_name=%s", config.Provider, config.DisplayName))
+		s.auditLogger.LogAction(ctx, "sso.config_update", "sso_config", id, fmt.Sprintf("provider=%s display_name=%s", config.Provider, config.DisplayName))
 	}
 
 	return config, nil
@@ -728,7 +728,7 @@ func (s *Service) DeleteSSOConfig(ctx context.Context, id string) error {
 	}
 
 	if s.auditLogger != nil {
-		s.auditLogger.LogAction(ctx, "sso.config_deleted", "sso_config", id, fmt.Sprintf("provider=%s display_name=%s", config.Provider, config.DisplayName))
+		s.auditLogger.LogAction(ctx, "sso.config_delete", "sso_config", id, fmt.Sprintf("provider=%s display_name=%s", config.Provider, config.DisplayName))
 	}
 
 	return nil
@@ -951,7 +951,7 @@ func (s *Service) UpdateAuthSettings(ctx context.Context, config *entity.Platfor
 	}
 
 	if s.auditLogger != nil {
-		s.auditLogger.LogAction(ctx, "sso.auth_settings_updated", "platform_settings", "", fmt.Sprintf("password_login_enabled=%s", passwordVal))
+		s.auditLogger.LogAction(ctx, "sso.auth_settings_update", "auth_settings", "", fmt.Sprintf("password_login_enabled=%s", passwordVal))
 	}
 
 	return nil

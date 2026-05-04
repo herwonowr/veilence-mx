@@ -139,6 +139,9 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 					r.Put("/auth-settings", h.SSO.HandleUpdateAuthSettings)
 				}
 
+				// Audit logs (platform-wide)
+				r.Get("/audit-logs", h.AuditLogs.ListAllAuditLogs)
+
 				// User management
 				r.Route("/users", func(r chi.Router) {
 					r.Get("/", h.AdminUsers.HandleListUsers)

@@ -1,7 +1,7 @@
 import { ProtectedRoute, RequireSuperAdmin } from "@/features/auth"
 import { SSOAdminView } from "@/features/sso-admin"
 
-const SecuritySettingsPage = () => (
+const AdminSecurityPage = () => (
   <ProtectedRoute>
     <RequireSuperAdmin>
       <SSOAdminView />
@@ -9,4 +9,4 @@ const SecuritySettingsPage = () => (
   </ProtectedRoute>
 )
 
-export default SecuritySettingsPage
+export default AdminSecurityPage

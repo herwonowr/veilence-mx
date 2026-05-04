@@ -3,7 +3,7 @@
 import { ProtectedRoute, RequireSuperAdmin } from "@/features/auth"
 import { PlatformUsersList } from "@/features/platform-users"
 
-const UsersSettingsContent = () => (
+const AdminUsersContent = () => (
   <div className="space-y-6">
     <div>
       <h1 className="text-3xl font-bold">Users</h1>
@@ -15,12 +15,12 @@ const UsersSettingsContent = () => (
   </div>
 )
 
-const UsersSettingsPage = () => (
+const AdminUsersPage = () => (
   <ProtectedRoute>
     <RequireSuperAdmin>
-      <UsersSettingsContent />
+      <AdminUsersContent />
     </RequireSuperAdmin>
   </ProtectedRoute>
 )
 
-export default UsersSettingsPage
+export default AdminUsersPage

@@ -90,9 +90,9 @@ func (r *UserRepo) FindAll(ctx context.Context, page, limit int, sortClause stri
 	if filters.Role != nil {
 		switch *filters.Role {
 		case "super_admin":
-			q = q.Where("is_super_admin = ?", true)
+			q = q.Where("is_superadmin = ?", true)
 		case "user":
-			q = q.Where("is_super_admin = ?", false)
+			q = q.Where("is_superadmin = ?", false)
 		}
 	}
 
@@ -118,7 +118,7 @@ func (r *UserRepo) FindAll(ctx context.Context, page, limit int, sortClause stri
 
 func (r *UserRepo) CountSuperAdmins(ctx context.Context) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).Model(&User{}).Where("is_super_admin = ? AND is_active = ?", true, true).Count(&count).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&User{}).Where("is_superadmin = ? AND is_active = ?", true, true).Count(&count).Error; err != nil {
 		return 0, fmt.Errorf("UserRepo.CountSuperAdmins: %w", err)
 	}
 	return count, nil

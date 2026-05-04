@@ -93,11 +93,13 @@ type SettingsHandlers struct {
 // DashboardHandlers handles dashboard statistics, recent releases, charts, and reanalysis endpoints.
 type DashboardHandlers struct {
 	DashboardSvc usecase.DashboardService
+	Audit        *audit.Service
 }
 
 // QueueHandlers handles queue monitoring endpoints.
 type QueueHandlers struct {
 	Queue *queue.Queue
+	Audit *audit.Service
 }
 
 // HealthHandlers handles the health check endpoint.
@@ -135,7 +137,8 @@ func NewHandlers(
 			Audit: auditService,
 		},
 		Sessions: &SessionHandlers{
-			Auth: authService,
+			Auth:  authService,
+			Audit: auditService,
 		},
 		Notifications: &NotificationHandlers{
 			Notifications: notificationService,
@@ -168,9 +171,11 @@ func NewHandlers(
 		},
 		Dashboard: &DashboardHandlers{
 			DashboardSvc: dashboardService,
+			Audit:        auditService,
 		},
 		Queue: &QueueHandlers{
 			Queue: jobQueue,
+			Audit: auditService,
 		},
 		Health: &HealthHandlers{
 			HealthSvc: healthService,
@@ -187,6 +192,7 @@ func NewHandlers(
 			Auth:         authService,
 			RBACRepo:     rbacRepo,
 			IdentityRepo: identityRepo,
+			Audit:        auditService,
 		},
 	}
 

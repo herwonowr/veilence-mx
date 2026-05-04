@@ -57,7 +57,7 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 	for key := range req {
 		updatedKeys = append(updatedKeys, key)
 	}
-	h.Audit.LogAction(r.Context(), "update", "setting", "", fmt.Sprintf("updated settings: %s", strings.Join(updatedKeys, ", ")))
+	h.Audit.LogAction(r.Context(), "update", "workspace_setting", "", fmt.Sprintf("updated settings: %s", strings.Join(updatedKeys, ", ")))
 
 	// Invalidate the poller settings cache so changes take effect immediately
 	if h.Poller != nil {

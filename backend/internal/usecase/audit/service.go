@@ -40,6 +40,7 @@ func NewService(repo usecase.AuditLogRepository) *Service {
 // and correlation ID from the request context.
 func (s *Service) LogAction(ctx context.Context, action, resource string, resourceID string, details string) {
 	userID := ctxutil.UserIDFromContext(ctx)
+	userEmail := ctxutil.EmailFromContext(ctx)
 	workspaceID := ctxutil.WorkspaceIDFromContext(ctx)
 	correlationID := CorrelationIDFromContext(ctx)
 
@@ -49,6 +50,7 @@ func (s *Service) LogAction(ctx context.Context, action, resource string, resour
 
 	entry := &entity.AuditLog{
 		UserID:        userID,
+		UserEmail:     userEmail,
 		WorkspaceID:   workspaceID,
 		Action:        action,
 		Resource:      resource,
@@ -86,7 +88,7 @@ func (s *Service) LogAction(ctx context.Context, action, resource string, resour
 // This is similar to LogAction but uses the provided userID and email rather than
 // extracting from context, since auth events may not have a user in context yet
 // (e.g., failed login).
-func (s *Service) LogAuthEvent(ctx context.Context, action string, userID string, details string) {
+func (s *Service) LogAuthEvent(ctx context.Context, action string, userID string, userEmail string, details string) {
 	correlationID := CorrelationIDFromContext(ctx)
 
 	ipAddress := IPAddressFromContext(ctx)
@@ -94,6 +96,7 @@ func (s *Service) LogAuthEvent(ctx context.Context, action string, userID string
 
 	entry := &entity.AuditLog{
 		UserID:        userID,
+		UserEmail:     userEmail,
 		WorkspaceID:   "", // Auth events are not workspace-scoped
 		Action:        action,
 		Resource:      "auth",
@@ -211,6 +214,12 @@ func (ac *AuditContext) LogChange(action string, after map[string]any) {
 
 // ListAuditLogs returns a paginated list of audit logs for a workspace
 // with optional filters.
-func (s *Service) ListAuditLogs(workspaceID string, filters AuditLogFilters, page, limit int) ([]entity.AuditLog, int64, error) {
-	return s.repo.FindByWorkspaceID(context.Background(), workspaceID, filters, page, limit)
+func (s *Service) ListAuditLogs(ctx context.Context, workspaceID string, filters AuditLogFilters, page, limit int) ([]entity.AuditLog, int64, error) {
+	return s.repo.FindByWorkspaceID(ctx, workspaceID, filters, page, limit)
+}
+
+// ListAllAuditLogs returns a paginated list of audit logs across all workspaces
+// with optional filters including workspace_id. Used by platform super admins.
+func (s *Service) ListAllAuditLogs(ctx context.Context, filters AuditLogFilters, page, limit int, sortClause string) ([]entity.AuditLog, int64, error) {
+	return s.repo.FindAll(ctx, filters, page, limit, sortClause)
 }

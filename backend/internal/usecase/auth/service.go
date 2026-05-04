@@ -1168,6 +1168,9 @@ func generateResetToken() (string, error) {
 // ErrLastSuperAdmin is returned when trying to demote/deactivate the last super admin.
 var ErrLastSuperAdmin = errors.New("cannot demote or deactivate the last super admin")
 
+// ErrSelfModification is returned when a super admin tries to modify their own account.
+var ErrSelfModification = errors.New("cannot modify your own account")
+
 // AdminListUsers returns a paginated, filterable, sortable list of all users.
 func (s *Service) AdminListUsers(ctx context.Context, page, limit int, sortClause string, filters entity.UserFilters) ([]entity.User, int64, error) {
 	users, total, err := s.users.FindAll(ctx, page, limit, sortClause, filters)
@@ -1197,6 +1200,11 @@ func (s *Service) AdminUpdateUser(ctx context.Context, callerID, targetUserID, c
 	}
 	if !s.checkPassword(confirmPassword, caller.PasswordHash) {
 		return nil, ErrInvalidPassword
+	}
+
+	// Guard: cannot modify own account (prevents self-deactivation or self-demotion).
+	if callerID == targetUserID {
+		return nil, fmt.Errorf("AdminUpdateUser: %w", ErrSelfModification)
 	}
 
 	target, err := s.users.FindByID(ctx, targetUserID)

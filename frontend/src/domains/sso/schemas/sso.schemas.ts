@@ -6,7 +6,7 @@ const autoCreateDomainRefinement = (
 ) => {
   if (data.autoCreateUser && (!data.allowedDomains || data.allowedDomains.trim() === "")) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: "custom",
       message: "Allowed domains are required when auto-create users is enabled",
       path: ["allowedDomains"],
     })

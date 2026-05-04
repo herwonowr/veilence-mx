@@ -19,9 +19,10 @@ import {
   Monitor,
   Search,
   Shield,
+  ScrollText,
 } from "lucide-react"
 import { cn, useAuth, useCurrentWorkspaceRole, hasMinimumRole, ROUTES } from "@/core"
-import { Kbd } from "@/ui/components/kbd"
+import { Kbd } from "@/ui"
 import type { LucideIcon } from "lucide-react"
 
 interface CommandItem {
@@ -50,9 +51,10 @@ const commandItems: CommandItem[] = [
   { id: "channels", label: "Channels", href: ROUTES.SETTINGS_NOTIFICATIONS, icon: Radio, group: "Management", keywords: ["notifications", "webhooks", "slack"], minRole: "admin" },
   { id: "queue", label: "Queue Monitor", href: ROUTES.SETTINGS_QUEUE, icon: Workflow, group: "Management", keywords: ["jobs", "workers", "processing"], minRole: "admin" },
   { id: "api-keys", label: "API Keys", href: ROUTES.SETTINGS_API_KEYS, icon: Key, group: "Management", keywords: ["tokens", "authentication"] },
-  // Settings (super-admin only)
-  { id: "security", label: "Security", href: ROUTES.SETTINGS_SECURITY, icon: Shield, group: "Settings", keywords: ["sso", "saml", "authentication", "login"], superAdminOnly: true },
-  { id: "users", label: "Users", href: ROUTES.SETTINGS_USERS, icon: Users, group: "Settings", keywords: ["platform", "admin", "accounts"], superAdminOnly: true },
+  // Admin (super-admin only)
+  { id: "security", label: "Security", href: ROUTES.ADMIN_SECURITY, icon: Shield, group: "Admin", keywords: ["sso", "saml", "authentication", "login"], superAdminOnly: true },
+  { id: "users", label: "Users", href: ROUTES.ADMIN_USERS, icon: Users, group: "Admin", keywords: ["platform", "admin", "accounts"], superAdminOnly: true },
+  { id: "audit-logs", label: "Audit Logs", href: ROUTES.ADMIN_AUDIT_LOGS, icon: ScrollText, group: "Admin", keywords: ["audit", "logs", "activity", "history"], superAdminOnly: true },
   // Account
   { id: "account", label: "Account", href: ROUTES.ACCOUNT, icon: User, group: "Account", keywords: ["profile", "email", "password"] },
   { id: "sessions", label: "Sessions", href: ROUTES.SETTINGS_SESSIONS, icon: Monitor, group: "Account", keywords: ["active", "devices"] },

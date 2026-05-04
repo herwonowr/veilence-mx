@@ -51,7 +51,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/ui"
-import { Users, ShieldCheck, UserX, UserCheck, Loader2 } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/ui"
+import { Users, ShieldCheck, UserX, UserCheck, Loader2, MoreHorizontal } from "lucide-react"
+import { useAuth } from "@/core"
 import {
   useReactTable,
   getCoreRowModel,
@@ -91,6 +99,7 @@ export const PlatformUsersList = () => (
 )
 
 const PlatformUsersContent = () => {
+  const { user: currentUser } = useAuth()
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search, 300)
   const [statusFilter, setStatusFilter] = useState("")
@@ -167,6 +176,7 @@ const PlatformUsersContent = () => {
           id: passwordPrompt.userId,
           req: { isSuperAdmin: !passwordPrompt.currentValue },
           confirmPassword,
+          successMessage: passwordPrompt.currentValue ? "User demoted from super admin" : "User promoted to super admin",
         },
         {
           onSuccess: () => {
@@ -181,6 +191,7 @@ const PlatformUsersContent = () => {
           id: passwordPrompt.userId,
           req: { isActive: !passwordPrompt.currentValue },
           confirmPassword,
+          successMessage: passwordPrompt.currentValue ? "User deactivated" : "User reactivated",
         },
         {
           onSuccess: () => {
@@ -248,7 +259,7 @@ const PlatformUsersContent = () => {
           row.original.isSuperAdmin ? (
             <Badge variant="default">Super Admin</Badge>
           ) : (
-            <span className="text-sm text-muted-foreground">User</span>
+            <Badge variant="outline">User</Badge>
           )
         ),
       },
@@ -273,53 +284,52 @@ const PlatformUsersContent = () => {
         header: () => <span className="sr-only">Actions</span>,
         enableSorting: false,
         meta: { headerClassName: "w-[1%] whitespace-nowrap text-right", cellClassName: "text-right" },
-        cell: ({ row }) => (
-          <div className="flex items-center justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() =>
-                setPasswordPrompt({
-                  userId: row.original.id,
-                  action: "toggleAdmin",
-                  currentValue: row.original.isSuperAdmin,
-                })
+        cell: ({ row }) => {
+          const isSelf = row.original.id === currentUser?.id
+          if (isSelf) return null
+          return (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="ghost" size="icon-sm" aria-label="User actions">
+                  <MoreHorizontal className="size-4" />
+                </Button>
               }
-              title={
-                row.original.isSuperAdmin
-                  ? "Remove super admin"
-                  : "Make super admin"
-              }
-            >
-              <ShieldCheck
-                className={`size-4 ${row.original.isSuperAdmin ? "text-primary" : "text-muted-foreground"}`}
-              />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() =>
-                setPasswordPrompt({
-                  userId: row.original.id,
-                  action: "toggleActive",
-                  currentValue: row.original.isActive,
-                })
-              }
-              title={
-                row.original.isActive ? "Deactivate user" : "Reactivate user"
-              }
-            >
-              {row.original.isActive ? (
-                <UserX className="size-4 text-muted-foreground" />
-              ) : (
-                <UserCheck className="size-4 text-green-600" />
-              )}
-            </Button>
-          </div>
-        ),
+            />
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() =>
+                  setPasswordPrompt({
+                    userId: row.original.id,
+                    action: "toggleAdmin",
+                    currentValue: row.original.isSuperAdmin,
+                  })
+                }
+              >
+                <ShieldCheck className={row.original.isSuperAdmin ? "text-primary" : ""} />
+                {row.original.isSuperAdmin ? "Remove Admin" : "Make Admin"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant={row.original.isActive ? "destructive" : undefined}
+                onClick={() =>
+                  setPasswordPrompt({
+                    userId: row.original.id,
+                    action: "toggleActive",
+                    currentValue: row.original.isActive,
+                  })
+                }
+              >
+                {row.original.isActive ? <UserX /> : <UserCheck />}
+                {row.original.isActive ? "Deactivate" : "Activate"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          )
+        },
       },
     ],
-    []
+    [currentUser?.id]
   )
 
   const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize))

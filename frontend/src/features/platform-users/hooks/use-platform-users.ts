@@ -42,16 +42,14 @@ export const useUpdatePlatformUser = () => {
       id: string
       req: UpdatePlatformUserRequest
       confirmPassword: string
+      successMessage?: string
     }) => apiUpdatePlatformUser(id, req, confirmPassword),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: platformAdminKeys.users() })
-      queryClient.invalidateQueries({
-        queryKey: platformAdminKeys.user(variables.id),
-      })
-      toast.success("User updated")
+      queryClient.invalidateQueries({ queryKey: platformAdminKeys.all })
+      toast.success(variables.successMessage || "User updated")
     },
-    onError: () => {
-      toast.error("Failed to update user")
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update user")
     },
   })
 }

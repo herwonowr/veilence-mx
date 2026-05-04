@@ -215,7 +215,6 @@ export const WorkspacesListView = () => {
                     placeholder="Acme Corp"
                     value={name}
                     onChange={(e) => handleNameChange(e.target.value)}
-                    required
                   />
                   {fieldErrors.name && <FieldError>{fieldErrors.name}</FieldError>}
                 </Field>
@@ -226,7 +225,6 @@ export const WorkspacesListView = () => {
                     placeholder="acme-corp"
                     value={slug}
                     onChange={(e) => setSlug(e.target.value)}
-                    required
                   />
                   {fieldErrors.slug && <FieldError>{fieldErrors.slug}</FieldError>}
                   <FieldDescription>

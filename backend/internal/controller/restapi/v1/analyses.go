@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -76,6 +77,8 @@ func (h *DashboardHandlers) ReanalyzeAll(w http.ResponseWriter, r *http.Request)
 		respondAppError(w, Internal("failed to enqueue analysis jobs"))
 		return
 	}
+
+	h.Audit.LogAction(r.Context(), "reanalyze", "release", "", fmt.Sprintf("triggered re-analysis for all releases, queued %d jobs", queued))
 
 	respondJSON(w, http.StatusOK, response.ReanalyzeAllResponse{
 		Message: "re-analysis triggered",

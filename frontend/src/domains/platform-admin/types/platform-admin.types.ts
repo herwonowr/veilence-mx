@@ -55,3 +55,32 @@ export interface ListUsersResponse {
   pageSize: number
   totalPages: number
 }
+
+export interface PlatformAuditLog {
+  id: string
+  userId: string
+  userEmail: string
+  workspaceId: string
+  workspaceName: string
+  action: string
+  resource: string
+  resourceId: string
+  details: string
+  ipAddress: string
+  userAgent: string
+  correlationId: string
+  createdAt: string
+}
+
+export interface PlatformAuditLogParams {
+  page?: number
+  limit?: number
+  action?: string
+  resource?: string
+  user_email?: string
+  workspace_name?: string
+  from_date?: string
+  to_date?: string
+  sort_by?: string
+  sort_dir?: string
+}

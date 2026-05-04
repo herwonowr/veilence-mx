@@ -8,6 +8,7 @@ type AuditLogResponse struct {
 	UserID        string    `json:"userId"`
 	UserEmail     string    `json:"userEmail"`
 	WorkspaceID   string    `json:"workspaceId"`
+	WorkspaceName string    `json:"workspaceName"`
 	Action        string    `json:"action"`
 	Resource      string    `json:"resource"`
 	ResourceID    string    `json:"resourceId"`

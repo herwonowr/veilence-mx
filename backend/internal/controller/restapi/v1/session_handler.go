@@ -4,15 +4,18 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 )
 
 // SessionHandlers handles session management endpoints.
 type SessionHandlers struct {
-	Auth *auth.Service
+	Auth  *auth.Service
+	Audit *audit.Service
 }
 
 // SessionResponse is the response DTO for a session, including a flag
@@ -105,6 +108,8 @@ func (h *SessionHandlers) RevokeSession(w http.ResponseWriter, r *http.Request) 
 		respondAppError(w, Internal("failed to revoke session"))
 		return
 	}
+
+	h.Audit.LogAction(r.Context(), "revoke", "session", id, fmt.Sprintf("revoked session %s", id))
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "session revoked"}, nil)
 }

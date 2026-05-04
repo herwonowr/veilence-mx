@@ -3,14 +3,17 @@ package v1
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 )
 
@@ -19,6 +22,7 @@ type AdminUserHandlers struct {
 	Auth         *auth.Service
 	RBACRepo     usecase.RBACRepository
 	IdentityRepo usecase.UserIdentityRepository
+	Audit        *audit.Service
 }
 
 // adminUpdateUserRequest is the request body for PUT /api/admin/users/{id}.
@@ -192,6 +196,10 @@ func (h *AdminUserHandlers) HandleUpdateUser(w http.ResponseWriter, r *http.Requ
 			respondAppError(w, Forbidden("password confirmation failed"))
 			return
 		}
+		if errors.Is(err, auth.ErrSelfModification) {
+			respondAppError(w, BadRequest("cannot modify your own account"))
+			return
+		}
 		if errors.Is(err, auth.ErrLastSuperAdmin) {
 			respondAppError(w, BadRequest("cannot demote or deactivate the last super admin"))
 			return
@@ -204,6 +212,23 @@ func (h *AdminUserHandlers) HandleUpdateUser(w http.ResponseWriter, r *http.Requ
 		respondAppError(w, Internal("failed to update user"))
 		return
 	}
+
+	// Audit log the admin user update.
+	var changes []string
+	if req.FirstName != nil {
+		changes = append(changes, fmt.Sprintf("firstName=%s", *req.FirstName))
+	}
+	if req.LastName != nil {
+		changes = append(changes, fmt.Sprintf("lastName=%s", *req.LastName))
+	}
+	if req.IsSuperAdmin != nil {
+		changes = append(changes, fmt.Sprintf("isSuperAdmin=%t", *req.IsSuperAdmin))
+	}
+	if req.IsActive != nil {
+		changes = append(changes, fmt.Sprintf("isActive=%t", *req.IsActive))
+	}
+	h.Audit.LogAction(r.Context(), "admin.update", "user", targetUserID,
+		fmt.Sprintf("admin updated user %s: %s", updated.Email, strings.Join(changes, ", ")))
 
 	// Return full detail (identities + workspaces) consistent with HandleGetUser.
 	detail := response.PlatformUserDetailResponse{

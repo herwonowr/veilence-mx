@@ -21,6 +21,7 @@ import {
   Workflow,
   Monitor,
   Shield,
+  ScrollText,
 } from "lucide-react"
 import {
   Sidebar,
@@ -86,9 +87,10 @@ const managementItems: NavItem[] = [
   { title: "API Keys", href: ROUTES.SETTINGS_API_KEYS, icon: Key },
 ]
 
-const platformSettingsItems: NavItem[] = [
-  { title: "Security", href: ROUTES.SETTINGS_SECURITY, icon: Shield, superAdminOnly: true },
-  { title: "Users", href: ROUTES.SETTINGS_USERS, icon: Users, superAdminOnly: true },
+const platformAdminItems: NavItem[] = [
+  { title: "Security", href: ROUTES.ADMIN_SECURITY, icon: Shield, superAdminOnly: true },
+  { title: "Users", href: ROUTES.ADMIN_USERS, icon: Users, superAdminOnly: true },
+  { title: "Audit Logs", href: ROUTES.ADMIN_AUDIT_LOGS, icon: ScrollText, superAdminOnly: true },
 ]
 
 export const AppSidebar = ({
@@ -206,10 +208,10 @@ export const AppSidebar = ({
 
         {user?.isSuperAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel>SETTINGS</SidebarGroupLabel>
+            <SidebarGroupLabel>ADMIN</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {platformSettingsItems.map((item) => {
+                {platformAdminItems.map((item) => {
                   const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
                   return (
                     <SidebarMenuItem key={item.href}>

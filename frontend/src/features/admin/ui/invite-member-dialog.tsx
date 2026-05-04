@@ -118,7 +118,6 @@ export const InviteMemberDialog = ({
                 placeholder="user@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
               />
               {fieldErrors.email && <FieldError>{fieldErrors.email}</FieldError>}
             </Field>

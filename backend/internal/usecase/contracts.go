@@ -120,6 +120,7 @@ type SettingRepository interface {
 type AuditLogRepository interface {
 	Create(ctx context.Context, entry *entity.AuditLog) error
 	FindByWorkspaceID(ctx context.Context, workspaceID string, filters entity.AuditLogFilters, page, limit int) ([]entity.AuditLog, int64, error)
+	FindAll(ctx context.Context, filters entity.AuditLogFilters, page, limit int, sortClause string) ([]entity.AuditLog, int64, error)
 	FindByID(ctx context.Context, id string) (*entity.AuditLog, error)
 }
 
