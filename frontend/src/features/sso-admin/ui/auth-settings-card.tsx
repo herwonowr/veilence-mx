@@ -16,7 +16,7 @@ import {
   FieldDescription,
   ConfirmDialog,
 } from "@/ui"
-import { Shield } from "lucide-react"
+import { KeyRound } from "lucide-react"
 
 export const AuthSettingsCard = () => {
   const { settings, updateSettings, isPending } = useAuthSettings()
@@ -65,7 +65,7 @@ export const AuthSettingsCard = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
+            <KeyRound className="h-5 w-5" />
             Authentication Settings
           </CardTitle>
           <CardDescription>

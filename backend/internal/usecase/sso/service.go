@@ -488,7 +488,7 @@ func (s *Service) HandleSAMLSLO(ctx context.Context, samlRequest, signature, sig
 	}
 
 	if s.auditLogger != nil {
-		s.auditLogger.LogAction(ctx, "user.slo_initiate", "user", identity.UserID, fmt.Sprintf("nameID=%s", nameID))
+		s.auditLogger.LogActionWithUser(ctx, identity.UserID, identity.Email, "user.slo_initiate", "user", identity.UserID, fmt.Sprintf("email=%s nameID=%s", identity.Email, nameID))
 	}
 
 	return nil
@@ -532,7 +532,7 @@ func (s *Service) LinkIdentity(ctx context.Context, userID string, provider enti
 	}
 
 	if s.auditLogger != nil {
-		s.auditLogger.LogAction(ctx, "sso.identity_link", "user_identity", identity.ID, fmt.Sprintf("provider=%s", provider))
+		s.auditLogger.LogActionWithUser(ctx, userID, email, "sso.identity_link", "user_identity", identity.ID, fmt.Sprintf("email=%s provider=%s", email, provider))
 	}
 
 	return identity, nil
@@ -574,7 +574,7 @@ func (s *Service) UnlinkIdentity(ctx context.Context, userID, identityID string)
 	}
 
 	if s.auditLogger != nil {
-		s.auditLogger.LogAction(ctx, "sso.identity_unlink", "user_identity", identityID, fmt.Sprintf("provider=%s", target.Provider))
+		s.auditLogger.LogAction(ctx, "sso.identity_unlink", "user_identity", identityID, fmt.Sprintf("email=%s provider=%s", target.Email, target.Provider))
 	}
 
 	return nil

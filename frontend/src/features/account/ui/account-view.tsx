@@ -278,6 +278,7 @@ const PasswordSection = () => {
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   autoComplete="current-password"
+                  placeholder="Enter current password"
                 />
                 {errors.currentPassword && <FieldError>{errors.currentPassword}</FieldError>}
               </Field>
@@ -327,6 +328,7 @@ const PasswordSection = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   autoComplete="new-password"
+                  placeholder="Re-enter new password"
                 />
                 {errors.confirmPassword && <FieldError>{errors.confirmPassword}</FieldError>}
               </Field>

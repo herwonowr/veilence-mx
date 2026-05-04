@@ -71,7 +71,7 @@ export const LinkedIdentities = () => {
                     <span className="text-sm">{identity.providerEmail}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Linked {new Date(identity.linkedAt).toLocaleDateString()}
+                    Linked {new Date(identity.linkedAt).toLocaleString()}
                   </p>
                 </div>
                 {(
