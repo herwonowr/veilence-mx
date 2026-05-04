@@ -38,14 +38,24 @@ export const storeTokens = (accessToken: string, refreshToken: string) => {
   localStorage.setItem(TOKEN_KEY, accessToken)
   localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
   // Set UX-hint cookie for SSR middleware route protection (not a security boundary)
-  document.cookie = "vmx_authenticated=1; path=/; SameSite=Lax; max-age=604800"
+  const secure = window.location.protocol === "https:" ? "; Secure" : ""
+  document.cookie = `vmx_authenticated=1; path=/; SameSite=Lax; max-age=604800${secure}`
 }
 
 export const clearTokens = () => {
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
   // Clear UX-hint cookie so SSR middleware redirects to login
-  document.cookie = "vmx_authenticated=; path=/; SameSite=Lax; max-age=0"
+  document.cookie = "vmx_authenticated=; path=/; SameSite=Lax; max-age=0; Secure"
+  document.cookie = "vmx_super_admin=; path=/; SameSite=Lax; max-age=0; Secure"
+}
+
+export const setSuperAdminHint = (isSuperAdmin: boolean) => {
+  if (isSuperAdmin) {
+    document.cookie = "vmx_super_admin=1; path=/; SameSite=Lax; max-age=604800"
+  } else {
+    document.cookie = "vmx_super_admin=; path=/; SameSite=Lax; max-age=0"
+  }
 }
 
 export const getStoredWorkspaceId = (): string | null => {

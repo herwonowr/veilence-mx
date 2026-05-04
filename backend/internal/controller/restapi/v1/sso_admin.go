@@ -11,7 +11,6 @@ import (
 
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi/v1/response"
 	"github.com/veilence/veilence-mx/backend/internal/entity"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/sso"
 )
 
 // createSSOConfigRequest is the request body for POST /api/admin/sso.
@@ -66,7 +65,7 @@ func (h *SSOHandlers) HandleListSSOConfigs(w http.ResponseWriter, r *http.Reques
 	configs, err := h.service.GetSSOConfigs(r.Context())
 	if err != nil {
 		slog.Error("HandleListSSOConfigs: listing configs", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to list SSO configs")
+		respondAppError(w, Internal("failed to list SSO configs"))
 		return
 	}
 
@@ -78,7 +77,7 @@ func (h *SSOHandlers) HandleListSSOConfigs(w http.ResponseWriter, r *http.Reques
 func (h *SSOHandlers) HandleCreateSSOConfig(w http.ResponseWriter, r *http.Request) {
 	var req createSSOConfigRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
+		respondAppError(w, BadRequest("invalid request body"))
 		return
 	}
 
@@ -127,11 +126,11 @@ func (h *SSOHandlers) HandleCreateSSOConfig(w http.ResponseWriter, r *http.Reque
 	created, err := h.service.CreateSSOConfig(r.Context(), config)
 	if err != nil {
 		if errors.Is(err, entity.ErrValidation) {
-			respondAppError(w, Validation(err.Error()))
+			respondAppError(w, ValidationFromErr(err))
 			return
 		}
 		slog.Error("HandleCreateSSOConfig: creating config", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to create SSO config")
+		respondAppError(w, Internal("failed to create SSO config"))
 		return
 	}
 
@@ -149,12 +148,12 @@ func (h *SSOHandlers) HandleGetSSOConfig(w http.ResponseWriter, r *http.Request)
 
 	config, err := h.service.GetSSOConfigByID(r.Context(), configID)
 	if err != nil {
-		if errors.Is(err, sso.ErrSSONotConfigured) {
+		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("SSO configuration"))
 			return
 		}
 		slog.Error("HandleGetSSOConfig: fetching config", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to fetch SSO config")
+		respondAppError(w, Internal("failed to fetch SSO config"))
 		return
 	}
 
@@ -172,19 +171,19 @@ func (h *SSOHandlers) HandleUpdateSSOConfig(w http.ResponseWriter, r *http.Reque
 
 	var req updateSSOConfigRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
+		respondAppError(w, BadRequest("invalid request body"))
 		return
 	}
 
 	// Fetch existing config to merge partial updates.
 	existing, err := h.service.GetSSOConfigByID(r.Context(), configID)
 	if err != nil {
-		if errors.Is(err, sso.ErrSSONotConfigured) {
+		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("SSO configuration"))
 			return
 		}
 		slog.Error("HandleUpdateSSOConfig: fetching existing config", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to fetch SSO config")
+		respondAppError(w, Internal("failed to fetch SSO config"))
 		return
 	}
 
@@ -235,11 +234,11 @@ func (h *SSOHandlers) HandleUpdateSSOConfig(w http.ResponseWriter, r *http.Reque
 	updated, err := h.service.UpdateSSOConfig(r.Context(), configID, existing)
 	if err != nil {
 		if errors.Is(err, entity.ErrValidation) {
-			respondAppError(w, Validation(err.Error()))
+			respondAppError(w, ValidationFromErr(err))
 			return
 		}
 		slog.Error("HandleUpdateSSOConfig: updating config", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to update SSO config")
+		respondAppError(w, Internal("failed to update SSO config"))
 		return
 	}
 
@@ -256,12 +255,12 @@ func (h *SSOHandlers) HandleDeleteSSOConfig(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := h.service.DeleteSSOConfig(r.Context(), configID); err != nil {
-		if errors.Is(err, sso.ErrSSONotConfigured) {
+		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("SSO configuration"))
 			return
 		}
 		slog.Error("HandleDeleteSSOConfig: deleting config", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to delete SSO config")
+		respondAppError(w, Internal("failed to delete SSO config"))
 		return
 	}
 
@@ -279,13 +278,13 @@ func (h *SSOHandlers) HandleTestSSOConfig(w http.ResponseWriter, r *http.Request
 
 	result, err := h.service.TestSSOConfig(r.Context(), configID)
 	if err != nil {
-		if errors.Is(err, sso.ErrSSONotConfigured) {
+		if errors.Is(err, entity.ErrNotFound) {
 			respondAppError(w, NotFound("SSO configuration"))
 			return
 		}
 		respondJSON(w, http.StatusOK, response.TestSSOConfigResponse{
 			Success: false,
-			Message: err.Error(),
+			Message: "SSO configuration test failed - verify provider settings and connectivity",
 		}, nil)
 		return
 	}
@@ -308,7 +307,7 @@ type importSAMLMetadataRequest struct {
 func (h *SSOHandlers) HandleImportSAMLMetadata(w http.ResponseWriter, r *http.Request) {
 	var req importSAMLMetadataRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
+		respondAppError(w, BadRequest("invalid request body"))
 		return
 	}
 
@@ -326,7 +325,7 @@ func (h *SSOHandlers) HandleImportSAMLMetadata(w http.ResponseWriter, r *http.Re
 	info, err := h.service.ImportSAMLMetadata(r.Context(), req.MetadataURL)
 	if err != nil {
 		slog.Error("HandleImportSAMLMetadata: importing metadata", "error", err)
-		respondError(w, http.StatusBadRequest, "Failed to import SAML metadata: "+err.Error())
+		respondAppError(w, BadRequest("failed to import SAML metadata - verify the URL is reachable and returns valid SAML metadata"))
 		return
 	}
 
@@ -344,7 +343,7 @@ func (h *SSOHandlers) HandleGetAuthSettings(w http.ResponseWriter, r *http.Reque
 	settings, err := h.service.GetAuthSettings(r.Context())
 	if err != nil {
 		slog.Error("HandleGetAuthSettings: fetching settings", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to fetch auth settings")
+		respondAppError(w, Internal("failed to fetch auth settings"))
 		return
 	}
 
@@ -359,14 +358,14 @@ func (h *SSOHandlers) HandleGetAuthSettings(w http.ResponseWriter, r *http.Reque
 func (h *SSOHandlers) HandleUpdateAuthSettings(w http.ResponseWriter, r *http.Request) {
 	var req updatePlatformAuthSettingsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
+		respondAppError(w, BadRequest("invalid request body"))
 		return
 	}
 
 	existing, err := h.service.GetAuthSettings(r.Context())
 	if err != nil {
 		slog.Error("HandleUpdateAuthSettings: fetching existing settings", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to fetch auth settings")
+		respondAppError(w, Internal("failed to fetch auth settings"))
 		return
 	}
 
@@ -376,11 +375,11 @@ func (h *SSOHandlers) HandleUpdateAuthSettings(w http.ResponseWriter, r *http.Re
 
 	if err := h.service.UpdateAuthSettings(r.Context(), existing); err != nil {
 		if errors.Is(err, entity.ErrValidation) {
-			respondAppError(w, Validation(err.Error()))
+			respondAppError(w, ValidationFromErr(err))
 			return
 		}
 		slog.Error("HandleUpdateAuthSettings: updating settings", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to update auth settings")
+		respondAppError(w, Internal("failed to update auth settings"))
 		return
 	}
 

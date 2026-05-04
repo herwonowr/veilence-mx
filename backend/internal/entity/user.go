@@ -49,6 +49,13 @@ func ValidatePasswordWithContext(password, email string) error {
 	return nil
 }
 
+// UserFilters holds optional query filters for listing users.
+type UserFilters struct {
+	Search *string
+	Status *string // "active" or "inactive"
+	Role   *string // "super_admin" or "user"
+}
+
 // User represents an authenticated user of the system.
 type User struct {
 	ID                 string

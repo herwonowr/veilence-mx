@@ -23,6 +23,7 @@ type Config struct {
 	RedisURL    string
 	Port        string
 	FrontendURL string
+	BackendURL  string
 	AppEnv      string
 
 	// JWT rotation
@@ -85,6 +86,7 @@ func NewConfig() (*Config, error) {
 		RedisURL:    envOrDefault("REDIS_URL", "redis://localhost:6379/0"),
 		Port:        envOrDefault("SERVER_PORT", "8080"),
 		FrontendURL: envOrDefault("FRONTEND_URL", "http://localhost:3000"),
+		BackendURL:  envOrDefault("BACKEND_URL", "http://localhost:8080"),
 		AppEnv:      envOrDefault("APP_ENV", "production"),
 
 		// LLM

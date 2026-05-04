@@ -8,9 +8,12 @@ export {
   useImportSAMLMetadata,
 } from "@/features/sso-admin/hooks/use-sso-configs"
 
+export { useSAMLSPCertificate } from "@/features/sso-admin/hooks/use-saml-sp-certificate"
+
 export { SSOConfigList } from "@/features/sso-admin/ui/sso-config-list"
 export { SSOConfigForm } from "@/features/sso-admin/ui/sso-config-form"
 export { SAMLConfigForm } from "@/features/sso-admin/ui/saml-config-form"
+export { SAMLSPInfo } from "@/features/sso-admin/ui/saml-sp-info"
 export { OAuthConfigForm } from "@/features/sso-admin/ui/oauth-config-form"
 export { SSOTestButton } from "@/features/sso-admin/ui/sso-test-button"
 

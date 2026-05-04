@@ -69,6 +69,22 @@ func Auth(svc *auth.Service) func(http.Handler) http.Handler {
 				return
 			}
 
+			// Try access_token query param (for full-page navigation endpoints like identity linking)
+			if tokenParam := r.URL.Query().Get("access_token"); tokenParam != "" {
+				claims, err := svc.ValidateAccessToken(tokenParam)
+				if err != nil {
+					slog.Debug("invalid query token", "error", err)
+					respondAuthError(w, http.StatusUnauthorized, "invalid or expired token")
+					return
+				}
+
+				ctx := auth.WithUserID(r.Context(), claims.UserID)
+				ctx = auth.WithEmail(ctx, claims.Email)
+				ctx = auth.WithAuthMethod(ctx, auth.AuthMethodJWT)
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+
 			respondAuthError(w, http.StatusUnauthorized, "Authentication required")
 		})
 	}

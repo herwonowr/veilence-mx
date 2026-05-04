@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"log/slog"
 
@@ -327,14 +329,14 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		userIdentityRepo = persistent.NewUserIdentityRepo(db)
 		ssoStateRepo := persistent.NewSSOStateRepo(db)
 
-		samlProvider := pkgsaml.NewProvider(cfg.FrontendURL, cfg.SSOSAMLClockSkew)
-		oauthExchanger := oauth.NewExchanger(cfg.FrontendURL)
+		samlProvider := pkgsaml.NewProvider(cfg.BackendURL, cfg.SSOSAMLClockSkew)
+		oauthExchanger := newOAuthExchangerAdapter(oauth.NewExchanger(cfg.BackendURL))
 
 		ssoService = sso.NewService(
 			ssoConfigRepo,
 			userIdentityRepo,
 			ssoStateRepo,
-			samlProvider,
+			newSAMLProviderAdapter(samlProvider),
 			oauthExchanger,
 			authService,
 			userRepo,
@@ -343,11 +345,27 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 			refreshTokenRepo,
 			settingRepo,
 			cfg.SSOStateTTL,
-			cfg.FrontendURL,
+			cfg.BackendURL,
 			sso.WithAuditLogger(auditService),
 			sso.WithMetadataFetcher(pkgsaml.NewMetadataFetcher()),
 			sso.WithRegistrationEnabled(cfg.RegistrationEnabled),
 		)
+
+		// Load or generate SP signing key and configure the SAML provider.
+		spKey, spCertPEM, spKeyErr := ssoService.EnsureSPSigningKey(context.Background())
+		if spKeyErr != nil {
+			slog.Error("Failed to ensure SP signing key", "error", spKeyErr)
+		} else if spCertPEM != "" {
+			block, _ := pem.Decode([]byte(spCertPEM))
+			if block != nil {
+				spCert, parseErr := x509.ParseCertificate(block.Bytes)
+				if parseErr == nil {
+					samlProvider.SetSPKeyPair(spKey, spCert)
+					slog.Info("SAML SP signing key configured")
+				}
+			}
+		}
+
 		slog.Info("SSO enabled")
 	} else {
 		slog.Info("SSO disabled")

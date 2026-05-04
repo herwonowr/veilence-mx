@@ -2,6 +2,7 @@ package v1
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -45,13 +46,13 @@ type batchDeleteNotificationsRequest struct {
 func (h *NotificationHandlers) ListNotificationChannels(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	channels, err := h.Notifications.ListChannels(workspaceID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list notification channels")
+		respondAppError(w, Internal("failed to list notification channels"))
 		return
 	}
 
@@ -62,22 +63,22 @@ func (h *NotificationHandlers) ListNotificationChannels(w http.ResponseWriter, r
 func (h *NotificationHandlers) CreateNotificationChannel(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	var req createChannelRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
+		respondAppError(w, BadRequest("invalid request body"))
 		return
 	}
 
 	if err := validation.ValidateRequired(req.Name, "name"); err != nil {
-		respondAppError(w, Validation(err.Error()))
+		respondAppError(w, ValidationFromErr(err))
 		return
 	}
 	if err := validation.ValidateMaxLength(req.Name, "name", 100); err != nil {
-		respondAppError(w, Validation(err.Error()))
+		respondAppError(w, ValidationFromErr(err))
 		return
 	}
 
@@ -99,7 +100,7 @@ func (h *NotificationHandlers) CreateNotificationChannel(w http.ResponseWriter, 
 
 	channel, err := h.Notifications.CreateChannel(workspaceID, req.Name, req.Type, req.Config)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to create notification channel")
+		respondAppError(w, Internal("failed to create notification channel"))
 		return
 	}
 
@@ -112,28 +113,28 @@ func (h *NotificationHandlers) CreateNotificationChannel(w http.ResponseWriter, 
 func (h *NotificationHandlers) UpdateNotificationChannel(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	id, ok := parseUUID(r, "id")
 	if !ok {
-		respondError(w, http.StatusBadRequest, "Invalid channel ID")
+		respondAppError(w, BadRequest("invalid channel ID"))
 		return
 	}
 
 	var req updateChannelRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
+		respondAppError(w, BadRequest("invalid request body"))
 		return
 	}
 
 	if err := validation.ValidateRequired(req.Name, "name"); err != nil {
-		respondAppError(w, Validation(err.Error()))
+		respondAppError(w, ValidationFromErr(err))
 		return
 	}
 	if err := validation.ValidateMaxLength(req.Name, "name", 100); err != nil {
-		respondAppError(w, Validation(err.Error()))
+		respondAppError(w, ValidationFromErr(err))
 		return
 	}
 
@@ -141,7 +142,7 @@ func (h *NotificationHandlers) UpdateNotificationChannel(w http.ResponseWriter, 
 	// the new config's URLs before persisting.
 	existingChannel, err := h.Notifications.GetChannel(id, workspaceID)
 	if err != nil {
-		respondError(w, http.StatusNotFound, "Notification channel not found")
+		respondAppError(w, NotFound("notification channel not found"))
 		return
 	}
 	if err := notifications.ValidateChannelConfig(existingChannel.Type, req.Config); err != nil {
@@ -151,7 +152,7 @@ func (h *NotificationHandlers) UpdateNotificationChannel(w http.ResponseWriter, 
 
 	channel, err := h.Notifications.UpdateChannel(id, workspaceID, req.Name, req.Config, req.IsActive)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to update notification channel")
+		respondAppError(w, Internal("failed to update notification channel"))
 		return
 	}
 
@@ -164,13 +165,13 @@ func (h *NotificationHandlers) UpdateNotificationChannel(w http.ResponseWriter, 
 func (h *NotificationHandlers) DeleteNotificationChannel(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	id, ok := parseUUID(r, "id")
 	if !ok {
-		respondError(w, http.StatusBadRequest, "Invalid channel ID")
+		respondAppError(w, BadRequest("invalid channel ID"))
 		return
 	}
 
@@ -181,7 +182,11 @@ func (h *NotificationHandlers) DeleteNotificationChannel(w http.ResponseWriter, 
 	}
 
 	if err := h.Notifications.DeleteChannel(id, workspaceID); err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to delete notification channel")
+		if errors.Is(err, entity.ErrNotFound) {
+			respondAppError(w, NotFound("notification channel"))
+			return
+		}
+		respondAppError(w, Internal("failed to delete notification channel"))
 		return
 	}
 
@@ -194,13 +199,13 @@ func (h *NotificationHandlers) DeleteNotificationChannel(w http.ResponseWriter, 
 func (h *NotificationHandlers) ListNotificationRules(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	rules, err := h.Notifications.ListRules(workspaceID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list notification rules")
+		respondAppError(w, Internal("failed to list notification rules"))
 		return
 	}
 
@@ -211,13 +216,13 @@ func (h *NotificationHandlers) ListNotificationRules(w http.ResponseWriter, r *h
 func (h *NotificationHandlers) CreateNotificationRule(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	var req createRuleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
+		respondAppError(w, BadRequest("invalid request body"))
 		return
 	}
 
@@ -240,7 +245,7 @@ func (h *NotificationHandlers) CreateNotificationRule(w http.ResponseWriter, r *
 
 	rule, err := h.Notifications.CreateRule(workspaceID, req.ChannelID, req.Severity)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to create notification rule")
+		respondAppError(w, Internal("failed to create notification rule"))
 		return
 	}
 
@@ -259,18 +264,18 @@ func (h *NotificationHandlers) CreateNotificationRule(w http.ResponseWriter, r *
 func (h *NotificationHandlers) DeleteNotificationRule(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	id, ok := parseUUID(r, "id")
 	if !ok {
-		respondError(w, http.StatusBadRequest, "Invalid rule ID")
+		respondAppError(w, BadRequest("invalid rule ID"))
 		return
 	}
 
 	if err := h.Notifications.DeleteRule(id, workspaceID); err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to delete notification rule")
+		respondAppError(w, Internal("failed to delete notification rule"))
 		return
 	}
 
@@ -284,13 +289,13 @@ func (h *NotificationHandlers) DeleteNotificationRule(w http.ResponseWriter, r *
 func (h *NotificationHandlers) ListUserNotifications(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "Authentication required")
+		respondAppError(w, Unauthorized("authentication required"))
 		return
 	}
 
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
@@ -298,7 +303,7 @@ func (h *NotificationHandlers) ListUserNotifications(w http.ResponseWriter, r *h
 
 	notifications, err := h.Notifications.ListNotifications(workspaceID, userID, onlyUnread)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list notifications")
+		respondAppError(w, Internal("failed to list notifications"))
 		return
 	}
 
@@ -310,19 +315,19 @@ func (h *NotificationHandlers) ListUserNotifications(w http.ResponseWriter, r *h
 func (h *NotificationHandlers) GetUnreadCount(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "Authentication required")
+		respondAppError(w, Unauthorized("authentication required"))
 		return
 	}
 
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	count, err := h.Notifications.GetUnreadCount(workspaceID, userID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to get unread count")
+		respondAppError(w, Internal("failed to get unread count"))
 		return
 	}
 
@@ -334,18 +339,18 @@ func (h *NotificationHandlers) GetUnreadCount(w http.ResponseWriter, r *http.Req
 func (h *NotificationHandlers) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "Authentication required")
+		respondAppError(w, Unauthorized("authentication required"))
 		return
 	}
 
 	id, ok := parseUUID(r, "id")
 	if !ok {
-		respondError(w, http.StatusBadRequest, "Invalid notification ID")
+		respondAppError(w, BadRequest("invalid notification ID"))
 		return
 	}
 
 	if err := h.Notifications.MarkRead(id, userID); err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to mark notification as read")
+		respondAppError(w, Internal("failed to mark notification as read"))
 		return
 	}
 
@@ -357,19 +362,19 @@ func (h *NotificationHandlers) MarkNotificationRead(w http.ResponseWriter, r *ht
 func (h *NotificationHandlers) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "Authentication required")
+		respondAppError(w, Unauthorized("authentication required"))
 		return
 	}
 
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	affected, err := h.Notifications.MarkAllRead(workspaceID, userID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to mark all notifications as read")
+		respondAppError(w, Internal("failed to mark all notifications as read"))
 		return
 	}
 
@@ -381,22 +386,22 @@ func (h *NotificationHandlers) MarkAllNotificationsRead(w http.ResponseWriter, r
 func (h *NotificationHandlers) TestNotificationChannel(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	id, ok := parseUUID(r, "id")
 	if !ok {
-		respondError(w, http.StatusBadRequest, "Invalid channel ID")
+		respondAppError(w, BadRequest("invalid channel ID"))
 		return
 	}
 
 	if err := h.Notifications.TestChannel(id, workspaceID); err != nil {
 		slog.Error("notification channel test failed", "channel_id", id, "error", err)
 		if strings.Contains(err.Error(), "not found") {
-			respondError(w, http.StatusNotFound, "Notification channel not found")
+			respondAppError(w, NotFound("notification channel not found"))
 		} else {
-			respondError(w, http.StatusBadGateway, "Failed to send test notification")
+			respondAppError(w, BadGateway("failed to send test notification"))
 		}
 		return
 	}
@@ -417,25 +422,25 @@ func (h *NotificationHandlers) TestNotificationChannel(w http.ResponseWriter, r 
 func (h *NotificationHandlers) DeleteNotification(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "Authentication required")
+		respondAppError(w, Unauthorized("authentication required"))
 		return
 	}
 
 	id, ok := parseUUID(r, "id")
 	if !ok {
-		respondError(w, http.StatusBadRequest, "Invalid notification ID")
+		respondAppError(w, BadRequest("invalid notification ID"))
 		return
 	}
 
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	// Use workspace from authenticated context
 	if _, err := h.Notifications.DeleteByID(r.Context(), id, workspaceID, userID); err != nil {
-		respondError(w, http.StatusNotFound, "Notification not found")
+		respondAppError(w, NotFound("notification not found"))
 		return
 	}
 
@@ -449,19 +454,19 @@ func (h *NotificationHandlers) DeleteNotification(w http.ResponseWriter, r *http
 func (h *NotificationHandlers) DeleteAllNotifications(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "Authentication required")
+		respondAppError(w, Unauthorized("authentication required"))
 		return
 	}
 
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	affected, err := h.Notifications.DeleteAll(r.Context(), workspaceID, userID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to delete notifications")
+		respondAppError(w, Internal("failed to delete notifications"))
 		return
 	}
 
@@ -475,13 +480,13 @@ func (h *NotificationHandlers) DeleteAllNotifications(w http.ResponseWriter, r *
 func (h *NotificationHandlers) DeleteBatchNotifications(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "Authentication required")
+		respondAppError(w, Unauthorized("authentication required"))
 		return
 	}
 
 	var req batchDeleteNotificationsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
+		respondAppError(w, BadRequest("invalid request body"))
 		return
 	}
 
@@ -498,13 +503,13 @@ func (h *NotificationHandlers) DeleteBatchNotifications(w http.ResponseWriter, r
 
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	if _, err := h.Notifications.DeleteBatch(r.Context(), req.IDs, workspaceID, userID); err != nil {
 		slog.Error("failed to batch delete notifications", "error", err)
-		respondError(w, http.StatusBadRequest, "Failed to delete notifications")
+		respondAppError(w, BadRequest("failed to delete notifications"))
 		return
 	}
 

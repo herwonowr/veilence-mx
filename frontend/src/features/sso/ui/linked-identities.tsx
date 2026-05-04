@@ -2,8 +2,10 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Badge, EmptyState, ConfirmDialog } from "@/ui"
 import { Link2, Unlink, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 import { useLinkedIdentities, useUnlinkIdentity, useSSOProviders } from "@/features/sso"
-import { initiateLinkIdentity } from "@/domains/sso"
+import { buildLinkIdentityUrl } from "@/domains/sso"
+import { ROUTES, getStoredAccessToken, sanitizeErrorMessage } from "@/core"
 
 const providerLabel = (provider: string) => {
   switch (provider) {
@@ -27,6 +29,8 @@ export const LinkedIdentities = () => {
 
   const identities = identitiesRes?.data ?? []
   const providers = providersRes?.data?.providers ?? []
+  const linkedProviderTypes = new Set(identities.map((i) => i.provider))
+  const unlinkableProviders = providers.filter((p) => !linkedProviderTypes.has(p.provider))
 
   if (isLoading) {
     return (
@@ -79,7 +83,13 @@ export const LinkedIdentities = () => {
                       { label: "Email", value: identity.providerEmail },
                     ]}
                     actionLabel="Unlink"
-                    onConfirm={async () => { await unlinkMutation.mutateAsync(identity.id) }}
+                    onConfirm={async () => {
+                      try {
+                        await unlinkMutation.mutateAsync(identity.id)
+                      } catch (error) {
+                        toast.error(sanitizeErrorMessage(error, "Failed to unlink identity"))
+                      }
+                    }}
                   >
                     <Button
                       variant="outline"
@@ -95,14 +105,14 @@ export const LinkedIdentities = () => {
           </div>
         )}
 
-        {providers.length > 0 && (
+        {unlinkableProviders.length > 0 && (
           <div className="flex gap-2 pt-2">
-            {providers.map((provider) => (
+            {unlinkableProviders.map((provider) => (
               <Button
                 key={provider.id}
                 variant="outline"
                 size="sm"
-                onClick={() => initiateLinkIdentity(provider.id)}
+                onClick={() => { window.location.href = buildLinkIdentityUrl(provider.id, `${window.location.origin}${ROUTES.SSO_CALLBACK}?redirect=${encodeURIComponent("/account")}`, getStoredAccessToken() ?? undefined) }}
               >
                 <Link2 className="h-4 w-4 mr-1" />
                 Link {provider.displayName}

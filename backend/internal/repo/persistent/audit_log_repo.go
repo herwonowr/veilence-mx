@@ -88,6 +88,7 @@ func auditLogToDomain(m *AuditLog) *entity.AuditLog {
 	return &entity.AuditLog{
 		ID:            m.ID,
 		UserID:        derefStr(m.UserID),
+		UserEmail:     m.UserEmail,
 		WorkspaceID:   derefStr(m.WorkspaceID),
 		Action:        m.Action,
 		Resource:      m.Resource,
@@ -104,6 +105,7 @@ func auditLogToModel(d *entity.AuditLog) *AuditLog {
 	return &AuditLog{
 		ID:            d.ID,
 		UserID:        strToNullableUUID(d.UserID),
+		UserEmail:     d.UserEmail,
 		WorkspaceID:   strToNullableUUID(d.WorkspaceID),
 		Action:        d.Action,
 		Resource:      d.Resource,

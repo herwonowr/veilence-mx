@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/veilence/veilence-mx/backend/internal/ctxutil"
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 	"github.com/veilence/veilence-mx/backend/internal/usecase"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
-	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 )
 
 // AuditLogFilters is an alias for entity.AuditLogFilters.
@@ -40,8 +39,8 @@ func NewService(repo usecase.AuditLogRepository) *Service {
 // LogAction creates an audit log entry, extracting user, workspace, IP, user-agent,
 // and correlation ID from the request context.
 func (s *Service) LogAction(ctx context.Context, action, resource string, resourceID string, details string) {
-	userID := auth.UserIDFromContext(ctx)
-	workspaceID := rbac.WorkspaceIDFromContext(ctx)
+	userID := ctxutil.UserIDFromContext(ctx)
+	workspaceID := ctxutil.WorkspaceIDFromContext(ctx)
 	correlationID := CorrelationIDFromContext(ctx)
 
 	// Extract IP and User-Agent from the context (set by middleware)
@@ -118,6 +117,47 @@ func (s *Service) LogAuthEvent(ctx context.Context, action string, userID string
 		"action", action,
 		"user_id", userID,
 		"ip", ipAddress,
+	)
+}
+
+// LogActionWithUser creates an audit log entry with an explicit userID and userEmail,
+// bypassing context extraction. Used for SSO flows where no authenticated user
+// exists in the request context.
+func (s *Service) LogActionWithUser(ctx context.Context, userID, userEmail, action, resource, resourceID, details string) {
+	workspaceID := ctxutil.WorkspaceIDFromContext(ctx)
+	correlationID := CorrelationIDFromContext(ctx)
+	ipAddress := IPAddressFromContext(ctx)
+	userAgent := UserAgentFromContext(ctx)
+
+	entry := &entity.AuditLog{
+		UserID:        userID,
+		UserEmail:     userEmail,
+		WorkspaceID:   workspaceID,
+		Action:        action,
+		Resource:      resource,
+		ResourceID:    resourceID,
+		Details:       details,
+		IPAddress:     ipAddress,
+		UserAgent:     userAgent,
+		CorrelationID: correlationID,
+	}
+
+	if err := s.repo.Create(ctx, entry); err != nil {
+		slog.Error("failed to create audit log with user",
+			"error", err,
+			"action", action,
+			"resource", resource,
+			"resource_id", resourceID,
+			"user_id", userID,
+		)
+		return
+	}
+
+	slog.Debug("audit log created with explicit user",
+		"audit_id", entry.ID,
+		"action", action,
+		"resource", resource,
+		"user_id", userID,
 	)
 }
 

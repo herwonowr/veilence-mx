@@ -14,13 +14,16 @@ export interface PlatformUserSummary {
   lastName: string
   isSuperAdmin: boolean
   isActive: boolean
+  emailVerified: boolean
+  mustChangePassword: boolean
+  deactivatedAt: string | null
   authMethod: "password" | "google" | "github" | "saml"
   createdAt: string
+  updatedAt: string
   lastLoginAt: string | null
 }
 
 export interface PlatformUserDetail extends PlatformUserSummary {
-  emailVerified: boolean
   identities: LinkedIdentity[]
   workspaces: UserWorkspace[]
 }
@@ -39,6 +42,8 @@ export interface UserWorkspace {
 }
 
 export interface UpdatePlatformUserRequest {
+  firstName?: string
+  lastName?: string
   isSuperAdmin?: boolean
   isActive?: boolean
 }

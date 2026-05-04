@@ -35,6 +35,7 @@ import {
 } from "@/domains/sso"
 import { SAMLConfigForm } from "@/features/sso-admin/ui/saml-config-form"
 import { OAuthConfigForm } from "@/features/sso-admin/ui/oauth-config-form"
+import { SAMLSPInfo } from "@/features/sso-admin/ui/saml-sp-info"
 import { ZodError } from "zod"
 
 interface SSOConfigFormProps {
@@ -206,6 +207,10 @@ export const SSOConfigForm = ({
   }
 
   return (
+    <>
+    {provider === "saml" && (
+      <SAMLSPInfo configId={existingConfig?.id} />
+    )}
     <Card>
       <CardHeader>
         <CardTitle>{isEditing ? "Edit" : "Create"} SSO Configuration</CardTitle>
@@ -271,7 +276,7 @@ export const SSOConfigForm = ({
             </Field>
           </div>
 
-          <Field>
+          <Field data-invalid={!!errors.allowedDomains}>
             <FieldLabel>Allowed Domains (comma-separated)</FieldLabel>
             <Input
               value={allowedDomains}
@@ -279,7 +284,8 @@ export const SSOConfigForm = ({
               placeholder="example.com, corp.example.com"
               disabled={!isEnabled}
             />
-            {autoCreateUser && (
+            {errors.allowedDomains && <FieldError>{errors.allowedDomains}</FieldError>}
+            {autoCreateUser && !errors.allowedDomains && (
               <p className="text-xs text-muted-foreground">
                 Required when auto-create is enabled. Only users from these domains can be auto-created.
               </p>
@@ -336,5 +342,6 @@ export const SSOConfigForm = ({
         </form>
       </CardContent>
     </Card>
+    </>
   )
 }

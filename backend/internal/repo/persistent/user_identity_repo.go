@@ -86,7 +86,6 @@ func userIdentityToDomain(m *UserIdentity) *entity.UserIdentity {
 		Provider:       entity.AuthProvider(m.Provider),
 		ProviderUserID: m.ProviderUserID,
 		Email:          m.Email,
-		Metadata:       m.Metadata,
 		CreatedAt:      m.CreatedAt,
 		UpdatedAt:      m.UpdatedAt,
 	}
@@ -99,7 +98,6 @@ func userIdentityToModel(d *entity.UserIdentity) *UserIdentity {
 		Provider:       string(d.Provider),
 		ProviderUserID: d.ProviderUserID,
 		Email:          d.Email,
-		Metadata:       d.Metadata,
 		CreatedAt:      d.CreatedAt,
 		UpdatedAt:      d.UpdatedAt,
 	}

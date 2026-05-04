@@ -1,11 +1,24 @@
 import { z } from "zod"
 
+const autoCreateDomainRefinement = (
+  data: { autoCreateUser: boolean; allowedDomains?: string },
+  ctx: z.RefinementCtx,
+) => {
+  if (data.autoCreateUser && (!data.allowedDomains || data.allowedDomains.trim() === "")) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Allowed domains are required when auto-create users is enabled",
+      path: ["allowedDomains"],
+    })
+  }
+}
+
 export const ssoConfigBaseSchema = z.object({
   displayName: z.string().min(1, "Display name is required"),
   isEnabled: z.boolean(),
   autoCreateUser: z.boolean(),
   allowedDomains: z.string().optional(),
-})
+}).superRefine(autoCreateDomainRefinement)
 
 export const samlConfigSchema = ssoConfigBaseSchema.extend({
   provider: z.literal("saml"),
@@ -31,7 +44,7 @@ export const ssoConfigUpdateBaseSchema = z.object({
   isEnabled: z.boolean(),
   autoCreateUser: z.boolean(),
   allowedDomains: z.string().optional(),
-})
+}).superRefine(autoCreateDomainRefinement)
 
 export const samlConfigUpdateSchema = ssoConfigUpdateBaseSchema.extend({
   samlEntityId: z.string().min(1, "IdP Entity ID is required"),

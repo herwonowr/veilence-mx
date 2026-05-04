@@ -11,13 +11,13 @@ import (
 func (h *WorkspaceHandlers) ListRoles(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	roles, err := h.RBAC.GetWorkspaceRoles(r.Context(), workspaceID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list roles")
+		respondAppError(w, Internal("failed to list roles"))
 		return
 	}
 
@@ -43,7 +43,7 @@ func (h *WorkspaceHandlers) ListRoles(w http.ResponseWriter, r *http.Request) {
 func (h *WorkspaceHandlers) ListPermissions(w http.ResponseWriter, r *http.Request) {
 	perms, err := h.RBAC.GetAllPermissions(r.Context())
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list permissions")
+		respondAppError(w, Internal("failed to list permissions"))
 		return
 	}
 

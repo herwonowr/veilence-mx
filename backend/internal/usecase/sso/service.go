@@ -3,16 +3,19 @@ package sso
 import (
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"log/slog"
+	"math/big"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
@@ -21,63 +24,68 @@ import (
 
 // Sentinel errors returned by SSO operations.
 var (
-	ErrSSONotConfigured    = errors.New("sso not configured")
 	ErrSSONotEnabled       = errors.New("sso not enabled")
 	ErrSSOStateNotFound    = errors.New("sso state not found or expired")
-	ErrIdentityConflict    = errors.New("identity already linked to another account")
 	ErrCannotUnlinkLast    = errors.New("cannot unlink last identity without password")
 	ErrIdentityNotFound    = errors.New("identity not found")
 	ErrUnsupportedProvider = errors.New("unsupported sso provider")
-	ErrDomainNotAllowed    = errors.New("email domain not allowed")
-	ErrAccountDeactivated  = errors.New("account deactivated")
-	ErrIdentityNotLinked   = errors.New("identity not linked")
-	ErrAccountNotFound     = errors.New("account not found")
+	ErrIdentityConflict    = errors.New("identity already linked to another account")
 )
 
 const (
-	// PKCEVerifierLength is the byte length of PKCE code_verifier (generates 43-char base64url).
-	PKCEVerifierLength = 32
+	// pkceVerifierLength is the byte length of PKCE code_verifier (generates 43-char base64url).
+	pkceVerifierLength = 32
 )
 
 // SSOCallbackResult holds the outcome of an SSO callback.
 type SSOCallbackResult struct {
-	RedirectURL string     // where to redirect the browser
-	TokenPair   *TokenPair // nil if error redirect
-	IsError     bool       // true = redirect is an error page, no cookies
+	CallbackURL string             // full frontend callback URL to redirect to
+	TokenPair   *usecase.TokenPair // nil if error redirect
+	IsError     bool               // true = redirect is an error page, no cookies
+	ErrorCode   string             // error code for the frontend (e.g. "account_not_found")
+	ErrorMsg    string             // optional human-readable error message
 }
 
 // Service provides SSO business logic operations.
 type Service struct {
-	configRepo          SSOConfigRepository
-	identityRepo        UserIdentityRepository
-	stateRepo           SSOStateRepository
-	samlProvider        SAMLProvider
-	oauthExchanger      OAuthTokenExchanger
-	authService         AuthSessionCreator
+	configRepo          usecase.SSOConfigRepository
+	identityRepo        usecase.UserIdentityRepository
+	stateRepo           usecase.SSOStateRepository
+	samlProvider        usecase.SAMLProvider
+	oauthExchanger      usecase.OAuthTokenExchanger
+	authService         usecase.AuthSessionCreator
 	userFinder          usecase.UserRepository
 	userCreator         usecase.UserAccountCreator
-	sessionRepo         SessionRepository
-	refreshTokenRepo    RefreshTokenRepository
+	sessionRepo         usecase.SessionRepository
+	refreshTokenRepo    usecase.RefreshTokenRepository
 	settingRepo         usecase.SettingRepository
-	auditLogger         AuditLogger
-	metadataFetcher     SAMLMetadataFetcher
+	auditLogger         usecase.AuditLogger
+	metadataFetcher     usecase.SAMLMetadataFetcher
 	registrationEnabled bool
 	stateTTL            time.Duration
 	baseURL             string
+	// spKey is the cached SP signing private key (loaded/generated on first use).
+	spKey *rsa.PrivateKey
+	// spCertPEM is the cached SP signing certificate in PEM format.
+	spCertPEM string
+	// spKeyOnce ensures EnsureSPSigningKey only generates/loads once.
+	spKeyOnce sync.Once
+	// spKeyErr stores the error from the first EnsureSPSigningKey call.
+	spKeyErr error
 }
 
 // NewService creates a new SSO service.
 func NewService(
-	configRepo SSOConfigRepository,
-	identityRepo UserIdentityRepository,
-	stateRepo SSOStateRepository,
-	samlProvider SAMLProvider,
-	oauthExchanger OAuthTokenExchanger,
-	authService AuthSessionCreator,
+	configRepo usecase.SSOConfigRepository,
+	identityRepo usecase.UserIdentityRepository,
+	stateRepo usecase.SSOStateRepository,
+	samlProvider usecase.SAMLProvider,
+	oauthExchanger usecase.OAuthTokenExchanger,
+	authService usecase.AuthSessionCreator,
 	userFinder usecase.UserRepository,
 	userCreator usecase.UserAccountCreator,
-	sessionRepo SessionRepository,
-	refreshTokenRepo RefreshTokenRepository,
+	sessionRepo usecase.SessionRepository,
+	refreshTokenRepo usecase.RefreshTokenRepository,
 	settingRepo usecase.SettingRepository,
 	stateTTL time.Duration,
 	baseURL string,
@@ -108,12 +116,12 @@ func NewService(
 type ServiceOption func(*Service)
 
 // WithAuditLogger sets the audit logger.
-func WithAuditLogger(al AuditLogger) ServiceOption {
+func WithAuditLogger(al usecase.AuditLogger) ServiceOption {
 	return func(s *Service) { s.auditLogger = al }
 }
 
 // WithMetadataFetcher sets the SAML metadata fetcher.
-func WithMetadataFetcher(mf SAMLMetadataFetcher) ServiceOption {
+func WithMetadataFetcher(mf usecase.SAMLMetadataFetcher) ServiceOption {
 	return func(s *Service) { s.metadataFetcher = mf }
 }
 
@@ -135,21 +143,13 @@ func (s *Service) GetEnabledProviders(ctx context.Context) ([]entity.SSOConfig, 
 
 // InitiateSSOLogin starts SSO for an unauthenticated user on the login page.
 // Returns the redirect URL to the IdP.
-func (s *Service) InitiateSSOLogin(ctx context.Context, configID, redirectURL string) (string, error) {
+func (s *Service) InitiateSSOLogin(ctx context.Context, configID, callbackURL string) (string, error) {
 	config, err := s.configRepo.FindByID(ctx, configID)
 	if err != nil {
 		return "", fmt.Errorf("InitiateSSOLogin: %w", err)
 	}
 	if !config.IsEnabled {
 		return "", ErrSSONotEnabled
-	}
-
-	// Validate redirect URL - must be a relative path or empty.
-	if redirectURL != "" && !isValidRedirectURL(redirectURL) {
-		redirectURL = "/"
-	}
-	if redirectURL == "" {
-		redirectURL = "/dashboard"
 	}
 
 	// Generate random state.
@@ -162,7 +162,7 @@ func (s *Service) InitiateSSOLogin(ctx context.Context, configID, redirectURL st
 		ConfigID:    configID,
 		State:       stateToken,
 		Provider:    config.Provider,
-		RedirectURL: redirectURL,
+		CallbackURL: callbackURL,
 		Mode:        entity.SSOModeLogin,
 		ExpiresAt:   time.Now().Add(s.stateTTL),
 	}
@@ -171,10 +171,12 @@ func (s *Service) InitiateSSOLogin(ctx context.Context, configID, redirectURL st
 
 	switch config.Provider {
 	case entity.SSOProviderSAML:
-		idpURL, err = s.samlProvider.GenerateAuthnRequest(config)
+		var requestID string
+		idpURL, requestID, err = s.samlProvider.GenerateAuthnRequest(config)
 		if err != nil {
 			return "", fmt.Errorf("InitiateSSOLogin: generating SAML request: %w", err)
 		}
+		ssoState.SAMLRequestID = requestID
 		// Append RelayState to the SAML redirect URL.
 		if strings.Contains(idpURL, "?") {
 			idpURL += "&RelayState=" + stateToken
@@ -183,16 +185,24 @@ func (s *Service) InitiateSSOLogin(ctx context.Context, configID, redirectURL st
 		}
 
 	case entity.SSOProviderGoogle, entity.SSOProviderGitHub:
-		// Generate PKCE code verifier.
-		codeVerifier, codeChallenge, genErr := generatePKCE()
-		if genErr != nil {
-			return "", fmt.Errorf("InitiateSSOLogin: generating PKCE: %w", genErr)
+		// Generate PKCE code verifier (only effective for Google; GitHub ignores PKCE).
+		var codeChallenge string
+		if config.Provider == entity.SSOProviderGoogle {
+			codeVerifier, cc, genErr := generatePKCE()
+			if genErr != nil {
+				return "", fmt.Errorf("InitiateSSOLogin: generating PKCE: %w", genErr)
+			}
+			ssoState.CodeVerifier = codeVerifier
+			codeChallenge = cc
 		}
-		ssoState.CodeVerifier = codeVerifier
 		idpURL = buildOAuthURL(config, stateToken, codeChallenge, s.baseURL)
 
 	default:
 		return "", ErrUnsupportedProvider
+	}
+
+	if err := ssoState.Validate(); err != nil {
+		return "", fmt.Errorf("InitiateSSOLogin: validating state: %w", err)
 	}
 
 	if err := s.stateRepo.Create(ctx, ssoState); err != nil {
@@ -205,7 +215,7 @@ func (s *Service) InitiateSSOLogin(ctx context.Context, configID, redirectURL st
 // --- SSO Callbacks ---
 
 // HandleSAMLCallback processes the SAML ACS callback.
-func (s *Service) HandleSAMLCallback(ctx context.Context, samlResponse, relayState string) (*SSOCallbackResult, error) {
+func (s *Service) HandleSAMLCallback(ctx context.Context, samlResponse, relayState, ipAddress, userAgent string) (*SSOCallbackResult, error) {
 	// Look up state.
 	ssoState, err := s.stateRepo.FindByState(ctx, relayState)
 	if err != nil {
@@ -225,7 +235,7 @@ func (s *Service) HandleSAMLCallback(ctx context.Context, samlResponse, relaySta
 	}
 
 	// Validate SAML response.
-	assertion, err := s.samlProvider.ValidateResponse(config, samlResponse)
+	assertion, err := s.samlProvider.ValidateResponse(config, samlResponse, ssoState.SAMLRequestID)
 	if err != nil {
 		return nil, fmt.Errorf("HandleSAMLCallback: validating SAML response: %w", err)
 	}
@@ -234,20 +244,31 @@ func (s *Service) HandleSAMLCallback(ctx context.Context, samlResponse, relaySta
 		// Handle identity linking
 		_, linkErr := s.LinkIdentity(ctx, *ssoState.UserID, entity.AuthProvider(config.Provider), assertion.NameID, assertion.Email)
 		if linkErr != nil {
+			errorCode := "internal_error"
+			errorMsg := "Failed to link identity. Please try again."
+			if errors.Is(linkErr, ErrIdentityConflict) {
+				errorCode = "identity_conflict"
+				errorMsg = "This identity is already linked to another account."
+			}
+			if s.auditLogger != nil {
+				s.auditLogger.LogActionWithUser(ctx, *ssoState.UserID, assertion.Email, "sso.identity_link_failed", "user_identity", *ssoState.UserID, fmt.Sprintf("email=%s provider=%s reason=%s", assertion.Email, config.Provider, errorCode))
+			}
 			return &SSOCallbackResult{
-				RedirectURL: appendError(ssoState.RedirectURL, "internal_error", linkErr.Error()),
+				CallbackURL: ssoState.CallbackURL,
 				IsError:     true,
+				ErrorCode:   errorCode,
+				ErrorMsg:    errorMsg,
 			}, nil
 		}
-		return &SSOCallbackResult{RedirectURL: ssoState.RedirectURL}, nil
+		return &SSOCallbackResult{CallbackURL: ssoState.CallbackURL}, nil
 	}
 
 	// Login mode - resolve user and issue JWT
-	return s.resolveAndIssueJWT(ctx, assertion.Email, assertion.FirstName, assertion.LastName, entity.SSOProvider(config.Provider), assertion.NameID, config.ID, ssoState)
+	return s.resolveAndIssueJWT(ctx, assertion.Email, assertion.FirstName, assertion.LastName, entity.SSOProvider(config.Provider), assertion.NameID, config, ssoState, ipAddress, userAgent)
 }
 
 // HandleOAuthCallback processes the OAuth callback for Google or GitHub.
-func (s *Service) HandleOAuthCallback(ctx context.Context, code, state string) (*SSOCallbackResult, error) {
+func (s *Service) HandleOAuthCallback(ctx context.Context, code, state, ipAddress, userAgent string) (*SSOCallbackResult, error) {
 	// Look up state.
 	ssoState, err := s.stateRepo.FindByState(ctx, state)
 	if err != nil {
@@ -284,8 +305,10 @@ func (s *Service) HandleOAuthCallback(ctx context.Context, code, state string) (
 	if len(config.GitHubOrgs) > 0 && config.Provider == entity.SSOProviderGitHub {
 		if !isOrgMember(userInfo.Organizations, config.GitHubOrgs) {
 			return &SSOCallbackResult{
-				RedirectURL: appendError(ssoState.RedirectURL, "domain_not_allowed", "Not a member of any allowed GitHub organization"),
+				CallbackURL: ssoState.CallbackURL,
 				IsError:     true,
+				ErrorCode:   "domain_not_allowed",
+				ErrorMsg:    "Not a member of any allowed GitHub organization",
 			}, nil
 		}
 	}
@@ -294,8 +317,10 @@ func (s *Service) HandleOAuthCallback(ctx context.Context, code, state string) (
 	if config.GoogleHostedDomain != "" && config.Provider == entity.SSOProviderGoogle {
 		if !strings.EqualFold(userInfo.HostedDomain, config.GoogleHostedDomain) {
 			return &SSOCallbackResult{
-				RedirectURL: appendError(ssoState.RedirectURL, "domain_not_allowed", "Google account is not from the required hosted domain"),
+				CallbackURL: ssoState.CallbackURL,
 				IsError:     true,
+				ErrorCode:   "domain_not_allowed",
+				ErrorMsg:    "Google account is not from the required hosted domain",
 			}, nil
 		}
 	}
@@ -304,60 +329,82 @@ func (s *Service) HandleOAuthCallback(ctx context.Context, code, state string) (
 		// Handle identity linking
 		_, linkErr := s.LinkIdentity(ctx, *ssoState.UserID, entity.AuthProvider(ssoState.Provider), userInfo.ProviderUserID, userInfo.Email)
 		if linkErr != nil {
+			errorCode := "internal_error"
+			errorMsg := "Failed to link identity. Please try again."
+			if errors.Is(linkErr, ErrIdentityConflict) {
+				errorCode = "identity_conflict"
+				errorMsg = "This identity is already linked to another account."
+			}
+			if s.auditLogger != nil {
+				s.auditLogger.LogActionWithUser(ctx, *ssoState.UserID, userInfo.Email, "sso.identity_link_failed", "user_identity", *ssoState.UserID, fmt.Sprintf("email=%s provider=%s reason=%s", userInfo.Email, ssoState.Provider, errorCode))
+			}
 			return &SSOCallbackResult{
-				RedirectURL: appendError(ssoState.RedirectURL, "internal_error", linkErr.Error()),
+				CallbackURL: ssoState.CallbackURL,
 				IsError:     true,
+				ErrorCode:   errorCode,
+				ErrorMsg:    errorMsg,
 			}, nil
 		}
-		return &SSOCallbackResult{RedirectURL: ssoState.RedirectURL}, nil
+		return &SSOCallbackResult{CallbackURL: ssoState.CallbackURL}, nil
 	}
 
 	// Login mode - resolve user and issue JWT
-	return s.resolveAndIssueJWT(ctx, userInfo.Email, userInfo.FirstName, userInfo.LastName, entity.SSOProvider(config.Provider), userInfo.ProviderUserID, config.ID, ssoState)
+	return s.resolveAndIssueJWT(ctx, userInfo.Email, userInfo.FirstName, userInfo.LastName, entity.SSOProvider(config.Provider), userInfo.ProviderUserID, config, ssoState, ipAddress, userAgent)
 }
 
 // resolveAndIssueJWT implements the user resolution order from the spec.
-func (s *Service) resolveAndIssueJWT(ctx context.Context, email, firstName, lastName string, provider entity.SSOProvider, providerUserID, configID string, state *entity.SSOState) (*SSOCallbackResult, error) {
-	// 1. Load config
-	config, err := s.configRepo.FindByID(ctx, configID)
-	if err != nil {
-		return nil, fmt.Errorf("resolveAndIssueJWT: %w", err)
-	}
-
-	// 2. Domain restriction check
+func (s *Service) resolveAndIssueJWT(ctx context.Context, email, firstName, lastName string, provider entity.SSOProvider, providerUserID string, config *entity.SSOConfig, state *entity.SSOState, ipAddress, userAgent string) (*SSOCallbackResult, error) {
+	// Domain restriction check
 	if len(config.AllowedDomains) > 0 && !emailInDomains(email, config.AllowedDomains) {
-		return &SSOCallbackResult{RedirectURL: appendError(state.RedirectURL, "domain_not_allowed", ""), IsError: true}, nil
+		if s.auditLogger != nil {
+			s.auditLogger.LogActionWithUser(ctx, "", email, "sso.login_failed", "auth", "", fmt.Sprintf("email=%s provider=%s reason=domain not allowed", email, provider))
+		}
+		return &SSOCallbackResult{CallbackURL: state.CallbackURL, IsError: true, ErrorCode: "domain_not_allowed"}, nil
 	}
 
 	// 3a. Lookup by provider+providerUserID
-	identity, _ := s.identityRepo.FindByProviderAndProviderUserID(ctx, entity.AuthProvider(provider), providerUserID)
+	identity, findIdentErr := s.identityRepo.FindByProviderAndProviderUserID(ctx, entity.AuthProvider(provider), providerUserID)
+	if findIdentErr != nil && !errors.Is(findIdentErr, entity.ErrNotFound) {
+		return nil, fmt.Errorf("resolveAndIssueJWT: finding identity: %w", findIdentErr)
+	}
 	if identity != nil {
 		user, findErr := s.userFinder.FindByID(ctx, identity.UserID)
 		if findErr != nil {
 			return nil, fmt.Errorf("resolveAndIssueJWT: finding user: %w", findErr)
 		}
 		if !user.IsActive {
-			return &SSOCallbackResult{RedirectURL: appendError(state.RedirectURL, "account_deactivated", ""), IsError: true}, nil
+			if s.auditLogger != nil {
+				s.auditLogger.LogActionWithUser(ctx, user.ID, email, "sso.login_failed", "auth", user.ID, fmt.Sprintf("email=%s provider=%s reason=account deactivated", email, provider))
+			}
+			return &SSOCallbackResult{CallbackURL: state.CallbackURL, IsError: true, ErrorCode: "account_deactivated"}, nil
 		}
-		tokenPair, tokenErr := s.authService.CreateSessionForUser(ctx, identity.UserID, string(provider))
+		tokenPair, tokenErr := s.authService.CreateSessionForUser(ctx, identity.UserID, string(provider), ipAddress, userAgent)
 		if tokenErr != nil {
 			return nil, fmt.Errorf("resolveAndIssueJWT: creating session: %w", tokenErr)
 		}
-		return &SSOCallbackResult{RedirectURL: state.RedirectURL, TokenPair: tokenPair}, nil
+		if s.auditLogger != nil {
+			s.auditLogger.LogActionWithUser(ctx, user.ID, email, "sso.login_success", "auth", user.ID, fmt.Sprintf("email=%s provider=%s user_type=existing", email, provider))
+		}
+		return &SSOCallbackResult{CallbackURL: state.CallbackURL, TokenPair: tokenPair}, nil
 	}
 
 	// 3b. Lookup by email (case-insensitive) - REJECT if found
-	user, _ := s.userFinder.FindByEmail(ctx, strings.ToLower(email))
+	user, findUserErr := s.userFinder.FindByEmail(ctx, strings.ToLower(email))
+	if findUserErr != nil && !errors.Is(findUserErr, entity.ErrNotFound) {
+		return nil, fmt.Errorf("resolveAndIssueJWT: finding user by email: %w", findUserErr)
+	}
 	if user != nil {
 		return &SSOCallbackResult{
-			RedirectURL: appendError(state.RedirectURL, "identity_not_linked", "An account with this email exists. Link your SSO identity from account settings first."),
+			CallbackURL: state.CallbackURL,
 			IsError:     true,
+			ErrorCode:   "identity_not_linked",
+			ErrorMsg:    "An account with this email exists. Link your SSO identity from account settings first.",
 		}, nil
 	}
 
 	// 3c. User not found - auto-create?
 	if !config.AutoCreateUser {
-		return &SSOCallbackResult{RedirectURL: appendError(state.RedirectURL, "account_not_found", ""), IsError: true}, nil
+		return &SSOCallbackResult{CallbackURL: state.CallbackURL, IsError: true, ErrorCode: "account_not_found"}, nil
 	}
 
 	// Create new user (is_superadmin=false, is_active=true, email_verified=true)
@@ -366,25 +413,32 @@ func (s *Service) resolveAndIssueJWT(ctx context.Context, email, firstName, last
 		return nil, fmt.Errorf("resolveAndIssueJWT: creating user: %w", createErr)
 	}
 
-	createIdentityErr := s.identityRepo.Create(ctx, &entity.UserIdentity{
+	newIdentity := &entity.UserIdentity{
 		UserID:         newUser.ID,
 		Provider:       entity.AuthProvider(provider),
 		ProviderUserID: providerUserID,
 		Email:          email,
-	})
+	}
+	if err := newIdentity.Validate(); err != nil {
+		return nil, fmt.Errorf("resolveAndIssueJWT: validating identity: %w", err)
+	}
+	createIdentityErr := s.identityRepo.Create(ctx, newIdentity)
 	if createIdentityErr != nil {
 		return nil, fmt.Errorf("resolveAndIssueJWT: creating identity: %w", createIdentityErr)
 	}
 
 	if s.auditLogger != nil {
-		s.auditLogger.LogAction(ctx, "user.sso_created", "user", newUser.ID, fmt.Sprintf("provider=%s config_id=%s", provider, configID))
+		s.auditLogger.LogActionWithUser(ctx, newUser.ID, email, "user.sso_created", "user", newUser.ID, fmt.Sprintf("email=%s provider=%s config_id=%s", email, provider, config.ID))
 	}
 
-	tokenPair, tokenErr := s.authService.CreateSessionForUser(ctx, newUser.ID, string(provider))
+	tokenPair, tokenErr := s.authService.CreateSessionForUser(ctx, newUser.ID, string(provider), ipAddress, userAgent)
 	if tokenErr != nil {
 		return nil, fmt.Errorf("resolveAndIssueJWT: creating session: %w", tokenErr)
 	}
-	return &SSOCallbackResult{RedirectURL: state.RedirectURL, TokenPair: tokenPair}, nil
+	if s.auditLogger != nil {
+		s.auditLogger.LogActionWithUser(ctx, newUser.ID, email, "sso.login_success", "auth", newUser.ID, fmt.Sprintf("email=%s provider=%s user_type=auto_created", email, provider))
+	}
+	return &SSOCallbackResult{CallbackURL: state.CallbackURL, TokenPair: tokenPair}, nil
 }
 
 // --- SAML Single Logout ---
@@ -392,8 +446,6 @@ func (s *Service) resolveAndIssueJWT(ctx context.Context, email, firstName, last
 // HandleSAMLSLO receives an IdP-initiated LogoutRequest and invalidates JWT sessions.
 // signature and sigAlg are extracted from the request (form values or query params).
 func (s *Service) HandleSAMLSLO(ctx context.Context, samlRequest, signature, sigAlg, relayState string) error {
-	slog.Info("HandleSAMLSLO: processing IdP-initiated logout")
-
 	// Parse the SAML LogoutRequest to extract the NameID and Issuer.
 	nameID, issuer, parseErr := s.samlProvider.ParseLogoutRequest(samlRequest)
 	if parseErr != nil {
@@ -403,8 +455,6 @@ func (s *Service) HandleSAMLSLO(ctx context.Context, samlRequest, signature, sig
 	if nameID == "" {
 		return fmt.Errorf("HandleSAMLSLO: no NameID in logout request")
 	}
-
-	slog.Info("HandleSAMLSLO: parsed logout request", "nameID", nameID, "issuer", issuer)
 
 	// Look up the SSO config by the issuer (entity ID) to get the signing certificate.
 	if issuer == "" {
@@ -417,7 +467,6 @@ func (s *Service) HandleSAMLSLO(ctx context.Context, samlRequest, signature, sig
 
 	// Verify the signature on the LogoutRequest before invalidating any sessions.
 	if verifyErr := s.samlProvider.VerifyLogoutSignature(samlRequest, signature, sigAlg, config.SAMLCertificate); verifyErr != nil {
-		slog.Warn("HandleSAMLSLO: signature verification failed", "issuer", issuer, "error", verifyErr)
 		return fmt.Errorf("HandleSAMLSLO: signature verification failed: %w", verifyErr)
 	}
 
@@ -425,7 +474,6 @@ func (s *Service) HandleSAMLSLO(ctx context.Context, samlRequest, signature, sig
 	identity, err := s.identityRepo.FindByProviderAndProviderUserID(ctx, entity.AuthProviderSAML, nameID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
-			slog.Warn("HandleSAMLSLO: no identity found for NameID", "nameID", nameID)
 			return nil
 		}
 		return fmt.Errorf("HandleSAMLSLO: finding identity: %w", err)
@@ -443,7 +491,6 @@ func (s *Service) HandleSAMLSLO(ctx context.Context, samlRequest, signature, sig
 		s.auditLogger.LogAction(ctx, "user.slo_initiated", "user", identity.UserID, fmt.Sprintf("nameID=%s", nameID))
 	}
 
-	slog.Info("HandleSAMLSLO: sessions invalidated", "userID", identity.UserID, "nameID", nameID)
 	return nil
 }
 
@@ -476,6 +523,9 @@ func (s *Service) LinkIdentity(ctx context.Context, userID string, provider enti
 		Provider:       provider,
 		ProviderUserID: providerUserID,
 		Email:          email,
+	}
+	if err := identity.Validate(); err != nil {
+		return nil, fmt.Errorf("LinkIdentity: validating: %w", err)
 	}
 	if err := s.identityRepo.Create(ctx, identity); err != nil {
 		return nil, fmt.Errorf("LinkIdentity: creating: %w", err)
@@ -541,20 +591,13 @@ func (s *Service) ListIdentities(ctx context.Context, userID string) ([]entity.U
 
 // InitiateLinkIdentity starts an identity linking flow for a user.
 // Returns the redirect URL for the IdP.
-func (s *Service) InitiateLinkIdentity(ctx context.Context, userID, configID, redirectURL string) (string, error) {
+func (s *Service) InitiateLinkIdentity(ctx context.Context, userID, configID, callbackURL string) (string, error) {
 	config, err := s.configRepo.FindByID(ctx, configID)
 	if err != nil {
 		return "", fmt.Errorf("InitiateLinkIdentity: %w", err)
 	}
 	if !config.IsEnabled {
 		return "", ErrSSONotEnabled
-	}
-
-	if redirectURL == "" {
-		redirectURL = "/account"
-	}
-	if !isValidRedirectURL(redirectURL) {
-		redirectURL = "/account"
 	}
 
 	// Generate random state.
@@ -568,7 +611,7 @@ func (s *Service) InitiateLinkIdentity(ctx context.Context, userID, configID, re
 		State:       stateToken,
 		UserID:      &userID,
 		Provider:    config.Provider,
-		RedirectURL: redirectURL,
+		CallbackURL: callbackURL,
 		Mode:        entity.SSOModeLink,
 		ExpiresAt:   time.Now().Add(s.stateTTL),
 	}
@@ -576,10 +619,12 @@ func (s *Service) InitiateLinkIdentity(ctx context.Context, userID, configID, re
 	var idpURL string
 	switch config.Provider {
 	case entity.SSOProviderSAML:
-		idpURL, err = s.samlProvider.GenerateAuthnRequest(config)
+		var requestID string
+		idpURL, requestID, err = s.samlProvider.GenerateAuthnRequest(config)
 		if err != nil {
 			return "", fmt.Errorf("InitiateLinkIdentity: generating SAML request: %w", err)
 		}
+		ssoState.SAMLRequestID = requestID
 		if strings.Contains(idpURL, "?") {
 			idpURL += "&RelayState=" + stateToken
 		} else {
@@ -587,15 +632,23 @@ func (s *Service) InitiateLinkIdentity(ctx context.Context, userID, configID, re
 		}
 
 	case entity.SSOProviderGoogle, entity.SSOProviderGitHub:
-		codeVerifier, codeChallenge, genErr := generatePKCE()
-		if genErr != nil {
-			return "", fmt.Errorf("InitiateLinkIdentity: generating PKCE: %w", genErr)
+		var codeChallenge string
+		if config.Provider == entity.SSOProviderGoogle {
+			codeVerifier, cc, genErr := generatePKCE()
+			if genErr != nil {
+				return "", fmt.Errorf("InitiateLinkIdentity: generating PKCE: %w", genErr)
+			}
+			ssoState.CodeVerifier = codeVerifier
+			codeChallenge = cc
 		}
-		ssoState.CodeVerifier = codeVerifier
 		idpURL = buildOAuthURL(config, stateToken, codeChallenge, s.baseURL)
 
 	default:
 		return "", ErrUnsupportedProvider
+	}
+
+	if err := ssoState.Validate(); err != nil {
+		return "", fmt.Errorf("InitiateLinkIdentity: validating state: %w", err)
 	}
 
 	if err := s.stateRepo.Create(ctx, ssoState); err != nil {
@@ -627,6 +680,7 @@ func (s *Service) GetSSOConfigByID(ctx context.Context, id string) (*entity.SSOC
 
 // CreateSSOConfig creates a platform-level SSO configuration.
 func (s *Service) CreateSSOConfig(ctx context.Context, config *entity.SSOConfig) (*entity.SSOConfig, error) {
+	config.SetDefaults()
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("CreateSSOConfig: %w", err)
 	}
@@ -636,7 +690,7 @@ func (s *Service) CreateSSOConfig(ctx context.Context, config *entity.SSOConfig)
 	}
 
 	if s.auditLogger != nil {
-		s.auditLogger.LogAction(ctx, "sso.config_created", "sso_config", config.ID, fmt.Sprintf("provider=%s", config.Provider))
+		s.auditLogger.LogAction(ctx, "sso.config_created", "sso_config", config.ID, fmt.Sprintf("provider=%s display_name=%s", config.Provider, config.DisplayName))
 	}
 
 	return config, nil
@@ -645,6 +699,7 @@ func (s *Service) CreateSSOConfig(ctx context.Context, config *entity.SSOConfig)
 // UpdateSSOConfig updates an SSO configuration.
 func (s *Service) UpdateSSOConfig(ctx context.Context, id string, config *entity.SSOConfig) (*entity.SSOConfig, error) {
 	config.ID = id
+	config.SetDefaults()
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("UpdateSSOConfig: %w", err)
 	}
@@ -654,7 +709,7 @@ func (s *Service) UpdateSSOConfig(ctx context.Context, id string, config *entity
 	}
 
 	if s.auditLogger != nil {
-		s.auditLogger.LogAction(ctx, "sso.config_updated", "sso_config", id, fmt.Sprintf("provider=%s", config.Provider))
+		s.auditLogger.LogAction(ctx, "sso.config_updated", "sso_config", id, fmt.Sprintf("provider=%s display_name=%s", config.Provider, config.DisplayName))
 	}
 
 	return config, nil
@@ -662,12 +717,18 @@ func (s *Service) UpdateSSOConfig(ctx context.Context, id string, config *entity
 
 // DeleteSSOConfig removes an SSO configuration.
 func (s *Service) DeleteSSOConfig(ctx context.Context, id string) error {
+	// Fetch config before deletion so we can log details.
+	config, err := s.configRepo.FindByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("DeleteSSOConfig: finding config: %w", err)
+	}
+
 	if err := s.configRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("DeleteSSOConfig: %w", err)
 	}
 
 	if s.auditLogger != nil {
-		s.auditLogger.LogAction(ctx, "sso.config_deleted", "sso_config", id, "")
+		s.auditLogger.LogAction(ctx, "sso.config_deleted", "sso_config", id, fmt.Sprintf("provider=%s display_name=%s", config.Provider, config.DisplayName))
 	}
 
 	return nil
@@ -733,8 +794,115 @@ func (s *Service) GenerateSAMLMetadata(ctx context.Context, configID string) ([]
 }
 
 // GetSAMLEntityID returns the base SP entity ID used in SAML responses.
-func (s *Service) GetSAMLEntityID() string {
-	return s.baseURL
+func (s *Service) GetSAMLEntityID(_ context.Context) string {
+	return s.baseURL + "/api/auth/saml/metadata"
+}
+
+// EnsureSPSigningKey loads or generates the platform SP signing key pair.
+// It loads from the settings table; if not found, generates a new RSA 2048-bit key
+// and self-signed certificate (10-year validity) and stores them.
+// Returns the private key and PEM-encoded certificate.
+// Uses sync.Once to ensure concurrent calls only generate/load once.
+func (s *Service) EnsureSPSigningKey(ctx context.Context) (*rsa.PrivateKey, string, error) {
+	s.spKeyOnce.Do(func() {
+		s.spKeyErr = s.loadOrGenerateSPKey(ctx)
+	})
+	if s.spKeyErr != nil {
+		return nil, "", s.spKeyErr
+	}
+	return s.spKey, s.spCertPEM, nil
+}
+
+// loadOrGenerateSPKey does the actual work of loading or generating the SP key pair.
+func (s *Service) loadOrGenerateSPKey(ctx context.Context) error {
+	// Try to load from platform settings.
+	keys := []string{"saml.sp_private_key", "saml.sp_certificate"}
+	settings, err := s.settingRepo.FindPlatformSettings(ctx, keys)
+	if err != nil {
+		return fmt.Errorf("EnsureSPSigningKey: loading settings: %w", err)
+	}
+
+	var keyPEM, certPEM string
+	for _, setting := range settings {
+		switch setting.Key {
+		case "saml.sp_private_key":
+			keyPEM = setting.Value
+		case "saml.sp_certificate":
+			certPEM = setting.Value
+		}
+	}
+
+	if keyPEM != "" && certPEM != "" {
+		// Parse and cache.
+		block, _ := pem.Decode([]byte(keyPEM))
+		if block == nil {
+			return fmt.Errorf("EnsureSPSigningKey: failed to decode SP private key PEM")
+		}
+		parsed, parseErr := x509.ParsePKCS8PrivateKey(block.Bytes)
+		if parseErr != nil {
+			// Try PKCS1 as fallback.
+			rsaKey, pkcs1Err := x509.ParsePKCS1PrivateKey(block.Bytes)
+			if pkcs1Err != nil {
+				return fmt.Errorf("EnsureSPSigningKey: parsing SP private key: %w", parseErr)
+			}
+			parsed = rsaKey
+		}
+		rsaKey, ok := parsed.(*rsa.PrivateKey)
+		if !ok {
+			return fmt.Errorf("EnsureSPSigningKey: SP key is not RSA")
+		}
+		s.spKey = rsaKey
+		s.spCertPEM = certPEM
+		return nil
+	}
+
+	// Generate new key pair.
+	privKey, genErr := rsa.GenerateKey(rand.Reader, 2048)
+	if genErr != nil {
+		return fmt.Errorf("EnsureSPSigningKey: generating RSA key: %w", genErr)
+	}
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "Veilence-MX SAML SP"},
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().Add(10 * 365 * 24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+	certDER, certErr := x509.CreateCertificate(rand.Reader, template, template, &privKey.PublicKey, privKey)
+	if certErr != nil {
+		return fmt.Errorf("EnsureSPSigningKey: creating certificate: %w", certErr)
+	}
+
+	// Encode to PEM.
+	keyBytes, marshalErr := x509.MarshalPKCS8PrivateKey(privKey)
+	if marshalErr != nil {
+		return fmt.Errorf("EnsureSPSigningKey: marshaling private key: %w", marshalErr)
+	}
+	keyPEM = string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyBytes}))
+	certPEM = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER}))
+
+	// Store in platform settings.
+	if err := s.settingRepo.UpsertPlatformSetting(ctx, "saml.sp_private_key", keyPEM); err != nil {
+		return fmt.Errorf("EnsureSPSigningKey: storing private key: %w", err)
+	}
+	if err := s.settingRepo.UpsertPlatformSetting(ctx, "saml.sp_certificate", certPEM); err != nil {
+		return fmt.Errorf("EnsureSPSigningKey: storing certificate: %w", err)
+	}
+
+	s.spKey = privKey
+	s.spCertPEM = certPEM
+	return nil
+}
+
+// GetSPCertificate returns the SP signing certificate in PEM format.
+// Returns empty string if no SP key has been generated yet.
+func (s *Service) GetSPCertificate(ctx context.Context) (string, error) {
+	_, certPEM, err := s.EnsureSPSigningKey(ctx)
+	if err != nil {
+		return "", fmt.Errorf("GetSPCertificate: %w", err)
+	}
+	return certPEM, nil
 }
 
 // --- Platform Auth Settings ---
@@ -769,7 +937,7 @@ func (s *Service) UpdateAuthSettings(ctx context.Context, config *entity.Platfor
 			return fmt.Errorf("UpdateAuthSettings: %w", err)
 		}
 		if len(enabled) == 0 {
-			return fmt.Errorf("UpdateAuthSettings: cannot disable password login without at least one enabled SSO provider")
+			return fmt.Errorf("cannot disable password login without at least one enabled SSO provider: %w", entity.ErrValidation)
 		}
 	}
 
@@ -782,6 +950,10 @@ func (s *Service) UpdateAuthSettings(ctx context.Context, config *entity.Platfor
 		return fmt.Errorf("UpdateAuthSettings: %w", err)
 	}
 
+	if s.auditLogger != nil {
+		s.auditLogger.LogAction(ctx, "sso.auth_settings_updated", "platform_settings", "", fmt.Sprintf("password_login_enabled=%s", passwordVal))
+	}
+
 	return nil
 }
 
@@ -789,13 +961,9 @@ func (s *Service) UpdateAuthSettings(ctx context.Context, config *entity.Platfor
 
 // CleanupExpired removes expired SSOState records.
 func (s *Service) CleanupExpired(ctx context.Context) error {
-	statesDeleted, err := s.stateRepo.DeleteExpired(ctx)
+	_, err := s.stateRepo.DeleteExpired(ctx)
 	if err != nil {
 		return fmt.Errorf("CleanupExpired: deleting expired states: %w", err)
-	}
-
-	if statesDeleted > 0 {
-		slog.Info("CleanupExpired: removed expired records", "states", statesDeleted)
 	}
 
 	return nil
@@ -832,7 +1000,7 @@ func generateRandomString(byteLength int) (string, error) {
 
 // generatePKCE generates a PKCE code_verifier and code_challenge (S256).
 func generatePKCE() (codeVerifier, codeChallenge string, err error) {
-	b := make([]byte, PKCEVerifierLength)
+	b := make([]byte, pkceVerifierLength)
 	if _, err := rand.Read(b); err != nil {
 		return "", "", err
 	}
@@ -873,21 +1041,6 @@ func buildOAuthURL(config *entity.SSOConfig, state, codeChallenge, baseURL strin
 	}
 }
 
-// isValidRedirectURL checks that a redirect URL is safe (relative path only).
-func isValidRedirectURL(redirectURL string) bool {
-	if !strings.HasPrefix(redirectURL, "/") || strings.HasPrefix(redirectURL, "//") {
-		return false
-	}
-	parsed, err := url.Parse(redirectURL)
-	if err != nil {
-		return false
-	}
-	if parsed.Scheme != "" || parsed.Host != "" {
-		return false
-	}
-	return true
-}
-
 // emailInDomains checks if an email address belongs to one of the allowed domains.
 func emailInDomains(email string, domains []string) bool {
 	parts := strings.SplitN(email, "@", 2)
@@ -913,19 +1066,4 @@ func isOrgMember(userOrgs, allowedOrgs []string) bool {
 		}
 	}
 	return false
-}
-
-// appendError appends ?error=code&message=msg to a URL (handles existing query params).
-func appendError(baseURL, code, message string) string {
-	u, err := url.Parse(baseURL)
-	if err != nil {
-		return baseURL + "?error=" + code
-	}
-	q := u.Query()
-	q.Set("error", code)
-	if message != "" {
-		q.Set("message", message)
-	}
-	u.RawQuery = q.Encode()
-	return u.String()
 }

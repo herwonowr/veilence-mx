@@ -9,9 +9,6 @@ import (
 
 	"golang.org/x/oauth2"
 	oauthgithub "golang.org/x/oauth2/github"
-
-	"github.com/veilence/veilence-mx/backend/internal/entity"
-	"github.com/veilence/veilence-mx/backend/internal/usecase"
 )
 
 const (
@@ -21,12 +18,12 @@ const (
 )
 
 // ExchangeGitHub exchanges a GitHub OAuth authorization code for user info using PKCE.
-func (e *Exchanger) ExchangeGitHub(ctx context.Context, config *entity.SSOConfig, code, codeVerifier string) (*usecase.OAuthUserInfo, error) {
+func (e *Exchanger) ExchangeGitHub(ctx context.Context, config *OAuthConfig, code, codeVerifier string) (*OAuthUserInfo, error) {
 	cfg := &oauth2.Config{
 		ClientID:     config.OAuthClientID,
 		ClientSecret: config.OAuthClientSecret,
 		Endpoint:     oauthgithub.Endpoint,
-		RedirectURL:  e.callbackBaseURL + "/api/auth/oauth/github/callback",
+		RedirectURL:  e.callbackBaseURL + "/api/auth/oauth/callback",
 		Scopes:       []string{"user:email", "read:org"},
 	}
 
@@ -68,7 +65,7 @@ func (e *Exchanger) ExchangeGitHub(ctx context.Context, config *entity.SSOConfig
 	// Split name into first/last (best effort).
 	firstName, lastName := splitName(user.Name)
 
-	return &usecase.OAuthUserInfo{
+	return &OAuthUserInfo{
 		ProviderUserID: fmt.Sprintf("%d", user.ID),
 		Email:          email,
 		FirstName:      firstName,

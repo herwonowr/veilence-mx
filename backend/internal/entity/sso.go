@@ -106,7 +106,12 @@ func (c *SSOConfig) Validate() error {
 		}
 	}
 
-	// Set SAML attribute defaults if empty
+	return nil
+}
+
+// SetDefaults applies default values for optional fields (e.g. SAML attribute names).
+// Must be called before Validate() in the service layer.
+func (c *SSOConfig) SetDefaults() {
 	if c.Provider == SSOProviderSAML {
 		if c.SAMLAttrEmail == "" {
 			c.SAMLAttrEmail = "email"
@@ -118,8 +123,6 @@ func (c *SSOConfig) Validate() error {
 			c.SAMLAttrLastName = "lastName"
 		}
 	}
-
-	return nil
 }
 
 // PlatformAuthConfig holds platform-level authentication settings.
@@ -135,7 +138,6 @@ type UserIdentity struct {
 	Provider       AuthProvider
 	ProviderUserID string // external user ID (SAML NameID, Google sub, GitHub user ID)
 	Email          string // email from provider at time of linking
-	Metadata       string // JSON blob: provider-specific data (org memberships, etc.)
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
@@ -160,16 +162,17 @@ func (i UserIdentity) Validate() error {
 // SSOState represents a pending SSO authentication attempt (CSRF protection).
 // The State field is sent as SAML RelayState or OAuth state parameter.
 type SSOState struct {
-	ID           string
-	ConfigID     string // which SSO config initiated this flow (required)
-	State        string // random state parameter, sent as SAML RelayState / OAuth state
-	Provider     SSOProvider
-	RedirectURL  string  // where to send user after SSO completes
-	Mode         string  // SSOModeLogin or SSOModeLink
-	UserID       *string // nil for login mode, set for link mode
-	CodeVerifier string  // PKCE code_verifier for OAuth flows (S256 challenge method)
-	ExpiresAt    time.Time
-	CreatedAt    time.Time
+	ID            string
+	ConfigID      string // which SSO config initiated this flow (required)
+	State         string // random state parameter, sent as SAML RelayState / OAuth state
+	Provider      SSOProvider
+	CallbackURL   string  // full frontend callback URL to redirect to with tokens/error
+	Mode          string  // SSOModeLogin or SSOModeLink
+	UserID        *string // nil for login mode, set for link mode
+	CodeVerifier  string  // PKCE code_verifier for OAuth flows (S256 challenge method)
+	SAMLRequestID string  // SAML AuthnRequest ID for InResponseTo validation
+	ExpiresAt     time.Time
+	CreatedAt     time.Time
 }
 
 // Validate performs domain-level validation on SSOState.
@@ -188,20 +191,6 @@ func (s SSOState) Validate() error {
 	}
 	if s.ExpiresAt.IsZero() {
 		return &ValidationError{Message: "expires at is required"}
-	}
-
-	// RedirectURL validation (defense-in-depth, also validated in service layer).
-	if s.RedirectURL == "" {
-		return &ValidationError{Message: "redirect URL is required"}
-	}
-	if !strings.HasPrefix(s.RedirectURL, "/") {
-		return &ValidationError{Message: "redirect URL must be a relative path starting with /"}
-	}
-	if strings.Contains(s.RedirectURL, "//") {
-		return &ValidationError{Message: "redirect URL must not contain //"}
-	}
-	if strings.Contains(s.RedirectURL, "://") {
-		return &ValidationError{Message: "redirect URL must not contain ://"}
 	}
 
 	return nil

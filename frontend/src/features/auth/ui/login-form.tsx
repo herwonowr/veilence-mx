@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
-import { useAuth, sanitizeErrorMessage, ROUTES, usePublicConfigQuery } from "@/core"
+import { useAuth, sanitizeErrorMessage, ROUTES, usePublicConfigQuery, config } from "@/core"
 import { loginSchema, apiSendVerificationEmailByEmail } from "@/domains/auth"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
@@ -17,7 +17,9 @@ import {
 } from "@/ui"
 import { Loader2, Eye, EyeOff, MailCheck, CheckCircle2, Shield } from "lucide-react"
 import { ZodError } from "zod"
-import { useSSOProviders } from "@/features/auth/hooks/use-sso-providers"
+// Cross-feature import: SSO provider data is owned by the sso feature but needed
+// for the login UI. Cannot move to domains/ because it uses React Query hooks.
+import { useSSOProviders } from "@/features/sso"
 import type { SSOProviderInfo } from "@/domains/sso"
 
 const MAX_FAILED_ATTEMPTS = 5
@@ -116,7 +118,8 @@ const SSOButtons = ({ providers, redirect }: { providers: SSOProviderInfo[]; red
           variant="outline"
           className="w-full"
           onClick={() => {
-            window.location.href = `/api/auth/sso/${provider.id}/login?redirect=${encodeURIComponent(redirect)}`
+            const callbackUrl = `${window.location.origin}${ROUTES.SSO_CALLBACK}?redirect=${encodeURIComponent(redirect)}`
+            window.location.href = `${config.apiBaseUrl}/api/auth/sso/${provider.id}/login?callback_url=${encodeURIComponent(callbackUrl)}`
           }}
         >
           {providerIcon(provider.provider)}
@@ -152,13 +155,17 @@ const LoginFormInner = ({ onLoginSuccess }: { onLoginSuccess?: () => void }) => 
     ? rawRedirect
     : ROUTES.DASHBOARD
 
-  // Handle SSO error query params
-  const ssoError = searchParams.get("error")
-  const ssoMessage = searchParams.get("message")
+  // Handle SSO error query params - capture in state before cleaning URL
+  const [ssoErrorState] = useState(() => {
+    const error = searchParams.get("error")
+    const message = searchParams.get("message")
+    if (!error) return null
+    return { error, message }
+  })
 
   // Clean up SSO error params from URL after reading
   useEffect(() => {
-    if (ssoError) {
+    if (ssoErrorState) {
       const params = new URLSearchParams(searchParams.toString())
       params.delete("error")
       params.delete("message")
@@ -166,7 +173,7 @@ const LoginFormInner = ({ onLoginSuccess }: { onLoginSuccess?: () => void }) => 
       const newPath = window.location.pathname + (remaining ? `?${remaining}` : "")
       router.replace(newPath)
     }
-  }, [ssoError, searchParams, router])
+  }, [ssoErrorState, searchParams, router])
 
   // One-time banners: read from sessionStorage on mount, clear immediately
   const [showSetupBanner] = useState(() => {
@@ -305,10 +312,10 @@ const LoginFormInner = ({ onLoginSuccess }: { onLoginSuccess?: () => void }) => 
     }
   }
 
-  const ssoErrorMessage = ssoError
-    ? ssoMessage
-      ? decodeURIComponent(ssoMessage)
-      : SSO_ERROR_MESSAGES[ssoError] ?? "SSO authentication failed."
+  const ssoErrorMessage = ssoErrorState
+    ? ssoErrorState.message
+      ? decodeURIComponent(ssoErrorState.message)
+      : SSO_ERROR_MESSAGES[ssoErrorState.error] ?? "SSO authentication failed."
     : null
 
   return (

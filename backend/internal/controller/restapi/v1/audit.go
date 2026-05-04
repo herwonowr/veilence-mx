@@ -15,7 +15,7 @@ import (
 func (h *AuditHandlers) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
@@ -48,14 +48,14 @@ func (h *AuditHandlers) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
 
 	logs, total, err := h.Audit.ListAuditLogs(workspaceID, filters, page, limit)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list audit logs")
+		respondAppError(w, Internal("failed to list audit logs"))
 		return
 	}
 
 	result := make([]response.AuditLogResponse, len(logs))
 	for i, l := range logs {
 		result[i] = response.AuditLogResponse{
-			ID: l.ID, UserID: l.UserID, WorkspaceID: l.WorkspaceID,
+			ID: l.ID, UserID: l.UserID, UserEmail: l.UserEmail, WorkspaceID: l.WorkspaceID,
 			Action: l.Action, Resource: l.Resource, ResourceID: l.ResourceID,
 			Details: l.Details, IPAddress: l.IPAddress, UserAgent: l.UserAgent,
 			CorrelationID: l.CorrelationID, CreatedAt: l.CreatedAt,

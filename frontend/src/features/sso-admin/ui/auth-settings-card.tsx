@@ -1,6 +1,7 @@
 "use client"
 
 import { useAuthSettings } from "@/features/sso-admin/hooks/use-auth-settings"
+import { usePlatformSSOConfigs } from "@/features/sso-admin/hooks/use-sso-configs"
 import {
   Card,
   CardContent,
@@ -17,6 +18,10 @@ import { Shield } from "lucide-react"
 
 export const AuthSettingsCard = () => {
   const { settings, updateSettings, isPending } = useAuthSettings()
+  const { data: ssoConfigs } = usePlatformSSOConfigs()
+
+  const hasEnabledSSO = (ssoConfigs?.data ?? []).some((c) => c.isEnabled)
+  const canDisablePassword = hasEnabledSSO
 
   return (
     <Card>
@@ -36,12 +41,17 @@ export const AuthSettingsCard = () => {
             onCheckedChange={(checked) =>
               updateSettings({ passwordLoginEnabled: checked })
             }
-            disabled={isPending}
+            disabled={isPending || (!canDisablePassword && (settings?.passwordLoginEnabled ?? true))}
           />
           <FieldContent>
             <FieldTitle>Password login</FieldTitle>
             <FieldDescription>
               Allow users to sign in with email and password. Disable to enforce SSO-only login.
+              {!canDisablePassword && (settings?.passwordLoginEnabled ?? true) && (
+                <span className="block text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  Cannot disable until at least one SSO provider is enabled.
+                </span>
+              )}
             </FieldDescription>
           </FieldContent>
         </Field>

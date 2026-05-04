@@ -363,7 +363,7 @@ func (s *Service) CreateSSOUser(ctx context.Context, email, firstName, lastName 
 
 // CreateSessionForUser creates a JWT token pair for the given user.
 // This implements usecase.AuthSessionCreator for SSO callback flows.
-func (s *Service) CreateSessionForUser(ctx context.Context, userID, provider string) (*usecase.TokenPair, error) {
+func (s *Service) CreateSessionForUser(ctx context.Context, userID, provider, ipAddress, userAgent string) (*usecase.TokenPair, error) {
 	user, err := s.users.FindByID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("CreateSessionForUser: finding user: %w", err)
@@ -372,6 +372,12 @@ func (s *Service) CreateSessionForUser(ctx context.Context, userID, provider str
 	tokens, err := s.generateTokenPair(ctx, user)
 	if err != nil {
 		return nil, fmt.Errorf("CreateSessionForUser: generating tokens: %w", err)
+	}
+
+	// Create a session record
+	_, err = s.CreateSession(userID, hashRefreshToken(tokens.RefreshToken), ipAddress, userAgent, provider)
+	if err != nil {
+		slog.Warn("failed to create session for SSO user", "user_id", userID, "error", err)
 	}
 
 	// Update last login
@@ -423,7 +429,7 @@ func (s *Service) Login(email, password, ipAddress, userAgent string) (*entity.U
 	}
 
 	// Create a session record for this login
-	_, err = s.CreateSession(user.ID, hashRefreshToken(tokens.RefreshToken), ipAddress, userAgent)
+	_, err = s.CreateSession(user.ID, hashRefreshToken(tokens.RefreshToken), ipAddress, userAgent, "local")
 	if err != nil {
 		slog.Warn("failed to create session", "user_id", user.ID, "error", err)
 		// Non-fatal - don't fail login if session creation fails
@@ -948,7 +954,7 @@ func (s *Service) VerifyEmail(rawToken string) error {
 
 // CreateSession creates a new session for the user, enforcing a max of MaxSessionsPerUser.
 // If the limit is exceeded, the oldest session is deleted.
-func (s *Service) CreateSession(userID string, tokenHash, ipAddress, userAgent string) (*entity.Session, error) {
+func (s *Service) CreateSession(userID string, tokenHash, ipAddress, userAgent, authProvider string) (*entity.Session, error) {
 	ctx := context.Background()
 
 	// Enforce max concurrent sessions
@@ -970,12 +976,13 @@ func (s *Service) CreateSession(userID string, tokenHash, ipAddress, userAgent s
 	}
 
 	session := &entity.Session{
-		UserID:     userID,
-		TokenHash:  tokenHash,
-		IPAddress:  ipAddress,
-		UserAgent:  userAgent,
-		LastActive: time.Now(),
-		ExpiresAt:  time.Now().Add(SessionDuration),
+		UserID:       userID,
+		TokenHash:    tokenHash,
+		IPAddress:    ipAddress,
+		UserAgent:    userAgent,
+		AuthProvider: authProvider,
+		LastActive:   time.Now(),
+		ExpiresAt:    time.Now().Add(SessionDuration),
 	}
 
 	if err := s.sessions.Create(ctx, session); err != nil {
@@ -1161,9 +1168,9 @@ func generateResetToken() (string, error) {
 // ErrLastSuperAdmin is returned when trying to demote/deactivate the last super admin.
 var ErrLastSuperAdmin = errors.New("cannot demote or deactivate the last super admin")
 
-// AdminListUsers returns a paginated, searchable list of all users.
-func (s *Service) AdminListUsers(ctx context.Context, page, limit int, search string) ([]entity.User, int64, error) {
-	users, total, err := s.users.FindAll(ctx, page, limit, search)
+// AdminListUsers returns a paginated, filterable, sortable list of all users.
+func (s *Service) AdminListUsers(ctx context.Context, page, limit int, sortClause string, filters entity.UserFilters) ([]entity.User, int64, error) {
+	users, total, err := s.users.FindAll(ctx, page, limit, sortClause, filters)
 	if err != nil {
 		return nil, 0, fmt.Errorf("AdminListUsers: %w", err)
 	}

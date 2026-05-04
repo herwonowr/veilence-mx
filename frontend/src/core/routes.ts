@@ -15,6 +15,7 @@ export const ROUTES = {
   SETUP: "/setup",
   CHANGE_PASSWORD: "/change-password",
   INVITE: "/invite",
+  SSO_CALLBACK: "/auth/sso/callback",
 
   // App pages
   DASHBOARD: "/",
@@ -51,6 +52,7 @@ export const PUBLIC_PATHS = [
   ROUTES.VERIFY_EMAIL,
   ROUTES.SETUP,
   ROUTES.INVITE,
+  ROUTES.SSO_CALLBACK,
 ] as const
 
 /** Auth pages where authenticated users should be redirected to dashboard */
@@ -59,6 +61,12 @@ export const AUTH_PAGE_PATHS = [
   ROUTES.REGISTER,
   ROUTES.FORGOT_PASSWORD,
   ROUTES.RESET_PASSWORD,
+] as const
+
+/** Pages that require super-admin privileges */
+export const SUPER_ADMIN_PATHS = [
+  ROUTES.SETTINGS_SECURITY,
+  ROUTES.SETTINGS_USERS,
 ] as const
 
 /** Pages that render without app shell (no sidebar/header) */

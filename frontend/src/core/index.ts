@@ -2,7 +2,7 @@
 
 // Infrastructure
 export { config } from "@/core/config"
-export { fetchApi, getStoredAccessToken, getStoredRefreshToken, storeTokens, clearTokens, getStoredWorkspaceId, storeWorkspaceId, clearWorkspaceId, type ApiResponse } from "@/core/http"
+export { fetchApi, getStoredAccessToken, getStoredRefreshToken, storeTokens, clearTokens, getStoredWorkspaceId, storeWorkspaceId, clearWorkspaceId, setSuperAdminHint, type ApiResponse } from "@/core/http"
 export { sanitizeErrorMessage } from "@/core/error-sanitizer"
 export { cn } from "@/core/utils"
 
@@ -12,7 +12,7 @@ export { QueryProvider } from "@/core/providers/query-provider"
 export { ThemeProvider } from "@/core/providers/theme-provider"
 
 // Routes
-export { ROUTES, PUBLIC_PATHS, AUTH_PAGE_PATHS, NO_CHROME_PATHS } from "@/core/routes"
+export { ROUTES, PUBLIC_PATHS, AUTH_PAGE_PATHS, SUPER_ADMIN_PATHS, NO_CHROME_PATHS } from "@/core/routes"
 
 // Hooks
 export { useIsMobile } from "@/core/hooks/use-mobile"

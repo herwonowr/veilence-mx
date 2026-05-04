@@ -19,7 +19,7 @@ type ConfigHandlers struct {
 func (h *ConfigHandlers) GetPublicConfig(w http.ResponseWriter, r *http.Request) {
 	setupRequired, err := h.Setup.IsSetupRequired(r.Context())
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to check setup status")
+		respondAppError(w, Internal("failed to check setup status"))
 		return
 	}
 

@@ -39,7 +39,7 @@ func (h *DashboardHandlers) GetChartData(w http.ResponseWriter, r *http.Request)
 	data, err := h.DashboardSvc.GetChartData(r.Context(), workspaceID, from, to)
 	if err != nil {
 		slog.Error("failed to get chart data", "workspace_id", workspaceID, "error", err)
-		respondError(w, http.StatusInternalServerError, "Failed to get chart data")
+		respondAppError(w, Internal("failed to get chart data"))
 		return
 	}
 

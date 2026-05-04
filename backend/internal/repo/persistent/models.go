@@ -349,6 +349,7 @@ func (Invitation) TableName() string { return "invitations" }
 type AuditLog struct {
 	ID            string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
 	UserID        *string   `gorm:"type:uuid;index" json:"userId"`
+	UserEmail     string    `gorm:"type:varchar(255)" json:"userEmail"`
 	WorkspaceID   *string   `gorm:"type:uuid;index" json:"workspaceId"`
 	Action        string    `gorm:"not null;type:varchar(50)" json:"action"`
 	Resource      string    `gorm:"not null;type:varchar(50)" json:"resource"`
@@ -462,14 +463,15 @@ func (EmailVerificationToken) TableName() string { return "email_verification_to
 
 // Session is the GORM model for user sessions.
 type Session struct {
-	ID         string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	UserID     string    `gorm:"type:uuid;not null;index" json:"userId"`
-	TokenHash  string    `gorm:"not null;uniqueIndex;type:varchar(255)" json:"-"`
-	IPAddress  string    `gorm:"type:varchar(45)" json:"ipAddress"`
-	UserAgent  string    `gorm:"type:varchar(512)" json:"userAgent"`
-	CreatedAt  time.Time `json:"createdAt"`
-	LastActive time.Time `gorm:"not null" json:"lastActive"`
-	ExpiresAt  time.Time `gorm:"not null" json:"expiresAt"`
+	ID           string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	UserID       string    `gorm:"type:uuid;not null;index" json:"userId"`
+	TokenHash    string    `gorm:"not null;uniqueIndex;type:varchar(255)" json:"-"`
+	IPAddress    string    `gorm:"type:varchar(45)" json:"ipAddress"`
+	UserAgent    string    `gorm:"type:varchar(512)" json:"userAgent"`
+	AuthProvider string    `gorm:"type:varchar(20);not null;default:'local'" json:"authProvider"`
+	CreatedAt    time.Time `json:"createdAt"`
+	LastActive   time.Time `gorm:"not null" json:"lastActive"`
+	ExpiresAt    time.Time `gorm:"not null" json:"expiresAt"`
 }
 
 func (Session) TableName() string { return "sessions" }
@@ -507,7 +509,6 @@ type UserIdentity struct {
 	Provider       string    `gorm:"not null;type:varchar(20)" json:"provider"`
 	ProviderUserID string    `gorm:"not null;type:varchar(255)" json:"providerUserId"`
 	Email          string    `gorm:"not null;type:varchar(255)" json:"email"`
-	Metadata       string    `gorm:"type:text" json:"metadata"`
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
 }
@@ -516,16 +517,17 @@ func (UserIdentity) TableName() string { return "user_identities" }
 
 // SSOState is the GORM model for pending SSO authentication state (CSRF).
 type SSOState struct {
-	ID           string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
-	ConfigID     string    `gorm:"type:uuid;not null" json:"configId"`
-	State        string    `gorm:"not null;uniqueIndex;type:varchar(255)" json:"state"`
-	UserID       *string   `gorm:"type:uuid" json:"userId"`
-	Provider     string    `gorm:"not null;type:varchar(20)" json:"provider"`
-	RedirectURL  string    `gorm:"type:text" json:"redirectUrl"`
-	Mode         string    `gorm:"not null;type:varchar(20)" json:"mode"`
-	CodeVerifier string    `gorm:"type:text" json:"codeVerifier"`
-	ExpiresAt    time.Time `gorm:"not null" json:"expiresAt"`
-	CreatedAt    time.Time `json:"createdAt"`
+	ID            string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()"`
+	ConfigID      string    `gorm:"type:uuid;not null"`
+	State         string    `gorm:"not null;uniqueIndex;type:varchar(255)"`
+	UserID        *string   `gorm:"type:uuid"`
+	Provider      string    `gorm:"not null;type:varchar(20)"`
+	CallbackURL   string    `gorm:"type:text"`
+	Mode          string    `gorm:"not null;type:varchar(20)"`
+	CodeVerifier  string    `gorm:"type:text" json:"-"`
+	SAMLRequestID string    `gorm:"type:text;column:saml_request_id"`
+	ExpiresAt     time.Time `gorm:"not null"`
+	CreatedAt     time.Time
 }
 
 func (SSOState) TableName() string { return "sso_states" }

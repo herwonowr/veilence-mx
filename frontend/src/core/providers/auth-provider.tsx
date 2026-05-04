@@ -27,6 +27,7 @@ interface User {
   lastLoginAt: string | null
   createdAt: string
   updatedAt: string
+  allowedEmailDomains?: string[]
 }
 
 interface Workspace {
@@ -56,6 +57,7 @@ import {
   getStoredWorkspaceId,
   storeWorkspaceId,
   clearWorkspaceId,
+  setSuperAdminHint,
   fetchApi,
 } from "@/core/http"
 
@@ -114,6 +116,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { data } = await fetchApi<User>("/api/auth/me")
       setUser(data)
+      setSuperAdminHint(data?.isSuperAdmin ?? false)
     } catch {
       setUser(null)
       clearTokens()
@@ -216,6 +219,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       storeTokens(data.accessToken, data.refreshToken)
       setUser(data.user)
+      setSuperAdminHint(data.user.isSuperAdmin)
       if (!data.mustChangePassword) {
         await refreshWorkspaces()
       }
@@ -246,6 +250,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       storeTokens(data.accessToken, data.refreshToken)
       setUser(data.user)
+      setSuperAdminHint(data.user.isSuperAdmin)
       await refreshWorkspaces()
       return undefined
     },

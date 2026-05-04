@@ -61,30 +61,32 @@ func (r *SSOStateRepo) DeleteExpired(ctx context.Context) (int64, error) {
 
 func ssoStateToDomain(m *SSOState) *entity.SSOState {
 	return &entity.SSOState{
-		ID:           m.ID,
-		ConfigID:     m.ConfigID,
-		State:        m.State,
-		UserID:       m.UserID,
-		Provider:     entity.SSOProvider(m.Provider),
-		RedirectURL:  m.RedirectURL,
-		Mode:         m.Mode,
-		CodeVerifier: m.CodeVerifier,
-		ExpiresAt:    m.ExpiresAt,
-		CreatedAt:    m.CreatedAt,
+		ID:            m.ID,
+		ConfigID:      m.ConfigID,
+		State:         m.State,
+		UserID:        m.UserID,
+		Provider:      entity.SSOProvider(m.Provider),
+		CallbackURL:   m.CallbackURL,
+		Mode:          m.Mode,
+		CodeVerifier:  m.CodeVerifier,
+		SAMLRequestID: m.SAMLRequestID,
+		ExpiresAt:     m.ExpiresAt,
+		CreatedAt:     m.CreatedAt,
 	}
 }
 
 func ssoStateToModel(d *entity.SSOState) *SSOState {
 	return &SSOState{
-		ID:           d.ID,
-		ConfigID:     d.ConfigID,
-		State:        d.State,
-		UserID:       d.UserID,
-		Provider:     string(d.Provider),
-		RedirectURL:  d.RedirectURL,
-		Mode:         d.Mode,
-		CodeVerifier: d.CodeVerifier,
-		ExpiresAt:    d.ExpiresAt,
-		CreatedAt:    d.CreatedAt,
+		ID:            d.ID,
+		ConfigID:      d.ConfigID,
+		State:         d.State,
+		UserID:        d.UserID,
+		Provider:      string(d.Provider),
+		CallbackURL:   d.CallbackURL,
+		Mode:          d.Mode,
+		CodeVerifier:  d.CodeVerifier,
+		SAMLRequestID: d.SAMLRequestID,
+		ExpiresAt:     d.ExpiresAt,
+		CreatedAt:     d.CreatedAt,
 	}
 }

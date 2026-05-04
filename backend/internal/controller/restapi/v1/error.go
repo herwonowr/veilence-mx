@@ -3,8 +3,11 @@
 package v1
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/veilence/veilence-mx/backend/internal/entity"
 )
 
 // Error is the base application error type. It implements the error interface
@@ -81,6 +84,17 @@ func Validation(msg string) *Error {
 	}
 }
 
+// ValidationFromErr creates a 400 Bad Request error extracting the clean message
+// from a potentially wrapped ValidationError. This prevents leaking internal
+// function names from error wrapping (e.g., "CreateSSOConfig: field required").
+func ValidationFromErr(err error) *Error {
+	var ve *entity.ValidationError
+	if errors.As(err, &ve) {
+		return Validation(ve.Message)
+	}
+	return Validation(err.Error())
+}
+
 // Conflict creates a 409 Conflict error.
 func Conflict(msg string) *Error {
 	return &Error{
@@ -104,6 +118,24 @@ func BadRequest(msg string) *Error {
 	return &Error{
 		HTTPStatus: http.StatusBadRequest,
 		Code:       "bad_request",
+		Message:    msg,
+	}
+}
+
+// Gone creates a 410 Gone error.
+func Gone(msg string) *Error {
+	return &Error{
+		HTTPStatus: http.StatusGone,
+		Code:       "gone",
+		Message:    msg,
+	}
+}
+
+// BadGateway creates a 502 Bad Gateway error.
+func BadGateway(msg string) *Error {
+	return &Error{
+		HTTPStatus: http.StatusBadGateway,
+		Code:       "bad_gateway",
 		Message:    msg,
 	}
 }

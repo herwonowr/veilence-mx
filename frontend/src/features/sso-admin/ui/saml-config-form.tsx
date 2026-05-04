@@ -128,6 +128,7 @@ export const SAMLConfigForm = ({
           placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
           rows={5}
           disabled={disabled}
+          className="font-mono"
         />
         {errors.samlCertificate && <FieldError>{errors.samlCertificate}</FieldError>}
       </Field>

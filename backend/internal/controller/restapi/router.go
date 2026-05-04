@@ -65,6 +65,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 				r.Post("/saml/acs", h.SSO.HandleSAMLACS)
 				r.Post("/saml/slo", h.SSO.HandleSAMLSLO)
 				r.Get("/saml/{configId}/metadata", h.SSO.HandleSAMLMetadata)
+				r.Get("/saml/certificate", h.SSO.HandleSAMLSPCertificate)
 			}
 		})
 

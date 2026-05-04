@@ -14,8 +14,10 @@ export const usePlatformUsers = (params: {
   page?: number
   pageSize?: number
   search?: string
-  sort?: string
-  order?: string
+  sortBy?: string
+  sortDir?: string
+  status?: string
+  role?: string
 }) =>
   useQuery({
     queryKey: platformAdminKeys.users(params),

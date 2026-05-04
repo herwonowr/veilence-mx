@@ -1,5 +1,5 @@
-import { fetchApi } from "@/core"
-import type { ApiResponse } from "@/domains/common"
+import { fetchApi, config } from "@/core"
+import type { ApiResponse } from "@/core"
 import type {
   SSOConfig,
   SSOProvidersResponse,
@@ -8,6 +8,7 @@ import type {
   TestSSOConfigResponse,
   SAMLMetadataImportResponse,
   UserIdentity,
+  SPCertificateResponse,
 } from "@/domains/sso/types/sso.types"
 
 // ---------------------------------------------------------------------------
@@ -44,10 +45,17 @@ export const apiGetLinkedIdentities = async (): Promise<
 > => fetchApi<UserIdentity[]>("/api/auth/identities")
 
 /** Identity linking is a full-page navigation:
- *  window.location.href = `/api/auth/identities/link?configId=${configId}&redirect=/account`
+ *  window.location.href = buildLinkIdentityUrl(configId, callbackUrl, accessToken)
  */
-export const initiateLinkIdentity = (configId: string): void => {
-  window.location.href = `/api/auth/identities/link?configId=${configId}&redirect=/account`
+export const buildLinkIdentityUrl = (configId: string, callbackUrl?: string, accessToken?: string): string => {
+  const params = new URLSearchParams({ configId })
+  if (callbackUrl) {
+    params.set("callback_url", callbackUrl)
+  }
+  if (accessToken) {
+    params.set("access_token", accessToken)
+  }
+  return `${config.apiBaseUrl}/api/auth/identities/link?${params.toString()}`
 }
 
 /** DELETE /api/auth/identities/{id} - unlink identity */
@@ -112,3 +120,8 @@ export const apiImportSAMLMetadata = async (
     method: "POST",
     body: JSON.stringify({ metadataUrl }),
   })
+
+/** GET /api/auth/saml/certificate - get SP signing certificate (public, no auth) */
+export const apiGetSAMLSPCertificate = async (): Promise<
+  ApiResponse<SPCertificateResponse>
+> => fetchApi<SPCertificateResponse>("/api/auth/saml/certificate")

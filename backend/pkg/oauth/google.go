@@ -1,4 +1,3 @@
-// Package oauth provides OAuth 2.0 token exchange implementations for SSO providers.
 package oauth
 
 import (
@@ -10,9 +9,6 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-
-	"github.com/veilence/veilence-mx/backend/internal/entity"
-	"github.com/veilence/veilence-mx/backend/internal/usecase"
 )
 
 const (
@@ -33,12 +29,12 @@ func NewExchanger(callbackBaseURL string) *Exchanger {
 }
 
 // ExchangeGoogle exchanges a Google OAuth authorization code for user info using PKCE.
-func (e *Exchanger) ExchangeGoogle(ctx context.Context, config *entity.SSOConfig, code, codeVerifier string) (*usecase.OAuthUserInfo, error) {
+func (e *Exchanger) ExchangeGoogle(ctx context.Context, config *OAuthConfig, code, codeVerifier string) (*OAuthUserInfo, error) {
 	cfg := &oauth2.Config{
 		ClientID:     config.OAuthClientID,
 		ClientSecret: config.OAuthClientSecret,
 		Endpoint:     google.Endpoint,
-		RedirectURL:  e.callbackBaseURL + "/api/auth/oauth/google/callback",
+		RedirectURL:  e.callbackBaseURL + "/api/auth/oauth/callback",
 		Scopes:       []string{"openid", "email", "profile"},
 	}
 
@@ -71,7 +67,7 @@ func (e *Exchanger) ExchangeGoogle(ctx context.Context, config *entity.SSOConfig
 		return nil, fmt.Errorf("oauth.ExchangeGoogle: decoding user info: %w", err)
 	}
 
-	return &usecase.OAuthUserInfo{
+	return &OAuthUserInfo{
 		ProviderUserID: gUser.Sub,
 		Email:          gUser.Email,
 		FirstName:      gUser.GivenName,
@@ -91,5 +87,5 @@ type googleUserInfo struct {
 	HD         string `json:"hd"` // hosted domain for Google Workspace
 }
 
-// Compile-time check that Exchanger implements usecase.OAuthTokenExchanger.
-var _ usecase.OAuthTokenExchanger = (*Exchanger)(nil)
+// Compile-time check that Exchanger implements TokenExchanger.
+var _ TokenExchanger = (*Exchanger)(nil)

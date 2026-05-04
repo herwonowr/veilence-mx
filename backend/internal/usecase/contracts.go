@@ -19,7 +19,7 @@ type UserRepository interface {
 	Create(ctx context.Context, user *entity.User) error
 	Update(ctx context.Context, user *entity.User) error
 	CountAll(ctx context.Context) (int64, error)
-	FindAll(ctx context.Context, page, limit int, search string) ([]entity.User, int64, error)
+	FindAll(ctx context.Context, page, limit int, sortClause string, filters entity.UserFilters) ([]entity.User, int64, error)
 	CountSuperAdmins(ctx context.Context) (int64, error)
 }
 
@@ -278,6 +278,7 @@ type QueueEnqueuer interface {
 // The implementation lives in the outer layer (repo or controller).
 type AuditLogger interface {
 	LogAction(ctx context.Context, action, resource string, resourceID string, details string)
+	LogActionWithUser(ctx context.Context, userID, userEmail, action, resource, resourceID, details string)
 }
 
 // Registry defines the interface for interacting with a package registry.
@@ -474,7 +475,7 @@ type SSOStateRepository interface {
 
 // AuthSessionCreator issues JWT sessions. Used by SSO service to delegate JWT issuance.
 type AuthSessionCreator interface {
-	CreateSessionForUser(ctx context.Context, userID, provider string) (*TokenPair, error)
+	CreateSessionForUser(ctx context.Context, userID, provider, ipAddress, userAgent string) (*TokenPair, error)
 }
 
 // TokenPair holds an access/refresh token pair returned after authentication.
@@ -486,8 +487,8 @@ type TokenPair struct {
 
 // SAMLProvider handles SAML protocol operations.
 type SAMLProvider interface {
-	GenerateAuthnRequest(config *entity.SSOConfig) (redirectURL string, err error)
-	ValidateResponse(config *entity.SSOConfig, samlResponse string) (*SAMLAssertion, error)
+	GenerateAuthnRequest(config *entity.SSOConfig) (redirectURL string, requestID string, err error)
+	ValidateResponse(config *entity.SSOConfig, samlResponse string, requestID string) (*SAMLAssertion, error)
 	GenerateMetadata(config *entity.SSOConfig) ([]byte, error)
 	ParseLogoutRequest(samlRequest string) (nameID string, issuer string, err error)
 	VerifyLogoutSignature(samlRequest, signature, sigAlg, pemCertificate string) error

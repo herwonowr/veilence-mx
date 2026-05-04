@@ -30,16 +30,43 @@ type adminUpdateUserRequest struct {
 	ConfirmPassword string  `json:"confirmPassword"`
 }
 
-// HandleListUsers returns a paginated list of all users.
+// HandleListUsers returns a paginated, filterable, sortable list of all users.
 // GET /api/admin/users
 func (h *AdminUserHandlers) HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	page, limit := parsePagination(r)
-	search := r.URL.Query().Get("search")
+	sortOrder := parseSort(r, map[string]string{
+		"firstName": "first_name",
+		"lastName":  "last_name",
+		"email":     "email",
+		"isActive":  "is_active",
+		"createdAt": "created_at",
+	}, "created_at DESC")
 
-	users, total, err := h.Auth.AdminListUsers(r.Context(), page, limit, search)
+	var filters entity.UserFilters
+	if search := r.URL.Query().Get("search"); search != "" {
+		filters.Search = &search
+	}
+	if status := r.URL.Query().Get("status"); status != "" {
+		validStatuses := map[string]bool{"active": true, "inactive": true}
+		if !validStatuses[status] {
+			respondAppError(w, Validation("invalid status filter"))
+			return
+		}
+		filters.Status = &status
+	}
+	if role := r.URL.Query().Get("role"); role != "" {
+		validRoles := map[string]bool{"super_admin": true, "user": true}
+		if !validRoles[role] {
+			respondAppError(w, Validation("invalid role filter"))
+			return
+		}
+		filters.Role = &role
+	}
+
+	users, total, err := h.Auth.AdminListUsers(r.Context(), page, limit, sortOrder, filters)
 	if err != nil {
 		slog.Error("HandleListUsers: listing users", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to list users")
+		respondAppError(w, Internal("failed to list users"))
 		return
 	}
 
@@ -73,7 +100,7 @@ func (h *AdminUserHandlers) HandleGetUser(w http.ResponseWriter, r *http.Request
 			return
 		}
 		slog.Error("HandleGetUser: fetching user", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to fetch user")
+		respondAppError(w, Internal("failed to fetch user"))
 		return
 	}
 
@@ -131,13 +158,13 @@ func (h *AdminUserHandlers) HandleUpdateUser(w http.ResponseWriter, r *http.Requ
 
 	callerID := auth.UserIDFromContext(r.Context())
 	if callerID == "" {
-		respondError(w, http.StatusUnauthorized, "Authentication required")
+		respondAppError(w, Unauthorized("authentication required"))
 		return
 	}
 
 	var req adminUpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
+		respondAppError(w, BadRequest("invalid request body"))
 		return
 	}
 
@@ -174,9 +201,47 @@ func (h *AdminUserHandlers) HandleUpdateUser(w http.ResponseWriter, r *http.Requ
 			return
 		}
 		slog.Error("HandleUpdateUser: updating user", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to update user")
+		respondAppError(w, Internal("failed to update user"))
 		return
 	}
 
-	respondJSON(w, http.StatusOK, response.AdminUserFromEntity(updated), nil)
+	// Return full detail (identities + workspaces) consistent with HandleGetUser.
+	detail := response.PlatformUserDetailResponse{
+		AdminUserResponse: response.AdminUserFromEntity(updated),
+		Identities:        []response.LinkedIdentityResponse{},
+		Workspaces:        []response.UserWorkspaceResponse{},
+	}
+
+	if h.IdentityRepo != nil {
+		identities, identErr := h.IdentityRepo.FindByUserID(r.Context(), targetUserID)
+		if identErr != nil {
+			slog.Error("HandleUpdateUser: fetching identities", "error", identErr)
+		} else {
+			for _, id := range identities {
+				detail.Identities = append(detail.Identities, response.LinkedIdentityResponse{
+					ID:             id.ID,
+					Provider:       string(id.Provider),
+					ProviderEmail:  id.Email,
+					ProviderUserID: id.ProviderUserID,
+				})
+			}
+		}
+	}
+
+	if h.RBACRepo != nil {
+		wsResult, wsErr := h.RBACRepo.FindWorkspacesByUserID(r.Context(), targetUserID, entity.WorkspaceListParams{Page: 1, Limit: 100})
+		if wsErr != nil {
+			slog.Error("HandleUpdateUser: fetching workspaces", "error", wsErr)
+		} else if wsResult != nil {
+			for _, ws := range wsResult.Workspaces {
+				detail.Workspaces = append(detail.Workspaces, response.UserWorkspaceResponse{
+					ID:   ws.ID,
+					Name: ws.Name,
+					Role: ws.Role,
+				})
+			}
+		}
+	}
+
+	respondJSON(w, http.StatusOK, detail, nil)
 }

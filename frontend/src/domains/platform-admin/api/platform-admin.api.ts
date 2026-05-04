@@ -47,16 +47,20 @@ export const apiGetPlatformUsers = async (params: {
   page?: number
   pageSize?: number
   search?: string
-  sort?: string
-  order?: string
+  sortBy?: string
+  sortDir?: string
+  status?: string
+  role?: string
 }): Promise<ApiResponse<ListUsersResponse>> => {
   const searchParams = new URLSearchParams()
   if (params.page !== undefined) searchParams.set("page", String(params.page))
   if (params.pageSize !== undefined)
-    searchParams.set("pageSize", String(params.pageSize))
+    searchParams.set("limit", String(params.pageSize))
   if (params.search) searchParams.set("search", params.search)
-  if (params.sort) searchParams.set("sort", params.sort)
-  if (params.order) searchParams.set("order", params.order)
+  if (params.sortBy) searchParams.set("sort_by", params.sortBy)
+  if (params.sortDir) searchParams.set("sort_dir", params.sortDir)
+  if (params.status) searchParams.set("status", params.status)
+  if (params.role) searchParams.set("role", params.role)
   const query = searchParams.toString()
   return fetchApi<ListUsersResponse>(
     `/api/admin/users${query ? `?${query}` : ""}`

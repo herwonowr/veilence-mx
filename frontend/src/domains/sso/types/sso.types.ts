@@ -18,17 +18,17 @@ export interface SSOConfig {
   allowedDomains: string[]
 
   // SAML
-  samlEntityId?: string
-  samlSsoUrl?: string
-  samlCertificate?: string
-  samlAttrEmail?: string
-  samlAttrFirstName?: string
-  samlAttrLastName?: string
+  samlEntityId: string | null
+  samlSsoUrl: string | null
+  samlCertificate: string | null
+  samlAttrEmail: string
+  samlAttrFirstName: string
+  samlAttrLastName: string
 
   // OAuth
-  oauthClientId?: string
-  googleHostedDomain?: string
-  githubOrgs?: string[]
+  oauthClientId: string | null
+  googleHostedDomain: string | null
+  githubOrgs: string[]
 
   createdAt: string
   updatedAt: string
@@ -36,7 +36,7 @@ export interface SSOConfig {
 
 export interface UserIdentity {
   id: string
-  provider: SSOProvider
+  provider: AuthProvider
   providerUserId: string
   providerEmail: string
   linkedAt: string
@@ -125,4 +125,9 @@ export interface SAMLMetadataImportResponse {
   ssoUrl: string
   certificate: string
   sloUrl?: string
+}
+
+/** Response from GET /api/auth/saml/certificate */
+export interface SPCertificateResponse {
+  certificate: string
 }

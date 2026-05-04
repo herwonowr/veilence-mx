@@ -31,7 +31,7 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 
 	var req map[string]string
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
+		respondAppError(w, BadRequest("invalid request body"))
 		return
 	}
 
@@ -46,7 +46,7 @@ func (h *SettingsHandlers) UpdateSettings(w http.ResponseWriter, r *http.Request
 	updated, err := h.SettingSvc.UpdateSettings(r.Context(), workspaceID, req)
 	if err != nil {
 		if errors.Is(err, entity.ErrValidation) {
-			respondAppError(w, Validation(err.Error()))
+			respondAppError(w, ValidationFromErr(err))
 			return
 		}
 		respondAppError(w, Internal("failed to update settings"))
@@ -90,13 +90,13 @@ func (h *SettingsHandlers) DiscoverPackages(w http.ResponseWriter, r *http.Reque
 	// Discover both ecosystems at the same scan depth
 	if err := h.Poller.SyncTopPackages(r.Context(), h.Python, scanDepth, workspaceID); err != nil {
 		slog.Error("failed to discover Python packages", "workspace_id", workspaceID, "error", err)
-		respondError(w, http.StatusInternalServerError, "Failed to discover Python packages")
+		respondAppError(w, Internal("failed to discover Python packages"))
 		return
 	}
 
 	if err := h.Poller.SyncTopPackages(r.Context(), h.NPM, scanDepth, workspaceID); err != nil {
 		slog.Error("failed to discover npm packages", "workspace_id", workspaceID, "error", err)
-		respondError(w, http.StatusInternalServerError, "Failed to discover npm packages")
+		respondAppError(w, Internal("failed to discover npm packages"))
 		return
 	}
 

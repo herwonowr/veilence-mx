@@ -144,3 +144,8 @@ type PlatformAuthSettingsResponse struct {
 	PasswordLoginEnabled bool `json:"passwordLoginEnabled"`
 	RegistrationEnabled  bool `json:"registrationEnabled"`
 }
+
+// SPCertificateResponse is the response for GET /api/auth/saml/certificate.
+type SPCertificateResponse struct {
+	Certificate string `json:"certificate"`
+}

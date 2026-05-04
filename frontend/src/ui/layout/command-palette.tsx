@@ -14,9 +14,11 @@ import {
   Layers,
   Key,
   User,
+  Users,
   Workflow,
   Monitor,
   Search,
+  Shield,
 } from "lucide-react"
 import { cn, useAuth, useCurrentWorkspaceRole, hasMinimumRole, ROUTES } from "@/core"
 import { Kbd } from "@/ui/components/kbd"
@@ -31,6 +33,8 @@ interface CommandItem {
   keywords?: string[]
   /** Minimum workspace role required to see this item. Defaults to visible for all. */
   minRole?: "viewer" | "member" | "admin" | "owner"
+  /** If true, only visible to platform super-admins (overrides minRole). */
+  superAdminOnly?: boolean
 }
 
 const commandItems: CommandItem[] = [
@@ -46,6 +50,9 @@ const commandItems: CommandItem[] = [
   { id: "channels", label: "Channels", href: ROUTES.SETTINGS_NOTIFICATIONS, icon: Radio, group: "Management", keywords: ["notifications", "webhooks", "slack"], minRole: "admin" },
   { id: "queue", label: "Queue Monitor", href: ROUTES.SETTINGS_QUEUE, icon: Workflow, group: "Management", keywords: ["jobs", "workers", "processing"], minRole: "admin" },
   { id: "api-keys", label: "API Keys", href: ROUTES.SETTINGS_API_KEYS, icon: Key, group: "Management", keywords: ["tokens", "authentication"] },
+  // Settings (super-admin only)
+  { id: "security", label: "Security", href: ROUTES.SETTINGS_SECURITY, icon: Shield, group: "Settings", keywords: ["sso", "saml", "authentication", "login"], superAdminOnly: true },
+  { id: "users", label: "Users", href: ROUTES.SETTINGS_USERS, icon: Users, group: "Settings", keywords: ["platform", "admin", "accounts"], superAdminOnly: true },
   // Account
   { id: "account", label: "Account", href: ROUTES.ACCOUNT, icon: User, group: "Account", keywords: ["profile", "email", "password"] },
   { id: "sessions", label: "Sessions", href: ROUTES.SETTINGS_SESSIONS, icon: Monitor, group: "Account", keywords: ["active", "devices"] },
@@ -58,13 +65,16 @@ export const CommandPalette = () => {
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const { role } = useCurrentWorkspaceRole()
 
-  // Filter items based on role permissions
+  // Filter items based on role permissions and super-admin status
   const permittedItems = React.useMemo(
-    () => commandItems.filter((item) => !item.minRole || hasMinimumRole(role, item.minRole)),
-    [role]
+    () => commandItems.filter((item) => {
+      if (item.superAdminOnly) return !!user?.isSuperAdmin
+      return !item.minRole || hasMinimumRole(role, item.minRole)
+    }),
+    [role, user?.isSuperAdmin]
   )
 
   // Filter items based on query

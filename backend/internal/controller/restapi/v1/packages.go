@@ -122,7 +122,7 @@ func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err := validatePackageName(req.Name); err != nil {
-		respondAppError(w, Validation(err.Error()))
+		respondAppError(w, ValidationFromErr(err))
 		return
 	}
 	if req.Ecosystem != "python" && req.Ecosystem != "npm" {
@@ -380,7 +380,7 @@ func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		if err != nil {
-			respondAppError(w, Validation(err.Error()))
+			respondAppError(w, ValidationFromErr(err))
 			return
 		}
 	} else if len(req.Packages) > 0 {

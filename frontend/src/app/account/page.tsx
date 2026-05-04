@@ -7,8 +7,10 @@ import { LinkedIdentities } from "@/features/sso"
 const AccountPage = () => {
   return (
     <ProtectedRoute>
-      <AccountView />
-      <LinkedIdentities />
+      <div className="space-y-6">
+        <AccountView />
+        <LinkedIdentities />
+      </div>
     </ProtectedRoute>
   )
 }

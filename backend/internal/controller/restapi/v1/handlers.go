@@ -220,7 +220,10 @@ func respondJSON(w http.ResponseWriter, status int, data any, meta *Meta) {
 	json.NewEncoder(w).Encode(APIResponse{Data: data, Meta: meta})
 }
 
-func respondError(w http.ResponseWriter, status int, msg string) {
+// writeErrorResponse is the low-level JSON error writer. It is intentionally
+// unexported so that handlers always go through respondAppError with a typed
+// error constructor (Internal, BadRequest, etc.).
+func writeErrorResponse(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(APIResponse{Error: &msg})
@@ -228,7 +231,7 @@ func respondError(w http.ResponseWriter, status int, msg string) {
 
 // respondAppError responds with a structured apperror, using its HTTP status and message.
 func respondAppError(w http.ResponseWriter, err *Error) {
-	respondError(w, err.HTTPStatus, err.Message)
+	writeErrorResponse(w, err.HTTPStatus, err.Message)
 }
 
 func parsePagination(r *http.Request) (int, int) {

@@ -56,9 +56,10 @@ CREATE TABLE sso_states (
     state VARCHAR(255) NOT NULL UNIQUE,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     provider VARCHAR(20) NOT NULL,
-    redirect_url TEXT,
+    callback_url TEXT,
     mode VARCHAR(20) NOT NULL DEFAULT 'login',
     code_verifier TEXT,
+    saml_request_id TEXT,
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
@@ -87,7 +88,7 @@ DROP INDEX IF EXISTS idx_settings_workspace_key;
 CREATE UNIQUE INDEX idx_settings_workspace_key ON settings(workspace_id, key) WHERE workspace_id IS NOT NULL;
 CREATE UNIQUE INDEX idx_settings_platform_key ON settings(key) WHERE workspace_id IS NULL;
 
--- Platform auth settings
-INSERT INTO settings (id, workspace_id, key, value, created_at, updated_at)
+-- Platform auth settings (workspace_id defaults to NULL for platform-level)
+INSERT INTO settings (id, key, value, created_at, updated_at)
 VALUES
-    (gen_random_uuid(), NULL, 'auth.password_login_enabled', 'true', now(), now());
+    (gen_random_uuid(), 'auth.password_login_enabled', 'true', now(), now());

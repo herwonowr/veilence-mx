@@ -30,7 +30,7 @@ type initializeRequest struct {
 func (h *SetupHandlers) Initialize(w http.ResponseWriter, r *http.Request) {
 	var req initializeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
+		respondAppError(w, BadRequest("invalid request body"))
 		return
 	}
 
@@ -41,11 +41,11 @@ func (h *SetupHandlers) Initialize(w http.ResponseWriter, r *http.Request) {
 	req.WorkspaceSlug = strings.TrimSpace(req.WorkspaceSlug)
 
 	if err := validation.ValidateEmail(req.Email); err != nil {
-		respondAppError(w, Validation(err.Error()))
+		respondAppError(w, ValidationFromErr(err))
 		return
 	}
 	if err := validation.ValidatePassword(req.Password); err != nil {
-		respondAppError(w, Validation(err.Error()))
+		respondAppError(w, ValidationFromErr(err))
 		return
 	}
 	if req.FirstName == "" {
@@ -71,14 +71,14 @@ func (h *SetupHandlers) Initialize(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, entity.ErrSetupAlreadyCompleted) {
-			respondError(w, http.StatusConflict, "Setup has already been completed")
+			respondAppError(w, Conflict("setup has already been completed"))
 			return
 		}
 		if errors.Is(err, entity.ErrValidation) {
-			respondAppError(w, Validation(err.Error()))
+			respondAppError(w, ValidationFromErr(err))
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "Failed to initialize setup")
+		respondAppError(w, Internal("failed to initialize setup"))
 		return
 	}
 

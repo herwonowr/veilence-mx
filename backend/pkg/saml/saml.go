@@ -13,20 +13,44 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/crewjam/saml"
-
-	"github.com/veilence/veilence-mx/backend/internal/entity"
-	"github.com/veilence/veilence-mx/backend/internal/usecase"
 )
 
-// Provider implements usecase.SAMLProvider using the crewjam/saml library.
+// SAMLConfig holds the SAML configuration fields needed by the provider.
+// This is a standalone type to avoid importing internal/entity.
+type SAMLConfig struct {
+	SAMLEntityID      string
+	SAMLSsoURL        string
+	SAMLCertificate   string
+	SAMLAttrEmail     string
+	SAMLAttrFirstName string
+	SAMLAttrLastName  string
+}
+
+// SAMLAssertion represents extracted SAML assertion data.
+// This is a standalone type to avoid importing internal/usecase.
+type SAMLAssertion struct {
+	NameID       string
+	Email        string
+	FirstName    string
+	LastName     string
+	Groups       []string
+	SessionIndex string
+}
+
+// Provider implements the SAML Service Provider using the crewjam/saml library.
 type Provider struct {
 	// baseURL is the application's base URL used for ACS and metadata endpoints.
 	baseURL string
 	// clockSkew is the maximum allowed clock skew when validating SAML assertions.
 	clockSkew time.Duration
+	// spKey is the optional SP signing private key.
+	spKey *rsa.PrivateKey
+	// spCert is the optional SP signing certificate (DER-encoded).
+	spCert *x509.Certificate
 }
 
 // NewProvider creates a new SAML provider.
@@ -36,24 +60,46 @@ func NewProvider(baseURL string, clockSkew time.Duration) *Provider {
 	return &Provider{baseURL: baseURL, clockSkew: clockSkew}
 }
 
-// GenerateAuthnRequest creates a SAML AuthnRequest and returns the IdP redirect URL.
-func (p *Provider) GenerateAuthnRequest(config *entity.SSOConfig) (string, error) {
+// SetSPKeyPair configures the SP signing key and certificate for AuthnRequest signing.
+// The key is an RSA private key and cert is the corresponding X.509 certificate.
+func (p *Provider) SetSPKeyPair(key *rsa.PrivateKey, cert *x509.Certificate) {
+	p.spKey = key
+	p.spCert = cert
+}
+
+// GenerateAuthnRequest creates a SAML AuthnRequest and returns the IdP redirect URL
+// along with the AuthnRequest ID for InResponseTo validation.
+func (p *Provider) GenerateAuthnRequest(config *SAMLConfig) (string, string, error) {
 	sp, err := p.buildServiceProvider(config)
 	if err != nil {
-		return "", fmt.Errorf("saml.GenerateAuthnRequest: %w", err)
+		return "", "", fmt.Errorf("saml.GenerateAuthnRequest: %w", err)
 	}
 
-	redirectURL, err := sp.MakeRedirectAuthenticationRequest("")
+	// Build the AuthnRequest manually so we can capture the request ID
+	// before generating the redirect URL.
+	req, err := sp.MakeAuthenticationRequest(
+		sp.GetSSOBindingLocation(saml.HTTPRedirectBinding),
+		saml.HTTPRedirectBinding,
+		saml.HTTPPostBinding,
+	)
 	if err != nil {
-		return "", fmt.Errorf("saml.GenerateAuthnRequest: creating redirect URL: %w", err)
+		return "", "", fmt.Errorf("saml.GenerateAuthnRequest: creating authn request: %w", err)
 	}
 
-	return redirectURL.String(), nil
+	requestID := req.ID
+
+	redirectURL, err := req.Redirect("", &sp)
+	if err != nil {
+		return "", "", fmt.Errorf("saml.GenerateAuthnRequest: creating redirect URL: %w", err)
+	}
+
+	return redirectURL.String(), requestID, nil
 }
 
 // ValidateResponse validates a SAML response and extracts the assertion data.
 // samlResponse is the base64-encoded SAMLResponse from the IdP POST to our ACS.
-func (p *Provider) ValidateResponse(config *entity.SSOConfig, samlResponse string) (*usecase.SAMLAssertion, error) {
+// requestID is the original AuthnRequest ID used for InResponseTo validation.
+func (p *Provider) ValidateResponse(config *SAMLConfig, samlResponse string, requestID string) (*SAMLAssertion, error) {
 	sp, err := p.buildServiceProvider(config)
 	if err != nil {
 		return nil, fmt.Errorf("saml.ValidateResponse: %w", err)
@@ -73,7 +119,7 @@ func (p *Provider) ValidateResponse(config *entity.SSOConfig, samlResponse strin
 		return nil, fmt.Errorf("saml.ValidateResponse: parsing form: %w", parseErr)
 	}
 
-	assertion, err := sp.ParseResponse(req, []string{""})
+	assertion, err := sp.ParseResponse(req, []string{requestID})
 	if err != nil {
 		return nil, fmt.Errorf("saml.ValidateResponse: validating assertion: %w", err)
 	}
@@ -82,7 +128,7 @@ func (p *Provider) ValidateResponse(config *entity.SSOConfig, samlResponse strin
 		return nil, errors.New("saml.ValidateResponse: no assertion in response")
 	}
 
-	result := &usecase.SAMLAssertion{
+	result := &SAMLAssertion{
 		NameID: assertion.Subject.NameID.Value,
 	}
 
@@ -96,14 +142,16 @@ func (p *Provider) ValidateResponse(config *entity.SSOConfig, samlResponse strin
 			if len(attr.Values) == 0 {
 				continue
 			}
-			switch attr.Name {
-			case attrEmail:
+			name := attr.Name
+			friendly := attr.FriendlyName
+			switch {
+			case name == attrEmail || friendly == attrEmail:
 				result.Email = attr.Values[0].Value
-			case attrFirstName:
+			case name == attrFirstName || friendly == attrFirstName:
 				result.FirstName = attr.Values[0].Value
-			case attrLastName:
+			case name == attrLastName || friendly == attrLastName:
 				result.LastName = attr.Values[0].Value
-			case "groups", "memberOf":
+			case name == "groups" || name == "memberOf":
 				for _, v := range attr.Values {
 					result.Groups = append(result.Groups, v.Value)
 				}
@@ -119,11 +167,16 @@ func (p *Provider) ValidateResponse(config *entity.SSOConfig, samlResponse strin
 		}
 	}
 
+	// Fall back to NameID for email if attribute was not found.
+	if result.Email == "" && strings.Contains(result.NameID, "@") {
+		result.Email = result.NameID
+	}
+
 	return result, nil
 }
 
 // GenerateMetadata generates SP metadata XML for this configuration.
-func (p *Provider) GenerateMetadata(config *entity.SSOConfig) ([]byte, error) {
+func (p *Provider) GenerateMetadata(config *SAMLConfig) ([]byte, error) {
 	sp, err := p.buildServiceProvider(config)
 	if err != nil {
 		return nil, fmt.Errorf("saml.GenerateMetadata: %w", err)
@@ -139,7 +192,7 @@ func (p *Provider) GenerateMetadata(config *entity.SSOConfig) ([]byte, error) {
 }
 
 // buildServiceProvider constructs a crewjam/saml.ServiceProvider from the entity config.
-func (p *Provider) buildServiceProvider(config *entity.SSOConfig) (saml.ServiceProvider, error) {
+func (p *Provider) buildServiceProvider(config *SAMLConfig) (saml.ServiceProvider, error) {
 	cert, err := parsePEMCertificate(config.SAMLCertificate)
 	if err != nil {
 		return saml.ServiceProvider{}, fmt.Errorf("parsing IdP certificate: %w", err)
@@ -150,7 +203,7 @@ func (p *Provider) buildServiceProvider(config *entity.SSOConfig) (saml.ServiceP
 		return saml.ServiceProvider{}, fmt.Errorf("parsing ACS URL: %w", err)
 	}
 
-	metadataPath := "/api/auth/saml/" + config.ID + "/metadata"
+	metadataPath := "/api/auth/saml/metadata"
 	metadataURL, err := url.Parse(p.baseURL + metadataPath)
 	if err != nil {
 		return saml.ServiceProvider{}, fmt.Errorf("parsing metadata URL: %w", err)
@@ -196,6 +249,12 @@ func (p *Provider) buildServiceProvider(config *entity.SSOConfig) (saml.ServiceP
 		MetadataURL:       *metadataURL,
 		IDPMetadata:       idpDescriptor,
 		AuthnNameIDFormat: saml.EmailAddressNameIDFormat,
+	}
+
+	// Set SP signing key and certificate if configured.
+	if p.spKey != nil && p.spCert != nil {
+		sp.Key = p.spKey
+		sp.Certificate = p.spCert
 	}
 
 	// Apply clock skew tolerance if configured.
@@ -303,6 +362,3 @@ func (p *Provider) VerifyLogoutSignature(samlRequest, signature, sigAlg, pemCert
 
 	return nil
 }
-
-// Compile-time check that Provider implements usecase.SAMLProvider.
-var _ usecase.SAMLProvider = (*Provider)(nil)

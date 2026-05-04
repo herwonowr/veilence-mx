@@ -66,6 +66,8 @@ interface NavItem {
   icon: LucideIcon
   /** Minimum workspace role required to see this item. Defaults to visible for all. */
   minRole?: "viewer" | "member" | "admin" | "owner"
+  /** If true, only visible to platform super-admins (overrides minRole). */
+  superAdminOnly?: boolean
 }
 
 const navItems: NavItem[] = [
@@ -77,13 +79,16 @@ const navItems: NavItem[] = [
   { title: "Workspaces", href: ROUTES.WORKSPACES, icon: Layers },
 ]
 
-const settingsItems: NavItem[] = [
+const managementItems: NavItem[] = [
   { title: "Settings", href: ROUTES.SETTINGS, icon: Settings, minRole: "admin" },
-  { title: "Security", href: ROUTES.SETTINGS_SECURITY, icon: Shield, minRole: "admin" },
-  { title: "Users", href: ROUTES.SETTINGS_USERS, icon: Users, minRole: "admin" },
   { title: "Channels", href: ROUTES.SETTINGS_NOTIFICATIONS, icon: Radio, minRole: "admin" },
   { title: "Queue Monitor", href: ROUTES.SETTINGS_QUEUE, icon: Workflow, minRole: "admin" },
   { title: "API Keys", href: ROUTES.SETTINGS_API_KEYS, icon: Key },
+]
+
+const platformSettingsItems: NavItem[] = [
+  { title: "Security", href: ROUTES.SETTINGS_SECURITY, icon: Shield, superAdminOnly: true },
+  { title: "Users", href: ROUTES.SETTINGS_USERS, icon: Users, superAdminOnly: true },
 ]
 
 export const AppSidebar = ({
@@ -173,8 +178,10 @@ export const AppSidebar = ({
           <SidebarGroupLabel>MANAGEMENT</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {settingsItems
-                .filter((item) => !item.minRole || hasMinimumRole(role, item.minRole))
+              {managementItems
+                .filter((item) => {
+                  return !item.minRole || hasMinimumRole(role, item.minRole)
+                })
                 .map((item) => {
                 const isActive =
                   item.href === ROUTES.SETTINGS
@@ -196,6 +203,31 @@ export const AppSidebar = ({
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {user?.isSuperAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>SETTINGS</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {platformSettingsItems.map((item) => {
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        render={<Link href={item.href} />}
+                        isActive={isActive}
+                        tooltip={item.title}
+                      >
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter>

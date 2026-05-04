@@ -30,7 +30,7 @@ type queueStatsResponse struct {
 // GetQueueStats returns queue statistics scoped to the requesting user's workspace.
 func (h *QueueHandlers) GetQueueStats(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
-		respondError(w, http.StatusInternalServerError, "Queue not configured")
+		respondAppError(w, Internal("queue not configured"))
 		return
 	}
 
@@ -39,14 +39,14 @@ func (h *QueueHandlers) GetQueueStats(w http.ResponseWriter, r *http.Request) {
 	diffStats, err := h.Queue.StatsForWorkspace(r.Context(), queue.JobTypeDiff, workspaceID)
 	if err != nil {
 		slog.Error("failed to get diff queue stats", "error", err)
-		respondError(w, http.StatusInternalServerError, "Failed to get diff queue stats")
+		respondAppError(w, Internal("failed to get diff queue stats"))
 		return
 	}
 
 	analyzeStats, err := h.Queue.StatsForWorkspace(r.Context(), queue.JobTypeAnalyze, workspaceID)
 	if err != nil {
 		slog.Error("failed to get analyze queue stats", "error", err)
-		respondError(w, http.StatusInternalServerError, "Failed to get analyze queue stats")
+		respondAppError(w, Internal("failed to get analyze queue stats"))
 		return
 	}
 
@@ -64,7 +64,7 @@ func (h *QueueHandlers) GetQueueStats(w http.ResponseWriter, r *http.Request) {
 // When no type is specified, retries dead jobs from all queue types.
 func (h *QueueHandlers) RetryDeadJobs(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
-		respondError(w, http.StatusInternalServerError, "Queue not configured")
+		respondAppError(w, Internal("queue not configured"))
 		return
 	}
 
@@ -75,7 +75,7 @@ func (h *QueueHandlers) RetryDeadJobs(w http.ResponseWriter, r *http.Request) {
 		count, err := h.Queue.RequeueAllDeadForWorkspace(r.Context(), jobType, workspaceID)
 		if err != nil {
 			slog.Error("failed to retry dead jobs", "type", jobType, "error", err)
-			respondError(w, http.StatusInternalServerError, "Failed to retry dead jobs")
+			respondAppError(w, Internal("failed to retry dead jobs"))
 			return
 		}
 		respondJSON(w, http.StatusOK, map[string]any{
@@ -91,7 +91,7 @@ func (h *QueueHandlers) RetryDeadJobs(w http.ResponseWriter, r *http.Request) {
 		count, err := h.Queue.RequeueAllDeadForWorkspace(r.Context(), jt, workspaceID)
 		if err != nil {
 			slog.Error("failed to retry dead jobs", "type", jt, "error", err)
-			respondError(w, http.StatusInternalServerError, "Failed to retry dead jobs")
+			respondAppError(w, Internal("failed to retry dead jobs"))
 			return
 		}
 		totalCount += count
@@ -109,7 +109,7 @@ func (h *QueueHandlers) RetryDeadJobs(w http.ResponseWriter, r *http.Request) {
 // page (default 1), limit (default 20, max 100).
 func (h *QueueHandlers) GetQueueJobs(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
-		respondError(w, http.StatusInternalServerError, "Queue not configured")
+		respondAppError(w, Internal("queue not configured"))
 		return
 	}
 
@@ -117,30 +117,30 @@ func (h *QueueHandlers) GetQueueJobs(w http.ResponseWriter, r *http.Request) {
 
 	jobType := r.URL.Query().Get("type")
 	if jobType == "" {
-		respondError(w, http.StatusBadRequest, "Missing required parameter: type (diff or analyze)")
+		respondAppError(w, BadRequest("missing required parameter: type (diff or analyze)"))
 		return
 	}
 	if !validJobTypes[jobType] {
-		respondError(w, http.StatusBadRequest, "Invalid type parameter: must be 'diff' or 'analyze'")
+		respondAppError(w, BadRequest("invalid type parameter: must be 'diff' or 'analyze'"))
 		return
 	}
 
 	status := r.URL.Query().Get("status")
 	if status == "" {
-		respondError(w, http.StatusBadRequest, "Missing required parameter: status (pending, processing, or dead)")
+		respondAppError(w, BadRequest("missing required parameter: status (pending, processing, or dead)"))
 		return
 	}
 	if !validJobStatuses[status] {
 		// Provide helpful message for completed/failed
 		if status == "completed" {
-			respondError(w, http.StatusBadRequest, "Completed jobs are counter-only and cannot be listed - use GET /api/queue/stats for the completed count")
+			respondAppError(w, BadRequest("completed jobs are counter-only and cannot be listed - use GET /api/queue/stats for the completed count"))
 			return
 		}
 		if status == "failed" {
-			respondError(w, http.StatusBadRequest, "Failed is not a browsable status - retrying jobs appear as 'pending' with lastError set, exhausted jobs appear as 'dead'")
+			respondAppError(w, BadRequest("failed is not a browsable status - retrying jobs appear as 'pending' with lastError set, exhausted jobs appear as 'dead'"))
 			return
 		}
-		respondError(w, http.StatusBadRequest, "Invalid status parameter: must be 'pending', 'processing', or 'dead'")
+		respondAppError(w, BadRequest("invalid status parameter: must be 'pending', 'processing', or 'dead'"))
 		return
 	}
 
@@ -164,7 +164,7 @@ func (h *QueueHandlers) GetQueueJobs(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		slog.Error("failed to get queue jobs", "type", jobType, "status", status, "error", err)
-		respondError(w, http.StatusInternalServerError, "Failed to get queue jobs")
+		respondAppError(w, Internal("failed to get queue jobs"))
 		return
 	}
 
@@ -179,7 +179,7 @@ func (h *QueueHandlers) GetQueueJobs(w http.ResponseWriter, r *http.Request) {
 // Verifies the job belongs to the requesting user's workspace before retrying.
 func (h *QueueHandlers) RetryDeadJob(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
-		respondError(w, http.StatusInternalServerError, "Queue not configured")
+		respondAppError(w, Internal("queue not configured"))
 		return
 	}
 
@@ -187,7 +187,7 @@ func (h *QueueHandlers) RetryDeadJob(w http.ResponseWriter, r *http.Request) {
 
 	jobID := chi.URLParam(r, "jobId")
 	if jobID == "" {
-		respondError(w, http.StatusBadRequest, "Missing job ID")
+		respondAppError(w, BadRequest("missing job ID"))
 		return
 	}
 
@@ -195,24 +195,24 @@ func (h *QueueHandlers) RetryDeadJob(w http.ResponseWriter, r *http.Request) {
 	job, err := h.Queue.LoadJob(r.Context(), jobID)
 	if err != nil {
 		slog.Error("failed to load job for retry", "job_id", jobID, "error", err)
-		respondError(w, http.StatusNotFound, "Job not found or expired")
+		respondAppError(w, NotFound("job not found or expired"))
 		return
 	}
 
 	// Verify workspace ownership
 	if job.WorkspaceID != workspaceID {
-		respondError(w, http.StatusNotFound, "Job not found or expired")
+		respondAppError(w, NotFound("job not found or expired"))
 		return
 	}
 
 	if job.Status != queue.StatusDead {
-		respondError(w, http.StatusBadRequest, "Job is not in dead status (current status: "+job.Status+")")
+		respondAppError(w, BadRequest("job is not in dead status (current status: "+job.Status+")"))
 		return
 	}
 
 	if err := h.Queue.RequeueDead(r.Context(), job.Type, jobID); err != nil {
 		slog.Error("failed to retry dead job", "job_id", jobID, "error", err)
-		respondError(w, http.StatusInternalServerError, "Failed to retry job")
+		respondAppError(w, Internal("failed to retry job"))
 		return
 	}
 

@@ -16,7 +16,7 @@ func (h *DashboardHandlers) GetDashboardStats(w http.ResponseWriter, r *http.Req
 	stats, err := h.DashboardSvc.GetStats(r.Context(), workspaceID)
 	if err != nil {
 		slog.Error("failed to get dashboard stats", "workspace_id", workspaceID, "error", err)
-		respondError(w, http.StatusInternalServerError, "Failed to get dashboard stats")
+		respondAppError(w, Internal("failed to get dashboard stats"))
 		return
 	}
 
@@ -59,7 +59,7 @@ func (h *DashboardHandlers) GetRecentReleases(w http.ResponseWriter, r *http.Req
 	releases, total, err := h.DashboardSvc.GetRecentReleases(r.Context(), workspaceID, page, limit, sortOrder, filters)
 	if err != nil {
 		slog.Error("failed to load recent releases", "workspace_id", workspaceID, "error", err)
-		respondError(w, http.StatusInternalServerError, "Failed to load releases")
+		respondAppError(w, Internal("failed to load releases"))
 		return
 	}
 
@@ -73,7 +73,7 @@ func (h *DashboardHandlers) ReanalyzeAll(w http.ResponseWriter, r *http.Request)
 	queued, err := h.DashboardSvc.ReanalyzeAll(r.Context(), workspaceID)
 	if err != nil {
 		slog.Error("failed to reanalyze all", "workspace_id", workspaceID, "error", err)
-		respondError(w, http.StatusInternalServerError, "Failed to enqueue analysis jobs")
+		respondAppError(w, Internal("failed to enqueue analysis jobs"))
 		return
 	}
 
