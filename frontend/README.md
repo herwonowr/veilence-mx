@@ -125,6 +125,9 @@ Configure via `.env.local` (not committed to git).
 | `/alerts` | Alert triage - review and manage security alerts |
 | `/releases` | Release details and diff analysis |
 | `/settings` | Workspace settings (members, roles, notifications, API keys, audit, discovery) |
+| `/admin/users` | Platform admin - user management |
+| `/admin/audit-logs` | Platform admin - audit logs across all workspaces |
+| `/admin/security` | Platform admin - auth and SSO settings |
 
 ## Build
 

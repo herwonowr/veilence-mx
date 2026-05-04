@@ -73,6 +73,7 @@ services:
       JWT_SECRET: dev-jwt-secret-change-in-production
       APP_ENV: development
       FRONTEND_URL: http://localhost:3000
+      BACKEND_URL: http://localhost:8080
       LLM_PROVIDER: copilot
       LLM_API_URL: http://host.docker.internal:4141
       LLM_MODEL: claude-sonnet-4.6

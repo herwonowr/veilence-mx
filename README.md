@@ -65,6 +65,14 @@ Packages are monitored in two modes: Top-N (automatically tracks the most popula
 - ✅ Session management (list, revoke)
 - ✅ Registration toggle (enable/disable public sign-ups)
 
+### Enterprise SSO
+- ✅ SAML 2.0 (any IdP - Okta, Azure AD, etc.)
+- ✅ Google OAuth (with hosted domain restriction)
+- ✅ GitHub OAuth (with organization restriction)
+- ✅ Platform-level SSO configuration
+- ✅ Auto-provisioning of SSO users
+- ✅ SSO state encryption and clock skew tolerance
+
 ### Workspaces
 - ✅ Multi-tenant workspace isolation
 - ✅ Create, update, delete workspaces
@@ -100,6 +108,11 @@ Packages are monitored in two modes: Top-N (automatically tracks the most popula
 - ✅ Filter by action, resource, user, date range
 - ✅ IP address and user agent tracking
 - ✅ Correlation ID for request tracing
+
+### Platform Admin
+- ✅ User management (list, view, deactivate, promote/demote)
+- ✅ Platform-wide audit logs (all workspaces)
+- ✅ Auth/security settings (SSO, password login toggle)
 
 ### Queue Monitoring
 - ✅ Job stats overview (pending, processing, completed, dead)
@@ -142,7 +155,7 @@ Packages are monitored in two modes: Top-N (automatically tracks the most popula
 - **Backend:** Go 1.23+, Chi v5, GORM, PostgreSQL 16, Redis 7
 - **Frontend:** Next.js 16 (App Router), React 19, TypeScript, TailwindCSS v4, shadcn/ui
 - **LLM:** copilot-api (default), OpenAI, Anthropic, Ollama
-- **Auth:** JWT (access + refresh), RBAC (Owner/Admin/Member/Viewer)
+- **Auth:** JWT (access + refresh), RBAC (Owner/Admin/Member/Viewer), SSO (SAML, Google, GitHub)
 - **Notifications:** Email (SMTP), Slack webhooks, custom webhooks
 
 ## Prerequisites
