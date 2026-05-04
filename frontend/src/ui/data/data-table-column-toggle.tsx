@@ -42,9 +42,10 @@ export const DataTableColumnToggle = <TData,>({
               className="capitalize gap-2"
             >
               <Check className={`size-3.5 ${column.getIsVisible() ? "opacity-100" : "opacity-0"}`} />
-              {typeof column.columnDef.header === "string"
-                ? column.columnDef.header
-                : column.id.replace(/([A-Z])/g, " $1").trim()}
+              {column.columnDef.meta?.title
+                ?? (typeof column.columnDef.header === "string"
+                  ? column.columnDef.header
+                  : column.id.replace(/([A-Z])/g, " $1").trim())}
             </DropdownMenuItem>
           ))}
       </DropdownMenuContent>

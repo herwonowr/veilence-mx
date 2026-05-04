@@ -219,6 +219,7 @@ const PlatformAuditLogsContent = () => {
       {
         accessorKey: "workspaceId",
         header: ({ column }) => <SortableHeader column={column} title="Workspace" />,
+        meta: { title: "Workspace" },
         cell: ({ row }) => (
           <span className="text-sm">
             {row.original.workspaceName || row.original.workspaceId || "-"}
