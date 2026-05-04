@@ -118,6 +118,8 @@ export const apiGetAuditLogs = async (
   if (params?.to_date) searchParams.set("to_date", params.to_date)
   if (params?.page) searchParams.set("page", String(params.page))
   if (params?.limit) searchParams.set("limit", String(params.limit))
+  if (params?.sort_by) searchParams.set("sort_by", params.sort_by)
+  if (params?.sort_dir) searchParams.set("sort_dir", params.sort_dir)
   const query = searchParams.toString()
   return fetchApi<AuditLog[]>(
     `/api/workspaces/${workspaceId}/audit-logs${query ? `?${query}` : ""}`

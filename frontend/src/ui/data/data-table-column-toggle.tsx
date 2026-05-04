@@ -1,14 +1,14 @@
 "use client"
 
 import type { Table } from "@tanstack/react-table"
-import { Settings2 } from "lucide-react"
+import { Settings2, Check } from "lucide-react"
 import {
   Button,
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/ui"
 
@@ -23,12 +23,12 @@ export const DataTableColumnToggle = <TData,>({
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="outline" size="sm" className="h-8 gap-1.5" />
+          <Button variant="outline" size="sm" className="h-8 gap-1.5">
+            <Settings2 className="size-3.5" />
+            Columns
+          </Button>
         }
-      >
-        <Settings2 className="size-3.5" />
-        Columns
-      </DropdownMenuTrigger>
+      />
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -36,16 +36,16 @@ export const DataTableColumnToggle = <TData,>({
           .getAllColumns()
           .filter((column) => column.getCanHide())
           .map((column) => (
-            <DropdownMenuCheckboxItem
+            <DropdownMenuItem
               key={column.id}
-              checked={column.getIsVisible()}
               onClick={() => column.toggleVisibility(!column.getIsVisible())}
-              className="capitalize"
+              className="capitalize gap-2"
             >
+              <Check className={`size-3.5 ${column.getIsVisible() ? "opacity-100" : "opacity-0"}`} />
               {typeof column.columnDef.header === "string"
                 ? column.columnDef.header
                 : column.id.replace(/([A-Z])/g, " $1").trim()}
-            </DropdownMenuCheckboxItem>
+            </DropdownMenuItem>
           ))}
       </DropdownMenuContent>
     </DropdownMenu>

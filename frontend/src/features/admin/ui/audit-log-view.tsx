@@ -1,10 +1,29 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { useFilterParams, useDebouncedValue, ROUTES, cn } from "@/core"
-import { Button, buttonVariants, Input, Label, Badge, Skeleton, TableEmptyState, FilterChips, Calendar, Popover, PopoverContent, PopoverTrigger, AuditLogDetailDialog, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem, type ActiveFilter } from "@/ui"
+import { useFilterParams, useDebouncedValue, useSortParams, ROUTES, cn } from "@/core"
+import {
+  Button,
+  buttonVariants,
+  Input,
+  Label,
+  Badge,
+  TableSkeleton,
+  TableEmptyState,
+  FilterChips,
+  DataTablePagination,
+  DataTableColumnToggle,
+  SortableHeader,
+  Calendar,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  AuditLogDetailDialog,
+  type ActiveFilter,
+  type SkeletonColumn,
+} from "@/ui"
 import {
   Card,
   CardContent,
@@ -19,15 +38,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/ui"
+import { ArrowLeft, CalendarIcon, Filter, ScrollText } from "lucide-react"
 import {
-  ArrowLeft,
-  CalendarIcon,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  ScrollText,
-  Settings2,
-} from "lucide-react"
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  type ColumnDef,
+  type PaginationState,
+  type VisibilityState,
+} from "@tanstack/react-table"
+import "@/ui/data/table.types"
 import { useAuditLogs } from "@/features/admin/hooks/use-workspaces"
 import type { AuditLog } from "@/domains/admin"
 
@@ -59,13 +79,11 @@ export const AuditLogView = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // Read URL search params as initial filter values
   const initialAction = searchParams.get("action") ?? ""
   const initialResource = searchParams.get("resource") ?? ""
   const initialFrom = parseValidDate(searchParams.get("from"))
   const initialTo = parseValidDate(searchParams.get("to"))
 
-  // Filters
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
   const [action, setAction] = useState(initialAction)
   const [resource, setResource] = useState(initialResource)
@@ -75,11 +93,16 @@ export const AuditLogView = () => {
   const [toDate, setToDate] = useState<Date | undefined>(initialTo)
   const [fromOpen, setFromOpen] = useState(false)
   const [toOpen, setToOpen] = useState(false)
-  const [page, setPage] = useState(1)
-  const [showDetails, setShowDetails] = useState(true)
-  const limit = 20
 
-  // Sync filter state → URL search params
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 20,
+  })
+  const [sorting, setSorting] = useSortParams()
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
+    details: false,
+  })
+
   useFilterParams(
     useMemo(() => ({
       action: debouncedAction,
@@ -92,13 +115,11 @@ export const AuditLogView = () => {
   const handleFromSelect = (date: Date | undefined) => {
     setFromDate(date)
     setFromOpen(false)
-    setPage(1)
   }
 
   const handleToSelect = (date: Date | undefined) => {
     setToDate(date)
     setToOpen(false)
-    setPage(1)
   }
 
   const hasActiveFilters = !!(action || resource || fromDate || toDate)
@@ -108,36 +129,120 @@ export const AuditLogView = () => {
     setResource("")
     setFromDate(undefined)
     setToDate(undefined)
-    setPage(1)
+    setSorting([])
   }
 
   const activeFilters: ActiveFilter[] = [
     ...(action
-      ? [{ label: "Action", value: action, onRemove: () => { setAction(""); setPage(1) } }]
+      ? [{ label: "Action", value: action, onRemove: () => setAction("") }]
       : []),
     ...(resource
-      ? [{ label: "Resource", value: resource, onRemove: () => { setResource(""); setPage(1) } }]
+      ? [{ label: "Resource", value: resource, onRemove: () => setResource("") }]
       : []),
     ...(fromDate
-      ? [{ label: "From", value: fromDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), onRemove: () => { setFromDate(undefined); setToDate(undefined); setPage(1) } }]
+      ? [{ label: "From", value: fromDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), onRemove: () => { setFromDate(undefined); setToDate(undefined) } }]
       : []),
     ...(toDate
-      ? [{ label: "To", value: toDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), onRemove: () => { setToDate(undefined); setPage(1) } }]
+      ? [{ label: "To", value: toDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), onRemove: () => setToDate(undefined) }]
       : []),
   ]
 
-  const { data: logsRes, isLoading } = useAuditLogs(validWorkspaceId, {
+  const sort = sorting[0]
+  const { data: logsRes, isLoading, isError, refetch } = useAuditLogs(validWorkspaceId, {
     action: debouncedAction || undefined,
     resource: debouncedResource || undefined,
     from_date: fromDate ? formatStartOfDay(fromDate) : undefined,
     to_date: toDate ? formatEndOfDay(toDate) : undefined,
-    page,
-    limit,
+    page: pagination.pageIndex + 1,
+    limit: pagination.pageSize,
+    sort_by: sort?.id,
+    sort_dir: sort ? (sort.desc ? "desc" : "asc") : undefined,
   })
 
   const logs = logsRes?.data ?? []
-  const meta = logsRes?.meta ?? null
-  const totalPages = meta ? Math.ceil(meta.total / meta.limit) : 1
+  const total = logsRes?.meta?.total ?? 0
+
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+  }, [debouncedAction, debouncedResource, fromDate, toDate, sorting])
+
+  const skeletonColumns: SkeletonColumn[] = [
+    { width: "w-32", header: "Timestamp" },
+    { width: "w-16", header: "Action" },
+    { width: "w-20", header: "Resource" },
+    { width: "w-40", header: "Details" },
+    { width: "w-24", header: "IP Address" },
+  ]
+
+  const columns = useMemo<ColumnDef<AuditLog>[]>(
+    () => [
+      {
+        accessorKey: "createdAt",
+        header: ({ column }) => <SortableHeader column={column} title="Timestamp" />,
+        enableHiding: false,
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            {new Date(row.original.createdAt).toLocaleString()}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "action",
+        header: ({ column }) => <SortableHeader column={column} title="Action" />,
+        enableHiding: false,
+        cell: ({ row }) => (
+          <Badge variant="outline">{row.original.action}</Badge>
+        ),
+      },
+      {
+        accessorKey: "resource",
+        header: ({ column }) => <SortableHeader column={column} title="Resource" />,
+        enableHiding: false,
+        cell: ({ row }) => (
+          <Badge variant="secondary" className="w-fit capitalize">
+            {row.original.resource.replace(/_/g, " ")}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "details",
+        header: "Details",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span className="max-w-sm text-sm truncate block">
+            {row.original.details || "-"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "ipAddress",
+        header: "IP Address",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span className="font-mono text-xs text-muted-foreground">
+            {row.original.ipAddress || "-"}
+          </span>
+        ),
+      },
+    ],
+    []
+  )
+
+  const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize))
+
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table API is intentionally non-memoizable
+  const table = useReactTable({
+    data: logs,
+    columns,
+    pageCount,
+    state: { pagination, sorting, columnVisibility },
+    onPaginationChange: setPagination,
+    onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
+    getCoreRowModel: getCoreRowModel(),
+    manualPagination: true,
+    manualSorting: true,
+  })
 
   if (!workspaceId) {
     return (
@@ -187,10 +292,7 @@ export const AuditLogView = () => {
                 id="filter-action"
                 placeholder="e.g. create, update"
                 value={action}
-                onChange={(e) => {
-                  setAction(e.target.value)
-                  setPage(1)
-                }}
+                onChange={(e) => setAction(e.target.value)}
               />
             </div>
             <div className="space-y-1">
@@ -201,16 +303,11 @@ export const AuditLogView = () => {
                 id="filter-resource"
                 placeholder="e.g. package, member"
                 value={resource}
-                onChange={(e) => {
-                  setResource(e.target.value)
-                  setPage(1)
-                }}
+                onChange={(e) => setResource(e.target.value)}
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">
-                From
-              </Label>
+              <Label className="text-xs">From</Label>
               <Popover open={fromOpen} onOpenChange={setFromOpen}>
                 <PopoverTrigger
                   render={
@@ -243,9 +340,7 @@ export const AuditLogView = () => {
               </Popover>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">
-                To
-              </Label>
+              <Label className="text-xs">To</Label>
               <Popover open={toOpen} onOpenChange={fromDate ? setToOpen : undefined}>
                 <PopoverTrigger
                   render={
@@ -292,129 +387,88 @@ export const AuditLogView = () => {
       <Card>
         <CardContent>
           <div className="flex justify-end mb-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5" />
-                }
-              >
-                <Settings2 className="size-3.5" />
-                Columns
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem
-                  checked={showDetails}
-                  onClick={() => setShowDetails((v) => !v)}
-                >
-                  Details
-                </DropdownMenuCheckboxItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <DataTableColumnToggle table={table} />
           </div>
-          {isLoading ? (
-            <div className="space-y-2 p-4">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Timestamp</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Resource</TableHead>
-                  {showDetails && <TableHead>Details</TableHead>}
-                  <TableHead>IP Address</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {logs.map((log) => (
-                  <TableRow
-                    key={log.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => setSelectedLog(log)}
-                  >
-                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                      {new Date(log.createdAt).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{log.action}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="w-fit capitalize">{log.resource.replace(/_/g, " ")}</Badge>
-                    </TableCell>
-                    {showDetails && (
-                      <TableCell className="max-w-sm text-sm">
-                        {log.details || "-"}
-                      </TableCell>
-                    )}
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {log.ipAddress || "-"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {logs.length === 0 && (
-                  hasActiveFilters ? (
-                    <TableEmptyState
-                      colSpan={showDetails ? 5 : 4}
-                      icon={<ScrollText className="h-8 w-8" />}
-                      title="No matching audit logs."
-                      description="Try adjusting your filters."
-                    >
-                      <Button variant="outline" size="sm" onClick={clearAllFilters}>
-                        Clear filters
-                      </Button>
-                    </TableEmptyState>
+          <div className="overflow-x-auto">
+            {isLoading ? (
+              <TableSkeleton columns={skeletonColumns} rows={5} />
+            ) : isError ? (
+              <TableEmptyState
+                colSpan={columns.length}
+                icon={<ScrollText className="h-8 w-8" />}
+                title="Failed to load audit logs."
+                description="An error occurred while fetching data."
+              >
+                <Button variant="outline" size="sm" onClick={() => refetch()}>
+                  Retry
+                </Button>
+              </TableEmptyState>
+            ) : (
+              <Table>
+                <TableHeader>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => {
+                        const sorted = header.column.getIsSorted()
+                        return (
+                          <TableHead
+                            key={header.id}
+                            className={header.column.columnDef.meta?.headerClassName}
+                            aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
+                          >
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(header.column.columnDef.header, header.getContext())}
+                          </TableHead>
+                        )
+                      })}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {table.getRowModel().rows.length ? (
+                    table.getRowModel().rows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => setSelectedLog(row.original)}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id} className={cell.column.columnDef.meta?.cellClassName}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
                   ) : (
-                  <TableEmptyState
-                    colSpan={showDetails ? 5 : 4}
-                    icon={<ScrollText className="h-8 w-8" />}
-                    title="No audit logs found."
-                    description="Activity history will appear here as actions are performed in this workspace."
-                  />
-                  )
-                )}
-              </TableBody>
-            </Table>
-          )}
+                    hasActiveFilters ? (
+                      <TableEmptyState
+                        colSpan={columns.length}
+                        icon={<ScrollText className="h-8 w-8" />}
+                        title="No matching audit logs."
+                        description="Try adjusting your filters."
+                      >
+                        <Button variant="outline" size="sm" onClick={clearAllFilters}>
+                          Clear filters
+                        </Button>
+                      </TableEmptyState>
+                    ) : (
+                      <TableEmptyState
+                        colSpan={columns.length}
+                        icon={<ScrollText className="h-8 w-8" />}
+                        title="No audit logs found."
+                        description="Activity history will appear here as actions are performed in this workspace."
+                      />
+                    )
+                  )}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+
+          <DataTablePagination table={table} total={total} />
         </CardContent>
       </Card>
-
-      {/* Pagination */}
-      {meta && totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {(page - 1) * limit + 1}–
-            {Math.min(page * limit, meta.total)} of {meta.total} entries
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              <ChevronLeft className="size-4" />
-              Previous
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              Page {page} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        </div>
-      )}
 
       <AuditLogDetailDialog
         log={selectedLog}
@@ -423,4 +477,3 @@ export const AuditLogView = () => {
     </div>
   )
 }
-

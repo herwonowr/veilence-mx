@@ -12,6 +12,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  CardTitle,
   Badge,
   Button,
   Input,
@@ -40,7 +41,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/ui"
-import { ScrollText, CalendarIcon } from "lucide-react"
+import { ScrollText, CalendarIcon, Filter } from "lucide-react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -200,6 +201,7 @@ const PlatformAuditLogsContent = () => {
       {
         accessorKey: "createdAt",
         header: ({ column }) => <SortableHeader column={column} title="Timestamp" />,
+        enableHiding: false,
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground whitespace-nowrap">
             {new Date(row.original.createdAt).toLocaleString()}
@@ -209,6 +211,7 @@ const PlatformAuditLogsContent = () => {
       {
         accessorKey: "userEmail",
         header: ({ column }) => <SortableHeader column={column} title="User" />,
+        enableHiding: false,
         cell: ({ row }) => (
           <span className="text-sm">{row.original.userEmail || "-"}</span>
         ),
@@ -225,6 +228,7 @@ const PlatformAuditLogsContent = () => {
       {
         accessorKey: "action",
         header: ({ column }) => <SortableHeader column={column} title="Action" />,
+        enableHiding: false,
         cell: ({ row }) => (
           <Badge variant="outline">{row.original.action}</Badge>
         ),
@@ -232,6 +236,7 @@ const PlatformAuditLogsContent = () => {
       {
         accessorKey: "resource",
         header: ({ column }) => <SortableHeader column={column} title="Resource" />,
+        enableHiding: false,
         cell: ({ row }) => (
           <Badge variant="secondary" className="w-fit capitalize">
             {row.original.resource.replace(/_/g, " ")}
@@ -289,7 +294,13 @@ const PlatformAuditLogsContent = () => {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Filter className="size-4" />
+            Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <div className="space-y-1">
@@ -408,12 +419,16 @@ const PlatformAuditLogsContent = () => {
             {hasActiveFilters && (
               <FilterChips filters={activeFilters} onClearAll={clearAllFilters} />
             )}
-            <div className="flex justify-end">
-              <DataTableColumnToggle table={table} />
-            </div>
           </div>
-        </CardHeader>
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      <Card>
         <CardContent>
+          <div className="flex justify-end mb-3">
+            <DataTableColumnToggle table={table} />
+          </div>
           <div className="overflow-x-auto">
             {isLoading ? (
               <TableSkeleton columns={skeletonColumns} rows={5} />
