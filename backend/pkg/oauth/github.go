@@ -67,7 +67,7 @@ func (e *Exchanger) ExchangeGitHub(ctx context.Context, config *OAuthConfig, cod
 	firstName, lastName := splitName(user.Name)
 
 	return &OAuthUserInfo{
-		ProviderUserID: fmt.Sprintf("%d", user.ID),
+		ProviderUserID: resolveGitHubUserID(user),
 		Email:          email,
 		FirstName:      firstName,
 		LastName:       lastName,
@@ -79,6 +79,7 @@ func (e *Exchanger) ExchangeGitHub(ctx context.Context, config *OAuthConfig, cod
 // githubUser represents the GitHub /user response.
 type githubUser struct {
 	ID        int64  `json:"id"`
+	Sub       string `json:"sub"` // OIDC subject (used by Keycloak mock)
 	Login     string `json:"login"`
 	Name      string `json:"name"`
 	Email     string `json:"email"`
@@ -170,6 +171,18 @@ func fetchGitHubOrgs(client *http.Client, orgsURL string) ([]string, error) {
 		result[i] = o.Login
 	}
 	return result, nil
+}
+
+// resolveGitHubUserID returns the user's unique ID. Real GitHub returns a numeric
+// id field; OIDC-compatible IdPs (e.g. Keycloak mock) return a sub string instead.
+func resolveGitHubUserID(user *githubUser) string {
+	if user.ID != 0 {
+		return fmt.Sprintf("%d", user.ID)
+	}
+	if user.Sub != "" {
+		return user.Sub
+	}
+	return ""
 }
 
 // splitName splits a full name into first and last name (best effort).
