@@ -14,12 +14,15 @@ import {
   Layers,
   Key,
   User,
-  ListOrdered,
+  Users,
+  Workflow,
   Monitor,
   Search,
+  Shield,
+  ScrollText,
 } from "lucide-react"
 import { cn, useAuth, useCurrentWorkspaceRole, hasMinimumRole, ROUTES } from "@/core"
-import { Kbd } from "@/ui/components/kbd"
+import { Kbd } from "@/ui"
 import type { LucideIcon } from "lucide-react"
 
 interface CommandItem {
@@ -31,6 +34,8 @@ interface CommandItem {
   keywords?: string[]
   /** Minimum workspace role required to see this item. Defaults to visible for all. */
   minRole?: "viewer" | "member" | "admin" | "owner"
+  /** If true, only visible to platform super-admins (overrides minRole). */
+  superAdminOnly?: boolean
 }
 
 const commandItems: CommandItem[] = [
@@ -44,8 +49,12 @@ const commandItems: CommandItem[] = [
   // Management
   { id: "settings", label: "Settings", href: ROUTES.SETTINGS, icon: Settings, group: "Management", keywords: ["preferences", "configuration"], minRole: "admin" },
   { id: "channels", label: "Channels", href: ROUTES.SETTINGS_NOTIFICATIONS, icon: Radio, group: "Management", keywords: ["notifications", "webhooks", "slack"], minRole: "admin" },
-  { id: "queue", label: "Queue Monitor", href: ROUTES.SETTINGS_QUEUE, icon: ListOrdered, group: "Management", keywords: ["jobs", "workers", "processing"], minRole: "admin" },
+  { id: "queue", label: "Queue Monitor", href: ROUTES.SETTINGS_QUEUE, icon: Workflow, group: "Management", keywords: ["jobs", "workers", "processing"], minRole: "admin" },
   { id: "api-keys", label: "API Keys", href: ROUTES.SETTINGS_API_KEYS, icon: Key, group: "Management", keywords: ["tokens", "authentication"] },
+  // Admin (super-admin only)
+  { id: "security", label: "Security", href: ROUTES.ADMIN_SECURITY, icon: Shield, group: "Admin", keywords: ["sso", "saml", "authentication", "login"], superAdminOnly: true },
+  { id: "users", label: "Users", href: ROUTES.ADMIN_USERS, icon: Users, group: "Admin", keywords: ["platform", "admin", "accounts"], superAdminOnly: true },
+  { id: "audit-logs", label: "Audit Logs", href: ROUTES.ADMIN_AUDIT_LOGS, icon: ScrollText, group: "Admin", keywords: ["audit", "logs", "activity", "history"], superAdminOnly: true },
   // Account
   { id: "account", label: "Account", href: ROUTES.ACCOUNT, icon: User, group: "Account", keywords: ["profile", "email", "password"] },
   { id: "sessions", label: "Sessions", href: ROUTES.SETTINGS_SESSIONS, icon: Monitor, group: "Account", keywords: ["active", "devices"] },
@@ -58,13 +67,16 @@ export const CommandPalette = () => {
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const { role } = useCurrentWorkspaceRole()
 
-  // Filter items based on role permissions
+  // Filter items based on role permissions and super-admin status
   const permittedItems = React.useMemo(
-    () => commandItems.filter((item) => !item.minRole || hasMinimumRole(role, item.minRole)),
-    [role]
+    () => commandItems.filter((item) => {
+      if (item.superAdminOnly) return !!user?.isSuperAdmin
+      return !item.minRole || hasMinimumRole(role, item.minRole)
+    }),
+    [role, user?.isSuperAdmin]
   )
 
   // Filter items based on query

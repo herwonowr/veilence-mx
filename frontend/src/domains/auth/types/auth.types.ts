@@ -1,9 +1,12 @@
+export type AuthProvider = "local" | "saml" | "google" | "github"
+
 export interface User {
   id: string
   email: string
   firstName: string
   lastName: string
   isActive: boolean
+  isSuperAdmin: boolean
   emailVerified: boolean
   mustChangePassword: boolean
   lastLoginAt: string | null
@@ -37,6 +40,7 @@ export interface Session {
   userId: string
   ipAddress: string
   userAgent: string
+  authProvider: AuthProvider
   createdAt: string
   lastActive: string
   expiresAt: string

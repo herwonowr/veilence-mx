@@ -115,7 +115,6 @@ const ProfileSection = () => {
               id="firstName"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
-              required
             />
             {errors.firstName && <FieldError>{errors.firstName}</FieldError>}
           </Field>
@@ -125,7 +124,6 @@ const ProfileSection = () => {
               id="lastName"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              required
             />
             {errors.lastName && <FieldError>{errors.lastName}</FieldError>}
           </Field>
@@ -279,8 +277,8 @@ const PasswordSection = () => {
                   type={showCurrent ? "text" : "password"}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  required
                   autoComplete="current-password"
+                  placeholder="Enter current password"
                 />
                 {errors.currentPassword && <FieldError>{errors.currentPassword}</FieldError>}
               </Field>
@@ -305,7 +303,6 @@ const PasswordSection = () => {
                   placeholder="At least 8 characters"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  required
                   autoComplete="new-password"
                 />
                 {errors.newPassword && <FieldError>{errors.newPassword}</FieldError>}
@@ -330,8 +327,8 @@ const PasswordSection = () => {
                   type={showConfirm ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
                   autoComplete="new-password"
+                  placeholder="Re-enter new password"
                 />
                 {errors.confirmPassword && <FieldError>{errors.confirmPassword}</FieldError>}
               </Field>

@@ -1,13 +1,16 @@
 "use client"
 
-import { ShieldCheck } from "lucide-react"
+import { ShieldCheck, LogOut } from "lucide-react"
 import { Button } from "@/ui"
+import { useAuth } from "@/core"
 
 interface WelcomeStepProps {
   onNext: () => void
 }
 
 export const WelcomeStep = ({ onNext }: WelcomeStepProps) => {
+  const { logout } = useAuth()
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col items-center gap-4 text-center">
@@ -35,6 +38,10 @@ export const WelcomeStep = ({ onNext }: WelcomeStepProps) => {
 
       <Button onClick={onNext} className="w-full">
         Get Started
+      </Button>
+      <Button variant="outline" onClick={logout} className="w-full">
+        <LogOut className="mr-1 h-4 w-4" />
+        Log out
       </Button>
     </div>
   )

@@ -215,7 +215,6 @@ export const WorkspacesListView = () => {
                     placeholder="Acme Corp"
                     value={name}
                     onChange={(e) => handleNameChange(e.target.value)}
-                    required
                   />
                   {fieldErrors.name && <FieldError>{fieldErrors.name}</FieldError>}
                 </Field>
@@ -226,7 +225,6 @@ export const WorkspacesListView = () => {
                     placeholder="acme-corp"
                     value={slug}
                     onChange={(e) => setSlug(e.target.value)}
-                    required
                   />
                   {fieldErrors.slug && <FieldError>{fieldErrors.slug}</FieldError>}
                   <FieldDescription>
@@ -369,9 +367,11 @@ const WorkspaceCard = ({ workspace }: { workspace: Workspace }) => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">{workspace.name}</CardTitle>
-            <Badge variant={["owner", "admin"].includes(workspace.role) ? "secondary" : "outline"}>
-              {workspace.role.charAt(0).toUpperCase() + workspace.role.slice(1)}
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              <Badge variant={["owner", "admin"].includes(workspace.role) ? "secondary" : "outline"}>
+                {workspace.role.charAt(0).toUpperCase() + workspace.role.slice(1)}
+              </Badge>
+            </div>
           </div>
           <CardDescription className="font-mono text-xs">
             {workspace.slug}

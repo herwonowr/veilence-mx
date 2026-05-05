@@ -61,6 +61,8 @@ var csrfExemptPaths = map[string]bool{
 	"/api/auth/verify-email":        true,
 	"/api/auth/resend-verification": true,
 	"/api/setup/initialize":         true,
+	"/api/auth/saml/acs":            true, // POST comes from IdP, not frontend
+	"/api/auth/saml/slo":            true, // POST comes from IdP for SLO
 }
 
 // CSRF returns a middleware implementing the double-submit cookie pattern.

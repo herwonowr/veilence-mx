@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { ROUTES, PUBLIC_PATHS, AUTH_PAGE_PATHS } from "@/core/routes"
+import { ROUTES, PUBLIC_PATHS, AUTH_PAGE_PATHS, SUPER_ADMIN_PATHS } from "@/core/routes"
 
 /**
  * SSR route protection proxy.
@@ -12,6 +12,7 @@ import { ROUTES, PUBLIC_PATHS, AUTH_PAGE_PATHS } from "@/core/routes"
  */
 
 const AUTH_COOKIE = "vmx_authenticated"
+const SUPER_ADMIN_COOKIE = "vmx_super_admin"
 
 const isPublicPath = (pathname: string): boolean =>
   PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
@@ -19,9 +20,13 @@ const isPublicPath = (pathname: string): boolean =>
 const isAuthPagePath = (pathname: string): boolean =>
   AUTH_PAGE_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 
+const isSuperAdminPath = (pathname: string): boolean =>
+  SUPER_ADMIN_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+
 export const proxy = (request: NextRequest): NextResponse => {
   const { pathname } = request.nextUrl
   const hasAuthCookie = request.cookies.has(AUTH_COOKIE)
+  const isSuperAdmin = request.cookies.get(SUPER_ADMIN_COOKIE)?.value === "1"
 
   // Authenticated user hitting an auth page - redirect to dashboard
   if (hasAuthCookie && isAuthPagePath(pathname)) {
@@ -32,7 +37,17 @@ export const proxy = (request: NextRequest): NextResponse => {
   if (!hasAuthCookie && !isPublicPath(pathname)) {
     const loginUrl = new URL(ROUTES.LOGIN, request.url)
     loginUrl.searchParams.set("redirect", pathname)
+    // Preserve SSO error params so login page can display them
+    const error = request.nextUrl.searchParams.get("error")
+    const message = request.nextUrl.searchParams.get("message")
+    if (error) loginUrl.searchParams.set("error", error)
+    if (message) loginUrl.searchParams.set("message", message)
     return NextResponse.redirect(loginUrl)
+  }
+
+  // Non-super-admin user hitting a super-admin page - redirect to dashboard
+  if (hasAuthCookie && isSuperAdminPath(pathname) && !isSuperAdmin) {
+    return NextResponse.redirect(new URL(ROUTES.DASHBOARD, request.url))
   }
 
   return NextResponse.next()

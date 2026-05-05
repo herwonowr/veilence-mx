@@ -1,5 +1,4 @@
-import { fetchApi, getStoredRefreshToken } from "@/core"
-import type { ApiResponse } from "@/domains/common"
+import { fetchApi, getStoredRefreshToken, type ApiResponse } from "@/core"
 import type { User, MeResponse, LoginResponse, ProfileUpdateRequest, PasswordChangeRequest, Session } from "@/domains/auth/types/auth.types"
 
 export const apiLogin = async (

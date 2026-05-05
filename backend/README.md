@@ -129,8 +129,9 @@ Key categories:
 | Database | `DATABASE_URL` | PostgreSQL connection string (required) |
 | Redis | `REDIS_URL`, `QUEUE_*` | Job queue config |
 | LLM | `LLM_PROVIDER`, `LLM_API_URL`, `LLM_MODEL`, `LLM_API_KEY` | Diff analysis provider (required) |
-| Server | `SERVER_PORT`, `FRONTEND_URL`, `APP_ENV` | HTTP server + CORS |
+| Server | `SERVER_PORT`, `FRONTEND_URL`, `BACKEND_URL`, `APP_ENV` | HTTP server + CORS + SSO callbacks |
 | Auth | `JWT_SECRET`, `JWT_SECRET_PREVIOUS` | JWT signing + rotation |
+| SSO | `SSO_ENABLED`, `SSO_ENCRYPTION_KEY`, `SSO_SAML_CLOCK_SKEW`, `SSO_STATE_TTL` | Enterprise SSO (SAML, Google, GitHub) |
 | SMTP | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, etc. | Email (optional - tokens logged to console if unset) |
 | Registration | `REGISTRATION_ENABLED`, `ALLOWED_EMAIL_DOMAINS` | User registration controls |
 | Monitoring | `MONITORING_INTERVAL`, `DISCOVERY_INTERVAL`, `POLLER_CONCURRENCY` | Polling pipeline |

@@ -201,34 +201,32 @@ export const SetupWizard = () => {
               </Alert>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <Field data-invalid={!!errors.firstName}>
-                <FieldLabel htmlFor="firstName">First Name</FieldLabel>
-                <Input
-                  id="firstName"
-                  placeholder="First name"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  autoComplete="given-name"
-                />
-                {errors.firstName && (
-                  <FieldError>{errors.firstName}</FieldError>
-                )}
-              </Field>
-              <Field data-invalid={!!errors.lastName}>
-                <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
-                <Input
-                  id="lastName"
-                  placeholder="Last name"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  autoComplete="family-name"
-                />
-                {errors.lastName && (
-                  <FieldError>{errors.lastName}</FieldError>
-                )}
-              </Field>
-            </div>
+            <Field data-invalid={!!errors.firstName}>
+              <FieldLabel htmlFor="firstName">First Name</FieldLabel>
+              <Input
+                id="firstName"
+                placeholder="First name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                autoComplete="given-name"
+              />
+              {errors.firstName && (
+                <FieldError>{errors.firstName}</FieldError>
+              )}
+            </Field>
+            <Field data-invalid={!!errors.lastName}>
+              <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
+              <Input
+                id="lastName"
+                placeholder="Last name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                autoComplete="family-name"
+              />
+              {errors.lastName && (
+                <FieldError>{errors.lastName}</FieldError>
+              )}
+            </Field>
 
             <Field data-invalid={!!errors.email}>
               <FieldLabel htmlFor="email">Email</FieldLabel>

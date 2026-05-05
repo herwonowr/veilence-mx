@@ -41,6 +41,24 @@ func actionServe(cfg *config.Config) error {
 	go deps.AnalyzeWorker.Start(ctx)
 	go deps.DigestScheduler.Start(ctx)
 
+	// Periodic SSO cleanup (expired states and sessions)
+	if deps.SSOService != nil {
+		go func() {
+			ticker := time.NewTicker(1 * time.Hour)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					if err := deps.SSOService.CleanupExpired(ctx); err != nil {
+						slog.Error("SSO cleanup failed", "error", err)
+					}
+				}
+			}
+		}()
+	}
+
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
 		Handler:           deps.Router,

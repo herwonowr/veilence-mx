@@ -52,10 +52,10 @@ func (uc *UseCase) ListByAlert(ctx context.Context, workspaceID, alertID string)
 func (uc *UseCase) Create(ctx context.Context, workspaceID, alertID, userID string, content string) (*entity.AlertNote, error) {
 	// Validate content
 	if content == "" {
-		return nil, fmt.Errorf("Content is required")
+		return nil, fmt.Errorf("content is required")
 	}
 	if len(content) > entity.MaxNoteLength {
-		return nil, fmt.Errorf("Content must be at most %d characters", entity.MaxNoteLength)
+		return nil, fmt.Errorf("content must be at most %d characters", entity.MaxNoteLength)
 	}
 
 	// Verify alert exists and belongs to the workspace
@@ -109,10 +109,10 @@ func (uc *UseCase) resolveUserEmail(ctx context.Context, userID string) string {
 func (uc *UseCase) Update(ctx context.Context, workspaceID, alertID, noteID, userID string, content string) (*entity.AlertNote, error) {
 	// Validate content
 	if content == "" {
-		return nil, fmt.Errorf("Content is required")
+		return nil, fmt.Errorf("content is required")
 	}
 	if len(content) > entity.MaxNoteLength {
-		return nil, fmt.Errorf("Content must be at most %d characters", entity.MaxNoteLength)
+		return nil, fmt.Errorf("content must be at most %d characters", entity.MaxNoteLength)
 	}
 
 	// Verify alert exists and belongs to the workspace

@@ -4,28 +4,32 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/veilence/veilence-mx/backend/internal/usecase/audit"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/auth"
 )
 
 // SessionHandlers handles session management endpoints.
 type SessionHandlers struct {
-	Auth *auth.Service
+	Auth  *auth.Service
+	Audit *audit.Service
 }
 
 // SessionResponse is the response DTO for a session, including a flag
 // indicating whether it is the caller's current session.
 type SessionResponse struct {
-	ID         string    `json:"id"`
-	UserID     string    `json:"userId"`
-	IPAddress  string    `json:"ipAddress"`
-	UserAgent  string    `json:"userAgent"`
-	CreatedAt  time.Time `json:"createdAt"`
-	LastActive time.Time `json:"lastActive"`
-	ExpiresAt  time.Time `json:"expiresAt"`
-	IsCurrent  bool      `json:"isCurrent"`
+	ID           string    `json:"id"`
+	UserID       string    `json:"userId"`
+	IPAddress    string    `json:"ipAddress"`
+	UserAgent    string    `json:"userAgent"`
+	AuthProvider string    `json:"authProvider"`
+	CreatedAt    time.Time `json:"createdAt"`
+	LastActive   time.Time `json:"lastActive"`
+	ExpiresAt    time.Time `json:"expiresAt"`
+	IsCurrent    bool      `json:"isCurrent"`
 }
 
 // ListSessions returns all active sessions for the authenticated user.
@@ -35,13 +39,13 @@ type SessionResponse struct {
 func (h *SessionHandlers) ListSessions(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "Authentication required")
+		respondAppError(w, Unauthorized("authentication required"))
 		return
 	}
 
 	sessions, err := h.Auth.ListSessions(userID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list sessions")
+		respondAppError(w, Internal("failed to list sessions"))
 		return
 	}
 
@@ -55,14 +59,15 @@ func (h *SessionHandlers) ListSessions(w http.ResponseWriter, r *http.Request) {
 	resp := make([]SessionResponse, len(sessions))
 	for i, s := range sessions {
 		resp[i] = SessionResponse{
-			ID:         s.ID,
-			UserID:     s.UserID,
-			IPAddress:  s.IPAddress,
-			UserAgent:  s.UserAgent,
-			CreatedAt:  s.CreatedAt,
-			LastActive: s.LastActive,
-			ExpiresAt:  s.ExpiresAt,
-			IsCurrent:  currentTokenHash != "" && s.TokenHash == currentTokenHash,
+			ID:           s.ID,
+			UserID:       s.UserID,
+			IPAddress:    s.IPAddress,
+			UserAgent:    s.UserAgent,
+			AuthProvider: s.AuthProvider,
+			CreatedAt:    s.CreatedAt,
+			LastActive:   s.LastActive,
+			ExpiresAt:    s.ExpiresAt,
+			IsCurrent:    currentTokenHash != "" && s.TokenHash == currentTokenHash,
 		}
 	}
 
@@ -75,13 +80,13 @@ func (h *SessionHandlers) ListSessions(w http.ResponseWriter, r *http.Request) {
 func (h *SessionHandlers) RevokeSession(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "Authentication required")
+		respondAppError(w, Unauthorized("authentication required"))
 		return
 	}
 
 	id, ok := parseUUID(r, "id")
 	if !ok {
-		respondError(w, http.StatusBadRequest, "Invalid session ID")
+		respondAppError(w, BadRequest("invalid session ID"))
 		return
 	}
 
@@ -90,7 +95,7 @@ func (h *SessionHandlers) RevokeSession(w http.ResponseWriter, r *http.Request) 
 		rtHash := sha256.Sum256([]byte(rt))
 		currentTokenHash := hex.EncodeToString(rtHash[:])
 		if err := h.Auth.GuardCurrentSession(userID, id, currentTokenHash); err != nil {
-			respondError(w, http.StatusBadRequest, "Cannot revoke the current session")
+			respondAppError(w, BadRequest("cannot revoke the current session"))
 			return
 		}
 	}
@@ -100,9 +105,11 @@ func (h *SessionHandlers) RevokeSession(w http.ResponseWriter, r *http.Request) 
 			respondAppError(w, NotFound("session"))
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "Failed to revoke session")
+		respondAppError(w, Internal("failed to revoke session"))
 		return
 	}
+
+	h.Audit.LogAction(r.Context(), "revoke", "session", id, fmt.Sprintf("revoked session %s", id))
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "session revoked"}, nil)
 }

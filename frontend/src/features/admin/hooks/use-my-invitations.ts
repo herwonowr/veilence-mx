@@ -5,13 +5,10 @@ import {
   apiGetMyInvitations,
   apiAcceptInvitationById,
   apiDeclineInvitationById,
+  myInvitationKeys,
 } from "@/domains/admin"
 import { toast } from "sonner"
 import { sanitizeErrorMessage, usePublicConfigQuery } from "@/core"
-
-export const myInvitationKeys = {
-  all: ["my-invitations"] as const,
-}
 
 export const useMyInvitations = () => {
   const { registrationEnabled } = usePublicConfigQuery()

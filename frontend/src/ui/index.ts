@@ -1,6 +1,5 @@
 // Layout
 export { ThemeToggle } from "@/ui/layout/theme-toggle"
-export { CommandPalette } from "@/ui/layout/command-palette"
 
 // Feedback
 export { EmptyState, TableEmptyState } from "@/ui/feedback/empty-state"
@@ -13,7 +12,9 @@ export { Toaster } from "@/ui/feedback/toaster"
 // Data
 export { SortableHeader } from "@/ui/data/sortable-header"
 export { DataTablePagination } from "@/ui/data/data-table-pagination"
+export { AuditLogDetailDialog, type AuditLogDetailItem } from "@/ui/data/audit-log-detail-dialog"
 export { FilterChips, type ActiveFilter } from "@/ui/data/filter-chips"
+export { DataTableColumnToggle } from "@/ui/data/data-table-column-toggle"
 
 // Form
 export {

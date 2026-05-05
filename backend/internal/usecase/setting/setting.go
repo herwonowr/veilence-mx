@@ -27,7 +27,7 @@ func New(settings usecase.SettingRepository) *UseCase {
 func (uc *UseCase) GetSettings(ctx context.Context, workspaceID string) (map[string]string, error) {
 	settings, err := uc.settings.FindByWorkspaceID(ctx, workspaceID)
 	if err != nil {
-		return nil, fmt.Errorf("SettingUseCase.GetSettings: %w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	result := make(map[string]string, len(settings))
@@ -41,7 +41,7 @@ func (uc *UseCase) GetSettings(ctx context.Context, workspaceID string) (map[str
 // validationError returns a validation error wrapping entity.ErrValidation so
 // callers can distinguish it from infrastructure errors using errors.Is.
 func validationError(msg string) error {
-	return fmt.Errorf("%s: %w", msg, entity.ErrValidation)
+	return &entity.ValidationError{Message: msg}
 }
 
 // UpdateSettings updates settings from a key-value map for the given workspace.
@@ -97,7 +97,7 @@ func (uc *UseCase) UpdateSettings(ctx context.Context, workspaceID string, setti
 		}
 
 		if err := uc.settings.UpsertByWorkspaceAndKey(ctx, workspaceID, key, value); err != nil {
-			return nil, fmt.Errorf("SettingUseCase.UpdateSettings: upserting %s: %w", key, err)
+			return nil, fmt.Errorf("upserting %s: %w", key, err)
 		}
 	}
 

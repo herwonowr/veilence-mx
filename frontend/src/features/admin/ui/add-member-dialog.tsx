@@ -141,7 +141,6 @@ export const AddMemberDialog = ({
                 placeholder="user@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
               />
               {fieldErrors.email && <FieldError>{fieldErrors.email}</FieldError>}
             </Field>
@@ -153,7 +152,6 @@ export const AddMemberDialog = ({
                   placeholder="First name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  required
                 />
                 {fieldErrors.firstName && <FieldError>{fieldErrors.firstName}</FieldError>}
               </Field>
@@ -164,7 +162,6 @@ export const AddMemberDialog = ({
                   placeholder="Last name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  required
                 />
                 {fieldErrors.lastName && <FieldError>{fieldErrors.lastName}</FieldError>}
               </Field>

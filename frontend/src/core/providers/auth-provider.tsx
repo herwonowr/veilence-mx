@@ -21,11 +21,13 @@ interface User {
   firstName: string
   lastName: string
   isActive: boolean
+  isSuperAdmin: boolean
   emailVerified: boolean
   mustChangePassword: boolean
   lastLoginAt: string | null
   createdAt: string
   updatedAt: string
+  allowedEmailDomains?: string[]
 }
 
 interface Workspace {
@@ -55,6 +57,7 @@ import {
   getStoredWorkspaceId,
   storeWorkspaceId,
   clearWorkspaceId,
+  setSuperAdminHint,
   fetchApi,
 } from "@/core/http"
 
@@ -113,6 +116,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { data } = await fetchApi<User>("/api/auth/me")
       setUser(data)
+      setSuperAdminHint(data?.isSuperAdmin ?? false)
     } catch {
       setUser(null)
       clearTokens()
@@ -215,6 +219,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       storeTokens(data.accessToken, data.refreshToken)
       setUser(data.user)
+      setSuperAdminHint(data.user.isSuperAdmin)
       if (!data.mustChangePassword) {
         await refreshWorkspaces()
       }
@@ -245,6 +250,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       storeTokens(data.accessToken, data.refreshToken)
       setUser(data.user)
+      setSuperAdminHint(data.user.isSuperAdmin)
       await refreshWorkspaces()
       return undefined
     },
@@ -272,7 +278,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     queryClient.clear()
   }, [queryClient])
 
-  // SEC-S4-10: Auto-logout on inactivity
+  // Auto-logout on inactivity
   const warningToastId = useRef<string | number | undefined>(undefined)
 
   useEffect(() => {

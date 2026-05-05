@@ -70,6 +70,60 @@ func (r *UserRepo) CountAll(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
+func (r *UserRepo) FindAll(ctx context.Context, page, limit int, sortClause string, filters entity.UserFilters) ([]entity.User, int64, error) {
+	var ms []User
+	var total int64
+
+	q := r.db.WithContext(ctx).Model(&User{})
+	if filters.Search != nil && *filters.Search != "" {
+		pattern := "%" + *filters.Search + "%"
+		q = q.Where("email ILIKE ? OR first_name ILIKE ? OR last_name ILIKE ?", pattern, pattern, pattern)
+	}
+	if filters.Status != nil {
+		switch *filters.Status {
+		case "active":
+			q = q.Where("is_active = ?", true)
+		case "inactive":
+			q = q.Where("is_active = ?", false)
+		}
+	}
+	if filters.Role != nil {
+		switch *filters.Role {
+		case "super_admin":
+			q = q.Where("is_superadmin = ?", true)
+		case "user":
+			q = q.Where("is_superadmin = ?", false)
+		}
+	}
+
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("UserRepo.FindAll: counting: %w", err)
+	}
+
+	if sortClause == "" {
+		sortClause = "created_at DESC"
+	}
+
+	offset := (page - 1) * limit
+	if err := q.Order(sortClause).Offset(offset).Limit(limit).Find(&ms).Error; err != nil {
+		return nil, 0, fmt.Errorf("UserRepo.FindAll: %w", err)
+	}
+
+	result := make([]entity.User, len(ms))
+	for i := range ms {
+		result[i] = *userToDomain(&ms[i])
+	}
+	return result, total, nil
+}
+
+func (r *UserRepo) CountSuperAdmins(ctx context.Context) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&User{}).Where("is_superadmin = ? AND is_active = ?", true, true).Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("UserRepo.CountSuperAdmins: %w", err)
+	}
+	return count, nil
+}
+
 // --- Converters ---
 
 func userToDomain(m *User) *entity.User {
@@ -80,8 +134,11 @@ func userToDomain(m *User) *entity.User {
 		FirstName:          m.FirstName,
 		LastName:           m.LastName,
 		IsActive:           m.IsActive,
+		IsSuperAdmin:       m.IsSuperAdmin,
+		DeactivatedAt:      m.DeactivatedAt,
 		EmailVerified:      m.EmailVerified,
 		MustChangePassword: m.MustChangePassword,
+		AuthProvider:       entity.AuthProvider(m.AuthProvider),
 		LastLoginAt:        m.LastLoginAt,
 		CreatedAt:          m.CreatedAt,
 		UpdatedAt:          m.UpdatedAt,
@@ -96,8 +153,11 @@ func userToModel(d *entity.User) *User {
 		FirstName:          d.FirstName,
 		LastName:           d.LastName,
 		IsActive:           d.IsActive,
+		IsSuperAdmin:       d.IsSuperAdmin,
+		DeactivatedAt:      d.DeactivatedAt,
 		EmailVerified:      d.EmailVerified,
 		MustChangePassword: d.MustChangePassword,
+		AuthProvider:       string(d.AuthProvider),
 		LastLoginAt:        d.LastLoginAt,
 		CreatedAt:          d.CreatedAt,
 		UpdatedAt:          d.UpdatedAt,

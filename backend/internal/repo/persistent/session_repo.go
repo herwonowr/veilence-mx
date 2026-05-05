@@ -141,26 +141,28 @@ func (r *SessionRepo) DeleteByUserIDExceptTokenHash(ctx context.Context, userID 
 
 func sessionToDomain(m *Session) *entity.Session {
 	return &entity.Session{
-		ID:         m.ID,
-		UserID:     m.UserID,
-		TokenHash:  m.TokenHash,
-		IPAddress:  m.IPAddress,
-		UserAgent:  m.UserAgent,
-		CreatedAt:  m.CreatedAt,
-		LastActive: m.LastActive,
-		ExpiresAt:  m.ExpiresAt,
+		ID:           m.ID,
+		UserID:       m.UserID,
+		TokenHash:    m.TokenHash,
+		IPAddress:    m.IPAddress,
+		UserAgent:    m.UserAgent,
+		AuthProvider: m.AuthProvider,
+		CreatedAt:    m.CreatedAt,
+		LastActive:   m.LastActive,
+		ExpiresAt:    m.ExpiresAt,
 	}
 }
 
 func sessionToModel(d *entity.Session) *Session {
 	return &Session{
-		ID:         d.ID,
-		UserID:     d.UserID,
-		TokenHash:  d.TokenHash,
-		IPAddress:  d.IPAddress,
-		UserAgent:  d.UserAgent,
-		CreatedAt:  d.CreatedAt,
-		LastActive: d.LastActive,
-		ExpiresAt:  d.ExpiresAt,
+		ID:           d.ID,
+		UserID:       d.UserID,
+		TokenHash:    d.TokenHash,
+		IPAddress:    d.IPAddress,
+		UserAgent:    d.UserAgent,
+		AuthProvider: d.AuthProvider,
+		CreatedAt:    d.CreatedAt,
+		LastActive:   d.LastActive,
+		ExpiresAt:    d.ExpiresAt,
 	}
 }

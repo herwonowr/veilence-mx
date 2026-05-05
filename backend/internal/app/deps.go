@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"log/slog"
 
@@ -36,15 +38,19 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/release"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/setting"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/setup"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/sso"
 	"github.com/veilence/veilence-mx/backend/pkg/anthropic"
 	"github.com/veilence/veilence-mx/backend/pkg/copilotapi"
+	"github.com/veilence/veilence-mx/backend/pkg/crypto"
 	"github.com/veilence/veilence-mx/backend/pkg/hasher"
 	"github.com/veilence/veilence-mx/backend/pkg/llm"
 	"github.com/veilence/veilence-mx/backend/pkg/mailer"
+	"github.com/veilence/veilence-mx/backend/pkg/oauth"
 	"github.com/veilence/veilence-mx/backend/pkg/ollama"
 	"github.com/veilence/veilence-mx/backend/pkg/openai"
 	"github.com/veilence/veilence-mx/backend/pkg/postgres"
 	"github.com/veilence/veilence-mx/backend/pkg/queue"
+	pkgsaml "github.com/veilence/veilence-mx/backend/pkg/saml"
 	"github.com/veilence/veilence-mx/backend/pkg/sender"
 	"github.com/veilence/veilence-mx/backend/pkg/token"
 )
@@ -58,6 +64,7 @@ type Dependencies struct {
 	DiffWorker      *queue.Worker
 	AnalyzeWorker   *queue.Worker
 	DigestScheduler *digest.Scheduler
+	SSOService      *sso.Service
 }
 
 // BuildDependencies wires all application dependencies from config.
@@ -309,7 +316,75 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	digestRepo := persistent.NewDigestRepo(db)
 	digestScheduler := digest.New(digestRepo, emailNotifSender, smtpConfig.From, digest.Config{})
 
+	// SSO (conditionally wired when enabled)
+	var ssoService *sso.Service
+	var userIdentityRepo *persistent.UserIdentityRepo
+	if cfg.SSOEnabled {
+		encryptor, err := crypto.NewAESEncryptor(cfg.SSOEncryptionKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create SSO encryptor: %w", err)
+		}
+
+		ssoConfigRepo := persistent.NewSSOConfigRepo(db, encryptor)
+		userIdentityRepo = persistent.NewUserIdentityRepo(db)
+		ssoStateRepo := persistent.NewSSOStateRepo(db)
+
+		samlProvider := pkgsaml.NewProvider(cfg.BackendURL, cfg.SSOSAMLClockSkew)
+		oauthExchanger := newOAuthExchangerAdapter(oauth.NewExchanger(oauth.ExchangerConfig{
+			CallbackBaseURL:    cfg.BackendURL,
+			GoogleTokenURL:     cfg.OAuthGoogleTokenURL,
+			GoogleUserInfoURL:  cfg.OAuthGoogleUserInfoURL,
+			GitHubTokenURL:     cfg.OAuthGitHubTokenURL,
+			GitHubUserInfoURL:  cfg.OAuthGitHubUserInfoURL,
+			GitHubEmailsURL:    cfg.OAuthGitHubEmailsURL,
+			GitHubOrgsURL:      cfg.OAuthGitHubOrgsURL,
+		}))
+
+		ssoService = sso.NewService(
+			ssoConfigRepo,
+			userIdentityRepo,
+			ssoStateRepo,
+			newSAMLProviderAdapter(samlProvider),
+			oauthExchanger,
+			authService,
+			userRepo,
+			authService,
+			sessionRepo,
+			refreshTokenRepo,
+			settingRepo,
+			cfg.SSOStateTTL,
+			cfg.BackendURL,
+			sso.WithAuditLogger(auditService),
+			sso.WithMetadataFetcher(pkgsaml.NewMetadataFetcher()),
+			sso.WithRegistrationEnabled(cfg.RegistrationEnabled),
+			sso.WithOAuthAuthURLs(cfg.OAuthGoogleAuthURL, cfg.OAuthGitHubAuthURL),
+		)
+
+		// Load or generate SP signing key and configure the SAML provider.
+		spKey, spCertPEM, spKeyErr := ssoService.EnsureSPSigningKey(context.Background())
+		if spKeyErr != nil {
+			slog.Error("Failed to ensure SP signing key", "error", spKeyErr)
+		} else if spCertPEM != "" {
+			block, _ := pem.Decode([]byte(spCertPEM))
+			if block != nil {
+				spCert, parseErr := x509.ParseCertificate(block.Bytes)
+				if parseErr == nil {
+					samlProvider.SetSPKeyPair(spKey, spCert)
+					slog.Info("SAML SP signing key configured")
+				}
+			}
+		}
+
+		slog.Info("SSO enabled")
+	} else {
+		slog.Info("SSO disabled")
+	}
+
 	// HTTP handlers + router
+	var identityRepoIface usecase.UserIdentityRepository
+	if userIdentityRepo != nil {
+		identityRepoIface = userIdentityRepo
+	}
 	h := v1.NewHandlers(
 		authService,
 		rbacService,
@@ -327,6 +402,10 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		dashboardService,
 		healthService,
 		setupService,
+		ssoService,
+		cfg.FrontendURL,
+		rbacRepo,
+		identityRepoIface,
 	)
 	router := restapi.NewRouter(h, cfg.FrontendURL, authService, rbacService)
 
@@ -338,6 +417,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		DiffWorker:      diffWorker,
 		AnalyzeWorker:   analyzeWorker,
 		DigestScheduler: digestScheduler,
+		SSOService:      ssoService,
 	}, nil
 }
 

@@ -16,6 +16,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/poller"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/rbac"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/setup"
+	"github.com/veilence/veilence-mx/backend/internal/usecase/sso"
 	"github.com/veilence/veilence-mx/backend/pkg/queue"
 )
 
@@ -36,11 +37,14 @@ type Handlers struct {
 	Health        *HealthHandlers
 	Setup         *SetupHandlers
 	Config        *ConfigHandlers
+	SSO           *SSOHandlers
+	AdminUsers    *AdminUserHandlers
 }
 
 // AuthHandlers handles authentication and API key endpoints.
 type AuthHandlers struct {
 	Auth  *auth.Service
+	SSO   *sso.Service
 	Audit *audit.Service
 }
 
@@ -89,11 +93,13 @@ type SettingsHandlers struct {
 // DashboardHandlers handles dashboard statistics, recent releases, charts, and reanalysis endpoints.
 type DashboardHandlers struct {
 	DashboardSvc usecase.DashboardService
+	Audit        *audit.Service
 }
 
 // QueueHandlers handles queue monitoring endpoints.
 type QueueHandlers struct {
 	Queue *queue.Queue
+	Audit *audit.Service
 }
 
 // HealthHandlers handles the health check endpoint.
@@ -119,14 +125,20 @@ func NewHandlers(
 	dashboardService usecase.DashboardService,
 	healthService usecase.HealthService,
 	setupService *setup.Service,
+	ssoService *sso.Service,
+	frontendURL string,
+	rbacRepo usecase.RBACRepository,
+	identityRepo usecase.UserIdentityRepository,
 ) *Handlers {
-	return &Handlers{
+	h := &Handlers{
 		Auth: &AuthHandlers{
 			Auth:  authService,
+			SSO:   ssoService,
 			Audit: auditService,
 		},
 		Sessions: &SessionHandlers{
-			Auth: authService,
+			Auth:  authService,
+			Audit: auditService,
 		},
 		Notifications: &NotificationHandlers{
 			Notifications: notificationService,
@@ -159,9 +171,11 @@ func NewHandlers(
 		},
 		Dashboard: &DashboardHandlers{
 			DashboardSvc: dashboardService,
+			Audit:        auditService,
 		},
 		Queue: &QueueHandlers{
 			Queue: jobQueue,
+			Audit: auditService,
 		},
 		Health: &HealthHandlers{
 			HealthSvc: healthService,
@@ -170,10 +184,26 @@ func NewHandlers(
 			Setup: setupService,
 		},
 		Config: &ConfigHandlers{
-			Setup: setupService,
-			Auth:  authService,
+			Setup:      setupService,
+			Auth:       authService,
+			SSOEnabled: ssoService != nil,
+		},
+		AdminUsers: &AdminUserHandlers{
+			Auth:         authService,
+			RBACRepo:     rbacRepo,
+			IdentityRepo: identityRepo,
+			Audit:        auditService,
 		},
 	}
+
+	if ssoService != nil {
+		h.SSO = &SSOHandlers{
+			service:     ssoService,
+			frontendURL: frontendURL,
+		}
+	}
+
+	return h
 }
 
 // APIResponse is the standard JSON response envelope.
@@ -196,7 +226,10 @@ func respondJSON(w http.ResponseWriter, status int, data any, meta *Meta) {
 	json.NewEncoder(w).Encode(APIResponse{Data: data, Meta: meta})
 }
 
-func respondError(w http.ResponseWriter, status int, msg string) {
+// writeErrorResponse is the low-level JSON error writer. It is intentionally
+// unexported so that handlers always go through respondAppError with a typed
+// error constructor (Internal, BadRequest, etc.).
+func writeErrorResponse(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(APIResponse{Error: &msg})
@@ -204,7 +237,7 @@ func respondError(w http.ResponseWriter, status int, msg string) {
 
 // respondAppError responds with a structured apperror, using its HTTP status and message.
 func respondAppError(w http.ResponseWriter, err *Error) {
-	respondError(w, err.HTTPStatus, err.Message)
+	writeErrorResponse(w, err.HTTPStatus, err.Message)
 }
 
 func parsePagination(r *http.Request) (int, int) {

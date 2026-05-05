@@ -298,6 +298,8 @@ export const useAuditLogs = (
     to_date?: string
     page?: number
     limit?: number
+    sort_by?: string
+    sort_dir?: "asc" | "desc"
   },
   options?: Partial<UseQueryOptions<ApiResponse<AuditLog[]>>>
 ) => {

@@ -28,32 +28,32 @@ type updateOrgRequest struct {
 func (h *WorkspaceHandlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "Authentication required")
+		respondAppError(w, Unauthorized("authentication required"))
 		return
 	}
 
 	var req createOrgRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
+		respondAppError(w, BadRequest("invalid request body"))
 		return
 	}
 
 	if err := validation.ValidateRequired(req.Name, "name"); err != nil {
-		respondAppError(w, Validation(err.Error()))
+		respondAppError(w, ValidationFromErr(err))
 		return
 	}
 	if err := validation.ValidateSlug(req.Slug); err != nil {
-		respondAppError(w, Validation(err.Error()))
+		respondAppError(w, ValidationFromErr(err))
 		return
 	}
 
 	ws, err := h.RBAC.CreateWorkspace(r.Context(), userID, req.Name, req.Slug, req.Description)
 	if err != nil {
 		if errors.Is(err, rbac.ErrSlugTaken) {
-			respondError(w, http.StatusConflict, "Workspace slug is already taken")
+			respondAppError(w, Conflict("workspace slug is already taken"))
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "Failed to create workspace")
+		respondAppError(w, Internal("failed to create workspace"))
 		return
 	}
 
@@ -70,7 +70,7 @@ func (h *WorkspaceHandlers) CreateWorkspace(w http.ResponseWriter, r *http.Reque
 func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	userID := rbac.UserIDFromContext(r.Context())
 	if userID == "" {
-		respondError(w, http.StatusUnauthorized, "Authentication required")
+		respondAppError(w, Unauthorized("authentication required"))
 		return
 	}
 
@@ -83,11 +83,12 @@ func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Reques
 		Search: search,
 	})
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to list workspaces")
+		respondAppError(w, Internal("failed to list workspaces"))
 		return
 	}
 
 	result := make([]response.WorkspaceResponse, len(res.Workspaces))
+
 	for i, o := range res.Workspaces {
 		result[i] = response.WorkspaceResponse{
 			ID: o.ID, Name: o.Name, Slug: o.Slug, Description: o.Description,
@@ -112,17 +113,17 @@ func (h *WorkspaceHandlers) ListWorkspaces(w http.ResponseWriter, r *http.Reques
 func (h *WorkspaceHandlers) GetWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	ws, err := h.RBAC.GetWorkspace(r.Context(), workspaceID)
 	if err != nil {
 		if errors.Is(err, rbac.ErrWorkspaceNotFound) {
-			respondError(w, http.StatusNotFound, "Workspace not found")
+			respondAppError(w, NotFound("workspace not found"))
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "Failed to get workspace")
+		respondAppError(w, Internal("failed to get workspace"))
 		return
 	}
 
@@ -136,20 +137,20 @@ func (h *WorkspaceHandlers) GetWorkspace(w http.ResponseWriter, r *http.Request)
 func (h *WorkspaceHandlers) UpdateWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
 	var req updateOrgRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
+		respondAppError(w, BadRequest("invalid request body"))
 		return
 	}
 
 	// Fetch existing workspace to fill in missing fields (support partial updates)
 	existingOrg, err := h.RBAC.GetWorkspace(r.Context(), workspaceID)
 	if err != nil {
-		respondError(w, http.StatusNotFound, "Workspace not found")
+		respondAppError(w, NotFound("workspace not found"))
 		return
 	}
 
@@ -160,7 +161,7 @@ func (h *WorkspaceHandlers) UpdateWorkspace(w http.ResponseWriter, r *http.Reque
 	slug := existingOrg.Slug
 	if req.Slug != nil && *req.Slug != "" {
 		if err := validation.ValidateSlug(*req.Slug); err != nil {
-			respondAppError(w, Validation(err.Error()))
+			respondAppError(w, ValidationFromErr(err))
 			return
 		}
 		slug = *req.Slug
@@ -173,14 +174,14 @@ func (h *WorkspaceHandlers) UpdateWorkspace(w http.ResponseWriter, r *http.Reque
 	ws, err := h.RBAC.UpdateWorkspace(r.Context(), workspaceID, name, slug, description)
 	if err != nil {
 		if errors.Is(err, rbac.ErrWorkspaceNotFound) {
-			respondError(w, http.StatusNotFound, "Workspace not found")
+			respondAppError(w, NotFound("workspace not found"))
 			return
 		}
 		if errors.Is(err, rbac.ErrSlugTaken) {
-			respondError(w, http.StatusConflict, "Workspace slug is already taken")
+			respondAppError(w, Conflict("workspace slug is already taken"))
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "Failed to update workspace")
+		respondAppError(w, Internal("failed to update workspace"))
 		return
 	}
 
@@ -196,7 +197,7 @@ func (h *WorkspaceHandlers) UpdateWorkspace(w http.ResponseWriter, r *http.Reque
 func (h *WorkspaceHandlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
 	if workspaceID == "" {
-		respondError(w, http.StatusBadRequest, "Workspace context required")
+		respondAppError(w, BadRequest("workspace context required"))
 		return
 	}
 
@@ -205,10 +206,10 @@ func (h *WorkspaceHandlers) DeleteWorkspace(w http.ResponseWriter, r *http.Reque
 
 	if err := h.RBAC.DeleteWorkspace(r.Context(), workspaceID); err != nil {
 		if errors.Is(err, rbac.ErrWorkspaceNotFound) {
-			respondError(w, http.StatusNotFound, "Workspace not found")
+			respondAppError(w, NotFound("workspace not found"))
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "Failed to delete workspace")
+		respondAppError(w, Internal("failed to delete workspace"))
 		return
 	}
 

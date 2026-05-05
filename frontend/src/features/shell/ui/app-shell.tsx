@@ -1,7 +1,8 @@
 "use client"
 
 import { usePathname } from "next/navigation"
-import { SidebarInset, SidebarProvider, CommandPalette } from "@/ui"
+import { SidebarInset, SidebarProvider } from "@/ui"
+import { CommandPalette } from "@/features/shell/ui/command-palette"
 import { useAuth, NO_CHROME_PATHS } from "@/core"
 import { SiteHeader } from "@/features/shell/ui/site-header"
 import { AppSidebar } from "@/features/shell/ui/app-sidebar"

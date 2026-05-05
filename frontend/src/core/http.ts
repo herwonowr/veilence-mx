@@ -15,7 +15,6 @@ interface TokenRefreshResponse {
   refreshToken: string
 }
 
-// FINDING-11: Tokens are stored in localStorage for client-side auth state.
 // This is a UI convenience - the backend enforces authentication and
 // authorization on every endpoint. An XSS attack could steal these tokens,
 // but backend rate limiting, short token TTLs, and refresh rotation mitigate risk.
@@ -38,14 +37,24 @@ export const storeTokens = (accessToken: string, refreshToken: string) => {
   localStorage.setItem(TOKEN_KEY, accessToken)
   localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
   // Set UX-hint cookie for SSR middleware route protection (not a security boundary)
-  document.cookie = "vmx_authenticated=1; path=/; SameSite=Lax; max-age=604800"
+  const secure = window.location.protocol === "https:" ? "; Secure" : ""
+  document.cookie = `vmx_authenticated=1; path=/; SameSite=Lax; max-age=604800${secure}`
 }
 
 export const clearTokens = () => {
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
   // Clear UX-hint cookie so SSR middleware redirects to login
-  document.cookie = "vmx_authenticated=; path=/; SameSite=Lax; max-age=0"
+  document.cookie = "vmx_authenticated=; path=/; SameSite=Lax; max-age=0; Secure"
+  document.cookie = "vmx_super_admin=; path=/; SameSite=Lax; max-age=0; Secure"
+}
+
+export const setSuperAdminHint = (isSuperAdmin: boolean) => {
+  if (isSuperAdmin) {
+    document.cookie = "vmx_super_admin=1; path=/; SameSite=Lax; max-age=604800"
+  } else {
+    document.cookie = "vmx_super_admin=; path=/; SameSite=Lax; max-age=0"
+  }
 }
 
 export const getStoredWorkspaceId = (): string | null => {
@@ -62,7 +71,7 @@ export const clearWorkspaceId = () => {
   localStorage.removeItem(WORKSPACE_ID_KEY)
 }
 
-// SEC-S4-002: Read CSRF token from cookie set by backend CSRF middleware
+// Read CSRF token from cookie set by backend CSRF middleware
 const getCsrfToken = (): string => {
   if (typeof document === "undefined") return ""
   const match = document.cookie.match(/(?:^|;\s*)_csrf_token=([^;]+)/)
@@ -132,7 +141,7 @@ export const fetchApi = async <T>(
     }
   }
 
-  // SEC-S4-002: Attach CSRF token for state-changing requests
+  // Attach CSRF token for state-changing requests
   const method = (fetchOptions?.method ?? "GET").toUpperCase()
   if (CSRF_METHODS.includes(method)) {
     const csrfToken = getCsrfToken()
@@ -170,7 +179,7 @@ export const fetchApi = async <T>(
     }
   }
 
-  // SEC-S3-006: Handle 429 rate limiting with Retry-After header
+  // Handle 429 rate limiting with Retry-After header
   if (response.status === 429) {
     const retryAfter = response.headers.get("Retry-After")
     const seconds = retryAfter ? parseInt(retryAfter, 10) : 60
@@ -192,7 +201,7 @@ export const fetchApi = async <T>(
   }
 
   if (!response.ok) {
-    // SEC-S4-10: Sanitize raw API error messages before they reach UI consumers
+    // Sanitize raw API error messages before they reach UI consumers
     const rawMessage = body.error ?? `API error: ${response.status}`
     throw new Error(sanitizeErrorMessage(rawMessage))
   }

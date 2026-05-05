@@ -30,6 +30,16 @@ const parseUserAgent = (ua: string): string => {
   return ua || "Unknown"
 }
 
+const formatAuthProvider = (provider: string): string => {
+  switch (provider) {
+    case "local": return "Password"
+    case "saml": return "SAML"
+    case "google": return "Google"
+    case "github": return "GitHub"
+    default: return provider || "Password"
+  }
+}
+
 export const SessionsView = () => {
   const { data: sessionsRes, isLoading, isError, refetch } = useSessions()
 
@@ -48,6 +58,7 @@ export const SessionsView = () => {
 
   const sessionsSkeletonColumns: SkeletonColumn[] = [
     { width: "w-20", header: "Browser / Client" },
+    { width: "w-16", header: "Auth Method" },
     { width: "w-24", header: "IP Address" },
     { width: "w-24", header: "Created" },
     { width: "w-24", header: "Last Active" },
@@ -81,12 +92,13 @@ export const SessionsView = () => {
           {isLoading ? (
             <TableSkeleton columns={sessionsSkeletonColumns} rows={5} />
           ) : isError ? (
-            <TableError colSpan={6} onRetry={() => refetch()} />
+            <TableError colSpan={7} onRetry={() => refetch()} />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Browser / Client</TableHead>
+                  <TableHead>Auth Method</TableHead>
                   <TableHead>IP Address</TableHead>
                   <TableHead className="hidden md:table-cell">Created</TableHead>
                   <TableHead>Last Active</TableHead>
@@ -113,6 +125,11 @@ export const SessionsView = () => {
                           </Badge>
                         )}
                       </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {formatAuthProvider(session.authProvider)}
+                      </Badge>
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {session.ipAddress}
@@ -161,7 +178,7 @@ export const SessionsView = () => {
                 ))}
                 {sessions.length === 0 && (
                   <TableEmptyState
-                    colSpan={6}
+                    colSpan={7}
                     icon={<Monitor className="h-8 w-8" />}
                     title="No active sessions found."
                     description="Your session information will appear here when you sign in on other devices."

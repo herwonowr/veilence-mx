@@ -56,6 +56,17 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 			r.Post("/reset-password", h.Auth.ResetPassword)
 			r.Post("/verify-email", h.Auth.VerifyEmail)
 			r.Post("/resend-verification", h.Auth.ResendVerificationByEmail)
+
+			// Public SSO routes (no auth required - callbacks from IdPs)
+			if h.SSO != nil {
+				r.Get("/sso/providers", h.SSO.HandleSSOProviders)
+				r.Get("/sso/{configId}/login", h.SSO.HandleSSOLogin)
+				r.Get("/oauth/callback", h.SSO.HandleOAuthCallback)
+				r.Post("/saml/acs", h.SSO.HandleSAMLACS)
+				r.Post("/saml/slo", h.SSO.HandleSAMLSLO)
+				r.Get("/saml/{configId}/metadata", h.SSO.HandleSAMLMetadata)
+				r.Get("/saml/certificate", h.SSO.HandleSAMLSPCertificate)
+			}
 		})
 
 		// Public setup routes (no authentication required, rate limited)
@@ -89,6 +100,14 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 				r.Delete("/{id}", h.Sessions.RevokeSession)
 			})
 
+			// Protected SSO routes (auth required, no workspace context)
+			if h.SSO != nil {
+				// Identity management
+				r.Get("/auth/identities", h.SSO.HandleGetIdentities)
+				r.Get("/auth/identities/link", h.SSO.HandleLinkIdentity)
+				r.Delete("/auth/identities/{id}", h.SSO.HandleUnlinkIdentity)
+			}
+
 			// Permissions (global, not workspace-scoped)
 			r.Get("/permissions", h.Workspace.ListPermissions)
 
@@ -96,6 +115,40 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 			r.Get("/invitations/mine", h.Workspace.ListMyInvitations)
 			r.Post("/invitations/{id}/accept", h.Workspace.AcceptInvitationByID)
 			r.Post("/invitations/{id}/decline", h.Workspace.DeclineInvitationByID)
+
+			// Platform admin routes (super-admin only)
+			r.Route("/admin", func(r chi.Router) {
+				r.Use(middleware.RequireSuperAdmin(authService))
+
+				// SSO config management (only when SSO is enabled)
+				if h.SSO != nil {
+					r.Route("/sso", func(r chi.Router) {
+						r.Get("/", h.SSO.HandleListSSOConfigs)
+						r.Post("/", h.SSO.HandleCreateSSOConfig)
+						r.Post("/saml/import-metadata", h.SSO.HandleImportSAMLMetadata)
+						r.Route("/{id}", func(r chi.Router) {
+							r.Get("/", h.SSO.HandleGetSSOConfig)
+							r.Put("/", h.SSO.HandleUpdateSSOConfig)
+							r.Delete("/", h.SSO.HandleDeleteSSOConfig)
+							r.Post("/test", h.SSO.HandleTestSSOConfig)
+						})
+					})
+
+					// Auth settings management
+					r.Get("/auth-settings", h.SSO.HandleGetAuthSettings)
+					r.Put("/auth-settings", h.SSO.HandleUpdateAuthSettings)
+				}
+
+				// Audit logs (platform-wide)
+				r.Get("/audit-logs", h.AuditLogs.ListAllAuditLogs)
+
+				// User management
+				r.Route("/users", func(r chi.Router) {
+					r.Get("/", h.AdminUsers.HandleListUsers)
+					r.Get("/{id}", h.AdminUsers.HandleGetUser)
+					r.Put("/{id}", h.AdminUsers.HandleUpdateUser)
+				})
+			})
 
 			// Workspace-scoped flat routes (workspace ID from X-Workspace-ID header or workspace_id query param)
 			r.Group(func(r chi.Router) {
@@ -179,7 +232,6 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 				// Queue monitoring (global data - restricted to workspace admins/owners only)
 				r.With(middleware.RequirePermission(rbacService, "workspace", "write")).Get("/queue/stats", h.Queue.GetQueueStats)
 				r.With(middleware.RequirePermission(rbacService, "workspace", "write")).Get("/queue/jobs", h.Queue.GetQueueJobs)
-				r.With(middleware.RequirePermission(rbacService, "workspace", "write")).Get("/queue/dead", h.Queue.GetDeadJobs) // Deprecated: use GET /queue/jobs?status=dead
 				r.With(middleware.RequirePermission(rbacService, "workspace", "write")).Post("/queue/retry-dead", h.Queue.RetryDeadJobs)
 				r.With(middleware.RequirePermission(rbacService, "workspace", "write")).Post("/queue/dead/{jobId}/retry", h.Queue.RetryDeadJob)
 			})

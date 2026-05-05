@@ -15,6 +15,7 @@ export const ROUTES = {
   SETUP: "/setup",
   CHANGE_PASSWORD: "/change-password",
   INVITE: "/invite",
+  SSO_CALLBACK: "/auth/sso/callback",
 
   // App pages
   DASHBOARD: "/",
@@ -36,6 +37,9 @@ export const ROUTES = {
   SETTINGS_SESSIONS: "/settings/sessions",
   SETTINGS_QUEUE: "/settings/queue",
   SETTINGS_NOTIFICATIONS: "/settings/notifications",
+  ADMIN_SECURITY: "/admin/security",
+  ADMIN_USERS: "/admin/users",
+  ADMIN_AUDIT_LOGS: "/admin/audit-logs",
   ACCOUNT: "/account",
   NOTIFICATIONS: "/notifications",
 } as const
@@ -49,6 +53,7 @@ export const PUBLIC_PATHS = [
   ROUTES.VERIFY_EMAIL,
   ROUTES.SETUP,
   ROUTES.INVITE,
+  ROUTES.SSO_CALLBACK,
 ] as const
 
 /** Auth pages where authenticated users should be redirected to dashboard */
@@ -57,6 +62,13 @@ export const AUTH_PAGE_PATHS = [
   ROUTES.REGISTER,
   ROUTES.FORGOT_PASSWORD,
   ROUTES.RESET_PASSWORD,
+] as const
+
+/** Pages that require super-admin privileges */
+export const SUPER_ADMIN_PATHS = [
+  ROUTES.ADMIN_SECURITY,
+  ROUTES.ADMIN_USERS,
+  ROUTES.ADMIN_AUDIT_LOGS,
 ] as const
 
 /** Pages that render without app shell (no sidebar/header) */

@@ -23,6 +23,7 @@ type Config struct {
 	RedisURL    string
 	Port        string
 	FrontendURL string
+	BackendURL  string
 	AppEnv      string
 
 	// JWT rotation
@@ -60,6 +61,22 @@ type Config struct {
 	// Registration control
 	RegistrationEnabled bool
 	AllowedEmailDomains []string
+
+	// SSO
+	SSOEnabled       bool
+	SSOEncryptionKey string
+	SSOSAMLClockSkew time.Duration
+	SSOStateTTL      time.Duration
+
+	// OAuth provider URLs (overridable for Keycloak/local dev)
+	OAuthGoogleAuthURL     string
+	OAuthGoogleTokenURL    string
+	OAuthGoogleUserInfoURL string
+	OAuthGitHubAuthURL     string
+	OAuthGitHubTokenURL    string
+	OAuthGitHubUserInfoURL string
+	OAuthGitHubEmailsURL   string
+	OAuthGitHubOrgsURL     string
 }
 
 // NewConfig loads configuration from environment variables with sensible defaults for optional fields.
@@ -79,6 +96,7 @@ func NewConfig() (*Config, error) {
 		RedisURL:    envOrDefault("REDIS_URL", "redis://localhost:6379/0"),
 		Port:        envOrDefault("SERVER_PORT", "8080"),
 		FrontendURL: envOrDefault("FRONTEND_URL", "http://localhost:3000"),
+		BackendURL:  envOrDefault("BACKEND_URL", "http://localhost:8080"),
 		AppEnv:      envOrDefault("APP_ENV", "production"),
 
 		// LLM
@@ -112,6 +130,22 @@ func NewConfig() (*Config, error) {
 
 		// Registration control
 		RegistrationEnabled: envBoolOrDefault("REGISTRATION_ENABLED", false),
+
+		// SSO
+		SSOEnabled:       envBoolOrDefault("SSO_ENABLED", false),
+		SSOEncryptionKey: os.Getenv("SSO_ENCRYPTION_KEY"),
+		SSOSAMLClockSkew: envDurationOrDefault("SSO_SAML_CLOCK_SKEW", 30*time.Second),
+		SSOStateTTL:      envDurationOrDefault("SSO_STATE_TTL", 5*time.Minute),
+
+		// OAuth provider URLs
+		OAuthGoogleAuthURL:     envOrDefault("OAUTH_GOOGLE_AUTH_URL", "https://accounts.google.com/o/oauth2/v2/auth"),
+		OAuthGoogleTokenURL:    envOrDefault("OAUTH_GOOGLE_TOKEN_URL", "https://oauth2.googleapis.com/token"),
+		OAuthGoogleUserInfoURL: envOrDefault("OAUTH_GOOGLE_USERINFO_URL", "https://www.googleapis.com/oauth2/v3/userinfo"),
+		OAuthGitHubAuthURL:     envOrDefault("OAUTH_GITHUB_AUTH_URL", "https://github.com/login/oauth/authorize"),
+		OAuthGitHubTokenURL:    envOrDefault("OAUTH_GITHUB_TOKEN_URL", "https://github.com/login/oauth/access_token"),
+		OAuthGitHubUserInfoURL: envOrDefault("OAUTH_GITHUB_USERINFO_URL", "https://api.github.com/user"),
+		OAuthGitHubEmailsURL:   envOrDefault("OAUTH_GITHUB_EMAILS_URL", "https://api.github.com/user/emails"),
+		OAuthGitHubOrgsURL:     envOrDefault("OAUTH_GITHUB_ORGS_URL", "https://api.github.com/user/orgs"),
 	}
 
 	// Parse comma-separated previous JWT secrets
@@ -177,15 +211,18 @@ func (c *Config) Validate() error {
 		errs = append(errs, "LLM_RATE_INTERVAL must be > 0")
 	}
 
+	// SSO validation
+	if c.SSOEnabled && c.SSOEncryptionKey == "" {
+		errs = append(errs, "SSO_ENCRYPTION_KEY is required when SSO_ENABLED=true")
+	}
+	if c.SSOEnabled && c.SSOEncryptionKey != "" && len(c.SSOEncryptionKey) != 64 {
+		errs = append(errs, "SSO_ENCRYPTION_KEY must be a 64-character hex string (32 bytes)")
+	}
+
 	if len(errs) > 0 {
 		return fmt.Errorf("config validation failed:\n  - %s", strings.Join(errs, "\n  - "))
 	}
 	return nil
-}
-
-// IsSMTPConfigured returns true if SMTP host and from address are set.
-func (c *Config) IsSMTPConfigured() bool {
-	return c.SMTPHost != "" && c.SMTPFrom != ""
 }
 
 func envOrDefault(key, fallback string) string {

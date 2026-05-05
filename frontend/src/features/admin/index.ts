@@ -29,8 +29,8 @@ export {
   useMyInvitations,
   useAcceptInvitationById,
   useDeclineInvitationById,
-  myInvitationKeys,
 } from "@/features/admin/hooks/use-my-invitations"
+export { myInvitationKeys } from "@/domains/admin"
 
 export { WorkspaceSelector } from "@/features/admin/ui/workspace-selector"
 export { WorkspacesListView } from "@/features/admin/ui/workspaces-list-view"

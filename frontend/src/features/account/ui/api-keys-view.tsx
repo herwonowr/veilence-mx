@@ -118,7 +118,6 @@ export const ApiKeysView = () => {
   const [copied, setCopied] = useState(false)
 
   const createMutation = useCreateApiKey()
-  // FINDING-16: API key deletion is not role-gated in the UI, but the backend
   // only returns keys belonging to the authenticated user, so users can only
   // delete their own keys.
   const deleteMutation = useDeleteApiKey()
@@ -233,7 +232,6 @@ export const ApiKeysView = () => {
                       placeholder="e.g. CI/CD Pipeline"
                       value={keyName}
                       onChange={(e) => setKeyName(e.target.value)}
-                      required
                     />
                     {fieldErrors.name && <FieldError>{fieldErrors.name}</FieldError>}
                   </Field>

@@ -49,13 +49,13 @@ func (uc *UseCase) ListByPackage(ctx context.Context, workspaceID, packageID str
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, 0, entity.ErrNotFound
 		}
-		return nil, 0, fmt.Errorf("ReleaseUseCase.ListByPackage: verifying package: %w", err)
+		return nil, 0, fmt.Errorf("verifying package: %w", err)
 	}
 	_ = pkg
 
 	releases, total, err := uc.releases.FindByPackageIDAndWorkspace(ctx, packageID, workspaceID, page, limit)
 	if err != nil {
-		return nil, 0, fmt.Errorf("ReleaseUseCase.ListByPackage: %w", err)
+		return nil, 0, fmt.Errorf("%w", err)
 	}
 	return releases, total, nil
 }
@@ -67,7 +67,7 @@ func (uc *UseCase) GetRelease(ctx context.Context, workspaceID, releaseID string
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, entity.ErrNotFound
 		}
-		return nil, fmt.Errorf("ReleaseUseCase.GetRelease: %w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	detail := &entity.ReleaseDetail{
@@ -92,7 +92,7 @@ func (uc *UseCase) GetRelease(ctx context.Context, workspaceID, releaseID string
 // ReanalyzeRelease re-queues a single release for analysis. Returns the message and job ID.
 func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID string) (string, string, error) {
 	if uc.queue == nil {
-		return "", "", fmt.Errorf("ReleaseUseCase.ReanalyzeRelease: queue not configured")
+		return "", "", fmt.Errorf("queue not configured")
 	}
 
 	release, pkg, err := uc.releases.FindByIDWithPackageAndWorkspace(ctx, releaseID, workspaceID)
@@ -100,7 +100,7 @@ func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID 
 		if errors.Is(err, entity.ErrNotFound) {
 			return "", "", entity.ErrNotFound
 		}
-		return "", "", fmt.Errorf("ReleaseUseCase.ReanalyzeRelease: %w", err)
+		return "", "", fmt.Errorf("%w", err)
 	}
 	_ = pkg
 
@@ -108,22 +108,22 @@ func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID 
 	if err != nil || diff == nil {
 		// No diff yet - re-enqueue as a diff job from scratch
 		if err := uc.releases.UpdateStatus(ctx, release.ID, entity.ReleaseStatusPending); err != nil {
-			return "", "", fmt.Errorf("ReleaseUseCase.ReanalyzeRelease: updating status: %w", err)
+			return "", "", fmt.Errorf("updating status: %w", err)
 		}
 		jobID, err := uc.queue.Enqueue(ctx, jobTypeDiff, workspaceID, release.ID)
 		if err != nil {
-			return "", "", fmt.Errorf("ReleaseUseCase.ReanalyzeRelease: enqueue diff: %w", err)
+			return "", "", fmt.Errorf("enqueue diff: %w", err)
 		}
 		return "release re-queued for diffing and analysis", jobID, nil
 	}
 
 	// Diff exists - re-enqueue analysis job
 	if err := uc.releases.UpdateStatus(ctx, release.ID, entity.ReleaseStatusAnalyzing); err != nil {
-		return "", "", fmt.Errorf("ReleaseUseCase.ReanalyzeRelease: updating status: %w", err)
+		return "", "", fmt.Errorf("updating status: %w", err)
 	}
 	jobID, err := uc.queue.Enqueue(ctx, jobTypeAnalyze, workspaceID, diff.ID)
 	if err != nil {
-		return "", "", fmt.Errorf("ReleaseUseCase.ReanalyzeRelease: enqueue analyze: %w", err)
+		return "", "", fmt.Errorf("enqueue analyze: %w", err)
 	}
 	return "release re-queued for analysis", jobID, nil
 }
@@ -136,14 +136,14 @@ func (uc *UseCase) GetAnalysisHistory(ctx context.Context, workspaceID, packageI
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, entity.ErrNotFound
 		}
-		return nil, fmt.Errorf("ReleaseUseCase.GetAnalysisHistory: verifying package: %w", err)
+		return nil, fmt.Errorf("verifying package: %w", err)
 	}
 	_ = pkg
 
 	// Load all releases
 	releases, err := uc.releases.FindByPackageIDAll(ctx, packageID)
 	if err != nil {
-		return nil, fmt.Errorf("ReleaseUseCase.GetAnalysisHistory: loading releases: %w", err)
+		return nil, fmt.Errorf("loading releases: %w", err)
 	}
 
 	if len(releases) == 0 {
@@ -158,7 +158,7 @@ func (uc *UseCase) GetAnalysisHistory(ctx context.Context, workspaceID, packageI
 
 	diffs, err := uc.diffs.FindByReleaseIDs(ctx, releaseIDs)
 	if err != nil {
-		return nil, fmt.Errorf("ReleaseUseCase.GetAnalysisHistory: loading diffs: %w", err)
+		return nil, fmt.Errorf("loading diffs: %w", err)
 	}
 	diffByRelease := make(map[string]entity.Diff)
 	for _, d := range diffs {
@@ -174,7 +174,7 @@ func (uc *UseCase) GetAnalysisHistory(ctx context.Context, workspaceID, packageI
 	if len(diffIDs) > 0 {
 		analyses, err := uc.analyses.FindByDiffIDs(ctx, diffIDs)
 		if err != nil {
-			return nil, fmt.Errorf("ReleaseUseCase.GetAnalysisHistory: loading analyses: %w", err)
+			return nil, fmt.Errorf("loading analyses: %w", err)
 		}
 		for _, a := range analyses {
 			analysisByDiff[a.DiffID] = a

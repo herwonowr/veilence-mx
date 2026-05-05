@@ -25,7 +25,7 @@ func New(alerts usecase.AlertRepository, audit usecase.AuditLogger) *UseCase {
 func (uc *UseCase) ListAlerts(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error) {
 	results, total, err := uc.alerts.FindByWorkspaceIDWithPackage(ctx, workspaceID, page, limit, sortClause, filters)
 	if err != nil {
-		return nil, 0, fmt.Errorf("AlertUseCase.ListAlerts: %w", err)
+		return nil, 0, fmt.Errorf("%w", err)
 	}
 	return results, total, nil
 }
@@ -37,7 +37,7 @@ func (uc *UseCase) GetAlert(ctx context.Context, workspaceID, alertID string) (*
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, nil, entity.ErrNotFound
 		}
-		return nil, nil, fmt.Errorf("AlertUseCase.GetAlert: %w", err)
+		return nil, nil, fmt.Errorf("%w", err)
 	}
 	return alert, pkg, nil
 }
@@ -49,7 +49,7 @@ func (uc *UseCase) UpdateAlertStatus(ctx context.Context, workspaceID, alertID s
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, entity.ErrNotFound
 		}
-		return nil, fmt.Errorf("AlertUseCase.UpdateAlertStatus: finding alert: %w", err)
+		return nil, fmt.Errorf("finding alert: %w", err)
 	}
 
 	if err := alert.ValidateStatusTransition(status); err != nil {
@@ -57,7 +57,7 @@ func (uc *UseCase) UpdateAlertStatus(ctx context.Context, workspaceID, alertID s
 	}
 
 	if err := uc.alerts.UpdateStatus(ctx, alertID, workspaceID, status); err != nil {
-		return nil, fmt.Errorf("AlertUseCase.UpdateAlertStatus: %w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 	alert.Status = status
 
