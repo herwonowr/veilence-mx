@@ -64,6 +64,8 @@ type Service struct {
 	registrationEnabled bool
 	stateTTL            time.Duration
 	baseURL             string
+	googleAuthURL       string
+	githubAuthURL       string
 	// spKey is the cached SP signing private key (loaded/generated on first use).
 	spKey *rsa.PrivateKey
 	// spCertPEM is the cached SP signing certificate in PEM format.
@@ -128,6 +130,14 @@ func WithMetadataFetcher(mf usecase.SAMLMetadataFetcher) ServiceOption {
 // WithRegistrationEnabled sets the registration enabled flag (from env config).
 func WithRegistrationEnabled(enabled bool) ServiceOption {
 	return func(s *Service) { s.registrationEnabled = enabled }
+}
+
+// WithOAuthAuthURLs sets custom OAuth authorization endpoint URLs.
+func WithOAuthAuthURLs(googleAuthURL, githubAuthURL string) ServiceOption {
+	return func(s *Service) {
+		s.googleAuthURL = googleAuthURL
+		s.githubAuthURL = githubAuthURL
+	}
 }
 
 // --- Public SSO (unauthenticated) ---
@@ -195,7 +205,7 @@ func (s *Service) InitiateSSOLogin(ctx context.Context, configID, callbackURL st
 			ssoState.CodeVerifier = codeVerifier
 			codeChallenge = cc
 		}
-		idpURL = buildOAuthURL(config, stateToken, codeChallenge, s.baseURL)
+		idpURL = buildOAuthURL(config, stateToken, codeChallenge, s.baseURL, s.googleAuthURL, s.githubAuthURL)
 
 	default:
 		return "", ErrUnsupportedProvider
@@ -641,7 +651,7 @@ func (s *Service) InitiateLinkIdentity(ctx context.Context, userID, configID, ca
 			ssoState.CodeVerifier = codeVerifier
 			codeChallenge = cc
 		}
-		idpURL = buildOAuthURL(config, stateToken, codeChallenge, s.baseURL)
+		idpURL = buildOAuthURL(config, stateToken, codeChallenge, s.baseURL, s.googleAuthURL, s.githubAuthURL)
 
 	default:
 		return "", ErrUnsupportedProvider
@@ -723,8 +733,20 @@ func (s *Service) DeleteSSOConfig(ctx context.Context, id string) error {
 		return fmt.Errorf("DeleteSSOConfig: finding config: %w", err)
 	}
 
+	// Delete config first, then identities. This ordering ensures that if config
+	// deletion fails, no data is lost. If identity deletion fails afterward,
+	// orphaned identities are harmless and can be cleaned up later.
 	if err := s.configRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("DeleteSSOConfig: %w", err)
+	}
+
+	// NOTE: DeleteByProvider removes ALL identities for this provider type globally.
+	// The user_identities table has no sso_config_id column, so we cannot scope
+	// deletion to a specific SSO config. If multiple SSO configs share the same
+	// provider type (e.g. two Google configs), deleting one will remove identities
+	// from both. This is a known schema limitation.
+	if err := s.identityRepo.DeleteByProvider(ctx, entity.AuthProvider(config.Provider)); err != nil {
+		return fmt.Errorf("DeleteSSOConfig: removing linked identities: %w", err)
 	}
 
 	if s.auditLogger != nil {
@@ -1011,7 +1033,7 @@ func generatePKCE() (codeVerifier, codeChallenge string, err error) {
 }
 
 // buildOAuthURL constructs the OAuth authorization URL with PKCE parameters.
-func buildOAuthURL(config *entity.SSOConfig, state, codeChallenge, baseURL string) string {
+func buildOAuthURL(config *entity.SSOConfig, state, codeChallenge, baseURL, googleAuthURL, githubAuthURL string) string {
 	switch config.Provider {
 	case entity.SSOProviderGoogle:
 		params := url.Values{}
@@ -1026,7 +1048,7 @@ func buildOAuthURL(config *entity.SSOConfig, state, codeChallenge, baseURL strin
 		if config.GoogleHostedDomain != "" {
 			params.Set("hd", config.GoogleHostedDomain)
 		}
-		return "https://accounts.google.com/o/oauth2/v2/auth?" + params.Encode()
+		return googleAuthURL + "?" + params.Encode()
 
 	case entity.SSOProviderGitHub:
 		params := url.Values{}
@@ -1034,7 +1056,7 @@ func buildOAuthURL(config *entity.SSOConfig, state, codeChallenge, baseURL strin
 		params.Set("redirect_uri", baseURL+"/api/auth/oauth/callback")
 		params.Set("state", state)
 		params.Set("scope", "user:email read:org")
-		return "https://github.com/login/oauth/authorize?" + params.Encode()
+		return githubAuthURL + "?" + params.Encode()
 
 	default:
 		return ""

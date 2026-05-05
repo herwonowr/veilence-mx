@@ -464,6 +464,7 @@ type UserIdentityRepository interface {
 	Update(ctx context.Context, identity *entity.UserIdentity) error
 	Delete(ctx context.Context, id string) error
 	DeleteByUserID(ctx context.Context, userID string) error
+	DeleteByProvider(ctx context.Context, provider entity.AuthProvider) error
 }
 
 // SSOStateRepository defines persistence operations for SSO state parameters (CSRF).

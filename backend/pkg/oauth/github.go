@@ -8,13 +8,6 @@ import (
 	"net/http"
 
 	"golang.org/x/oauth2"
-	oauthgithub "golang.org/x/oauth2/github"
-)
-
-const (
-	githubUserURL  = "https://api.github.com/user"
-	githubEmailURL = "https://api.github.com/user/emails"
-	githubOrgsURL  = "https://api.github.com/user/orgs"
 )
 
 // ExchangeGitHub exchanges a GitHub OAuth authorization code for user info using PKCE.
@@ -22,7 +15,10 @@ func (e *Exchanger) ExchangeGitHub(ctx context.Context, config *OAuthConfig, cod
 	cfg := &oauth2.Config{
 		ClientID:     config.OAuthClientID,
 		ClientSecret: config.OAuthClientSecret,
-		Endpoint:     oauthgithub.Endpoint,
+		Endpoint: oauth2.Endpoint{
+			TokenURL:  e.githubTokenURL,
+			AuthStyle: oauth2.AuthStyleInHeader,
+		},
 		RedirectURL:  e.callbackBaseURL + "/api/auth/oauth/callback",
 		Scopes:       []string{"user:email", "read:org"},
 	}
@@ -38,10 +34,15 @@ func (e *Exchanger) ExchangeGitHub(ctx context.Context, config *OAuthConfig, cod
 		return nil, fmt.Errorf("oauth.ExchangeGitHub: token exchange: %w", err)
 	}
 
-	client := cfg.Client(ctx, token)
+	// Build an HTTP client that attaches the Bearer token directly instead of
+	// relying on oauth2.Transport, which can have subtle issues with Keycloak
+	// when AuthStyleInHeader is set on the endpoint.
+	client := &http.Client{
+		Transport: &bearerTransport{token: token.AccessToken},
+	}
 
 	// Fetch user profile.
-	user, err := fetchGitHubUser(client)
+	user, err := fetchGitHubUser(client, e.githubUserInfoURL)
 	if err != nil {
 		return nil, fmt.Errorf("oauth.ExchangeGitHub: %w", err)
 	}
@@ -49,14 +50,14 @@ func (e *Exchanger) ExchangeGitHub(ctx context.Context, config *OAuthConfig, cod
 	// Fetch primary email if not in profile.
 	email := user.Email
 	if email == "" {
-		email, err = fetchGitHubPrimaryEmail(client)
+		email, err = fetchGitHubPrimaryEmail(client, e.githubEmailsURL)
 		if err != nil {
 			return nil, fmt.Errorf("oauth.ExchangeGitHub: %w", err)
 		}
 	}
 
 	// Fetch organization memberships.
-	orgs, err := fetchGitHubOrgs(client)
+	orgs, err := fetchGitHubOrgs(client, e.githubOrgsURL)
 	if err != nil {
 		// Non-fatal - org fetch may fail due to permissions.
 		orgs = nil
@@ -96,15 +97,15 @@ type githubOrg struct {
 	Login string `json:"login"`
 }
 
-func fetchGitHubUser(client *http.Client) (*githubUser, error) {
-	resp, err := client.Get(githubUserURL)
+func fetchGitHubUser(client *http.Client, userURL string) (*githubUser, error) {
+	resp, err := client.Get(userURL)
 	if err != nil {
 		return nil, fmt.Errorf("fetching GitHub user: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return nil, fmt.Errorf("GitHub user API returned %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -115,15 +116,15 @@ func fetchGitHubUser(client *http.Client) (*githubUser, error) {
 	return &user, nil
 }
 
-func fetchGitHubPrimaryEmail(client *http.Client) (string, error) {
-	resp, err := client.Get(githubEmailURL)
+func fetchGitHubPrimaryEmail(client *http.Client, emailsURL string) (string, error) {
+	resp, err := client.Get(emailsURL)
 	if err != nil {
 		return "", fmt.Errorf("fetching GitHub emails: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return "", fmt.Errorf("GitHub emails API returned %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -148,8 +149,8 @@ func fetchGitHubPrimaryEmail(client *http.Client) (string, error) {
 	return "", fmt.Errorf("no verified email found on GitHub account")
 }
 
-func fetchGitHubOrgs(client *http.Client) ([]string, error) {
-	resp, err := client.Get(githubOrgsURL)
+func fetchGitHubOrgs(client *http.Client, orgsURL string) ([]string, error) {
+	resp, err := client.Get(orgsURL)
 	if err != nil {
 		return nil, fmt.Errorf("fetching GitHub orgs: %w", err)
 	}

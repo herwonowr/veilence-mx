@@ -8,32 +8,17 @@ import (
 	"net/http"
 
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 )
-
-const (
-	googleUserInfoURL = "https://www.googleapis.com/oauth2/v3/userinfo"
-)
-
-// Exchanger implements usecase.OAuthTokenExchanger for Google and GitHub.
-type Exchanger struct {
-	// callbackBaseURL is the base URL for OAuth callback endpoints.
-	callbackBaseURL string
-}
-
-// NewExchanger creates a new OAuth exchanger.
-func NewExchanger(callbackBaseURL string) *Exchanger {
-	return &Exchanger{
-		callbackBaseURL: callbackBaseURL,
-	}
-}
 
 // ExchangeGoogle exchanges a Google OAuth authorization code for user info using PKCE.
 func (e *Exchanger) ExchangeGoogle(ctx context.Context, config *OAuthConfig, code, codeVerifier string) (*OAuthUserInfo, error) {
 	cfg := &oauth2.Config{
 		ClientID:     config.OAuthClientID,
 		ClientSecret: config.OAuthClientSecret,
-		Endpoint:     google.Endpoint,
+		Endpoint: oauth2.Endpoint{
+			TokenURL:  e.googleTokenURL,
+			AuthStyle: oauth2.AuthStyleInHeader,
+		},
 		RedirectURL:  e.callbackBaseURL + "/api/auth/oauth/callback",
 		Scopes:       []string{"openid", "email", "profile"},
 	}
@@ -50,15 +35,17 @@ func (e *Exchanger) ExchangeGoogle(ctx context.Context, config *OAuthConfig, cod
 	}
 
 	// Fetch user info from Google.
-	client := cfg.Client(ctx, token)
-	resp, err := client.Get(googleUserInfoURL)
+	client := &http.Client{
+		Transport: &bearerTransport{token: token.AccessToken},
+	}
+	resp, err := client.Get(e.googleUserInfoURL)
 	if err != nil {
 		return nil, fmt.Errorf("oauth.ExchangeGoogle: fetching user info: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return nil, fmt.Errorf("oauth.ExchangeGoogle: user info returned %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -86,6 +73,3 @@ type googleUserInfo struct {
 	Picture    string `json:"picture"`
 	HD         string `json:"hd"` // hosted domain for Google Workspace
 }
-
-// Compile-time check that Exchanger implements TokenExchanger.
-var _ TokenExchanger = (*Exchanger)(nil)

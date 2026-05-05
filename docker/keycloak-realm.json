@@ -118,6 +118,8 @@
       "secret": "google-mock-secret",
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
+      "defaultClientScopes": ["openid", "email", "profile"],
+      "fullScopeAllowed": true,
       "redirectUris": [
         "http://localhost:8080/api/auth/oauth/callback"
       ],
@@ -165,6 +167,8 @@
       "secret": "github-mock-secret",
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
+      "defaultClientScopes": ["openid", "email", "profile"],
+      "fullScopeAllowed": true,
       "redirectUris": [
         "http://localhost:8080/api/auth/oauth/callback"
       ],

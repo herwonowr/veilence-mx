@@ -77,6 +77,13 @@ func (r *UserIdentityRepo) DeleteByUserID(ctx context.Context, userID string) er
 	return nil
 }
 
+func (r *UserIdentityRepo) DeleteByProvider(ctx context.Context, provider entity.AuthProvider) error {
+	if err := r.db.WithContext(ctx).Where("provider = ?", string(provider)).Delete(&UserIdentity{}).Error; err != nil {
+		return fmt.Errorf("UserIdentityRepo.DeleteByProvider: %w", err)
+	}
+	return nil
+}
+
 // --- Converters ---
 
 func userIdentityToDomain(m *UserIdentity) *entity.UserIdentity {

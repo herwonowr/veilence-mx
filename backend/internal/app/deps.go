@@ -330,7 +330,15 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		ssoStateRepo := persistent.NewSSOStateRepo(db)
 
 		samlProvider := pkgsaml.NewProvider(cfg.BackendURL, cfg.SSOSAMLClockSkew)
-		oauthExchanger := newOAuthExchangerAdapter(oauth.NewExchanger(cfg.BackendURL))
+		oauthExchanger := newOAuthExchangerAdapter(oauth.NewExchanger(oauth.ExchangerConfig{
+			CallbackBaseURL:    cfg.BackendURL,
+			GoogleTokenURL:     cfg.OAuthGoogleTokenURL,
+			GoogleUserInfoURL:  cfg.OAuthGoogleUserInfoURL,
+			GitHubTokenURL:     cfg.OAuthGitHubTokenURL,
+			GitHubUserInfoURL:  cfg.OAuthGitHubUserInfoURL,
+			GitHubEmailsURL:    cfg.OAuthGitHubEmailsURL,
+			GitHubOrgsURL:      cfg.OAuthGitHubOrgsURL,
+		}))
 
 		ssoService = sso.NewService(
 			ssoConfigRepo,
@@ -349,6 +357,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 			sso.WithAuditLogger(auditService),
 			sso.WithMetadataFetcher(pkgsaml.NewMetadataFetcher()),
 			sso.WithRegistrationEnabled(cfg.RegistrationEnabled),
+			sso.WithOAuthAuthURLs(cfg.OAuthGoogleAuthURL, cfg.OAuthGitHubAuthURL),
 		)
 
 		// Load or generate SP signing key and configure the SAML provider.

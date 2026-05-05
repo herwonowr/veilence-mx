@@ -67,6 +67,16 @@ type Config struct {
 	SSOEncryptionKey string
 	SSOSAMLClockSkew time.Duration
 	SSOStateTTL      time.Duration
+
+	// OAuth provider URLs (overridable for Keycloak/local dev)
+	OAuthGoogleAuthURL     string
+	OAuthGoogleTokenURL    string
+	OAuthGoogleUserInfoURL string
+	OAuthGitHubAuthURL     string
+	OAuthGitHubTokenURL    string
+	OAuthGitHubUserInfoURL string
+	OAuthGitHubEmailsURL   string
+	OAuthGitHubOrgsURL     string
 }
 
 // NewConfig loads configuration from environment variables with sensible defaults for optional fields.
@@ -126,6 +136,16 @@ func NewConfig() (*Config, error) {
 		SSOEncryptionKey: os.Getenv("SSO_ENCRYPTION_KEY"),
 		SSOSAMLClockSkew: envDurationOrDefault("SSO_SAML_CLOCK_SKEW", 30*time.Second),
 		SSOStateTTL:      envDurationOrDefault("SSO_STATE_TTL", 5*time.Minute),
+
+		// OAuth provider URLs
+		OAuthGoogleAuthURL:     envOrDefault("OAUTH_GOOGLE_AUTH_URL", "https://accounts.google.com/o/oauth2/v2/auth"),
+		OAuthGoogleTokenURL:    envOrDefault("OAUTH_GOOGLE_TOKEN_URL", "https://oauth2.googleapis.com/token"),
+		OAuthGoogleUserInfoURL: envOrDefault("OAUTH_GOOGLE_USERINFO_URL", "https://www.googleapis.com/oauth2/v3/userinfo"),
+		OAuthGitHubAuthURL:     envOrDefault("OAUTH_GITHUB_AUTH_URL", "https://github.com/login/oauth/authorize"),
+		OAuthGitHubTokenURL:    envOrDefault("OAUTH_GITHUB_TOKEN_URL", "https://github.com/login/oauth/access_token"),
+		OAuthGitHubUserInfoURL: envOrDefault("OAUTH_GITHUB_USERINFO_URL", "https://api.github.com/user"),
+		OAuthGitHubEmailsURL:   envOrDefault("OAUTH_GITHUB_EMAILS_URL", "https://api.github.com/user/emails"),
+		OAuthGitHubOrgsURL:     envOrDefault("OAUTH_GITHUB_ORGS_URL", "https://api.github.com/user/orgs"),
 	}
 
 	// Parse comma-separated previous JWT secrets
