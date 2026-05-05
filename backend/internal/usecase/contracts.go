@@ -451,6 +451,7 @@ type SSOConfigRepository interface {
 	FindByID(ctx context.Context, id string) (*entity.SSOConfig, error)
 	FindEnabled(ctx context.Context) ([]entity.SSOConfig, error)
 	FindBySAMLEntityID(ctx context.Context, entityID string) (*entity.SSOConfig, error)
+	FindByProvider(ctx context.Context, provider entity.SSOProvider) (*entity.SSOConfig, error)
 	Create(ctx context.Context, config *entity.SSOConfig) error
 	Update(ctx context.Context, config *entity.SSOConfig) error
 	Delete(ctx context.Context, id string) error

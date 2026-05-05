@@ -1,5 +1,3 @@
-import type { SSOProvider } from "@/domains/sso/types/sso.types"
-
 export interface Workspace {
   id: string
   name: string
@@ -10,8 +8,6 @@ export interface Workspace {
   role: string
   packageCount?: number | null
   memberCount?: number | null
-  ssoRequired?: boolean
-  ssoProvider?: SSOProvider | null
   createdAt: string
   updatedAt: string
 }
@@ -77,8 +73,6 @@ export interface InvitationInfo {
   expiresAt: string
   accepted: boolean
   expired: boolean
-  ssoRequired?: boolean
-  ssoProvider?: SSOProvider | null
 }
 
 export interface MyInvitation {

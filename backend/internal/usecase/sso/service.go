@@ -695,6 +695,15 @@ func (s *Service) CreateSSOConfig(ctx context.Context, config *entity.SSOConfig)
 		return nil, fmt.Errorf("CreateSSOConfig: %w", err)
 	}
 
+	// Enforce one config per provider.
+	existing, err := s.configRepo.FindByProvider(ctx, config.Provider)
+	if err != nil && !errors.Is(err, entity.ErrNotFound) {
+		return nil, fmt.Errorf("CreateSSOConfig: checking existing provider: %w", err)
+	}
+	if existing != nil {
+		return nil, entity.ErrSSOConfigExists
+	}
+
 	if err := s.configRepo.Create(ctx, config); err != nil {
 		return nil, fmt.Errorf("CreateSSOConfig: %w", err)
 	}
@@ -740,11 +749,10 @@ func (s *Service) DeleteSSOConfig(ctx context.Context, id string) error {
 		return fmt.Errorf("DeleteSSOConfig: %w", err)
 	}
 
-	// NOTE: DeleteByProvider removes ALL identities for this provider type globally.
-	// The user_identities table has no sso_config_id column, so we cannot scope
-	// deletion to a specific SSO config. If multiple SSO configs share the same
-	// provider type (e.g. two Google configs), deleting one will remove identities
-	// from both. This is a known schema limitation.
+	// DeleteByProvider removes ALL identities for this provider type globally.
+	// This is safe because we enforce one config per provider via a unique
+	// constraint (idx_sso_configs_unique_provider), so there is exactly one
+	// config per provider type at any time.
 	if err := s.identityRepo.DeleteByProvider(ctx, entity.AuthProvider(config.Provider)); err != nil {
 		return fmt.Errorf("DeleteSSOConfig: removing linked identities: %w", err)
 	}
@@ -1054,13 +1062,29 @@ func buildOAuthURL(config *entity.SSOConfig, state, codeChallenge, baseURL, goog
 		params := url.Values{}
 		params.Set("client_id", config.OAuthClientID)
 		params.Set("redirect_uri", baseURL+"/api/auth/oauth/callback")
+		params.Set("response_type", "code")
 		params.Set("state", state)
-		params.Set("scope", "user:email read:org")
+		// Use GitHub-specific scopes for real GitHub, OIDC scopes for other IdPs (e.g. Keycloak).
+		if strings.Contains(githubAuthURL, "github.com") {
+			params.Set("scope", "user:email read:org")
+		} else {
+			params.Set("scope", "openid email profile")
+		}
 		return githubAuthURL + "?" + params.Encode()
 
 	default:
 		return ""
 	}
+}
+
+// ResolveCallbackFromState looks up the SSO state and returns the stored callback URL.
+// Used by the controller to redirect errors to the correct frontend page.
+func (s *Service) ResolveCallbackFromState(ctx context.Context, state string) (string, error) {
+	ssoState, err := s.stateRepo.FindByState(ctx, state)
+	if err != nil {
+		return "", fmt.Errorf("ResolveCallbackFromState: %w", err)
+	}
+	return ssoState.CallbackURL, nil
 }
 
 // emailInDomains checks if an email address belongs to one of the allowed domains.

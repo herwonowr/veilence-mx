@@ -6,9 +6,10 @@ import {
   SSOConfigForm,
   useCreatePlatformSSOConfig,
   useUpdatePlatformSSOConfig,
+  usePlatformSSOConfigs,
   AuthSettingsCard,
 } from "@/features/sso-admin"
-import type { SSOConfig, CreateSSOConfigRequest, UpdateSSOConfigRequest } from "@/domains/sso"
+import type { SSOConfig, CreateSSOConfigRequest, UpdateSSOConfigRequest, SSOProvider } from "@/domains/sso"
 
 export const SSOAdminView = () => {
   const [editingConfig, setEditingConfig] = useState<SSOConfig | null>(null)
@@ -16,6 +17,10 @@ export const SSOAdminView = () => {
 
   const createMutation = useCreatePlatformSSOConfig()
   const updateMutation = useUpdatePlatformSSOConfig()
+  const { data: configsRes } = usePlatformSSOConfigs()
+  const configuredProviders: SSOProvider[] = (configsRes?.data ?? []).map(
+    (c: SSOConfig) => c.provider
+  )
 
   const handleCreate = () => {
     setEditingConfig(null)
@@ -59,6 +64,7 @@ export const SSOAdminView = () => {
       {showForm ? (
         <SSOConfigForm
           existingConfig={editingConfig}
+          configuredProviders={configuredProviders}
           isPending={createMutation.isPending || updateMutation.isPending}
           onSubmit={handleSubmit}
           onCancel={handleCancel}

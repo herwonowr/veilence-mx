@@ -93,6 +93,17 @@ func (r *SSOConfigRepo) FindBySAMLEntityID(ctx context.Context, entityID string)
 	return r.ssoConfigToDomain(&m)
 }
 
+func (r *SSOConfigRepo) FindByProvider(ctx context.Context, provider entity.SSOProvider) (*entity.SSOConfig, error) {
+	var m SSOConfig
+	if err := r.db.WithContext(ctx).Where("provider = ?", string(provider)).First(&m).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("sso config by provider %w", entity.ErrNotFound)
+		}
+		return nil, fmt.Errorf("SSOConfigRepo.FindByProvider: %w", err)
+	}
+	return r.ssoConfigToDomain(&m)
+}
+
 func (r *SSOConfigRepo) Create(ctx context.Context, config *entity.SSOConfig) error {
 	m, err := r.ssoConfigToModel(config)
 	if err != nil {

@@ -71,6 +71,7 @@ export const useDeletePlatformSSOConfig = () => {
     mutationFn: (id: string) => apiDeletePlatformSSOConfig(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ssoKeys.configs() })
+      queryClient.invalidateQueries({ queryKey: ssoKeys.identities() })
       toast.success("SSO configuration deleted")
     },
     onError: () => {

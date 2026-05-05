@@ -86,6 +86,7 @@ export const LinkedIdentities = () => {
                     onConfirm={async () => {
                       try {
                         await unlinkMutation.mutateAsync(identity.id)
+                        toast.success("Identity unlinked successfully.")
                       } catch (error) {
                         toast.error(sanitizeErrorMessage(error, "Failed to unlink identity"))
                       }

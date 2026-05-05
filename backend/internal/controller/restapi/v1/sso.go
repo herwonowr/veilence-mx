@@ -197,8 +197,21 @@ func (h *SSOHandlers) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 
 	if code == "" || state == "" {
 		// Check for OAuth error response.
-		if errParam := r.URL.Query().Get("error"); errParam != "" {
+		errParam := r.URL.Query().Get("error")
+		if errParam != "" {
 			slog.Error("HandleOAuthCallback: OAuth error", "error", errParam, "description", r.URL.Query().Get("error_description"))
+		}
+		// Try to resolve callback URL from state for proper error redirect.
+		if state != "" {
+			if result, err := h.service.ResolveCallbackFromState(r.Context(), state); err == nil && result != "" {
+				params := url.Values{}
+				params.Set("error", "sso_failed")
+				if errParam != "" {
+					params.Set("message", r.URL.Query().Get("error_description"))
+				}
+				http.Redirect(w, r, appendQueryParams(result, params), http.StatusFound)
+				return
+			}
 		}
 		http.Redirect(w, r, h.ssoFallbackError("sso_failed"), http.StatusFound)
 		return

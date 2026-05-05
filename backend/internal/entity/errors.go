@@ -15,6 +15,8 @@ var (
 	ErrValidation = errors.New("validation")
 	// ErrSetupAlreadyCompleted indicates that the initial setup has already been completed.
 	ErrSetupAlreadyCompleted = errors.New("setup already completed")
+	// ErrSSOConfigExists indicates that an SSO config for this provider already exists.
+	ErrSSOConfigExists = errors.New("an SSO configuration for this provider already exists")
 )
 
 // ValidationError is a validation failure with a user-facing message.

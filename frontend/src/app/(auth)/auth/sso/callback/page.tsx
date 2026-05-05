@@ -19,12 +19,27 @@ const SSOCallbackPage = () => {
     const redirect = searchParams.get("redirect") || ROUTES.DASHBOARD
 
     if (!accessToken || !refreshToken) {
-      // Forward error params from backend to login page
-      const error = searchParams.get("error") || "sso_failed"
+      const error = searchParams.get("error")
       const message = searchParams.get("message")
-      const loginParams = new URLSearchParams({ error })
-      if (message) loginParams.set("message", message)
-      router.replace(`${ROUTES.LOGIN}?${loginParams.toString()}`)
+
+      if (!error) {
+        // Link flow success - no tokens needed, just redirect back with success indicator
+        const safePath = redirect.startsWith("/") && !redirect.startsWith("//")
+          ? redirect
+          : ROUTES.DASHBOARD
+        router.replace(`${safePath}?linked=true`)
+        return
+      }
+
+      // Forward error params to the appropriate page
+      const errorParams = new URLSearchParams({ error })
+      if (message) errorParams.set("message", message)
+
+      // If redirect points to an authenticated page (e.g. /account for link flow),
+      // redirect there so the error is shown in context. Otherwise go to login.
+      const isLinkFlow = redirect !== ROUTES.DASHBOARD && redirect !== ROUTES.LOGIN && redirect !== "/"
+      const errorTarget = isLinkFlow ? redirect : ROUTES.LOGIN
+      router.replace(`${errorTarget}?${errorParams.toString()}`)
       return
     }
 

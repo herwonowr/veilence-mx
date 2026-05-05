@@ -56,6 +56,11 @@ export const SSOConfigList = ({
   const deleteMutation = useDeletePlatformSSOConfig()
 
   const configs = configsRes?.data ?? []
+  const allProvidersConfigured =
+    configs.length >= 3 &&
+    ["saml", "google", "github"].every((p) =>
+      configs.some((c: SSOConfig) => c.provider === p)
+    )
 
   if (isLoading) {
     return (
@@ -77,7 +82,7 @@ export const SSOConfigList = ({
             Manage single sign-on providers for the platform.
           </CardDescription>
         </div>
-        <Button onClick={onCreateClick} size="sm">
+        <Button onClick={onCreateClick} size="sm" disabled={allProvidersConfigured} title={allProvidersConfigured ? "All provider types (SAML, Google, GitHub) are already configured" : undefined}>
           <Plus className="h-4 w-4 mr-1" />
           Add Provider
         </Button>

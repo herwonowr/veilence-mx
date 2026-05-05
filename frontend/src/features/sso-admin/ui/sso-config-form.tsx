@@ -40,6 +40,7 @@ import { ZodError } from "zod"
 
 interface SSOConfigFormProps {
   existingConfig?: SSOConfig | null
+  configuredProviders?: SSOProvider[]
   isPending: boolean
   onSubmit: (data: CreateSSOConfigRequest | UpdateSSOConfigRequest) => void
   onCancel: () => void
@@ -53,14 +54,18 @@ const PROVIDER_LABELS: Record<SSOProvider, string> = {
 
 export const SSOConfigForm = ({
   existingConfig,
+  configuredProviders = [],
   isPending,
   onSubmit,
   onCancel,
 }: SSOConfigFormProps) => {
   const isEditing = !!existingConfig
 
+  const allProviders: SSOProvider[] = ["saml", "google", "github"]
+  const availableProviders = allProviders.filter((p) => !configuredProviders.includes(p))
+
   const [provider, setProvider] = useState<SSOProvider>(
-    existingConfig?.provider ?? "saml"
+    existingConfig?.provider ?? availableProviders[0] ?? "saml"
   )
   const [displayName, setDisplayName] = useState(
     existingConfig?.displayName ?? ""
@@ -236,9 +241,9 @@ export const SSOConfigForm = ({
                   <SelectValue>{PROVIDER_LABELS[provider]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="saml">SAML 2.0</SelectItem>
-                  <SelectItem value="google">Google OAuth</SelectItem>
-                  <SelectItem value="github">GitHub OAuth</SelectItem>
+                  <SelectItem value="saml" disabled={configuredProviders.includes("saml")}>SAML 2.0</SelectItem>
+                  <SelectItem value="google" disabled={configuredProviders.includes("google")}>Google OAuth</SelectItem>
+                  <SelectItem value="github" disabled={configuredProviders.includes("github")}>GitHub OAuth</SelectItem>
                 </SelectContent>
               </Select>
             </Field>
