@@ -1,13 +1,20 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input, Field, FieldLabel, FieldDescription, FieldError, Checkbox, Label, RadioGroup, RadioGroupItem, Alert, AlertDescription } from "@/ui"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input, Field, FieldLabel, FieldDescription, FieldError, Checkbox, Label, RadioGroup, RadioGroupItem, Alert, AlertDescription, NpmIcon, PypiIcon, GoIcon } from "@/ui"
 import { Save, RefreshCw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangle, Loader2 } from "lucide-react"
 import { settingsSchema } from "@/domains/settings"
+import { usePublicConfigQuery } from "@/core/hooks/use-public-config-query"
 import { ZodError } from "zod"
 import { useSettings, useUpdateSettings, useDiscoverNow, usePackageCountSummary } from "@/features/settings/hooks/use-settings"
 import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
 import Link from "next/link"
+
+const ECOSYSTEMS = [
+  { key: "npm", label: "NPM", Icon: NpmIcon },
+  { key: "python", label: "Python", Icon: PypiIcon },
+  { key: "go", label: "Golang", Icon: GoIcon },
+] as const
 
 export const SettingsView = () => {
   const { role: currentRole } = useCurrentWorkspaceRole()
@@ -16,6 +23,7 @@ export const SettingsView = () => {
   const [prevSettingsKey, setPrevSettingsKey] = useState<string | null>(null)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
+  const { enabledEcosystems } = usePublicConfigQuery()
   const { data: settingsRes } = useSettings()
   const updateMutation = useUpdateSettings()
   const discoverMutation = useDiscoverNow()
@@ -133,7 +141,7 @@ export const SettingsView = () => {
                 Discovery
               </CardTitle>
               <CardDescription className="mt-1.5">
-                Automatically scan registry popularity rankings and add new packages to monitoring.
+                Automatically scan ecosystem popularity rankings and add new packages to monitoring.
               </CardDescription>
             </div>
             {canEdit && (
@@ -154,6 +162,27 @@ export const SettingsView = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="grid grid-cols-3 gap-3">
+            {ECOSYSTEMS.map((eco) => {
+              const enabled = enabledEcosystems.includes(eco.key)
+              return (
+                <div
+                  key={eco.key}
+                  className={`flex items-center justify-between rounded-lg border px-3 py-2.5 ${enabled ? "border-border bg-card" : "border-border/50 bg-muted/30 opacity-50 grayscale"}`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex items-center justify-center p-2 rounded-full size-10 bg-secondary">
+                      <eco.Icon className={`h-5 w-6 shrink-0 ${enabled ? "text-foreground" : "text-muted-foreground"}`} />
+                    </div>
+                    <span className={`text-sm font-medium ${enabled ? "text-foreground" : "text-muted-foreground"}`}>
+                      {eco.label}
+                    </span>
+                  </div>
+                  <Checkbox checked={enabled} disabled className="pointer-events-none" />
+                </div>
+              )
+            })}
+          </div>
           <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
             <Field data-invalid={!!validationErrors.discovery_scan_depth}>
               <FieldLabel htmlFor="discovery-scan-depth">Discovery Scan Depth</FieldLabel>
@@ -352,8 +381,14 @@ export const SettingsView = () => {
 
       {/* Save button - right-aligned */}
       {canEdit && (
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={updateMutation.isPending}>
+      <div className="flex items-center justify-end gap-3">
+        {isDirty && (
+          <div className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400">
+            <AlertCircle className="size-4" />
+            <span className="font-medium">You have unsaved changes</span>
+          </div>
+        )}
+        <Button onClick={handleSave} disabled={updateMutation.isPending || !isDirty}>
           {updateMutation.isPending ? (
             <Loader2 className="mr-2 size-4 animate-spin" />
           ) : (
@@ -364,29 +399,6 @@ export const SettingsView = () => {
       </div>
       )}
 
-      {/* Spacer for sticky footer */}
-      {canEdit && isDirty && <div className="h-16" />}
-
-      {/* Sticky unsaved changes footer */}
-      {canEdit && isDirty && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-            <div className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400">
-              <AlertCircle className="size-4" />
-              <span className="font-medium">You have unsaved changes</span>
-            </div>
-            <div className="flex items-center gap-3">
-              {updateMutation.isSuccess && (
-                <span className="text-sm text-green-600">Saved!</span>
-              )}
-              <Button onClick={handleSave} disabled={updateMutation.isPending} size="sm">
-                <Save className="mr-2 size-4" />
-                {updateMutation.isPending ? "Saving..." : "Save Settings"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
       </div>
     </div>
   )

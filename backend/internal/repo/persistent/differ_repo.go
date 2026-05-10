@@ -34,7 +34,6 @@ func (r *DifferRepo) FindReleaseByIDWithPackage(ctx context.Context, id string) 
 		Version:      model.Version,
 		PublishedAt:  model.PublishedAt,
 		TarballURL:   model.TarballURL,
-		SHA256:       model.SHA256,
 		Status:       entity.ReleaseStatus(model.Status),
 		ErrorMessage: model.ErrorMessage,
 		CreatedAt:    model.CreatedAt,
@@ -68,7 +67,6 @@ func (r *DifferRepo) FindPreviousCompletedRelease(ctx context.Context, packageID
 		Version:     model.Version,
 		PublishedAt: model.PublishedAt,
 		TarballURL:  model.TarballURL,
-		SHA256:      model.SHA256,
 		Status:      entity.ReleaseStatus(model.Status),
 		CreatedAt:   model.CreatedAt,
 	}, nil

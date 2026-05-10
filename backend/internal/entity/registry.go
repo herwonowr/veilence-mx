@@ -7,7 +7,6 @@ type RegistryVersionInfo struct {
 	Version     string
 	PublishedAt time.Time
 	TarballURL  string
-	SHA256      string
 }
 
 // RegistryPackageInfo holds metadata about a package from a registry.

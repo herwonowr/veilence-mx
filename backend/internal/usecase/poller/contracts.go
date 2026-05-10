@@ -37,7 +37,7 @@ type PollerRepository interface {
 	CreatePackage(ctx context.Context, pkg *entity.Package) error
 
 	// UpdatePackageDiscoveryMetrics updates a suggested/removed package's metrics.
-	UpdatePackageDiscoveryMetrics(ctx context.Context, packageID string, updates map[string]interface{}) error
+	UpdatePackageDiscoveryMetrics(ctx context.Context, packageID string, update entity.PackageDiscoveryUpdate) error
 
 	// UpdateDownloadCounts batch-updates download metrics for active packages in a workspace.
 	UpdateDownloadCounts(ctx context.Context, workspaceID string, updates []entity.PackageDownloadUpdate) error

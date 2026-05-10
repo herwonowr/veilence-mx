@@ -13,7 +13,6 @@ type ReleaseResponse struct {
 	Version      string    `json:"version"`
 	PublishedAt  time.Time `json:"publishedAt"`
 	TarballURL   string    `json:"tarballUrl"`
-	SHA256       string    `json:"sha256"`
 	Status       string    `json:"status"`
 	ErrorMessage string    `json:"errorMessage,omitempty"`
 	CreatedAt    time.Time `json:"createdAt"`
@@ -27,7 +26,6 @@ func ReleaseFromEntity(r *entity.Release) ReleaseResponse {
 		Version:      r.Version,
 		PublishedAt:  r.PublishedAt,
 		TarballURL:   r.TarballURL,
-		SHA256:       r.SHA256,
 		Status:       string(r.Status),
 		ErrorMessage: r.ErrorMessage,
 		CreatedAt:    r.CreatedAt,

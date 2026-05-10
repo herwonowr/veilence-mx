@@ -332,7 +332,6 @@ func (p *Poller) checkPackageForNewReleases(ctx context.Context, reg usecase.Reg
 			Version:     v.Version,
 			PublishedAt: v.PublishedAt,
 			TarballURL:  v.TarballURL,
-			SHA256:      v.SHA256,
 			Status:      entity.ReleaseStatusPending,
 		}
 
@@ -345,7 +344,11 @@ func (p *Poller) checkPackageForNewReleases(ctx context.Context, reg usecase.Reg
 
 		// Enqueue diff job via Redis queue
 		if p.queue != nil {
-			jobID, err := p.queue.Enqueue(ctx, JobTypeDiff, pkg.WorkspaceID, release.ID)
+			jobID, err := p.queue.Enqueue(ctx, JobTypeDiff, pkg.WorkspaceID, release.ID, map[string]string{
+				"package":   pkg.Name,
+				"version":   v.Version,
+				"ecosystem": string(pkg.Ecosystem),
+			})
 			if err != nil {
 				slog.Error("failed to enqueue diff job", "release_id", release.ID, "error", err)
 				continue
@@ -493,21 +496,19 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID strin
 				})
 			case entity.PackageStatusSuggested:
 				// Already pending review - update download data
-				p.repo.UpdatePackageDiscoveryMetrics(ctx, existing.ID, map[string]interface{}{
-					"download_count": ranking.DownloadCount,
-
-					"download_count_updated_at": now,
+				p.repo.UpdatePackageDiscoveryMetrics(ctx, existing.ID, entity.PackageDiscoveryUpdate{
+					DownloadCount:          ranking.DownloadCount,
+					DownloadCountUpdatedAt: now,
 				})
 			case entity.PackageStatusBlocked:
 				// Skip entirely - do not update rank or download data
 				continue
 			case entity.PackageStatusRemoved:
 				// Re-suggest for admin review (or auto-approve if enabled)
-				p.repo.UpdatePackageDiscoveryMetrics(ctx, existing.ID, map[string]interface{}{
-					"status":         string(newStatus),
-					"download_count": ranking.DownloadCount,
-
-					"download_count_updated_at": now,
+				p.repo.UpdatePackageDiscoveryMetrics(ctx, existing.ID, entity.PackageDiscoveryUpdate{
+					Status:                 &newStatus,
+					DownloadCount:          ranking.DownloadCount,
+					DownloadCountUpdatedAt: now,
 				})
 				suggested++
 			}

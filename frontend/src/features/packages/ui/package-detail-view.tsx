@@ -4,7 +4,7 @@ import { use } from "react"
 import Link from "next/link"
 import { useRouter, notFound } from "next/navigation"
 import { ROUTES } from "@/core"
-import { Card, CardContent, CardHeader, CardTitle, Badge, Skeleton, DetailError } from "@/ui"
+import { Card, CardContent, CardHeader, CardTitle, Badge, Skeleton, DetailError, ReleaseStatusBadge } from "@/ui"
 import {
   Table,
   TableBody,
@@ -159,7 +159,7 @@ export const PackageDetailView = ({
                     {new Date(release.publishedAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{release.status}</Badge>
+                    <ReleaseStatusBadge status={release.status} />
                   </TableCell>
                 </TableRow>
               ))}

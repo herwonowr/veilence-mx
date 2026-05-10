@@ -472,9 +472,14 @@ func recoverStuckReleases(ctx context.Context, jobQueue *queue.Queue, db *gorm.D
 
 	for _, rel := range stuckDiffing {
 		wsID := rel.Package.WorkspaceID
+		meta := map[string]string{
+			"package":   rel.Package.Name,
+			"version":   rel.Version,
+			"ecosystem": string(rel.Package.Ecosystem),
+		}
 		if rel.Status == persistent.ReleaseStatusDiffing {
 			db.Model(&rel).Update("status", persistent.ReleaseStatusPending)
-			if _, err := jobQueue.Enqueue(ctx, queue.JobTypeDiff, wsID, rel.ID); err != nil {
+			if _, err := jobQueue.Enqueue(ctx, queue.JobTypeDiff, wsID, rel.ID, meta); err != nil {
 				slog.Error("failed to re-enqueue stuck diffing release", "release_id", rel.ID, "error", err)
 			} else {
 				slog.Info("re-enqueued stuck diffing release", "release_id", rel.ID)
@@ -486,7 +491,7 @@ func recoverStuckReleases(ctx context.Context, jobQueue *queue.Queue, db *gorm.D
 				var analysisCount int64
 				db.Model(&persistent.Analysis{}).Where("diff_id = ?", diff.ID).Count(&analysisCount)
 				if analysisCount == 0 {
-					if _, err := jobQueue.Enqueue(ctx, queue.JobTypeAnalyze, wsID, diff.ID); err != nil {
+					if _, err := jobQueue.Enqueue(ctx, queue.JobTypeAnalyze, wsID, diff.ID, meta); err != nil {
 						slog.Error("failed to re-enqueue stuck analyzing release", "release_id", rel.ID, "error", err)
 					} else {
 						slog.Info("re-enqueued stuck analyzing release", "release_id", rel.ID, "diff_id", diff.ID)
@@ -497,7 +502,7 @@ func recoverStuckReleases(ctx context.Context, jobQueue *queue.Queue, db *gorm.D
 				}
 			} else {
 				db.Model(&rel).Update("status", persistent.ReleaseStatusPending)
-				if _, err := jobQueue.Enqueue(ctx, queue.JobTypeDiff, wsID, rel.ID); err != nil {
+				if _, err := jobQueue.Enqueue(ctx, queue.JobTypeDiff, wsID, rel.ID, meta); err != nil {
 					slog.Error("failed to re-enqueue stuck release for diffing", "release_id", rel.ID, "error", err)
 				} else {
 					slog.Info("re-enqueued stuck analyzing release for diffing (no diff)", "release_id", rel.ID)

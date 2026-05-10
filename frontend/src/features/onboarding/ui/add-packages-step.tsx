@@ -81,7 +81,7 @@ export const AddPackagesStep = ({
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
             />
             {error && <FieldError>{error}</FieldError>}
-            <FieldDescription>Enter the exact package name from the registry</FieldDescription>
+            <FieldDescription>Enter the exact package name from the ecosystem</FieldDescription>
           </Field>
           <Field>
             <FieldLabel htmlFor="onb-pkg-eco">Ecosystem</FieldLabel>

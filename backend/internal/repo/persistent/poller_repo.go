@@ -105,7 +105,6 @@ func (r *PollerRepo) FindLatestRelease(ctx context.Context, packageID string) (*
 		Version:     model.Version,
 		PublishedAt: model.PublishedAt,
 		TarballURL:  model.TarballURL,
-		SHA256:      model.SHA256,
 		Status:      entity.ReleaseStatus(model.Status),
 		CreatedAt:   model.CreatedAt,
 	}, nil
@@ -138,7 +137,6 @@ func (r *PollerRepo) CreateRelease(ctx context.Context, release *entity.Release)
 		Version:     release.Version,
 		PublishedAt: release.PublishedAt,
 		TarballURL:  release.TarballURL,
-		SHA256:      release.SHA256,
 		Status:      ReleaseStatus(release.Status),
 	}
 	if err := r.db.WithContext(ctx).Create(&model).Error; err != nil {
@@ -183,7 +181,14 @@ func (r *PollerRepo) CreatePackage(ctx context.Context, pkg *entity.Package) err
 }
 
 // UpdatePackageDiscoveryMetrics updates a suggested/removed package's metrics.
-func (r *PollerRepo) UpdatePackageDiscoveryMetrics(ctx context.Context, packageID string, updates map[string]interface{}) error {
+func (r *PollerRepo) UpdatePackageDiscoveryMetrics(ctx context.Context, packageID string, update entity.PackageDiscoveryUpdate) error {
+	updates := map[string]interface{}{
+		"download_count":            update.DownloadCount,
+		"download_count_updated_at": update.DownloadCountUpdatedAt,
+	}
+	if update.Status != nil {
+		updates["status"] = string(*update.Status)
+	}
 	return r.db.WithContext(ctx).Model(&Package{}).Where("id = ?", packageID).Updates(updates).Error
 }
 

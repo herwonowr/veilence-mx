@@ -3,7 +3,7 @@
 import { use, useState } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle, Badge, Separator, Skeleton, Button, DetailError, Progress } from "@/ui"
+import { Card, CardContent, CardHeader, CardTitle, Badge, Separator, Skeleton, Button, DetailError, Progress, ReleaseStatusBadge } from "@/ui"
 import type { Classification } from "@/domains/common"
 import { ArrowLeft, FileCode, Plus, Minus, WrapText, RotateCcw, Loader2 } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
@@ -128,7 +128,7 @@ export const ReleaseDetailView = ({
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-2">
           <Badge variant="outline">{formatEcosystem(release.package?.ecosystem ?? "")}</Badge>
-          <Badge variant="secondary">{release.status}</Badge>
+          <ReleaseStatusBadge status={release.status} />
           <span className="text-sm text-muted-foreground">
             Published {new Date(release.publishedAt).toLocaleDateString()}
           </span>

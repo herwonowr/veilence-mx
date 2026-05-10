@@ -123,6 +123,19 @@ const JobDetailContent = ({
           </dd>
         </div>
 
+        {/* Package */}
+        {job.metadata?.package && (
+          <div className="flex items-center justify-between">
+            <dt className="text-muted-foreground">Package</dt>
+            <dd className="text-sm">
+              {job.metadata.package}
+              {job.metadata.version && (
+                <span className="ml-1 text-muted-foreground">@{job.metadata.version}</span>
+              )}
+            </dd>
+          </div>
+        )}
+
         {/* Reference */}
         <div className="flex items-center justify-between">
           <dt className="text-muted-foreground">Reference</dt>

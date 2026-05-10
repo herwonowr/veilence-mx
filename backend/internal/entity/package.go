@@ -92,6 +92,13 @@ type PackageDownloadUpdate struct {
 	DownloadCount int64
 }
 
+// PackageDiscoveryUpdate holds fields to update during discovery upsert.
+type PackageDiscoveryUpdate struct {
+	DownloadCount          int64
+	DownloadCountUpdatedAt time.Time
+	Status                 *PackageStatus // nil = don't update status
+}
+
 // PackageRanking holds a package's ranking data from a registry.
 type PackageRanking struct {
 	Name          string

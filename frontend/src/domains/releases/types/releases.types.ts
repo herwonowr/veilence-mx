@@ -6,7 +6,6 @@ export interface Release {
   version: string
   publishedAt: string
   tarballUrl: string
-  sha256: string
   status: ReleaseStatus
   errorMessage?: string
   createdAt: string

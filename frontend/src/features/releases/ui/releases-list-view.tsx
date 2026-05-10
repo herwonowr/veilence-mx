@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, usePublicConfigQuery, ROUTES, type ColumnBreakpoints } from "@/core"
 import Link from "next/link"
-import { Card, CardContent, CardHeader, Badge, TableSkeleton, TableError, TableEmptyState, Button, Label, FilterChips, SearchInput, DataTablePagination, SortableHeader, type SkeletonColumn, type ActiveFilter } from "@/ui"
+import { Card, CardContent, CardHeader, Badge, TableSkeleton, TableError, TableEmptyState, Button, Label, FilterChips, SearchInput, DataTablePagination, SortableHeader, ReleaseStatusBadge, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
   Table,
   TableBody,
@@ -22,7 +22,7 @@ import {
 } from "@/ui"
 import type { RecentRelease } from "@/domains/releases"
 import type { Classification, Ecosystem, ReleaseStatus } from "@/domains/common"
-import { CheckCircle, Activity } from "lucide-react"
+import { Activity } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
 import {
   useReactTable,
@@ -178,15 +178,7 @@ export const ReleasesListView = () => {
       {
         accessorKey: "status",
         header: ({ column }) => <SortableHeader column={column} title="Analysis Status" />,
-        cell: ({ row }) =>
-          row.original.status === "completed" ? (
-            <span className="flex items-center gap-1 text-sm text-green-600">
-              <CheckCircle className="h-3.5 w-3.5" />
-              Completed
-            </span>
-          ) : (
-            <Badge variant="secondary">{row.original.status}</Badge>
-          ),
+        cell: ({ row }) => <ReleaseStatusBadge status={row.original.status} />,
       },
       {
         accessorKey: "classification",

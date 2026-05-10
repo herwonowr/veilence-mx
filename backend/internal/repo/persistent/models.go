@@ -83,7 +83,6 @@ type Release struct {
 	Version      string        `gorm:"not null;type:varchar(100)" json:"version"`
 	PublishedAt  time.Time     `json:"publishedAt"`
 	TarballURL   string        `gorm:"type:text" json:"tarballUrl"`
-	SHA256       string        `gorm:"type:varchar(64)" json:"sha256"`
 	Status       ReleaseStatus `gorm:"not null;type:varchar(20);default:'pending'" json:"status"`
 	ErrorMessage string        `gorm:"type:text" json:"errorMessage,omitempty"`
 	CreatedAt    time.Time     `json:"createdAt"`

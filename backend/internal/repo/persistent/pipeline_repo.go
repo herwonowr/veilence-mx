@@ -46,7 +46,6 @@ func (r *PipelineRepo) FindDiffWithRelease(ctx context.Context, diffID string) (
 		Version:      model.Release.Version,
 		PublishedAt:  model.Release.PublishedAt,
 		TarballURL:   model.Release.TarballURL,
-		SHA256:       model.Release.SHA256,
 		Status:       entity.ReleaseStatus(model.Release.Status),
 		ErrorMessage: model.Release.ErrorMessage,
 		CreatedAt:    model.Release.CreatedAt,
@@ -75,7 +74,6 @@ func (r *PipelineRepo) FindReleaseByID(ctx context.Context, id string) (*entity.
 		Version:     model.Version,
 		PublishedAt: model.PublishedAt,
 		TarballURL:  model.TarballURL,
-		SHA256:      model.SHA256,
 		Status:      entity.ReleaseStatus(model.Status),
 		CreatedAt:   model.CreatedAt,
 	}, nil

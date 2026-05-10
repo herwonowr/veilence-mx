@@ -157,7 +157,11 @@ func (d *Differ) ProcessRelease(ctx context.Context, releaseID string) error {
 	)
 
 	// Enqueue analysis job via queue
-	jobID, err := d.queue.Enqueue(ctx, "analyze", pkg.WorkspaceID, diff.ID)
+	jobID, err := d.queue.Enqueue(ctx, "analyze", pkg.WorkspaceID, diff.ID, map[string]string{
+		"package":   pkg.Name,
+		"version":   release.Version,
+		"ecosystem": string(pkg.Ecosystem),
+	})
 	if err != nil {
 		return fmt.Errorf("enqueuing analyze job: %w", err)
 	}
@@ -258,9 +262,9 @@ func extractZip(zipPath string) (string, error) {
 
 		// Enforce file count limit
 		fileCount++
-		if fileCount > 10000 {
+		if fileCount > 50000 {
 			os.RemoveAll(destDir)
-			return "", fmt.Errorf("zip contains too many files (exceeded 10000)")
+			return "", fmt.Errorf("zip contains too many files (exceeded 50000)")
 		}
 
 		if mode.IsDir() {
@@ -366,9 +370,9 @@ func extractTarball(path string) (string, error) {
 		switch header.Typeflag {
 		case tar.TypeDir:
 			fileCount++
-			if fileCount > 10000 {
+			if fileCount > 50000 {
 				os.RemoveAll(destDir)
-				return "", fmt.Errorf("tarball contains too many files (exceeded 10000)")
+				return "", fmt.Errorf("tarball contains too many files (exceeded 50000)")
 			}
 			if err := os.MkdirAll(target, 0o750); err != nil {
 				os.RemoveAll(destDir)
@@ -376,9 +380,9 @@ func extractTarball(path string) (string, error) {
 			}
 		case tar.TypeReg:
 			fileCount++
-			if fileCount > 10000 {
+			if fileCount > 50000 {
 				os.RemoveAll(destDir)
-				return "", fmt.Errorf("tarball contains too many files (exceeded 10000)")
+				return "", fmt.Errorf("tarball contains too many files (exceeded 50000)")
 			}
 
 			totalSize += header.Size

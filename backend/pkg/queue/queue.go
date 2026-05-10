@@ -38,17 +38,18 @@ const (
 )
 
 type Job struct {
-	ID          string `json:"id"`
-	Type        string `json:"type"`
-	WorkspaceID string `json:"workspaceId"`
-	ReferenceID string `json:"referenceId"`
-	Status      string `json:"status"`
-	Attempts    int    `json:"attempts"`
-	MaxAttempts int    `json:"maxAttempts"`
-	LastError   string `json:"lastError,omitempty"`
-	CreatedAt   int64  `json:"createdAt"`
-	UpdatedAt   int64  `json:"updatedAt"`
-	NextRunAt   int64  `json:"nextRunAt"`
+	ID          string            `json:"id"`
+	Type        string            `json:"type"`
+	WorkspaceID string            `json:"workspaceId"`
+	ReferenceID string            `json:"referenceId"`
+	Status      string            `json:"status"`
+	Attempts    int               `json:"attempts"`
+	MaxAttempts int               `json:"maxAttempts"`
+	LastError   string            `json:"lastError,omitempty"`
+	Metadata    map[string]string `json:"metadata,omitempty"`
+	CreatedAt   int64             `json:"createdAt"`
+	UpdatedAt   int64             `json:"updatedAt"`
+	NextRunAt   int64             `json:"nextRunAt"`
 }
 
 type QueueStats struct {
@@ -61,7 +62,7 @@ type QueueStats struct {
 // Enqueuer is the minimal interface needed by handlers that only enqueue jobs.
 // This allows test code to supply a mock without requiring a live Redis connection.
 type Enqueuer interface {
-	Enqueue(ctx context.Context, jobType string, workspaceID, referenceID string) (string, error)
+	Enqueue(ctx context.Context, jobType string, workspaceID, referenceID string, metadata map[string]string) (string, error)
 }
 
 type Queue struct {
@@ -117,7 +118,7 @@ func (q *Queue) Ping(ctx context.Context) error {
 	return q.rdb.Ping(ctx).Err()
 }
 
-func (q *Queue) Enqueue(ctx context.Context, jobType string, workspaceID, referenceID string) (string, error) {
+func (q *Queue) Enqueue(ctx context.Context, jobType string, workspaceID, referenceID string, metadata map[string]string) (string, error) {
 	id, err := q.rdb.Incr(ctx, jobIDCounter).Result()
 	if err != nil {
 		return "", fmt.Errorf("generating job ID: %w", err)
@@ -132,6 +133,7 @@ func (q *Queue) Enqueue(ctx context.Context, jobType string, workspaceID, refere
 		Status:      StatusPending,
 		Attempts:    0,
 		MaxAttempts: q.maxAttempts,
+		Metadata:    metadata,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 		NextRunAt:   now,

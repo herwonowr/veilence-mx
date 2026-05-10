@@ -3,7 +3,6 @@ package registry
 import (
 	"bufio"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -99,10 +99,10 @@ func (c *GoModulesClient) GetPackage(ctx context.Context, name string) (*entity.
 	}
 	if resp.StatusCode == http.StatusTooManyRequests {
 		slog.Warn("Go proxy rate limited", "module", name)
-		return nil, fmt.Errorf("Go proxy rate limited")
+		return nil, fmt.Errorf("go proxy rate limited")
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Go proxy returned status %d for module", resp.StatusCode)
+		return nil, fmt.Errorf("go proxy returned status %d for module", resp.StatusCode)
 	}
 
 	// Parse version list with limits
@@ -144,6 +144,11 @@ func (c *GoModulesClient) GetPackage(ctx context.Context, name string) (*entity.
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("reading version list: %w", err)
 	}
+
+	// Sort newest-first so poller's first-poll slice picks the most recent versions
+	sort.Slice(versions, func(i, j int) bool {
+		return versions[i].PublishedAt.After(versions[j].PublishedAt)
+	})
 
 	return &entity.RegistryPackageInfo{
 		Name:     name,
@@ -206,9 +211,14 @@ func (c *GoModulesClient) GetTopPackages(ctx context.Context, limit int) ([]enti
 	}
 
 	rankings := make([]entity.PackageRanking, 0, limit)
-	for i, row := range topResp.Rows {
-		if i >= limit {
+	for _, row := range topResp.Rows {
+		if len(rankings) >= limit {
 			break
+		}
+		// Skip packages with no tagged versions (e.g. awesome-lists, non-library repos)
+		if !c.hasVersions(ctx, row.Project) {
+			slog.Debug("skipping package with no versions", "module", row.Project)
+			continue
 		}
 		rankings = append(rankings, entity.PackageRanking{
 			Name:          row.Project,
@@ -241,7 +251,7 @@ func (c *GoModulesClient) DownloadTarball(ctx context.Context, tarballURL string
 
 	if resp.StatusCode == http.StatusTooManyRequests {
 		slog.Warn("Go proxy rate limited during download", "url", tarballURL)
-		return "", fmt.Errorf("Go proxy rate limited during download")
+		return "", fmt.Errorf("go proxy rate limited during download")
 	}
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("module archive download returned status %d", resp.StatusCode)
@@ -259,9 +269,8 @@ func (c *GoModulesClient) DownloadTarball(ctx context.Context, tarballURL string
 		return "", fmt.Errorf("creating temp file: %w", err)
 	}
 
-	hasher := sha256.New()
 	limitedBody := io.LimitReader(resp.Body, goMaxDownloadSize)
-	written, err := io.Copy(f, io.TeeReader(limitedBody, hasher))
+	written, err := io.Copy(f, limitedBody)
 	f.Close()
 	if err != nil {
 		os.RemoveAll(tmpDir)
@@ -278,7 +287,6 @@ func (c *GoModulesClient) DownloadTarball(ctx context.Context, tarballURL string
 	slog.Info("Go module downloaded",
 		"url", tarballURL,
 		"size_bytes", written,
-		"sha256", fmt.Sprintf("%x", hasher.Sum(nil)),
 	)
 
 	return tmpFile, nil
@@ -346,11 +354,34 @@ func latestVersion(versions []entity.RegistryVersionInfo) string {
 	if len(versions) == 0 {
 		return ""
 	}
-	latest := versions[0]
-	for _, v := range versions[1:] {
-		if v.PublishedAt.After(latest.PublishedAt) {
-			latest = v
-		}
+	return versions[0].Version
+}
+
+// hasVersions does a lightweight check against the Go proxy /@v/list endpoint
+// to see if a module has any tagged versions. Returns false for non-library
+// repos (e.g. awesome-lists) that have no releases.
+func (c *GoModulesClient) hasVersions(ctx context.Context, name string) bool {
+	encoded := encodeModulePath(name)
+
+	listURL := fmt.Sprintf("%s/%s/@v/list", c.baseURL, encoded)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, listURL, nil)
+	if err != nil {
+		return false
 	}
-	return latest.Version
+	req.Header.Set("User-Agent", "Veilence-MX")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+
+	// Read just the first few bytes - if there's any content, versions exist
+	buf := make([]byte, 16)
+	n, _ := resp.Body.Read(buf)
+	return n > 0 && len(strings.TrimSpace(string(buf[:n]))) > 0
 }

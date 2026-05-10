@@ -18,6 +18,11 @@ export interface QueueJob {
   attempts: number
   maxAttempts: number
   lastError?: string
+  metadata?: {
+    package?: string
+    version?: string
+    ecosystem?: string
+  }
   createdAt: number
   updatedAt: number
   nextRunAt: number

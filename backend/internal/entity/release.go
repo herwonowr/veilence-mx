@@ -31,7 +31,6 @@ type Release struct {
 	Version      string
 	PublishedAt  time.Time
 	TarballURL   string
-	SHA256       string
 	Status       ReleaseStatus
 	ErrorMessage string
 	CreatedAt    time.Time

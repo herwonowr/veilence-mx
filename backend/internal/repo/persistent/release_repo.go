@@ -201,7 +201,6 @@ func releaseToDomain(m *Release) *entity.Release {
 		Version:      m.Version,
 		PublishedAt:  m.PublishedAt,
 		TarballURL:   m.TarballURL,
-		SHA256:       m.SHA256,
 		Status:       entity.ReleaseStatus(m.Status),
 		ErrorMessage: m.ErrorMessage,
 		CreatedAt:    m.CreatedAt,

@@ -7,6 +7,8 @@ export { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton
 export { TableError } from "@/ui/feedback/table-error"
 export { DetailError } from "@/ui/feedback/detail-error"
 export { ConfirmDialog, type ConfirmDialogDetail } from "@/ui/feedback/confirm-dialog"
+export { ReleaseStatusBadge, RELEASE_STATUSES } from "@/ui/feedback/release-status-badge"
+export type { ReleaseStatusValue } from "@/ui/feedback/release-status-badge"
 export { Toaster } from "@/ui/feedback/toaster"
 
 // Data
@@ -190,3 +192,6 @@ export {
 export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants } from "@/ui/components/tabs"
 export { Textarea } from "@/ui/components/textarea"
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/ui/components/tooltip"
+
+// Icons
+export { NpmIcon, PypiIcon, GoIcon } from "@/ui/icons"
