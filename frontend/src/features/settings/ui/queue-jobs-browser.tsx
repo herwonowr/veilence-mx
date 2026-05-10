@@ -34,6 +34,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import type { QueueJob, QueueJobStatus, QueueJobType, QueueStats } from "@/domains/queue"
+import { formatVersion } from "@/domains/releases"
 import { useQueueJobs, useRetryDeadJobs, useRetryDeadJob } from "@/features/settings/hooks/use-queue"
 import { QueueJobDetailDialog } from "@/features/settings/ui/queue-job-detail-dialog"
 
@@ -346,7 +347,7 @@ const PendingTable = ({
       <TableHeader>
         <TableRow>
           <TableHead>ID</TableHead>
-          <TableHead>Ref</TableHead>
+          <TableHead>Package</TableHead>
           <TableHead>Attempts</TableHead>
           <TableHead className="hidden lg:table-cell">Last Error</TableHead>
           <TableHead className="hidden lg:table-cell">Created</TableHead>
@@ -370,7 +371,13 @@ const PendingTable = ({
               }}
             >
               <TableCell className="font-mono text-xs">{job.id}</TableCell>
-              <TableCell className="font-mono text-xs">#{job.referenceId}</TableCell>
+              <TableCell className="text-xs">
+                {job.metadata?.package ? (
+                  <span>{job.metadata.package}{job.metadata.version && <span className="text-muted-foreground"> @{formatVersion(job.metadata.version)}</span>}</span>
+                ) : (
+                  <span className="font-mono text-muted-foreground">#{job.referenceId}</span>
+                )}
+              </TableCell>
               <TableCell>
                 <div className="flex flex-col gap-1">
                   <span className="text-sm">
@@ -422,7 +429,7 @@ const ProcessingTable = ({
       <TableHeader>
         <TableRow>
           <TableHead>ID</TableHead>
-          <TableHead>Ref</TableHead>
+          <TableHead>Package</TableHead>
           <TableHead className="hidden lg:table-cell">Attempts</TableHead>
           <TableHead>Duration</TableHead>
           <TableHead className="hidden lg:table-cell">Started</TableHead>
@@ -447,7 +454,13 @@ const ProcessingTable = ({
               }}
             >
               <TableCell className="font-mono text-xs">{job.id}</TableCell>
-              <TableCell className="font-mono text-xs">#{job.referenceId}</TableCell>
+              <TableCell className="text-xs">
+                {job.metadata?.package ? (
+                  <span>{job.metadata.package}{job.metadata.version && <span className="text-muted-foreground"> @{formatVersion(job.metadata.version)}</span>}</span>
+                ) : (
+                  <span className="font-mono text-muted-foreground">#{job.referenceId}</span>
+                )}
+              </TableCell>
               <TableCell className="hidden lg:table-cell">
                 <span className="text-sm">
                   {job.attempts}/{job.maxAttempts}
@@ -497,7 +510,7 @@ const DeadTable = ({
       <TableHeader>
         <TableRow>
           <TableHead>ID</TableHead>
-          <TableHead>Ref</TableHead>
+          <TableHead>Package</TableHead>
           <TableHead className="hidden lg:table-cell">Attempts</TableHead>
           <TableHead>Last Error</TableHead>
           <TableHead className="hidden lg:table-cell">Died At</TableHead>

@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"time"
 
+	"slices"
+
 	"gorm.io/gorm"
 
 	"github.com/redis/go-redis/v9"
@@ -101,9 +103,19 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	}
 	recoverStuckReleases(ctx, jobQueue, db)
 
-	// Registry clients
-	pythonClient := registry.NewPyPIClient()
-	npmClient := registry.NewNPMClient()
+	// Registry clients - conditionally instantiated based on ECOSYSTEMS_ENABLED
+	var pythonClient usecase.Registry
+	if slices.Contains(cfg.EcosystemsEnabled, "pypi") {
+		pythonClient = registry.NewPyPIClient()
+	}
+	var npmClient usecase.Registry
+	if slices.Contains(cfg.EcosystemsEnabled, "npm") {
+		npmClient = registry.NewNPMClient()
+	}
+	var goClient usecase.Registry
+	if slices.Contains(cfg.EcosystemsEnabled, "go") {
+		goClient = registry.NewGoModulesClient()
+	}
 
 	// SMTP
 	smtpConfig := notifications.SMTPConfig{
@@ -135,23 +147,25 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	webhookSender := sender.NewHTTPWebhookSender()
 	slackSender := sender.NewHTTPSlackSender()
 
+	// RBAC repo (single instance - also satisfies workspace lister interface for notifications)
+	rbacRepo := persistent.NewRBACRepo(db)
+
 	// Notification service
 	notificationChannelRepo := persistent.NewNotificationChannelRepo(db)
 	notificationRuleRepo := persistent.NewNotificationRuleRepo(db)
 	notificationRepo := persistent.NewNotificationRepo(db)
-	workspaceLister := persistent.NewRBACRepo(db)
-	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, workspaceLister, smtpConfig, emailNotifSender, webhookSender, slackSender)
+	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, rbacRepo, smtpConfig, emailNotifSender, webhookSender, slackSender)
 
 	// Pipeline
 	pollerRepo := persistent.NewPollerRepo(db)
-	pollerService := poller.New(pollerRepo, pythonClient, npmClient, poller.Config{
+	pollerService := poller.New(pollerRepo, pythonClient, npmClient, goClient, poller.Config{
 		MonitoringInterval: cfg.MonitoringInterval,
 		DiscoveryInterval:  cfg.DiscoveryInterval,
 		Concurrency:        cfg.PollerConcurrency,
 	}, jobQueue, notificationService)
 
 	differRepo := persistent.NewDifferRepo(db)
-	differService := differ.New(differRepo, pythonClient, npmClient, differ.Config{
+	differService := differ.New(differRepo, pythonClient, npmClient, goClient, differ.Config{
 		DiffSizeLimit: cfg.DiffSizeLimit,
 	}, jobQueue, notificationService)
 
@@ -224,17 +238,23 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	pipeline := analyzer.NewPipeline(pipelineRepo, notificationService, llmAdapter)
 
 	// Queue workers
+	diffJobTimeout := time.Duration(cfg.DiffJobTimeoutSeconds) * time.Second
 	diffWorker := queue.NewWorker(jobQueue, queue.JobTypeDiff, func(ctx context.Context, job *queue.Job) error {
-		return differService.ProcessRelease(ctx, job.ReferenceID)
+		jobCtx, cancel := context.WithTimeout(ctx, diffJobTimeout)
+		defer cancel()
+		return differService.ProcessRelease(jobCtx, job.ReferenceID)
 	}, queue.WorkerConfig{
 		PollInterval: 2 * time.Second,
-		Concurrency:  2,
+		Concurrency:  cfg.DiffWorkerConcurrency,
 	})
+	analyzeJobTimeout := time.Duration(cfg.AnalyzeJobTimeoutSeconds) * time.Second
 	analyzeWorker := queue.NewWorker(jobQueue, queue.JobTypeAnalyze, func(ctx context.Context, job *queue.Job) error {
-		return pipeline.ProcessDiff(ctx, job.ReferenceID)
+		jobCtx, cancel := context.WithTimeout(ctx, analyzeJobTimeout)
+		defer cancel()
+		return pipeline.ProcessDiff(jobCtx, job.ReferenceID)
 	}, queue.WorkerConfig{
 		PollInterval: 2 * time.Second,
-		Concurrency:  1,
+		Concurrency:  cfg.AnalyzeWorkerConcurrency,
 	})
 
 	// Auth
@@ -281,7 +301,6 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, authEmailSender, cfg.RequireEmailVerification, rateLimiter, tokenProvider, passwordHasher, cfg.RegistrationEnabled, cfg.AllowedEmailDomains)
 	slog.Info("auth service initialized", "require_email_verification", cfg.RequireEmailVerification, "email_sender_configured", authEmailSender != nil, "registration_enabled", cfg.RegistrationEnabled)
 	auditLogRepo := persistent.NewAuditLogRepo(db)
-	rbacRepo := persistent.NewRBACRepo(db)
 	if err := rbac.SeedPermissions(ctx, rbacRepo); err != nil {
 		return nil, fmt.Errorf("seeding permissions: %w", err)
 	}
@@ -298,7 +317,17 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	alertRepo := persistent.NewAlertRepo(db)
 	alertNoteService := alertnoteuc.New(alertNoteRepo, alertRepo, userRepo)
 	packageRepo := persistent.NewPackageRepo(db)
-	packageService := pkguc.New(packageRepo, auditService)
+	registries := make(map[entity.Ecosystem]usecase.Registry)
+	if pythonClient != nil {
+		registries[entity.EcosystemPython] = pythonClient
+	}
+	if npmClient != nil {
+		registries[entity.EcosystemNPM] = npmClient
+	}
+	if goClient != nil {
+		registries[entity.EcosystemGo] = goClient
+	}
+	packageService := pkguc.New(packageRepo, auditService, registries, pollerService)
 	releaseRepo := persistent.NewReleaseRepo(db)
 	diffRepo := persistent.NewDiffRepo(db)
 	analysisRepo := persistent.NewAnalysisRepo(db)
@@ -331,13 +360,13 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 
 		samlProvider := pkgsaml.NewProvider(cfg.BackendURL, cfg.SSOSAMLClockSkew)
 		oauthExchanger := newOAuthExchangerAdapter(oauth.NewExchanger(oauth.ExchangerConfig{
-			CallbackBaseURL:    cfg.BackendURL,
-			GoogleTokenURL:     cfg.OAuthGoogleTokenURL,
-			GoogleUserInfoURL:  cfg.OAuthGoogleUserInfoURL,
-			GitHubTokenURL:     cfg.OAuthGitHubTokenURL,
-			GitHubUserInfoURL:  cfg.OAuthGitHubUserInfoURL,
-			GitHubEmailsURL:    cfg.OAuthGitHubEmailsURL,
-			GitHubOrgsURL:      cfg.OAuthGitHubOrgsURL,
+			CallbackBaseURL:   cfg.BackendURL,
+			GoogleTokenURL:    cfg.OAuthGoogleTokenURL,
+			GoogleUserInfoURL: cfg.OAuthGoogleUserInfoURL,
+			GitHubTokenURL:    cfg.OAuthGitHubTokenURL,
+			GitHubUserInfoURL: cfg.OAuthGitHubUserInfoURL,
+			GitHubEmailsURL:   cfg.OAuthGitHubEmailsURL,
+			GitHubOrgsURL:     cfg.OAuthGitHubOrgsURL,
 		}))
 
 		ssoService = sso.NewService(
@@ -393,6 +422,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		pollerService,
 		pythonClient,
 		npmClient,
+		goClient,
 		jobQueue,
 		alertNoteService,
 		packageService,
@@ -406,6 +436,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		cfg.FrontendURL,
 		rbacRepo,
 		identityRepoIface,
+		cfg.EcosystemsEnabled,
 	)
 	router := restapi.NewRouter(h, cfg.FrontendURL, authService, rbacService)
 
@@ -448,9 +479,14 @@ func recoverStuckReleases(ctx context.Context, jobQueue *queue.Queue, db *gorm.D
 
 	for _, rel := range stuckDiffing {
 		wsID := rel.Package.WorkspaceID
+		meta := map[string]string{
+			"package":   rel.Package.Name,
+			"version":   rel.Version,
+			"ecosystem": string(rel.Package.Ecosystem),
+		}
 		if rel.Status == persistent.ReleaseStatusDiffing {
 			db.Model(&rel).Update("status", persistent.ReleaseStatusPending)
-			if _, err := jobQueue.Enqueue(ctx, queue.JobTypeDiff, wsID, rel.ID); err != nil {
+			if _, err := jobQueue.Enqueue(ctx, queue.JobTypeDiff, wsID, rel.ID, meta); err != nil {
 				slog.Error("failed to re-enqueue stuck diffing release", "release_id", rel.ID, "error", err)
 			} else {
 				slog.Info("re-enqueued stuck diffing release", "release_id", rel.ID)
@@ -462,7 +498,7 @@ func recoverStuckReleases(ctx context.Context, jobQueue *queue.Queue, db *gorm.D
 				var analysisCount int64
 				db.Model(&persistent.Analysis{}).Where("diff_id = ?", diff.ID).Count(&analysisCount)
 				if analysisCount == 0 {
-					if _, err := jobQueue.Enqueue(ctx, queue.JobTypeAnalyze, wsID, diff.ID); err != nil {
+					if _, err := jobQueue.Enqueue(ctx, queue.JobTypeAnalyze, wsID, diff.ID, meta); err != nil {
 						slog.Error("failed to re-enqueue stuck analyzing release", "release_id", rel.ID, "error", err)
 					} else {
 						slog.Info("re-enqueued stuck analyzing release", "release_id", rel.ID, "diff_id", diff.ID)
@@ -473,7 +509,7 @@ func recoverStuckReleases(ctx context.Context, jobQueue *queue.Queue, db *gorm.D
 				}
 			} else {
 				db.Model(&rel).Update("status", persistent.ReleaseStatusPending)
-				if _, err := jobQueue.Enqueue(ctx, queue.JobTypeDiff, wsID, rel.ID); err != nil {
+				if _, err := jobQueue.Enqueue(ctx, queue.JobTypeDiff, wsID, rel.ID, meta); err != nil {
 					slog.Error("failed to re-enqueue stuck release for diffing", "release_id", rel.ID, "error", err)
 				} else {
 					slog.Info("re-enqueued stuck analyzing release for diffing (no diff)", "release_id", rel.ID)

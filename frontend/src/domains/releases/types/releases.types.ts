@@ -6,7 +6,6 @@ export interface Release {
   version: string
   publishedAt: string
   tarballUrl: string
-  sha256: string
   status: ReleaseStatus
   errorMessage?: string
   createdAt: string
@@ -50,6 +49,7 @@ export interface ReleaseDetail extends Release {
     blockedAt: string | null
     blockedReason: string | null
     downloadCount: number
+    workspaceId: string
     downloadCountUpdatedAt: string | null
     createdAt: string
     updatedAt: string
@@ -66,4 +66,12 @@ export interface RecentRelease extends Release {
 export interface ReanalyzeReleaseResponse {
   message: string
   jobId: string
+}
+
+export interface PipelineStatus {
+  pending: number
+  diffing: number
+  analyzing: number
+  completed: number
+  error: number
 }

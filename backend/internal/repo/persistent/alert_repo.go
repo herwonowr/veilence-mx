@@ -35,54 +35,6 @@ func (r *AlertRepo) FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID 
 	return alertToDomain(&m), nil
 }
 
-func (r *AlertRepo) FindByWorkspaceID(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.Alert, int64, error) {
-	var total int64
-	query := r.db.WithContext(ctx).Model(&Alert{}).
-		Where("alerts.workspace_id = ?", workspaceID)
-
-	// Only JOIN packages when we need to search
-	needsJoin := filters.Search != nil && *filters.Search != ""
-	if needsJoin {
-		query = query.Joins("JOIN packages ON packages.id = alerts.package_id")
-		escapedSearch := escapeLikeRepo(*filters.Search)
-		query = query.Where("(LOWER(packages.name) LIKE LOWER(?) OR LOWER(alerts.message) LIKE LOWER(?))",
-			"%"+escapedSearch+"%", "%"+escapedSearch+"%")
-	}
-
-	if filters.Severity != nil {
-		query = query.Where("alerts.severity = ?", string(*filters.Severity))
-	}
-	if filters.Status != nil {
-		query = query.Where("alerts.status = ?", string(*filters.Status))
-	}
-
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("counting alerts: %w", err)
-	}
-
-	// If sortClause doesn't contain a table qualifier, prefix with "alerts."
-	// to avoid ambiguity when a JOIN is present.
-	if sortClause != "" && !strings.Contains(sortClause, ".") {
-		sortClause = "alerts." + sortClause
-	}
-
-	var ms []Alert
-	err := query.
-		Order(sortClause).
-		Offset((page - 1) * limit).
-		Limit(limit).
-		Find(&ms).Error
-	if err != nil {
-		return nil, 0, fmt.Errorf("listing alerts: %w", err)
-	}
-
-	result := make([]entity.Alert, len(ms))
-	for i := range ms {
-		result[i] = *alertToDomain(&ms[i])
-	}
-	return result, total, nil
-}
-
 func (r *AlertRepo) Create(ctx context.Context, alert *entity.Alert) error {
 	m := alertToModel(alert)
 	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
@@ -184,15 +136,6 @@ func (r *AlertRepo) UpdateStatus(ctx context.Context, id, workspaceID string, st
 	return nil
 }
 
-func (r *AlertRepo) Update(ctx context.Context, alert *entity.Alert) error {
-	m := alertToModel(alert)
-	if err := r.db.WithContext(ctx).Save(m).Error; err != nil {
-		return fmt.Errorf("updating alert: %w", err)
-	}
-	alert.UpdatedAt = m.UpdatedAt
-	return nil
-}
-
 func (r *AlertRepo) CountByWorkspaceAndStatus(ctx context.Context, workspaceID string) (map[entity.AlertStatus]int64, error) {
 	type statusCount struct {
 		Status string
@@ -222,7 +165,7 @@ func alertToDomain(m *Alert) *entity.Alert {
 	return &entity.Alert{
 		ID:          m.ID,
 		WorkspaceID: m.WorkspaceID,
-		AnalysisID:  m.AnalysisID,
+		AnalysisID:  derefStr(m.AnalysisID),
 		ReleaseID:   derefStr(m.ReleaseID),
 		PackageID:   m.PackageID,
 		Severity:    entity.AlertSeverity(m.Severity),
@@ -237,7 +180,7 @@ func alertToModel(d *entity.Alert) *Alert {
 	return &Alert{
 		ID:          d.ID,
 		WorkspaceID: d.WorkspaceID,
-		AnalysisID:  d.AnalysisID,
+		AnalysisID:  strToNullableUUID(d.AnalysisID),
 		ReleaseID:   strToNullableUUID(d.ReleaseID),
 		PackageID:   d.PackageID,
 		Severity:    AlertSeverity(d.Severity),

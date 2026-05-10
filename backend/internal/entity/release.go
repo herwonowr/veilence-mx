@@ -1,6 +1,9 @@
 package entity
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // ReleaseStatus represents the processing status of a release.
 type ReleaseStatus string
@@ -26,11 +29,11 @@ var InProgressStatuses = []ReleaseStatus{ReleaseStatusPending, ReleaseStatusDiff
 // Release represents a specific version release of a package.
 type Release struct {
 	ID           string
+	WorkspaceID  string
 	PackageID    string
 	Version      string
 	PublishedAt  time.Time
 	TarballURL   string
-	SHA256       string
 	Status       ReleaseStatus
 	ErrorMessage string
 	CreatedAt    time.Time
@@ -74,4 +77,21 @@ type AnalysisHistoryEntry struct {
 	AnalyzerType   string
 	AnalyzedAt     string
 	PublishedAt    string
+}
+
+// PipelineStatus holds counts of releases by processing status for a workspace.
+type PipelineStatus struct {
+	Pending   int64
+	Diffing   int64
+	Analyzing int64
+	Completed int64
+	Error     int64
+}
+
+// FormatVersion returns version with "v" prefix, avoiding double "v" for Go modules.
+func FormatVersion(version string) string {
+	if strings.HasPrefix(version, "v") {
+		return version
+	}
+	return "v" + version
 }

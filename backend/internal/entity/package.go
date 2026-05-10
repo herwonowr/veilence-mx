@@ -10,6 +10,8 @@ const (
 	EcosystemPython Ecosystem = "python"
 	// EcosystemNPM is the npm ecosystem.
 	EcosystemNPM Ecosystem = "npm"
+	// EcosystemGo is the Go modules ecosystem.
+	EcosystemGo Ecosystem = "go"
 )
 
 // PackageSource describes how a package was added to monitoring.
@@ -48,7 +50,6 @@ type Package struct {
 	Description            string
 	Source                 PackageSource
 	Status                 PackageStatus
-	Rank                   *int
 	DownloadCount          int64
 	DownloadCountUpdatedAt *time.Time
 	BlockedAt              *time.Time
@@ -91,9 +92,15 @@ type PackageDownloadUpdate struct {
 	DownloadCount int64
 }
 
+// PackageDiscoveryUpdate holds fields to update during discovery upsert.
+type PackageDiscoveryUpdate struct {
+	DownloadCount          int64
+	DownloadCountUpdatedAt time.Time
+	Status                 *PackageStatus // nil = don't update status
+}
+
 // PackageRanking holds a package's ranking data from a registry.
 type PackageRanking struct {
 	Name          string
 	DownloadCount int64
-	Rank          int
 }

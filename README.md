@@ -1,6 +1,6 @@
 # Veilence-MX
 
-Real-time supply chain monitoring for Python and NPM ecosystems with LLM-powered diff analysis.
+Real-time supply chain monitoring for Python, NPM, and Go ecosystems with LLM-powered diff analysis.
 
 ## Overview
 
@@ -20,7 +20,7 @@ Packages are monitored in two modes: Top-N (automatically tracks the most popula
 ## Features
 
 ### Package Monitoring
-- ✅ Python and NPM ecosystem support
+- ✅ Python (PyPI), NPM, and Go ecosystem support
 - ✅ Top-N automatic discovery by download count
 - ✅ Manual package addition
 - ✅ Bulk import (requirements.txt / package.json)
@@ -28,6 +28,7 @@ Packages are monitored in two modes: Top-N (automatically tracks the most popula
 - ✅ Block/unblock packages
 - ✅ Stale package detection and auto-removal
 - ✅ Search, sort, and filter by ecosystem, source, status
+- ✅ Pipeline status bar (live view of pending/diffing/analyzing jobs)
 
 ### Release Analysis
 - ✅ Automatic new release detection
@@ -37,6 +38,7 @@ Packages are monitored in two modes: Top-N (automatically tracks the most popula
 - ✅ Analysis history per release
 - ✅ Re-analyze individual or all releases
 - ✅ Status tracking (pending, diffing, analyzing, completed, error)
+- ✅ Immediate monitoring trigger on package approval
 
 ### Alerts
 - ✅ Automatic alert creation for suspicious and malicious releases

@@ -13,7 +13,6 @@ type ReleaseResponse struct {
 	Version      string    `json:"version"`
 	PublishedAt  time.Time `json:"publishedAt"`
 	TarballURL   string    `json:"tarballUrl"`
-	SHA256       string    `json:"sha256"`
 	Status       string    `json:"status"`
 	ErrorMessage string    `json:"errorMessage,omitempty"`
 	CreatedAt    time.Time `json:"createdAt"`
@@ -27,7 +26,6 @@ func ReleaseFromEntity(r *entity.Release) ReleaseResponse {
 		Version:      r.Version,
 		PublishedAt:  r.PublishedAt,
 		TarballURL:   r.TarballURL,
-		SHA256:       r.SHA256,
 		Status:       string(r.Status),
 		ErrorMessage: r.ErrorMessage,
 		CreatedAt:    r.CreatedAt,
@@ -197,4 +195,24 @@ func AnalysisHistoryFromEntities(entries []entity.AnalysisHistoryEntry) []Analys
 type ReanalyzeResponse struct {
 	Message string `json:"message"`
 	JobID   string `json:"jobId"`
+}
+
+// PipelineStatusResponse is the JSON representation of release pipeline status counts.
+type PipelineStatusResponse struct {
+	Pending   int64 `json:"pending"`
+	Diffing   int64 `json:"diffing"`
+	Analyzing int64 `json:"analyzing"`
+	Completed int64 `json:"completed"`
+	Error     int64 `json:"error"`
+}
+
+// PipelineStatusFromEntity maps a domain PipelineStatus to a response DTO.
+func PipelineStatusFromEntity(s *entity.PipelineStatus) PipelineStatusResponse {
+	return PipelineStatusResponse{
+		Pending:   s.Pending,
+		Diffing:   s.Diffing,
+		Analyzing: s.Analyzing,
+		Completed: s.Completed,
+		Error:     s.Error,
+	}
 }

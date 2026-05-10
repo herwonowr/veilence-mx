@@ -8,6 +8,7 @@ import { useAuth, sanitizeErrorMessage, ROUTES } from "@/core"
 import { apiCreateWorkspace } from "@/domains/admin"
 import { updateSettings, onboardingSettingsSchema } from "@/domains/settings"
 import { createPackage, discoverPackages } from "@/domains/packages"
+import type { Ecosystem } from "@/domains/common"
 import { onboardingKeys } from "@/features/onboarding/hooks/use-onboarding-check"
 
 export type OnboardingStep = 1 | 2 | 3 | 4 | 5 | 6
@@ -27,7 +28,7 @@ export interface SettingsFormData {
 export interface AddedPackage {
   id: string
   name: string
-  ecosystem: "python" | "npm"
+  ecosystem: Ecosystem
 }
 
 export interface DiscoveryPreference {
@@ -135,7 +136,7 @@ export const useOnboarding = () => {
 
   // Step 4: add package to local list (no API call)
   const handleAddPackage = useCallback(
-    (name: string, ecosystem: "python" | "npm") => {
+    (name: string, ecosystem: Ecosystem) => {
       const isDuplicate = addedPackages.some(
         (p) => p.name === name && p.ecosystem === ecosystem
       )
@@ -196,9 +197,21 @@ export const useOnboarding = () => {
         await updateSettings(settings)
       }
 
-      // 4. Add packages (if any)
+      // 4. Add packages (if any) - continue on individual failures
+      const packageErrors: string[] = []
       for (const pkg of addedPackages) {
-        await createPackage(pkg.name, pkg.ecosystem)
+        try {
+          await createPackage(pkg.name, pkg.ecosystem)
+        } catch (err) {
+          const msg =
+            err instanceof Error ? err.message : `Failed to add ${pkg.name}`
+          packageErrors.push(`${pkg.name}: ${msg}`)
+        }
+      }
+      if (packageErrors.length > 0) {
+        toast.error(
+          `Some packages could not be added:\n${packageErrors.join("\n")}`
+        )
       }
 
       // 5. Trigger discovery (if user chose to)

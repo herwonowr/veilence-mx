@@ -125,8 +125,8 @@ func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) 
 		respondAppError(w, ValidationFromErr(err))
 		return
 	}
-	if req.Ecosystem != "python" && req.Ecosystem != "npm" {
-		respondAppError(w, Validation("ecosystem must be 'python' or 'npm'"))
+	if req.Ecosystem != "python" && req.Ecosystem != "npm" && req.Ecosystem != "go" {
+		respondAppError(w, Validation("ecosystem must be 'python', 'npm', or 'go'"))
 		return
 	}
 
@@ -134,6 +134,10 @@ func (h *PackageHandlers) CreatePackage(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		if errors.Is(err, entity.ErrConflict) {
 			respondAppError(w, Conflict("package already monitored"))
+			return
+		}
+		if errors.Is(err, entity.ErrValidation) {
+			respondAppError(w, ValidationFromErr(err))
 			return
 		}
 		respondAppError(w, Internal("failed to create package"))
@@ -402,10 +406,10 @@ func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request)
 	var importEntries []entity.ImportEntry
 	var importErrors []entity.ImportErrorEntry
 	for _, e := range entries {
-		if e.Ecosystem != "python" && e.Ecosystem != "npm" {
+		if e.Ecosystem != "python" && e.Ecosystem != "npm" && e.Ecosystem != "go" {
 			importErrors = append(importErrors, entity.ImportErrorEntry{
 				Name:  e.Name,
-				Error: fmt.Sprintf("unsupported ecosystem %q (must be 'python' or 'npm')", e.Ecosystem),
+				Error: fmt.Sprintf("unsupported ecosystem %q (must be 'python', 'npm', or 'go')", e.Ecosystem),
 			})
 			continue
 		}
@@ -559,8 +563,8 @@ func (h *PackageHandlers) BulkApprovePackages(w http.ResponseWriter, r *http.Req
 	} else if req.Ecosystem != "" {
 		// Approve all suggestions for the given ecosystem: fetch all suggested packages
 		// and filter by ecosystem.
-		if req.Ecosystem != "python" && req.Ecosystem != "npm" {
-			respondAppError(w, Validation("ecosystem must be 'python' or 'npm'"))
+		if req.Ecosystem != "python" && req.Ecosystem != "npm" && req.Ecosystem != "go" {
+			respondAppError(w, Validation("ecosystem must be 'python', 'npm', or 'go'"))
 			return
 		}
 		packages, _, err := h.PkgSvc.ListSuggestions(r.Context(), workspaceID, 1, 10000, "", entity.PackageFilters{})
@@ -608,11 +612,30 @@ func (h *PackageHandlers) ListStalePackages(w http.ResponseWriter, r *http.Reque
 
 	staleBefore := time.Now().AddDate(0, -months, 0)
 
-	packages, err := h.PkgSvc.ListStalePackages(r.Context(), workspaceID, staleBefore)
+	page, limit := parsePagination(r)
+	sortOrder := parseSort(r, map[string]string{
+		"name":          "name",
+		"ecosystem":     "ecosystem",
+		"latestVersion": "latest_version",
+		"downloadCount": "download_count",
+		"source":        "source",
+		"createdAt":     "created_at",
+	}, "download_count DESC, name ASC")
+
+	var filters entity.PackageFilters
+	if eco := r.URL.Query().Get("ecosystem"); eco != "" {
+		e := entity.Ecosystem(eco)
+		filters.Ecosystem = &e
+	}
+	if search := r.URL.Query().Get("search"); search != "" {
+		filters.Search = &search
+	}
+
+	packages, total, err := h.PkgSvc.ListStalePackages(r.Context(), workspaceID, staleBefore, page, limit, sortOrder, filters)
 	if err != nil {
 		respondAppError(w, Internal("failed to list stale packages"))
 		return
 	}
 
-	respondJSON(w, http.StatusOK, response.PackagesFromEntities(packages), nil)
+	respondJSON(w, http.StatusOK, response.PackagesFromEntities(packages), &Meta{Page: page, Limit: limit, Total: total})
 }

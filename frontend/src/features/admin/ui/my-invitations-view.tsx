@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useAuth, usePublicConfigQuery, ROUTES } from "@/core"
+import { useAuth, ROUTES , usePublicConfigQuery } from "@/core"
 import type { MyInvitation } from "@/domains/admin"
 import {
   useMyInvitations,

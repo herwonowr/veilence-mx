@@ -58,9 +58,7 @@ type PackageRepository interface {
 	RejectPackage(ctx context.Context, workspaceID, pkgID string) error
 	BulkApprovePackages(ctx context.Context, workspaceID string, pkgIDs []string) (int, error)
 	BulkApproveAllSuggestions(ctx context.Context, workspaceID string) (int, error)
-	UpdateDownloadCounts(ctx context.Context, workspaceID string, updates []entity.PackageDownloadUpdate) error
-	FindStaleByWorkspaceID(ctx context.Context, workspaceID string, staleBefore time.Time) ([]entity.Package, error)
-	RemoveStaleByWorkspaceID(ctx context.Context, workspaceID string, staleBefore time.Time) (int, error)
+	FindStaleByWorkspaceID(ctx context.Context, workspaceID string, staleBefore time.Time, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
 }
 
 // ReleaseRepository defines persistence operations for Release entities.
@@ -70,6 +68,7 @@ type ReleaseRepository interface {
 	FindByWorkspaceIDWithDetails(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error)
 	FindByPackageIDAll(ctx context.Context, packageID string) ([]entity.Release, error)
 	UpdateStatus(ctx context.Context, id string, status entity.ReleaseStatus) error
+	CountByWorkspaceAndStatus(ctx context.Context, workspaceID string) (*entity.PipelineStatus, error)
 }
 
 // DiffRepository defines persistence operations for Diff entities.
@@ -82,17 +81,14 @@ type DiffRepository interface {
 type AnalysisRepository interface {
 	FindByDiffID(ctx context.Context, diffID string) ([]entity.Analysis, error)
 	FindByDiffIDs(ctx context.Context, diffIDs []string) ([]entity.Analysis, error)
-	Create(ctx context.Context, analysis *entity.Analysis) error
 }
 
 // AlertRepository defines persistence operations for Alert entities.
 type AlertRepository interface {
 	FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID string) (*entity.Alert, error)
 	FindByIDWithPackage(ctx context.Context, id, workspaceID string) (*entity.Alert, *entity.Package, error)
-	FindByWorkspaceID(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.Alert, int64, error)
 	FindByWorkspaceIDWithPackage(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error)
 	Create(ctx context.Context, alert *entity.Alert) error
-	Update(ctx context.Context, alert *entity.Alert) error
 	UpdateStatus(ctx context.Context, id, workspaceID string, status entity.AlertStatus) error
 	CountByWorkspaceAndStatus(ctx context.Context, workspaceID string) (map[entity.AlertStatus]int64, error)
 }
@@ -221,8 +217,7 @@ type PackageService interface {
 	BulkApprovePackages(ctx context.Context, workspaceID string, pkgIDs []string) (int, error)
 	BulkApproveAllSuggestions(ctx context.Context, workspaceID string) (int, error)
 	ListSuggestions(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
-	ListStalePackages(ctx context.Context, workspaceID string, staleBefore time.Time) ([]entity.Package, error)
-	RemoveStalePackages(ctx context.Context, workspaceID string, months int) (int, error)
+	ListStalePackages(ctx context.Context, workspaceID string, staleBefore time.Time, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
 	CountPackages(ctx context.Context, workspaceID string) (int64, error)
 }
 
@@ -247,6 +242,7 @@ type ReleaseService interface {
 	GetRelease(ctx context.Context, workspaceID, releaseID string) (*entity.ReleaseDetail, error)
 	ReanalyzeRelease(ctx context.Context, workspaceID, releaseID string) (string, string, error)
 	GetAnalysisHistory(ctx context.Context, workspaceID, packageID string) ([]entity.AnalysisHistoryEntry, error)
+	GetPipelineStatus(ctx context.Context, workspaceID string) (*entity.PipelineStatus, error)
 }
 
 // SettingService defines the business logic operations for settings.
@@ -272,7 +268,7 @@ type HealthService interface {
 // QueueEnqueuer defines the interface for enqueueing analysis jobs.
 // Implementations live in repo/queue or pkg/queue.
 type QueueEnqueuer interface {
-	Enqueue(ctx context.Context, jobType string, workspaceID, referenceID string) (string, error)
+	Enqueue(ctx context.Context, jobType string, workspaceID, referenceID string, metadata map[string]string) (string, error)
 }
 
 // AuditLogger defines the interface for audit logging used by usecase layer.
@@ -542,6 +538,11 @@ type OAuthUserInfo struct {
 	AvatarURL      string
 	Organizations  []string // GitHub orgs
 	HostedDomain   string   // Google Workspace domain
+}
+
+// MonitoringTrigger allows triggering an immediate monitoring cycle for a workspace.
+type MonitoringTrigger interface {
+	TriggerMonitoring(workspaceID string)
 }
 
 // DigestRepository defines the persistence operations needed by the digest scheduler.

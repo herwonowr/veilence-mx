@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { Card, CardContent, Badge, Button } from "@/ui"
 import { Radar } from "lucide-react"
+import { ROUTES } from "@/core"
 import { usePendingSuggestionsCount } from "@/features/dashboard/hooks/use-pending-suggestions"
 
 export const PendingSuggestionsCard = () => {
@@ -25,7 +26,7 @@ export const PendingSuggestionsCard = () => {
             Discovered packages need your approval before monitoring begins.
           </p>
         </div>
-        <Link href="/packages/suggestions" className="shrink-0">
+        <Link href={ROUTES.PACKAGES_SUGGESTIONS} className="shrink-0">
           <Button size="sm" variant="outline">
             <span className="relative mr-1.5 flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />

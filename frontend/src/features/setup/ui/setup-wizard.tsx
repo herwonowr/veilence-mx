@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
-import { sanitizeErrorMessage, usePublicConfigQuery, publicConfigKeys, ROUTES } from "@/core"
+import { sanitizeErrorMessage, ROUTES , usePublicConfigQuery, publicConfigKeys } from "@/core"
 import { useSetup } from "@/features/setup/hooks/use-setup"
 import {
   Button,

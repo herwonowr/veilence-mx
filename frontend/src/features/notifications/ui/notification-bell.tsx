@@ -12,7 +12,7 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/ui"
-import { cn, useAuth } from "@/core"
+import { cn, useAuth, ROUTES } from "@/core"
 import type { Notification } from "@/domains/notifications"
 import {
   useUnreadCount,
@@ -191,7 +191,7 @@ export const NotificationBell = () => {
         {/* Footer */}
         <div className="border-t px-4 py-2.5">
           <Link
-            href={unreadCount > 0 ? "/notifications?read=unread" : "/notifications"}
+            href={unreadCount > 0 ? `${ROUTES.NOTIFICATIONS}?read=unread` : ROUTES.NOTIFICATIONS}
             className={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
               "w-full justify-center text-xs text-muted-foreground hover:text-foreground",

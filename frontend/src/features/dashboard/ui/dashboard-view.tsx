@@ -3,8 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useLocalStorage, useAuth, ROUTES, usePublicConfigQuery } from "@/core"
-import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Skeleton, TableSkeleton, TableError, Alert, AlertDescription, Label, Switch, TableEmptyState, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, type SkeletonColumn } from "@/ui"
+import { useLocalStorage, useAuth, ROUTES , usePublicConfigQuery } from "@/core"
+import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Skeleton, TableSkeleton, TableError, Alert, AlertDescription, Label, Switch, TableEmptyState, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, ReleaseStatusBadge, ClassificationBadge, type SkeletonColumn } from "@/ui"
 import {
   Table,
   TableBody,
@@ -13,21 +13,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/ui"
-import type { Classification } from "@/domains/common"
-import { Package, Activity, AlertTriangle, Shield, Clock, CheckCircle, RefreshCw, Layers, Plus, Mail } from "lucide-react"
+import { Package, Activity, AlertTriangle, Shield, Clock, RefreshCw, Layers, Plus, Mail } from "lucide-react"
 import { DashboardCharts } from "@/features/dashboard/ui/dashboard-charts"
 import { formatEcosystem } from "@/domains/common"
+import { formatVersion } from "@/domains/releases"
 import { useQuery } from "@tanstack/react-query"
 import { apiGetMyInvitations, myInvitationKeys } from "@/domains/admin"
 import { useDashboardStats, useRecentReleases, useChartData, useDashboardStalePackages, useDashboardSettings } from "@/features/dashboard/hooks/use-dashboard"
 import { PendingSuggestionsCard } from "@/features/dashboard/ui/pending-suggestions-card"
-
-const classificationVariant = (c?: Classification) => {
-  if (c === "malicious") return "destructive" as const
-  if (c === "suspicious") return "default" as const
-  if (c === "baseline") return "outline" as const
-  return "secondary" as const
-}
 
 // ─── Onboarding State (no workspace selected) ─────────────────────
 
@@ -87,7 +80,7 @@ const DashboardOnboarding = ({ hasAnyWorkspace, user }: OnboardingProps) => {
             <p className="text-sm text-muted-foreground mb-3">
               You have pending workspace invitations waiting for your response.
             </p>
-            <Link href="/workspaces/invitations">
+            <Link href={ROUTES.WORKSPACES_INVITATIONS}>
               <Button variant="outline" size="sm">
                 <Mail className="mr-2 h-4 w-4" />
                 View Invitations
@@ -157,7 +150,7 @@ const DashboardData = () => {
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <div className="flex flex-wrap items-center gap-4">
           {registrationEnabled && pendingCount > 0 && (
-            <Link href="/workspaces/invitations" className="flex items-center gap-2">
+            <Link href={ROUTES.WORKSPACES_INVITATIONS} className="flex items-center gap-2">
               <Button variant="outline" size="sm">
                 <Mail className="mr-2 h-4 w-4" />
                 Pending Invitations
@@ -213,7 +206,7 @@ const DashboardData = () => {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Link href="/packages" className="group/stat-link">
+        <Link href={ROUTES.PACKAGES} className="group/stat-link">
           <Card className="cursor-pointer transition-all hover:border-l-2! group-hover/stat-link:border-l-2! h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Packages</CardTitle>
@@ -225,7 +218,7 @@ const DashboardData = () => {
           </Card>
         </Link>
 
-        <Link href="/releases" className="group/stat-link">
+        <Link href={ROUTES.RELEASES} className="group/stat-link">
           <Card className="cursor-pointer transition-all hover:border-l-2! group-hover/stat-link:border-l-2! h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Releases</CardTitle>
@@ -237,7 +230,7 @@ const DashboardData = () => {
           </Card>
         </Link>
 
-        <Link href="/releases?status=in_progress" className="group/stat-link">
+        <Link href={`${ROUTES.RELEASES}?status=in_progress`} className="group/stat-link">
           <Card className="cursor-pointer transition-all hover:border-l-2! group-hover/stat-link:border-l-2! h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Pending</CardTitle>
@@ -249,7 +242,7 @@ const DashboardData = () => {
           </Card>
         </Link>
 
-        <Link href="/alerts?status=new" className="group/stat-link">
+        <Link href={`${ROUTES.ALERTS}?status=new`} className="group/stat-link">
           <Card className="cursor-pointer transition-all hover:border-l-2! group-hover/stat-link:border-l-2! h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Active Alerts</CardTitle>
@@ -261,7 +254,7 @@ const DashboardData = () => {
           </Card>
         </Link>
 
-        <Link href="/releases?classification=malicious" className="group/stat-link">
+        <Link href={`${ROUTES.RELEASES}?classification=malicious`} className="group/stat-link">
           <Card className="cursor-pointer transition-all hover:border-l-2! group-hover/stat-link:border-l-2! h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Malicious</CardTitle>
@@ -321,7 +314,7 @@ const DashboardData = () => {
                 >
                   <TableCell className="font-medium">
                     <Link
-                      href={`/releases/${release.id}`}
+                      href={ROUTES.RELEASE_DETAIL(release.id)}
                       className="hover:underline text-primary"
                     >
                       {release.packageName}
@@ -330,25 +323,12 @@ const DashboardData = () => {
                   <TableCell className="hidden md:table-cell">
                     <Badge variant="outline">{formatEcosystem(release.packageEcosystem)}</Badge>
                   </TableCell>
-                  <TableCell className="font-mono text-sm">{release.version}</TableCell>
+                  <TableCell className="font-mono text-sm">{formatVersion(release.version)}</TableCell>
                   <TableCell>
-                    {release.status === "completed" ? (
-                      <span className="flex items-center gap-1 text-sm text-green-600">
-                        <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                        Completed
-                      </span>
-                    ) : (
-                      <Badge variant="secondary">{release.status}</Badge>
-                    )}
+                    <ReleaseStatusBadge status={release.status} />
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
-                    {release.classification ? (
-                      <Badge variant={classificationVariant(release.classification)}>
-                        {release.classification}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
+                    <ClassificationBadge classification={release.classification} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -359,7 +339,7 @@ const DashboardData = () => {
                   title="No releases yet."
                   description="Add packages to start monitoring releases."
                 >
-                  <Link href="/packages">
+                  <Link href={ROUTES.PACKAGES}>
                     <Button variant="outline" size="sm">
                       Go to Packages
                     </Button>
@@ -373,60 +353,76 @@ const DashboardData = () => {
         </CardContent>
       </Card>
 
-      {stalePackages.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-muted-foreground" />
-              Stale Packages ({stalePackages.length})
-            </CardTitle>
-            <Link href="/packages/stale">
-              <Button variant="outline" size="sm">View All</Button>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Package</TableHead>
-                    <TableHead className="hidden md:table-cell">Ecosystem</TableHead>
-                    <TableHead>Last Release</TableHead>
-                    <TableHead>Days Since</TableHead>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-muted-foreground" />
+            Stale Packages ({stalePackages.length})
+          </CardTitle>
+          <Link href={ROUTES.PACKAGES_STALE}>
+            <Button variant="outline" size="sm">View All</Button>
+          </Link>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Package</TableHead>
+                  <TableHead className="hidden md:table-cell">Ecosystem</TableHead>
+                  <TableHead>Last Release</TableHead>
+                  <TableHead className="hidden lg:table-cell">Days Since</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stalePackages.slice(0, 5).map((pkg) => (
+                  <TableRow
+                    key={pkg.id}
+                    clickable
+                    onClick={() => router.push(ROUTES.PACKAGE_DETAIL(pkg.id))}
+                  >
+                    <TableCell className="font-medium">
+                      <Link
+                        href={ROUTES.PACKAGE_DETAIL(pkg.id)}
+                        className="hover:underline text-primary"
+                      >
+                        {pkg.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <Badge variant="outline">{formatEcosystem(pkg.ecosystem)}</Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {pkg.lastReleaseAt
+                        ? new Date(pkg.lastReleaseAt).toLocaleDateString()
+                        : "Never"}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      <span className={pkg.daysSinceLastRelease > 365 ? "text-destructive font-medium" : ""}>
+                        {pkg.daysSinceLastRelease}
+                      </span>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {stalePackages.slice(0, 5).map((pkg) => (
-                    <TableRow key={pkg.id}>
-                      <TableCell className="font-medium">
-                        <Link
-                          href={`/packages/${pkg.id}`}
-                          className="hover:underline text-primary"
-                        >
-                          {pkg.name}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Badge variant="outline">{formatEcosystem(pkg.ecosystem)}</Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {pkg.lastReleaseAt
-                          ? new Date(pkg.lastReleaseAt).toLocaleDateString()
-                          : "Never"}
-                      </TableCell>
-                      <TableCell>
-                        <span className={pkg.daysSinceLastRelease > 365 ? "text-destructive font-medium" : ""}>
-                          {pkg.daysSinceLastRelease}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                ))}
+                {stalePackages.length === 0 && (
+                  <TableEmptyState
+                    colSpan={4}
+                    icon={<Clock className="h-8 w-8" />}
+                    title="No stale packages."
+                    description="All monitored packages have had recent releases."
+                  >
+                    <Link href={ROUTES.PACKAGES}>
+                      <Button variant="outline" size="sm">
+                        Go to Packages
+                      </Button>
+                    </Link>
+                  </TableEmptyState>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

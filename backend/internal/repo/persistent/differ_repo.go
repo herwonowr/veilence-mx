@@ -29,11 +29,11 @@ func (r *DifferRepo) FindReleaseByIDWithPackage(ctx context.Context, id string) 
 
 	release := &entity.Release{
 		ID:           model.ID,
+		WorkspaceID:  model.WorkspaceID,
 		PackageID:    model.PackageID,
 		Version:      model.Version,
 		PublishedAt:  model.PublishedAt,
 		TarballURL:   model.TarballURL,
-		SHA256:       model.SHA256,
 		Status:       entity.ReleaseStatus(model.Status),
 		ErrorMessage: model.ErrorMessage,
 		CreatedAt:    model.CreatedAt,
@@ -62,11 +62,11 @@ func (r *DifferRepo) FindPreviousCompletedRelease(ctx context.Context, packageID
 
 	return &entity.Release{
 		ID:          model.ID,
+		WorkspaceID: model.WorkspaceID,
 		PackageID:   model.PackageID,
 		Version:     model.Version,
 		PublishedAt: model.PublishedAt,
 		TarballURL:  model.TarballURL,
-		SHA256:      model.SHA256,
 		Status:      entity.ReleaseStatus(model.Status),
 		CreatedAt:   model.CreatedAt,
 	}, nil

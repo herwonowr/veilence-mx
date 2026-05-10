@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
-import { useDebouncedValue, useSortParams, useFilterParams, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
+import { useDebouncedValue, useSortParams, useFilterParams, useCurrentWorkspaceRole, hasMinimumRole, ROUTES , usePublicConfigQuery } from "@/core"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, Button, Badge, TableSkeleton, TableError, TableEmptyState, DataTablePagination, SearchInput, SortableHeader, Label, type SkeletonColumn } from "@/ui"
 import {
@@ -32,7 +32,7 @@ import {
 } from "@/ui"
 import { formatEcosystem } from "@/domains/common"
 import type { Ecosystem } from "@/domains/common"
-import { formatPopularity } from "@/domains/packages"
+import { formatPopularity, popularityTooltip } from "@/domains/packages"
 import type { Package } from "@/domains/packages"
 import { ArrowLeft, Check, X, CheckCheck, Radar, HelpCircle } from "lucide-react"
 import {
@@ -48,7 +48,6 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table"
-import "@/ui/data/table.types"
 import {
   usePackageSuggestions,
   useApprovePackage,
@@ -56,12 +55,12 @@ import {
   useBulkApprovePackages,
 } from "@/features/packages/hooks/use-packages"
 
-const VALID_ECOSYSTEMS: Ecosystem[] = ["python", "npm"]
-
 export const PackageSuggestionsView = () => {
   const searchParams = useSearchParams()
   const { role: currentRole } = useCurrentWorkspaceRole()
   const canApprove = hasMinimumRole(currentRole, "member")
+  const { enabledEcosystems } = usePublicConfigQuery()
+  const VALID_ECOSYSTEMS = enabledEcosystems as Ecosystem[]
 
   const initialEcosystem = searchParams.get("ecosystem") ?? ""
 
@@ -69,7 +68,7 @@ export const PackageSuggestionsView = () => {
     pageIndex: 0,
     pageSize: 20,
   })
-  const [bulkAction, setBulkAction] = useState<"all" | "python" | "npm" | null>(null)
+  const [bulkAction, setBulkAction] = useState<"all" | Ecosystem | null>(null)
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search, 300)
   const [ecosystemFilter, setEcosystemFilter] = useState(
@@ -145,8 +144,7 @@ export const PackageSuggestionsView = () => {
 
   const bulkActionLabel = useMemo(() => {
     if (bulkAction === "all") return "all pending suggestions"
-    if (bulkAction === "python") return "all Python suggestions"
-    if (bulkAction === "npm") return "all NPM suggestions"
+    if (bulkAction) return `all ${formatEcosystem(bulkAction)} suggestions`
     return ""
   }, [bulkAction])
 
@@ -176,25 +174,32 @@ export const PackageSuggestionsView = () => {
       {
         id: "downloadCount",
         accessorKey: "downloadCount",
-        header: ({ column }) => (
-          <div className="flex items-center gap-1">
-            <SortableHeader column={column} title="Popularity" />
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger render={<span><HelpCircle className="h-3.5 w-3.5 text-muted-foreground" /></span>} />
-                <TooltipContent>
-                  <p className="text-xs">Downloads (30-day) from package registry</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        ),
+        header: ({ column }) => {
+          return (
+            <div className="flex items-center gap-1">
+              <SortableHeader column={column} title="Popularity" />
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger render={<span><HelpCircle className="h-3.5 w-3.5 text-muted-foreground" /></span>} />
+                  <TooltipContent className="whitespace-pre-line">
+                    <p className="text-xs">{"NPM & Python: Monthly downloads\nGolang: GitHub stars"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )
+        },
         cell: ({ row }) => {
           const pkg = row.original
+          const text = formatPopularity(pkg.ecosystem, pkg.downloadCount)
+          const tooltip = popularityTooltip(pkg.ecosystem, pkg.downloadCount, pkg.downloadCountUpdatedAt)
           return (
-            <span className="text-sm tabular-nums">
-              {formatPopularity(pkg.ecosystem, pkg.downloadCount)}
-            </span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger render={<span className="text-sm tabular-nums">{text}</span>} />
+                <TooltipContent>{tooltip}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )
         },
       },
@@ -255,7 +260,7 @@ export const PackageSuggestionsView = () => {
     <div className="space-y-6">
       <div>
         <Link
-          href="/packages"
+          href={ROUTES.PACKAGES}
           className="w-fit text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -270,24 +275,18 @@ export const PackageSuggestionsView = () => {
           </div>
           {total > 0 && canApprove && (
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setBulkAction("python")}
-                disabled={bulkApproveMutation.isPending}
-              >
-                <CheckCheck className="h-4 w-4 mr-1" />
-                Approve All Python
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setBulkAction("npm")}
-                disabled={bulkApproveMutation.isPending}
-              >
-                <CheckCheck className="h-4 w-4 mr-1" />
-                Approve All NPM
-              </Button>
+              {VALID_ECOSYSTEMS.map((eco) => (
+                <Button
+                  key={eco}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBulkAction(eco)}
+                  disabled={bulkApproveMutation.isPending}
+                >
+                  <CheckCheck className="h-4 w-4 mr-1" />
+                  Approve All {formatEcosystem(eco)}
+                </Button>
+              ))}
               <Button
                 size="sm"
                 onClick={() => setBulkAction("all")}
@@ -320,12 +319,13 @@ export const PackageSuggestionsView = () => {
                 onValueChange={(v) => setEcosystemFilter(v === "all" ? "" : (v ?? ""))}
               >
                 <SelectTrigger id="suggestions-ecosystem-filter" className="w-32">
-                  <SelectValue>{ecosystemFilter === "python" ? "Python" : ecosystemFilter === "npm" ? "NPM" : "All"}</SelectValue>
+                  <SelectValue>{ecosystemFilter ? formatEcosystem(ecosystemFilter) : "All"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="python">Python</SelectItem>
-                  <SelectItem value="npm">NPM</SelectItem>
+                  {VALID_ECOSYSTEMS.map((eco) => (
+                    <SelectItem key={eco} value={eco}>{formatEcosystem(eco)}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

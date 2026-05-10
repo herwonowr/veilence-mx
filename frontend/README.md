@@ -53,7 +53,10 @@ src/
 │   ├── onboarding/          # Onboarding flows
 │   ├── account/             # Account management
 │   ├── admin/               # Admin features
-│   └── change-password/     # Password change flow
+│   ├── change-password/     # Password change flow
+│   ├── config/              # Public config hooks
+│   ├── sso/                 # SSO identity management
+│   └── platform-audit-logs/ # Platform-wide audit logs
 ├── domains/
 │   ├── auth/                # Auth API, types, mappers
 │   ├── packages/            # Package domain
@@ -67,6 +70,7 @@ src/
 │   ├── admin/               # Admin domain
 │   ├── config/              # Config domain
 │   ├── queue/               # Queue domain
+│   ├── sso/                 # SSO domain
 │   └── common/              # Shared types and utils
 ├── core/
 │   ├── http.ts              # HTTP client with auth
@@ -121,13 +125,16 @@ Configure via `.env.local` (not committed to git).
 | `/register` | Create account |
 | `/change-password` | Forced password change flow |
 | `/` | Dashboard - overview of monitored packages and alerts |
-| `/packages` | Package monitoring - tracked packages and their status |
+| `/packages` | Package monitoring - tracked packages, suggestions, pipeline status |
+| `/packages/stale` | Stale package detection |
+| `/packages/import` | Bulk import (requirements.txt, package.json, go.mod) |
 | `/alerts` | Alert triage - review and manage security alerts |
 | `/releases` | Release details and diff analysis |
 | `/settings` | Workspace settings (members, roles, notifications, API keys, audit, discovery) |
+| `/sso` | Linked SSO identities |
 | `/admin/users` | Platform admin - user management |
 | `/admin/audit-logs` | Platform admin - audit logs across all workspaces |
-| `/admin/security` | Platform admin - auth and SSO settings |
+| `/admin/security` | Platform SSO and auth settings |
 
 ## Build
 

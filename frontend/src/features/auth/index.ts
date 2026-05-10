@@ -9,10 +9,3 @@ export { ProtectedRoute } from "@/features/auth/ui/protected-route"
 export { RequireWorkspace } from "@/features/auth/ui/require-workspace"
 export { RequireRole } from "@/features/auth/ui/require-role"
 export { RequireSuperAdmin } from "@/features/auth/ui/require-super-admin"
-export {
-  useCurrentWorkspaceRole,
-  hasMinimumRole,
-  getRoleLevel,
-  workspaceRoleKeys,
-  type WorkspaceRole,
-} from "@/core"

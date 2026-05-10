@@ -9,12 +9,10 @@ import {
 import {
   apiGetWorkspaces,
   apiGetWorkspace,
-  apiCreateWorkspace,
   apiUpdateWorkspace,
   apiDeleteWorkspace,
   apiGetWorkspaceMembers,
   apiGetWorkspaceRoles,
-  apiGetPermissions,
   apiInviteMember,
   apiRemoveMember,
   apiUpdateMemberRole,
@@ -29,13 +27,12 @@ import type {
   Workspace,
   WorkspaceMember,
   Role,
-  Permission,
   AuditLog,
   Invitation,
+  AddMemberRequest,
 } from "@/domains/admin"
-import type { AddMemberRequest } from "@/domains/admin"
 import { toast } from "sonner"
-import { sanitizeErrorMessage, usePublicConfigQuery } from "@/core"
+import { sanitizeErrorMessage , usePublicConfigQuery } from "@/core"
 
 export const workspaceKeys = {
   all: ["workspaces"] as const,
@@ -71,21 +68,6 @@ export const useWorkspace = (
     queryFn: () => apiGetWorkspace(id),
     enabled: !!id,
     ...options,
-  })
-}
-
-export const useCreateWorkspace = () => {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (data: { name: string; slug: string; description?: string }) =>
-      apiCreateWorkspace(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.listsBase() })
-    },
-    onError: (error: Error) => {
-      toast.error(sanitizeErrorMessage(error, "Failed to create workspace"))
-    },
   })
 }
 
@@ -146,16 +128,6 @@ export const useWorkspaceRoles = (
     queryKey: workspaceKeys.roles(workspaceId),
     queryFn: () => apiGetWorkspaceRoles(workspaceId),
     enabled: !!workspaceId,
-    ...options,
-  })
-}
-
-export const usePermissions = (
-  options?: Partial<UseQueryOptions<ApiResponse<Permission[]>>>
-) => {
-  return useQuery({
-    queryKey: workspaceKeys.permissions(),
-    queryFn: () => apiGetPermissions(),
     ...options,
   })
 }

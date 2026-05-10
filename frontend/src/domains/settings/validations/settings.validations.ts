@@ -34,7 +34,10 @@ const optionalCommaSeparatedEmails = z
 
 export const settingsSchema = z.object({
   monitoring_interval: durationString("Monitoring interval"),
-  discovery_scan_depth: numericString("Discovery scan depth"),
+  discovery_scan_depth: numericString("Discovery scan depth").refine(
+    (val) => !val || Number(val) <= 1000,
+    { message: "Must be at most 1,000" }
+  ),
   discovery_interval: durationString("Discovery interval"),
   discovery_auto_approve: z.enum(["true", "false"]).optional(),
   stale_auto_remove_months: numericString("Stale auto-remove months"),
@@ -51,8 +54,8 @@ export const onboardingSettingsSchema = z.object({
     .string()
     .min(1, "Discovery scan depth is required")
     .refine((val) => /^\d+$/.test(val), { message: "Must be a number" })
-    .refine((val) => Number(val) >= 1 && Number(val) <= 10000, {
-      message: "Must be between 1 and 10,000",
+    .refine((val) => Number(val) >= 1 && Number(val) <= 1000, {
+      message: "Must be between 1 and 1,000",
     }),
   monitoring_interval: z
     .string()

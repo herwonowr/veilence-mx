@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, useCurrentWorkspaceRole, hasMinimumRole, ROUTES, type ColumnBreakpoints } from "@/core"
-import { Card, CardContent, CardHeader, Badge, Button, SearchInput, Label, TableSkeleton, TableError, TableEmptyState, FilterChips, DataTablePagination, SortableHeader, type SkeletonColumn, type ActiveFilter } from "@/ui"
+import { Card, CardContent, CardHeader, Badge, Button, SearchInput, Label, TableSkeleton, TableError, TableEmptyState, FilterChips, DataTablePagination, SortableHeader, SeverityBadge, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
   Select,
   SelectContent,
@@ -21,6 +21,7 @@ import {
 } from "@/ui"
 import type { Alert } from "@/domains/alerts"
 import type { AlertSeverity, AlertStatus } from "@/domains/common"
+import { ALERT_SEVERITIES, ALERT_STATUSES } from "@/domains/common"
 import Link from "next/link"
 import { Bell, ShieldCheck } from "lucide-react"
 import {
@@ -30,18 +31,7 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table"
-import "@/ui/data/table.types"
 import { useAlerts, useUpdateAlert } from "@/features/alerts/hooks/use-alerts"
-
-const severityVariant = (s: AlertSeverity) => {
-  if (s === "critical") return "destructive" as const
-  if (s === "high") return "destructive" as const
-  if (s === "medium") return "default" as const
-  return "secondary" as const
-}
-
-const VALID_SEVERITIES: AlertSeverity[] = ["low", "medium", "high", "critical"]
-const VALID_STATUSES: AlertStatus[] = ["new", "acknowledged", "resolved"]
 
 export const AlertsListView = () => (
   <Suspense>
@@ -59,10 +49,10 @@ const AlertsContent = () => {
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search, 300)
   const [severityFilter, setSeverityFilter] = useState(
-    VALID_SEVERITIES.includes(initialSeverity as AlertSeverity) ? initialSeverity : ""
+    ALERT_SEVERITIES.includes(initialSeverity as AlertSeverity) ? initialSeverity : ""
   )
   const [statusFilter, setStatusFilter] = useState(
-    VALID_STATUSES.includes(initialStatus as AlertStatus) ? initialStatus : ""
+    ALERT_STATUSES.includes(initialStatus as AlertStatus) ? initialStatus : ""
   )
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -151,9 +141,7 @@ const AlertsContent = () => {
         accessorKey: "severity",
         header: ({ column }) => <SortableHeader column={column} title="Severity" />,
         cell: ({ row }) => (
-          <Badge variant={severityVariant(row.original.severity)}>
-            {row.original.severity}
-          </Badge>
+          <SeverityBadge severity={row.original.severity} />
         ),
       },
       {
@@ -161,7 +149,7 @@ const AlertsContent = () => {
         header: ({ column }) => <SortableHeader column={column} title="Package" />,
         cell: ({ row }) => (
           <Link
-            href={`/packages/${row.original.packageId}`}
+            href={ROUTES.PACKAGE_DETAIL(row.original.packageId)}
             className="font-medium hover:underline"
             onClick={(e) => e.stopPropagation()}
           >
@@ -220,7 +208,7 @@ const AlertsContent = () => {
               </Button>
             )}
             {(row.original.releaseId ?? row.original.analysisId) ? (
-              <Link href={`/releases/${row.original.releaseId ?? row.original.analysisId}`}>
+              <Link href={ROUTES.RELEASE_DETAIL(row.original.releaseId ?? row.original.analysisId ?? "")}>
                 <Button variant="ghost" size="sm" aria-label={`View release for alert ${row.original.id}`}>
                   View Release
                 </Button>
@@ -385,7 +373,7 @@ const AlertsContent = () => {
                     title="All clear!"
                     description="No alerts found. Your packages are looking safe."
                   >
-                    <Link href="/packages">
+                    <Link href={ROUTES.PACKAGES}>
                       <Button variant="outline" size="sm">
                         View Packages
                       </Button>

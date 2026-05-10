@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, useCurrentWorkspaceRole, hasMinimumRole, ROUTES, type ColumnBreakpoints } from "@/core"
+import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, useCurrentWorkspaceRole, hasMinimumRole, ROUTES, type ColumnBreakpoints , usePublicConfigQuery } from "@/core"
 import { Button, Badge, Input, Textarea, Card, CardContent, CardHeader, TableSkeleton, TableError, TableEmptyState, FilterChips, SearchInput, Field, FieldLabel, FieldError, Label, DataTablePagination, SortableHeader, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
   Table,
@@ -38,9 +38,10 @@ import {
 } from "@/ui"
 import type { Package, PackageSource, PackageStatus } from "@/domains/packages"
 import type { Ecosystem } from "@/domains/common"
-import { formatPopularity, formatFreshness, popularityLabel, packageSchema } from "@/domains/packages"
-import { Plus, Trash2, RefreshCw, Upload, Ban, ShieldCheck, Radar } from "lucide-react"
+import { formatPopularity, popularityTooltip, packageSchema } from "@/domains/packages"
+import { Plus, Trash2, RefreshCw, Upload, Ban, ShieldCheck, Radar, Clock } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
+import { formatVersion } from "@/domains/releases"
 import Link from "next/link"
 import {
   useReactTable,
@@ -49,7 +50,6 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table"
-import "@/ui/data/table.types"
 import {
   Tooltip,
   TooltipContent,
@@ -66,6 +66,7 @@ import {
   useDiscoverPackages,
   useSuggestionCount,
 } from "@/features/packages/hooks/use-packages"
+import { PipelineStatusBar } from "@/features/packages/ui/pipeline-status-bar"
 
 const formatSource = (source: PackageSource): string => {
   switch (source) {
@@ -93,13 +94,14 @@ const sourceVariant = (source: PackageSource): "default" | "secondary" | "outlin
   }
 }
 
-const VALID_ECOSYSTEMS: Ecosystem[] = ["python", "npm"]
 const VALID_STATUSES: PackageStatus[] = ["active", "suggested", "blocked", "removed"]
 const VALID_SOURCES: PackageSource[] = ["manual", "discovered", "imported"]
 
 export const PackagesListView = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { enabledEcosystems } = usePublicConfigQuery()
+  const VALID_ECOSYSTEMS = enabledEcosystems as Ecosystem[]
 
   const initialEcosystem = searchParams.get("ecosystem") ?? ""
   const initialStatus = searchParams.get("status") ?? ""
@@ -195,7 +197,7 @@ export const PackagesListView = () => {
 
   const activeFilters: ActiveFilter[] = [
     ...(ecosystemFilter
-      ? [{ label: "Ecosystem", value: ecosystemFilter === "python" ? "Python" : "NPM", onRemove: () => setEcosystemFilter("") }]
+      ? [{ label: "Ecosystem", value: formatEcosystem(ecosystemFilter), onRemove: () => setEcosystemFilter("") }]
       : []),
     ...(statusFilter
       ? [{ label: "Status", value: statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1), onRemove: () => setStatusFilter("") }]
@@ -292,7 +294,7 @@ export const PackagesListView = () => {
         header: ({ column }) => <SortableHeader column={column} title="Name" />,
         cell: ({ row }) => (
           <Link
-            href={`/packages/${row.original.id}`}
+            href={ROUTES.PACKAGE_DETAIL(row.original.id)}
             className={`font-medium hover:underline ${row.original.status === "blocked" ? "text-muted-foreground" : ""}`}
           >
             {row.original.name}
@@ -309,32 +311,34 @@ export const PackagesListView = () => {
       {
         accessorKey: "latestVersion",
         header: ({ column }) => <SortableHeader column={column} title="Latest Version" />,
-        cell: ({ row }) => row.original.latestVersion || "-",
+        cell: ({ row }) => row.original.latestVersion ? formatVersion(row.original.latestVersion) : "-",
       },
       {
         id: "downloadCount",
         accessorKey: "downloadCount",
-        header: ({ column }) => (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger render={<span />}>
-                <SortableHeader column={column} title="Popularity" />
-              </TooltipTrigger>
-              <TooltipContent>
-                {popularityLabel(ecosystemFilter)}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ),
+        header: ({ column }) => {
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger render={<span />}>
+                  <SortableHeader column={column} title="Popularity" />
+                </TooltipTrigger>
+                <TooltipContent className="whitespace-pre-line">
+                  {"NPM & Python: Monthly downloads\nGolang: GitHub stars"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )
+        },
         cell: ({ row }) => {
           const pkg = row.original
           const text = formatPopularity(pkg.ecosystem, pkg.downloadCount)
-          const freshness = formatFreshness(pkg.downloadCountUpdatedAt)
+          const tooltip = popularityTooltip(pkg.ecosystem, pkg.downloadCount, pkg.downloadCountUpdatedAt)
           return (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger render={<span className="text-sm tabular-nums">{text}</span>} />
-                <TooltipContent>{freshness}</TooltipContent>
+                <TooltipContent>{tooltip}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           )
@@ -444,7 +448,7 @@ export const PackagesListView = () => {
         },
       },
     ],
-    [handleRemove, handleBlock, handleUnblock, canWrite, canDelete, ecosystemFilter]
+    [handleRemove, handleBlock, handleUnblock, canWrite, canDelete]
   )
 
   const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize))
@@ -467,7 +471,13 @@ export const PackagesListView = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold">Packages</h1>
-          <Link href="/packages/suggestions">
+          <Link href={ROUTES.PACKAGES_STALE}>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Clock className="h-4 w-4" />
+              Stale Packages
+            </Button>
+          </Link>
+          <Link href={ROUTES.PACKAGES_SUGGESTIONS}>
             <Button variant="outline" size="sm" className="gap-1.5">
               <Radar className="h-4 w-4" />
               Suggestions
@@ -486,7 +496,7 @@ export const PackagesListView = () => {
                 <RefreshCw className={`h-4 w-4 mr-2 ${discoverMutation.isPending ? "animate-spin" : ""}`} />
                 Discover Packages
               </Button>
-              <Link href="/packages/import">
+              <Link href={ROUTES.PACKAGES_IMPORT}>
                 <Button variant="outline">
                   <Upload className="h-4 w-4 mr-2" />
                   Bulk Import
@@ -529,11 +539,12 @@ export const PackagesListView = () => {
                         onValueChange={(v) => { if (v) setNewEcosystem(v as Ecosystem) }}
                       >
                         <SelectTrigger id="package-ecosystem">
-                          <SelectValue>{newEcosystem === "python" ? "Python" : "NPM"}</SelectValue>
+                          <SelectValue>{formatEcosystem(newEcosystem)}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="python">Python</SelectItem>
-                          <SelectItem value="npm">NPM</SelectItem>
+                          {VALID_ECOSYSTEMS.map((eco) => (
+                            <SelectItem key={eco} value={eco}>{formatEcosystem(eco)}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </Field>
@@ -555,7 +566,7 @@ export const PackagesListView = () => {
 
       {suggestionsCount > 0 && (
         <Link
-          href="/packages/suggestions"
+          href={ROUTES.PACKAGES_SUGGESTIONS}
           className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 hover:bg-amber-100 transition-colors dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300 dark:hover:bg-amber-900"
         >
           <Radar className="h-4 w-4 shrink-0" />
@@ -564,6 +575,8 @@ export const PackagesListView = () => {
           </span>
         </Link>
       )}
+
+      <PipelineStatusBar />
 
       <Card>
         <CardHeader>
@@ -586,12 +599,13 @@ export const PackagesListView = () => {
                   onValueChange={(v) => setEcosystemFilter(v === "all" ? "" : (v ?? ""))}
                 >
                   <SelectTrigger id="packages-ecosystem-filter" className="w-32">
-                    <SelectValue>{ecosystemFilter === "python" ? "Python" : ecosystemFilter === "npm" ? "NPM" : "All"}</SelectValue>
+                    <SelectValue>{ecosystemFilter ? formatEcosystem(ecosystemFilter) : "All"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="python">Python</SelectItem>
-                    <SelectItem value="npm">NPM</SelectItem>
+                    {VALID_ECOSYSTEMS.map((eco) => (
+                      <SelectItem key={eco} value={eco}>{formatEcosystem(eco)}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

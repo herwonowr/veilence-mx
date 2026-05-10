@@ -22,6 +22,7 @@ type Config struct {
 	// Optional with defaults
 	RedisURL    string
 	Port        string
+	MetricsPort string
 	FrontendURL string
 	BackendURL  string
 	AppEnv      string
@@ -36,12 +37,16 @@ type Config struct {
 	LLMRateInterval time.Duration
 
 	// Pipeline
-	MonitoringInterval time.Duration
-	DiscoveryInterval  time.Duration
-	PollerConcurrency  int
-	DiffSizeLimit      int
-	QueueMaxRetries    int
-	QueueLockTimeout   time.Duration
+	MonitoringInterval       time.Duration
+	DiscoveryInterval        time.Duration
+	PollerConcurrency        int
+	DiffSizeLimit            int
+	QueueMaxRetries          int
+	QueueLockTimeout         time.Duration
+	DiffWorkerConcurrency    int
+	AnalyzeWorkerConcurrency int
+	DiffJobTimeoutSeconds    int
+	AnalyzeJobTimeoutSeconds int
 
 	// SMTP
 	SMTPHost     string
@@ -57,6 +62,9 @@ type Config struct {
 	StaleAutoRemoveMonths        int
 	PackageCountWarningThreshold int
 	RequireEmailVerification     bool
+
+	// Ecosystems
+	EcosystemsEnabled []string
 
 	// Registration control
 	RegistrationEnabled bool
@@ -95,6 +103,7 @@ func NewConfig() (*Config, error) {
 		// Optional with defaults
 		RedisURL:    envOrDefault("REDIS_URL", "redis://localhost:6379/0"),
 		Port:        envOrDefault("SERVER_PORT", "8080"),
+		MetricsPort: envOrDefault("METRICS_PORT", "9090"),
 		FrontendURL: envOrDefault("FRONTEND_URL", "http://localhost:3000"),
 		BackendURL:  envOrDefault("BACKEND_URL", "http://localhost:8080"),
 		AppEnv:      envOrDefault("APP_ENV", "production"),
@@ -106,12 +115,16 @@ func NewConfig() (*Config, error) {
 		LLMRateInterval: envDurationOrDefault("LLM_RATE_INTERVAL", 6*time.Second),
 
 		// Pipeline
-		MonitoringInterval: envDurationOrDefault("MONITORING_INTERVAL", 1*time.Hour),
-		DiscoveryInterval:  envDurationOrDefault("DISCOVERY_INTERVAL", 24*time.Hour),
-		PollerConcurrency:  envIntOrDefault("POLLER_CONCURRENCY", 5),
-		DiffSizeLimit:      envIntOrDefault("DIFF_SIZE_LIMIT", 102400),
-		QueueMaxRetries:    envIntOrDefault("QUEUE_MAX_RETRIES", 5),
-		QueueLockTimeout:   envDurationOrDefault("QUEUE_LOCK_TIMEOUT", 10*time.Minute),
+		MonitoringInterval:       envDurationOrDefault("MONITORING_INTERVAL", 1*time.Hour),
+		DiscoveryInterval:        envDurationOrDefault("DISCOVERY_INTERVAL", 24*time.Hour),
+		PollerConcurrency:        envIntOrDefault("POLLER_CONCURRENCY", 5),
+		DiffSizeLimit:            envIntOrDefault("DIFF_SIZE_LIMIT", 102400),
+		QueueMaxRetries:          envIntOrDefault("QUEUE_MAX_RETRIES", 5),
+		QueueLockTimeout:         envDurationOrDefault("QUEUE_LOCK_TIMEOUT", 10*time.Minute),
+		DiffWorkerConcurrency:    envIntOrDefault("DIFF_WORKER_CONCURRENCY", 5),
+		AnalyzeWorkerConcurrency: envIntOrDefault("ANALYZE_WORKER_CONCURRENCY", 3),
+		DiffJobTimeoutSeconds:    envIntOrDefault("DIFF_JOB_TIMEOUT_SECONDS", 600),
+		AnalyzeJobTimeoutSeconds: envIntOrDefault("ANALYZE_JOB_TIMEOUT_SECONDS", 300),
 
 		// SMTP
 		SMTPHost:     os.Getenv("SMTP_HOST"),
@@ -164,6 +177,26 @@ func NewConfig() (*Config, error) {
 				cfg.AllowedEmailDomains = append(cfg.AllowedEmailDomains, trimmed)
 			}
 		}
+	}
+
+	// Parse comma-separated enabled ecosystems
+	if ecosystems := os.Getenv("ECOSYSTEMS_ENABLED"); ecosystems != "" {
+		seen := make(map[string]bool)
+		for _, e := range strings.Split(ecosystems, ",") {
+			if trimmed := strings.ToLower(strings.TrimSpace(e)); trimmed != "" {
+				if !seen[trimmed] {
+					seen[trimmed] = true
+					switch trimmed {
+					case "npm", "pypi", "go":
+						cfg.EcosystemsEnabled = append(cfg.EcosystemsEnabled, trimmed)
+					default:
+						return nil, fmt.Errorf("unknown ecosystem in ECOSYSTEMS_ENABLED: %q (valid: npm, pypi, go)", trimmed)
+					}
+				}
+			}
+		}
+	} else {
+		cfg.EcosystemsEnabled = []string{"npm", "pypi"}
 	}
 
 	if err := cfg.Validate(); err != nil {

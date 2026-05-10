@@ -19,8 +19,8 @@ func (e *Exchanger) ExchangeGitHub(ctx context.Context, config *OAuthConfig, cod
 			TokenURL:  e.githubTokenURL,
 			AuthStyle: oauth2.AuthStyleInHeader,
 		},
-		RedirectURL:  e.callbackBaseURL + "/api/auth/oauth/callback",
-		Scopes:       []string{"user:email", "read:org"},
+		RedirectURL: e.callbackBaseURL + "/api/auth/oauth/callback",
+		Scopes:      []string{"user:email", "read:org"},
 	}
 
 	// Exchange code with PKCE code_verifier.

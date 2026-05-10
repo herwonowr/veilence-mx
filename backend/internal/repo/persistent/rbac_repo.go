@@ -91,7 +91,7 @@ func (r *RBACRepo) SoftDeleteWorkspace(ctx context.Context, id string) error {
 		if len(pkgIDs) > 0 {
 			// Collect release IDs for these packages
 			var releaseIDs []string
-			tx.Model(&Release{}).Where("package_id IN ?", pkgIDs).Pluck("id", &releaseIDs)
+			tx.Model(&Release{}).Where("package_id IN ? AND workspace_id = ?", pkgIDs, id).Pluck("id", &releaseIDs)
 
 			// Collect diff IDs for these releases
 			var diffIDs []string
@@ -124,7 +124,7 @@ func (r *RBACRepo) SoftDeleteWorkspace(ctx context.Context, id string) error {
 			}
 
 			// Releases (depend on packages)
-			if err := tx.Where("package_id IN ?", pkgIDs).Delete(&Release{}).Error; err != nil {
+			if err := tx.Where("package_id IN ? AND workspace_id = ?", pkgIDs, id).Delete(&Release{}).Error; err != nil {
 				return fmt.Errorf("RBACRepo.SoftDeleteWorkspace: deleting releases: %w", err)
 			}
 

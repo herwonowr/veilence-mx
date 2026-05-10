@@ -1,7 +1,7 @@
 "use client"
 
 import { useParams, useRouter } from "next/navigation"
-import { useAuth, usePublicConfigQuery, ROUTES } from "@/core"
+import { useAuth, ROUTES , usePublicConfigQuery } from "@/core"
 import {
   useInvitationByToken,
   useAcceptInvitation,

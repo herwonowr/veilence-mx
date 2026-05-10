@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useAuth, ROUTES, usePublicConfigQuery, useDebouncedValue } from "@/core"
+import { useAuth, ROUTES, useDebouncedValue , usePublicConfigQuery } from "@/core"
 import { apiCreateWorkspace, workspaceSchema } from "@/domains/admin"
 import type { Workspace } from "@/domains/admin"
 import {
@@ -173,7 +173,7 @@ export const WorkspacesListView = () => {
         <h1 className="text-3xl font-bold">Workspaces</h1>
         <div className="flex items-center gap-3">
           {registrationEnabled && (
-            <Link href="/workspaces/invitations">
+            <Link href={ROUTES.WORKSPACES_INVITATIONS}>
               <Button variant="outline">
                 <Mail className="mr-2 size-4" />
                 View Invitations
@@ -362,7 +362,7 @@ const WorkspaceCard = ({ workspace }: { workspace: Workspace }) => {
   const packageCount = workspace.packageCount ?? null
 
   return (
-    <Link href={`/workspaces/${workspace.id}`}>
+    <Link href={ROUTES.WORKSPACE_DETAIL(workspace.id)}>
       <Card className="cursor-pointer transition-colors hover:bg-muted/50">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -421,7 +421,7 @@ const WorkspacesTable = ({ workspaces }: { workspaces: Workspace[] }) => {
             <TableRow
               key={ws.id}
               clickable
-              onClick={() => router.push(`/workspaces/${ws.id}`)}
+              onClick={() => router.push(ROUTES.WORKSPACE_DETAIL(ws.id))}
             >
               <TableCell className="font-medium">{ws.name}</TableCell>
               <TableCell className="font-mono text-xs text-muted-foreground">

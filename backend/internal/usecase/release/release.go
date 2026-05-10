@@ -44,14 +44,13 @@ func New(
 // ListByPackage returns a paginated list of releases for a package, scoped to a workspace.
 func (uc *UseCase) ListByPackage(ctx context.Context, workspaceID, packageID string, page, limit int) ([]entity.Release, int64, error) {
 	// Verify package belongs to the requesting workspace
-	pkg, err := uc.packages.FindByIDAndWorkspaceID(ctx, packageID, workspaceID)
+	_, err := uc.packages.FindByIDAndWorkspaceID(ctx, packageID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, 0, entity.ErrNotFound
 		}
 		return nil, 0, fmt.Errorf("verifying package: %w", err)
 	}
-	_ = pkg
 
 	releases, total, err := uc.releases.FindByPackageIDAndWorkspace(ctx, packageID, workspaceID, page, limit)
 	if err != nil {
@@ -102,7 +101,6 @@ func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID 
 		}
 		return "", "", fmt.Errorf("%w", err)
 	}
-	_ = pkg
 
 	diff, err := uc.diffs.FindFirstByReleaseID(ctx, release.ID)
 	if err != nil || diff == nil {
@@ -110,7 +108,11 @@ func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID 
 		if err := uc.releases.UpdateStatus(ctx, release.ID, entity.ReleaseStatusPending); err != nil {
 			return "", "", fmt.Errorf("updating status: %w", err)
 		}
-		jobID, err := uc.queue.Enqueue(ctx, jobTypeDiff, workspaceID, release.ID)
+		jobID, err := uc.queue.Enqueue(ctx, jobTypeDiff, workspaceID, release.ID, map[string]string{
+			"package":   pkg.Name,
+			"version":   release.Version,
+			"ecosystem": string(pkg.Ecosystem),
+		})
 		if err != nil {
 			return "", "", fmt.Errorf("enqueue diff: %w", err)
 		}
@@ -121,7 +123,11 @@ func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID 
 	if err := uc.releases.UpdateStatus(ctx, release.ID, entity.ReleaseStatusAnalyzing); err != nil {
 		return "", "", fmt.Errorf("updating status: %w", err)
 	}
-	jobID, err := uc.queue.Enqueue(ctx, jobTypeAnalyze, workspaceID, diff.ID)
+	jobID, err := uc.queue.Enqueue(ctx, jobTypeAnalyze, workspaceID, diff.ID, map[string]string{
+		"package":   pkg.Name,
+		"version":   release.Version,
+		"ecosystem": string(pkg.Ecosystem),
+	})
 	if err != nil {
 		return "", "", fmt.Errorf("enqueue analyze: %w", err)
 	}
@@ -131,14 +137,13 @@ func (uc *UseCase) ReanalyzeRelease(ctx context.Context, workspaceID, releaseID 
 // GetAnalysisHistory returns the analysis history for a package across all its releases.
 func (uc *UseCase) GetAnalysisHistory(ctx context.Context, workspaceID, packageID string) ([]entity.AnalysisHistoryEntry, error) {
 	// Verify package belongs to workspace
-	pkg, err := uc.packages.FindByIDAndWorkspaceID(ctx, packageID, workspaceID)
+	_, err := uc.packages.FindByIDAndWorkspaceID(ctx, packageID, workspaceID)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return nil, entity.ErrNotFound
 		}
 		return nil, fmt.Errorf("verifying package: %w", err)
 	}
-	_ = pkg
 
 	// Load all releases
 	releases, err := uc.releases.FindByPackageIDAll(ctx, packageID)
@@ -216,4 +221,13 @@ func (uc *UseCase) GetAnalysisHistory(ctx context.Context, workspaceID, packageI
 	}
 
 	return result, nil
+}
+
+// GetPipelineStatus returns counts of releases by processing status for the workspace.
+func (uc *UseCase) GetPipelineStatus(ctx context.Context, workspaceID string) (*entity.PipelineStatus, error) {
+	status, err := uc.releases.CountByWorkspaceAndStatus(ctx, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("getting pipeline status: %w", err)
+	}
+	return status, nil
 }

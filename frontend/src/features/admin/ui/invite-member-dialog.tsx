@@ -57,7 +57,7 @@ export const InviteMemberDialog = ({
     setError("")
     setFieldErrors({})
     try {
-      invitationSchema.parse({ email, roleId: roleId ? Number(roleId) : undefined })
+      invitationSchema.parse({ email, roleId: roleId ?? undefined })
     } catch (err) {
       if (err instanceof ZodError) {
         const errs: Record<string, string> = {}

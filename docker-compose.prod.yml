@@ -8,7 +8,7 @@
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: veilence-mx-db
     env_file: .env
     environment:
@@ -16,7 +16,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-veilence}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
     networks:
       - internal
     healthcheck:
@@ -41,7 +41,7 @@ services:
         max-file: "5"
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: veilence-mx-redis
     command: >
       redis-server
@@ -84,15 +84,20 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-veilence}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-veilence_mx}?sslmode=disable
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       SERVER_PORT: "8080"
+      METRICS_PORT: "9090"
       APP_ENV: production
       BACKEND_URL: ${BACKEND_URL:-http://localhost:8080}
+      ECOSYSTEMS_ENABLED: ${ECOSYSTEMS_ENABLED:-npm,pypi,go}
       REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-false}
       ALLOWED_EMAIL_DOMAINS: ${ALLOWED_EMAIL_DOMAINS:-}
       SSO_ENABLED: ${SSO_ENABLED:-false}
       SSO_ENCRYPTION_KEY: ${SSO_ENCRYPTION_KEY:-}
       SSO_SAML_CLOCK_SKEW: ${SSO_SAML_CLOCK_SKEW:-30s}
       SSO_STATE_TTL: ${SSO_STATE_TTL:-5m}
-      SSO_DEFAULT_SESSION_DURATION: ${SSO_DEFAULT_SESSION_DURATION:-43200}
+      DIFF_WORKER_CONCURRENCY: ${DIFF_WORKER_CONCURRENCY:-5}
+      ANALYZE_WORKER_CONCURRENCY: ${ANALYZE_WORKER_CONCURRENCY:-3}
+      DIFF_JOB_TIMEOUT_SECONDS: ${DIFF_JOB_TIMEOUT_SECONDS:-600}
+      ANALYZE_JOB_TIMEOUT_SECONDS: ${ANALYZE_JOB_TIMEOUT_SECONDS:-300}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
-import { useAuth, sanitizeErrorMessage, ROUTES, usePublicConfigQuery, config } from "@/core"
+import { useAuth, sanitizeErrorMessage, ROUTES, config , usePublicConfigQuery } from "@/core"
 import { loginSchema, apiSendVerificationEmailByEmail } from "@/domains/auth"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
@@ -17,8 +17,6 @@ import {
 } from "@/ui"
 import { Loader2, Eye, EyeOff, MailCheck, CheckCircle2, Shield } from "lucide-react"
 import { ZodError } from "zod"
-// Cross-feature import: SSO provider data is owned by the sso feature but needed
-// for the login UI. Cannot move to domains/ because it uses React Query hooks.
 import { useSSOProviders } from "@/features/sso"
 import type { SSOProviderInfo } from "@/domains/sso"
 

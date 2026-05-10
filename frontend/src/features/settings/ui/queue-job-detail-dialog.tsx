@@ -20,6 +20,7 @@ import {
 } from "@/ui"
 import { Loader2 } from "lucide-react"
 import { useIsMobile } from "@/core"
+import { formatVersion } from "@/domains/releases"
 import type { QueueJob } from "@/domains/queue"
 
 interface QueueJobDetailDialogProps {
@@ -122,6 +123,19 @@ const JobDetailContent = ({
             )}
           </dd>
         </div>
+
+        {/* Package */}
+        {job.metadata?.package && (
+          <div className="flex items-center justify-between">
+            <dt className="text-muted-foreground">Package</dt>
+            <dd className="text-sm">
+              {job.metadata.package}
+              {job.metadata.version && (
+                <span className="ml-1 text-muted-foreground">@{formatVersion(job.metadata.version)}</span>
+              )}
+            </dd>
+          </div>
+        )}
 
         {/* Reference */}
         <div className="flex items-center justify-between">

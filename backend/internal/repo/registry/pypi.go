@@ -27,10 +27,7 @@ type pypiPackageResponse struct {
 type pypiReleaseFile struct {
 	URL         string `json:"url"`
 	PackageType string `json:"packagetype"`
-	Digests     struct {
-		SHA256 string `json:"sha256"`
-	} `json:"digests"`
-	UploadTime string `json:"upload_time_iso_8601"`
+	UploadTime  string `json:"upload_time_iso_8601"`
 }
 
 type pypiTopPackagesResponse struct {
@@ -42,9 +39,10 @@ type pypiTopPackagesResponse struct {
 
 // PyPIClient implements the Registry interface for PyPI.
 type PyPIClient struct {
-	httpClient *http.Client
-	baseURL    string
-	topURL     string
+	httpClient     *http.Client
+	baseURL        string
+	topURL         string
+	tarballBaseURL string
 }
 
 // PyPIOption is a functional option for configuring the PyPI client.
@@ -60,12 +58,18 @@ func WithPyPITopURL(url string) PyPIOption {
 	return func(c *PyPIClient) { c.topURL = url }
 }
 
+// WithPyPITarballBaseURL sets a custom tarball base URL for testing.
+func WithPyPITarballBaseURL(url string) PyPIOption {
+	return func(c *PyPIClient) { c.tarballBaseURL = url }
+}
+
 // NewPyPIClient creates a new PyPI registry client.
 func NewPyPIClient(opts ...PyPIOption) *PyPIClient {
 	c := &PyPIClient{
-		httpClient: &http.Client{Timeout: 30 * time.Second},
-		baseURL:    "https://pypi.org",
-		topURL:     "https://hugovk.github.io/top-pypi-packages/top-pypi-packages-30-days.min.json",
+		httpClient:     newSSRFSafeClient(),
+		baseURL:        "https://pypi.org",
+		topURL:         "https://hugovk.github.io/top-pypi-packages/top-pypi-packages-30-days.min.json",
+		tarballBaseURL: "https://files.pythonhosted.org/",
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -83,6 +87,7 @@ func (c *PyPIClient) GetPackage(ctx context.Context, name string) (*entity.Regis
 		return nil, fmt.Errorf("creating request for %s: %w", name, err)
 	}
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "Veilence-MX")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -93,12 +98,16 @@ func (c *PyPIClient) GetPackage(ctx context.Context, name string) (*entity.Regis
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("package %s not found on PyPI", name)
 	}
+	if resp.StatusCode == http.StatusTooManyRequests {
+		slog.Warn("PyPI rate limited", "package", name)
+		return nil, fmt.Errorf("PyPI rate limited for package %s", name)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("PyPI returned status %d for package %s", resp.StatusCode, name)
 	}
 
 	var pypiResp pypiPackageResponse
-	if err := json.NewDecoder(resp.Body).Decode(&pypiResp); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 10*1024*1024)).Decode(&pypiResp); err != nil {
 		return nil, fmt.Errorf("decoding response for %s: %w", name, err)
 	}
 
@@ -116,7 +125,6 @@ func (c *PyPIClient) GetPackage(ctx context.Context, name string) (*entity.Regis
 					Version:     version,
 					PublishedAt: publishedAt,
 					TarballURL:  f.URL,
-					SHA256:      f.Digests.SHA256,
 				})
 				break
 			}
@@ -141,6 +149,7 @@ func (c *PyPIClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pa
 	if err != nil {
 		return nil, fmt.Errorf("creating top packages request: %w", err)
 	}
+	req.Header.Set("User-Agent", "Veilence-MX")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -153,7 +162,7 @@ func (c *PyPIClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pa
 	}
 
 	var topResp pypiTopPackagesResponse
-	if err := json.NewDecoder(resp.Body).Decode(&topResp); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 10*1024*1024)).Decode(&topResp); err != nil {
 		return nil, fmt.Errorf("decoding top packages response: %w", err)
 	}
 
@@ -165,7 +174,6 @@ func (c *PyPIClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pa
 		rankings = append(rankings, entity.PackageRanking{
 			Name:          row.Project,
 			DownloadCount: row.DownloadCount,
-			Rank:          i + 1,
 		})
 	}
 
@@ -175,10 +183,15 @@ func (c *PyPIClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pa
 
 // DownloadTarball downloads a tarball and returns the path to the temp file.
 func (c *PyPIClient) DownloadTarball(ctx context.Context, tarballURL string) (string, error) {
+	if err := validateTarballURL(tarballURL, c.tarballBaseURL); err != nil {
+		return "", fmt.Errorf("validating tarball URL: %w", err)
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, tarballURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("creating tarball request: %w", err)
 	}
+	req.Header.Set("User-Agent", "Veilence-MX")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -186,6 +199,9 @@ func (c *PyPIClient) DownloadTarball(ctx context.Context, tarballURL string) (st
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return "", fmt.Errorf("PyPI rate limited during tarball download")
+	}
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("tarball download returned status %d", resp.StatusCode)
 	}
@@ -198,13 +214,25 @@ func (c *PyPIClient) DownloadTarball(ctx context.Context, tarballURL string) (st
 	tmpFile := filepath.Join(tmpDir, "package.tar.gz")
 	f, err := os.Create(tmpFile)
 	if err != nil {
+		os.RemoveAll(tmpDir)
 		return "", fmt.Errorf("creating temp file: %w", err)
 	}
 	defer f.Close()
 
-	if _, err := io.Copy(f, resp.Body); err != nil {
+	const maxDownloadSize = 200 * 1024 * 1024 // 200MB
+	written, err := io.Copy(f, io.LimitReader(resp.Body, maxDownloadSize))
+	if err != nil {
+		os.RemoveAll(tmpDir)
 		return "", fmt.Errorf("writing tarball: %w", err)
 	}
 
+	// Detect silent truncation
+	var oneByte [1]byte
+	if _, err := resp.Body.Read(oneByte[:]); err == nil {
+		os.RemoveAll(tmpDir)
+		return "", fmt.Errorf("tarball exceeded maximum download size of %d bytes", maxDownloadSize)
+	}
+
+	_ = written
 	return tmpFile, nil
 }

@@ -100,8 +100,19 @@ func (h *SettingsHandlers) DiscoverPackages(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	if h.Golang != nil {
+		if err := h.Poller.SyncTopPackages(r.Context(), h.Golang, scanDepth, workspaceID); err != nil {
+			slog.Error("failed to discover Go packages", "workspace_id", workspaceID, "error", err)
+			respondAppError(w, Internal("failed to discover Go packages"))
+			return
+		}
+	}
+
 	h.Audit.LogAction(r.Context(), "discover", "package", "",
 		fmt.Sprintf("triggered discovery for workspace (scan_depth=%d)", scanDepth))
+
+	// Trigger monitoring so newly discovered/auto-approved packages get checked immediately
+	h.Poller.TriggerMonitoring(workspaceID)
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "discovery triggered"}, nil)
 }

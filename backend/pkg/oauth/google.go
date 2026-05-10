@@ -19,8 +19,8 @@ func (e *Exchanger) ExchangeGoogle(ctx context.Context, config *OAuthConfig, cod
 			TokenURL:  e.googleTokenURL,
 			AuthStyle: oauth2.AuthStyleInHeader,
 		},
-		RedirectURL:  e.callbackBaseURL + "/api/auth/oauth/callback",
-		Scopes:       []string{"openid", "email", "profile"},
+		RedirectURL: e.callbackBaseURL + "/api/auth/oauth/callback",
+		Scopes:      []string{"openid", "email", "profile"},
 	}
 
 	// Exchange code with PKCE code_verifier.

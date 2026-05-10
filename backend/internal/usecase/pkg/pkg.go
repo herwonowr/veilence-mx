@@ -15,13 +15,31 @@ import (
 // UseCase implements usecase.PackageService using a PackageRepository
 // and usecase.AuditLogger for logging security-relevant actions.
 type UseCase struct {
-	repo  usecase.PackageRepository
-	audit usecase.AuditLogger
+	repo              usecase.PackageRepository
+	audit             usecase.AuditLogger
+	registries        map[entity.Ecosystem]usecase.Registry
+	monitoringTrigger usecase.MonitoringTrigger
 }
 
 // New creates a new package UseCase.
-func New(repo usecase.PackageRepository, audit usecase.AuditLogger) *UseCase {
-	return &UseCase{repo: repo, audit: audit}
+func New(repo usecase.PackageRepository, audit usecase.AuditLogger, registries map[entity.Ecosystem]usecase.Registry, monitoringTrigger usecase.MonitoringTrigger) *UseCase {
+	return &UseCase{repo: repo, audit: audit, registries: registries, monitoringTrigger: monitoringTrigger}
+}
+
+// validatePackageExists checks that a package exists on its ecosystem registry.
+func (uc *UseCase) validatePackageExists(ctx context.Context, name string, ecosystem entity.Ecosystem) error {
+	if name == "" || len(name) > 200 {
+		return &entity.ValidationError{Message: "invalid package name"}
+	}
+	reg, ok := uc.registries[ecosystem]
+	if !ok {
+		return nil
+	}
+	_, err := reg.GetPackage(ctx, name)
+	if err != nil {
+		return &entity.ValidationError{Message: fmt.Sprintf("package %q not found on %s registry", name, ecosystem)}
+	}
+	return nil
 }
 
 // ListPackages returns a paginated list of packages for a workspace with optional filters.
@@ -47,6 +65,10 @@ func (uc *UseCase) GetPackage(ctx context.Context, workspaceID, pkgID string) (*
 
 // CreatePackage adds a new manual package to monitoring within the given workspace.
 func (uc *UseCase) CreatePackage(ctx context.Context, workspaceID string, name string, ecosystem entity.Ecosystem) (*entity.Package, error) {
+	if err := uc.validatePackageExists(ctx, name, ecosystem); err != nil {
+		return nil, err
+	}
+
 	exists, err := uc.repo.ExistsByWorkspaceAndName(ctx, workspaceID, name, ecosystem)
 	if err != nil {
 		return nil, fmt.Errorf("checking existence: %w", err)
@@ -75,6 +97,9 @@ func (uc *UseCase) CreatePackage(ctx context.Context, workspaceID string, name s
 
 // ImportPackages bulk-imports packages into monitoring for the given org.
 func (uc *UseCase) ImportPackages(ctx context.Context, workspaceID string, entries []entity.ImportEntry) (*entity.ImportResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+
 	result := &entity.ImportResult{}
 
 	for _, entry := range entries {
@@ -86,6 +111,11 @@ func (uc *UseCase) ImportPackages(ctx context.Context, workspaceID string, entri
 		}
 		if exists {
 			result.Skipped++
+			continue
+		}
+
+		if err := uc.validatePackageExists(ctx, entry.Name, entry.Ecosystem); err != nil {
+			result.Errors = append(result.Errors, entity.ImportErrorEntry{Name: entry.Name, Error: fmt.Sprintf("not found on %s registry", entry.Ecosystem)})
 			continue
 		}
 
@@ -196,6 +226,10 @@ func (uc *UseCase) ApprovePackage(ctx context.Context, workspaceID, pkgID string
 	uc.audit.LogAction(ctx, "approve", "package", pkgID,
 		fmt.Sprintf("approved suggested package %q (%s) for monitoring", pkg.Name, pkg.Ecosystem))
 
+	if uc.monitoringTrigger != nil {
+		uc.monitoringTrigger.TriggerMonitoring(workspaceID)
+	}
+
 	return pkg, nil
 }
 
@@ -233,6 +267,10 @@ func (uc *UseCase) BulkApprovePackages(ctx context.Context, workspaceID string, 
 	uc.audit.LogAction(ctx, "bulk_approve", "package", "",
 		fmt.Sprintf("bulk approved %d suggested packages", count))
 
+	if count > 0 && uc.monitoringTrigger != nil {
+		uc.monitoringTrigger.TriggerMonitoring(workspaceID)
+	}
+
 	return count, nil
 }
 
@@ -245,6 +283,10 @@ func (uc *UseCase) BulkApproveAllSuggestions(ctx context.Context, workspaceID st
 
 	uc.audit.LogAction(ctx, "bulk_approve_all", "package", "",
 		fmt.Sprintf("bulk approved all %d suggested packages", count))
+
+	if count > 0 && uc.monitoringTrigger != nil {
+		uc.monitoringTrigger.TriggerMonitoring(workspaceID)
+	}
 
 	return count, nil
 }
@@ -259,12 +301,12 @@ func (uc *UseCase) ListSuggestions(ctx context.Context, workspaceID string, page
 }
 
 // ListStalePackages returns active packages with no releases since staleBefore.
-func (uc *UseCase) ListStalePackages(ctx context.Context, workspaceID string, staleBefore time.Time) ([]entity.Package, error) {
-	packages, err := uc.repo.FindStaleByWorkspaceID(ctx, workspaceID, staleBefore)
+func (uc *UseCase) ListStalePackages(ctx context.Context, workspaceID string, staleBefore time.Time, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
+	packages, total, err := uc.repo.FindStaleByWorkspaceID(ctx, workspaceID, staleBefore, page, limit, sortClause, filters)
 	if err != nil {
-		return nil, fmt.Errorf("%w", err)
+		return nil, 0, fmt.Errorf("%w", err)
 	}
-	return packages, nil
+	return packages, total, nil
 }
 
 // CountPackages returns the total number of packages in a workspace (all ecosystems).
@@ -273,27 +315,5 @@ func (uc *UseCase) CountPackages(ctx context.Context, workspaceID string) (int64
 	if err != nil {
 		return 0, fmt.Errorf("%w", err)
 	}
-	return count, nil
-}
-
-// RemoveStalePackages removes active packages that have had no updates for
-// the given number of months. Returns the number of packages removed.
-// A value of 0 means auto-removal is disabled.
-func (uc *UseCase) RemoveStalePackages(ctx context.Context, workspaceID string, months int) (int, error) {
-	if months <= 0 {
-		return 0, nil
-	}
-
-	staleBefore := time.Now().AddDate(0, -months, 0)
-	count, err := uc.repo.RemoveStaleByWorkspaceID(ctx, workspaceID, staleBefore)
-	if err != nil {
-		return 0, fmt.Errorf("%w", err)
-	}
-
-	if count > 0 {
-		uc.audit.LogAction(ctx, "auto_remove_stale", "package", "",
-			fmt.Sprintf("auto-removed %d stale packages (no updates in %d months)", count, months))
-	}
-
 	return count, nil
 }

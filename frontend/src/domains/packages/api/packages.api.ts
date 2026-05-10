@@ -1,7 +1,7 @@
 import { fetchApi } from "@/core"
 import type { ApiResponse } from "@/domains/common"
 import type { Package, BulkImportResult, AnalysisHistoryEntry, StalePackage } from "@/domains/packages/types/packages.types"
-import type { Release } from "@/domains/releases/types/releases.types"
+import type { Release } from "@/domains/releases"
 
 export const getPackages = async (params?: {
   ecosystem?: string
@@ -75,7 +75,7 @@ export const discoverPackages = async (
 }
 
 export const bulkImportPackages = async (
-  format: "requirements_txt" | "package_json" | "list",
+  format: "requirements_txt" | "package_json" | "go_mod" | "list",
   content: string
 ): Promise<ApiResponse<BulkImportResult>> =>
   fetchApi<BulkImportResult>("/api/packages/bulk-import", {
@@ -122,7 +122,22 @@ export const bulkApprovePackages = async (
     body: JSON.stringify(params),
   })
 
-export const getStalePackages = async (months?: number): Promise<ApiResponse<StalePackage[]>> => {
-  const query = months ? `?months=${months}` : ""
-  return fetchApi<StalePackage[]>(`/api/packages/stale${query}`)
+export const getStalePackages = async (params?: {
+  months?: number
+  ecosystem?: string
+  search?: string
+  page?: number
+  limit?: number
+  sortBy?: string
+  sortDir?: string
+}): Promise<ApiResponse<StalePackage[]>> => {
+  const searchParams = new URLSearchParams()
+  if (params?.months) searchParams.set("months", String(params.months))
+  if (params?.ecosystem) searchParams.set("ecosystem", params.ecosystem)
+  if (params?.search) searchParams.set("search", params.search)
+  if (params?.page) searchParams.set("page", String(params.page))
+  if (params?.limit) searchParams.set("limit", String(params.limit))
+  if (params?.sortBy) searchParams.set("sort_by", params.sortBy)
+  if (params?.sortDir) searchParams.set("sort_dir", params.sortDir)
+  return fetchApi<StalePackage[]>(`/api/packages/stale?${searchParams.toString()}`)
 }

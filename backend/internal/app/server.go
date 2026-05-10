@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+
+	"github.com/veilence/veilence-mx/backend/pkg/metrics"
 	"os"
 	"os/signal"
 	"syscall"
@@ -59,6 +61,19 @@ func actionServe(cfg *config.Config) error {
 		}()
 	}
 
+	// Start metrics server on separate internal port
+	metricsServer := &http.Server{
+		Addr:              ":" + cfg.MetricsPort,
+		Handler:           metrics.Handler(),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	go func() {
+		slog.Info("metrics server starting", "port", cfg.MetricsPort)
+		if err := metricsServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("metrics server error", "error", err)
+		}
+	}()
+
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
 		Handler:           deps.Router,
@@ -79,6 +94,9 @@ func actionServe(cfg *config.Config) error {
 
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			slog.Error("server shutdown error", "error", err)
+		}
+		if err := metricsServer.Shutdown(shutdownCtx); err != nil {
+			slog.Error("metrics server shutdown error", "error", err)
 		}
 	}()
 

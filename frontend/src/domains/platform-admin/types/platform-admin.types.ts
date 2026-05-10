@@ -28,14 +28,14 @@ export interface PlatformUserDetail extends PlatformUserSummary {
   workspaces: UserWorkspace[]
 }
 
-export interface LinkedIdentity {
+interface LinkedIdentity {
   id: string
   provider: string
   providerEmail: string
   providerUserId: string
 }
 
-export interface UserWorkspace {
+interface UserWorkspace {
   id: string
   name: string
   role: string

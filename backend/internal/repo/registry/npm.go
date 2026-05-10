@@ -28,9 +28,7 @@ type npmPackageResponse struct {
 type npmVersionDetails struct {
 	Version string `json:"version"`
 	Dist    struct {
-		Tarball   string `json:"tarball"`
-		Shasum    string `json:"shasum"`
-		Integrity string `json:"integrity"`
+		Tarball string `json:"tarball"`
 	} `json:"dist"`
 }
 
@@ -69,7 +67,7 @@ func WithNPMBaseURL(baseURL string) NPMOption {
 // NewNPMClient creates a new npm registry client.
 func NewNPMClient(opts ...NPMOption) *NPMClient {
 	c := &NPMClient{
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		httpClient: newSSRFSafeClient(),
 		baseURL:    "https://registry.npmjs.org",
 	}
 	for _, opt := range opts {
@@ -97,6 +95,7 @@ func (c *NPMClient) GetPackage(ctx context.Context, name string) (*entity.Regist
 		return nil, fmt.Errorf("creating request for %s: %w", name, err)
 	}
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "Veilence-MX")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -107,12 +106,16 @@ func (c *NPMClient) GetPackage(ctx context.Context, name string) (*entity.Regist
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("package %s not found on npm", name)
 	}
+	if resp.StatusCode == http.StatusTooManyRequests {
+		slog.Warn("npm rate limited", "package", name)
+		return nil, fmt.Errorf("npm rate limited for package %s", name)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("npm returned status %d for package %s", resp.StatusCode, name)
 	}
 
 	var npmResp npmPackageResponse
-	if err := json.NewDecoder(resp.Body).Decode(&npmResp); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 10*1024*1024)).Decode(&npmResp); err != nil {
 		return nil, fmt.Errorf("decoding response for %s: %w", name, err)
 	}
 
@@ -133,7 +136,6 @@ func (c *NPMClient) GetPackage(ctx context.Context, name string) (*entity.Regist
 			Version:     version,
 			PublishedAt: publishedAt,
 			TarballURL:  details.Dist.Tarball,
-			SHA256:      details.Dist.Shasum,
 		})
 	}
 
@@ -172,6 +174,7 @@ func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pac
 		if err != nil {
 			return nil, fmt.Errorf("creating search request: %w", err)
 		}
+		req.Header.Set("User-Agent", "Veilence-MX")
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
@@ -179,7 +182,7 @@ func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pac
 		}
 
 		var searchResp npmSearchResponse
-		if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 10*1024*1024)).Decode(&searchResp); err != nil {
 			resp.Body.Close()
 			return nil, fmt.Errorf("decoding search response: %w", err)
 		}
@@ -189,7 +192,6 @@ func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pac
 			allRankings = append(allRankings, entity.PackageRanking{
 				Name:          obj.Package.Name,
 				DownloadCount: obj.Downloads.Monthly,
-				Rank:          fetched + len(allRankings) - len(allRankings) + len(allRankings) + 1,
 			})
 		}
 
@@ -199,10 +201,10 @@ func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pac
 		}
 	}
 
-	// Fix rank values after collection
-	for i := range allRankings {
-		allRankings[i].Rank = i + 1
-	}
+	// Sort by download count descending
+	sort.Slice(allRankings, func(i, j int) bool {
+		return allRankings[i].DownloadCount > allRankings[j].DownloadCount
+	})
 
 	slog.Info("fetched top npm packages", "count", len(allRankings))
 	return allRankings, nil
@@ -210,10 +212,15 @@ func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pac
 
 // DownloadTarball downloads a tarball and returns the path to the temp file.
 func (c *NPMClient) DownloadTarball(ctx context.Context, tarballURL string) (string, error) {
+	if err := validateTarballURL(tarballURL, c.baseURL); err != nil {
+		return "", fmt.Errorf("validating tarball URL: %w", err)
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, tarballURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("creating tarball request: %w", err)
 	}
+	req.Header.Set("User-Agent", "Veilence-MX")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -221,6 +228,9 @@ func (c *NPMClient) DownloadTarball(ctx context.Context, tarballURL string) (str
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return "", fmt.Errorf("npm rate limited during tarball download")
+	}
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("tarball download returned status %d", resp.StatusCode)
 	}
@@ -233,13 +243,25 @@ func (c *NPMClient) DownloadTarball(ctx context.Context, tarballURL string) (str
 	tmpFile := filepath.Join(tmpDir, "package.tgz")
 	f, err := os.Create(tmpFile)
 	if err != nil {
+		os.RemoveAll(tmpDir)
 		return "", fmt.Errorf("creating temp file: %w", err)
 	}
 	defer f.Close()
 
-	if _, err := io.Copy(f, resp.Body); err != nil {
+	const maxDownloadSize = 200 * 1024 * 1024 // 200MB
+	written, err := io.Copy(f, io.LimitReader(resp.Body, maxDownloadSize))
+	if err != nil {
+		os.RemoveAll(tmpDir)
 		return "", fmt.Errorf("writing tarball: %w", err)
 	}
 
+	// Detect silent truncation
+	var oneByte [1]byte
+	if _, err := resp.Body.Read(oneByte[:]); err == nil {
+		os.RemoveAll(tmpDir)
+		return "", fmt.Errorf("tarball exceeded maximum download size of %d bytes", maxDownloadSize)
+	}
+
+	_ = written
 	return tmpFile, nil
 }

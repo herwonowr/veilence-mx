@@ -13,7 +13,7 @@ const autoCreateDomainRefinement = (
   }
 }
 
-export const ssoConfigBaseSchema = z.object({
+const ssoConfigBaseSchema = z.object({
   displayName: z.string().min(1, "Display name is required"),
   isEnabled: z.boolean(),
   autoCreateUser: z.boolean(),
@@ -39,7 +39,7 @@ export const oauthConfigSchema = ssoConfigBaseSchema.extend({
 })
 
 /** Schema for editing an existing config (provider already set, fields optional) */
-export const ssoConfigUpdateBaseSchema = z.object({
+const ssoConfigUpdateBaseSchema = z.object({
   displayName: z.string().min(1, "Display name is required"),
   isEnabled: z.boolean(),
   autoCreateUser: z.boolean(),

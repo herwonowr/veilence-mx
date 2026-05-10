@@ -129,7 +129,7 @@ func (p *Pipeline) ProcessDiff(ctx context.Context, diffID string) error {
 				PackageID:   pkg.ID,
 				Severity:    severity,
 				Status:      entity.AlertStatusNew,
-				Message:     fmt.Sprintf("Package %s v%s classified as %s (confidence: %.0f%%): %s", pkg.Name, release.Version, result.Classification, result.Confidence*100, result.Reasoning),
+				Message:     fmt.Sprintf("Package %s %s classified as %s (confidence: %.0f%%): %s", pkg.Name, entity.FormatVersion(release.Version), result.Classification, result.Confidence*100, result.Reasoning),
 			}
 
 			if err := p.repo.CreateAlert(ctx, alert); err != nil {
@@ -151,8 +151,8 @@ func (p *Pipeline) ProcessDiff(ctx context.Context, diffID string) error {
 					p.notifier.DispatchEvent(ctx, pkg.WorkspaceID, entity.NotificationEvent{
 						Severity:      notifSeverity,
 						EventType:     notifEventType,
-						Title:         fmt.Sprintf("%s package detected: %s v%s", strings.ToUpper(result.Classification[:1])+result.Classification[1:], pkg.Name, release.Version),
-						Message:       fmt.Sprintf("Package %s v%s (%s) classified as %s with %.0f%% confidence. %s", pkg.Name, release.Version, pkg.Ecosystem, result.Classification, result.Confidence*100, result.Reasoning),
+						Title:         fmt.Sprintf("%s package detected: %s %s", strings.ToUpper(result.Classification[:1])+result.Classification[1:], pkg.Name, entity.FormatVersion(release.Version)),
+						Message:       fmt.Sprintf("Package %s %s (%s) classified as %s with %.0f%% confidence. %s", pkg.Name, entity.FormatVersion(release.Version), pkg.Ecosystem, result.Classification, result.Confidence*100, result.Reasoning),
 						ReferenceID:   alert.ID,
 						ReferenceType: "alert",
 					})
@@ -167,8 +167,8 @@ func (p *Pipeline) ProcessDiff(ctx context.Context, diffID string) error {
 			p.notifier.DispatchEvent(ctx, pkg.WorkspaceID, entity.NotificationEvent{
 				Severity:      "high",
 				EventType:     entity.NotifEventAnalysisError,
-				Title:         fmt.Sprintf("Analysis failed: %s v%s", pkg.Name, release.Version),
-				Message:       fmt.Sprintf("All providers failed for %s v%s (%s). The release will be retried. Error: %v", pkg.Name, release.Version, pkg.Ecosystem, lastErr),
+				Title:         fmt.Sprintf("Analysis failed: %s %s", pkg.Name, entity.FormatVersion(release.Version)),
+				Message:       fmt.Sprintf("All providers failed for %s %s (%s). The release will be retried. Error: %v", pkg.Name, entity.FormatVersion(release.Version), pkg.Ecosystem, lastErr),
 				ReferenceID:   release.ID,
 				ReferenceType: "release",
 			})

@@ -150,7 +150,7 @@ func (uc *UseCase) ReanalyzeAll(ctx context.Context, workspaceID string) (int, e
 
 	queued := 0
 	for _, id := range diffIDs {
-		if _, err := uc.queue.Enqueue(ctx, jobTypeAnalyze, workspaceID, id); err != nil {
+		if _, err := uc.queue.Enqueue(ctx, jobTypeAnalyze, workspaceID, id, nil); err != nil {
 			return queued, fmt.Errorf("enqueue diff %s: %w", id, err)
 		}
 		queued++

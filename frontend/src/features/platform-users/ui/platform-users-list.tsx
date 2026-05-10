@@ -6,6 +6,7 @@ import {
   useSortParams,
   useFilterParams,
   useResponsiveColumns,
+  useAuth,
   type ColumnBreakpoints,
 } from "@/core"
 import {
@@ -59,7 +60,6 @@ import {
   DropdownMenuTrigger,
 } from "@/ui"
 import { Users, ShieldCheck, UserX, UserCheck, Loader2, MoreHorizontal } from "lucide-react"
-import { useAuth } from "@/core"
 import {
   useReactTable,
   getCoreRowModel,
@@ -67,7 +67,6 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table"
-import "@/ui/data/table.types"
 import { usePlatformUsers, useUpdatePlatformUser } from "@/features/platform-users/hooks/use-platform-users"
 import type { PlatformUserSummary } from "@/domains/platform-admin"
 

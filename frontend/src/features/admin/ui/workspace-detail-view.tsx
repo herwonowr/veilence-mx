@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useAuth, usePublicConfigQuery, ROUTES, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
+import { useAuth, ROUTES, useCurrentWorkspaceRole, hasMinimumRole , usePublicConfigQuery } from "@/core"
 import { workspaceUpdateSchema } from "@/domains/admin"
 import {
   Button,
@@ -164,7 +164,7 @@ export const WorkspaceDetailView = () => {
     <div className="space-y-6">
       <div>
         <Link
-          href="/workspaces"
+          href={ROUTES.WORKSPACES}
           className="w-fit text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -177,7 +177,7 @@ export const WorkspaceDetailView = () => {
           </div>
           <div className="flex items-center gap-2">
             {canViewAuditLog && (
-            <Link href={`/workspaces/${workspace.id}/audit`}>
+            <Link href={ROUTES.WORKSPACE_AUDIT(workspace.id)}>
               <Button variant="outline" size="sm">
                 <ScrollText className="mr-2 size-4" />
                 Audit Log

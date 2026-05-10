@@ -100,11 +100,11 @@ func (r *PollerRepo) FindLatestRelease(ctx context.Context, packageID string) (*
 	}
 	return &entity.Release{
 		ID:          model.ID,
+		WorkspaceID: model.WorkspaceID,
 		PackageID:   model.PackageID,
 		Version:     model.Version,
 		PublishedAt: model.PublishedAt,
 		TarballURL:  model.TarballURL,
-		SHA256:      model.SHA256,
 		Status:      entity.ReleaseStatus(model.Status),
 		CreatedAt:   model.CreatedAt,
 	}, nil
@@ -121,21 +121,22 @@ func (r *PollerRepo) FindReleaseByPackageAndVersion(ctx context.Context, package
 		return nil, nil
 	}
 	return &entity.Release{
-		ID:        model.ID,
-		PackageID: model.PackageID,
-		Version:   model.Version,
-		Status:    entity.ReleaseStatus(model.Status),
+		ID:          model.ID,
+		WorkspaceID: model.WorkspaceID,
+		PackageID:   model.PackageID,
+		Version:     model.Version,
+		Status:      entity.ReleaseStatus(model.Status),
 	}, nil
 }
 
 // CreateRelease persists a new release.
 func (r *PollerRepo) CreateRelease(ctx context.Context, release *entity.Release) error {
 	model := Release{
+		WorkspaceID: release.WorkspaceID,
 		PackageID:   release.PackageID,
 		Version:     release.Version,
 		PublishedAt: release.PublishedAt,
 		TarballURL:  release.TarballURL,
-		SHA256:      release.SHA256,
 		Status:      ReleaseStatus(release.Status),
 	}
 	if err := r.db.WithContext(ctx).Create(&model).Error; err != nil {
@@ -168,7 +169,6 @@ func (r *PollerRepo) CreatePackage(ctx context.Context, pkg *entity.Package) err
 		Ecosystem:              Ecosystem(pkg.Ecosystem),
 		Source:                 PackageSource(pkg.Source),
 		Status:                 PackageStatus(pkg.Status),
-		Rank:                   pkg.Rank,
 		DownloadCount:          pkg.DownloadCount,
 		DownloadCountUpdatedAt: pkg.DownloadCountUpdatedAt,
 	}
@@ -180,13 +180,15 @@ func (r *PollerRepo) CreatePackage(ctx context.Context, pkg *entity.Package) err
 	return nil
 }
 
-// UpdatePackageRank updates a package's rank.
-func (r *PollerRepo) UpdatePackageRank(ctx context.Context, packageID string, rank int) error {
-	return r.db.WithContext(ctx).Model(&Package{}).Where("id = ?", packageID).Update("rank", &rank).Error
-}
-
 // UpdatePackageDiscoveryMetrics updates a suggested/removed package's metrics.
-func (r *PollerRepo) UpdatePackageDiscoveryMetrics(ctx context.Context, packageID string, updates map[string]interface{}) error {
+func (r *PollerRepo) UpdatePackageDiscoveryMetrics(ctx context.Context, packageID string, update entity.PackageDiscoveryUpdate) error {
+	updates := map[string]interface{}{
+		"download_count":            update.DownloadCount,
+		"download_count_updated_at": update.DownloadCountUpdatedAt,
+	}
+	if update.Status != nil {
+		updates["status"] = string(*update.Status)
+	}
 	return r.db.WithContext(ctx).Model(&Package{}).Where("id = ?", packageID).Updates(updates).Error
 }
 
@@ -209,7 +211,8 @@ func (r *PollerRepo) UpdateDownloadCounts(ctx context.Context, workspaceID strin
 // RemoveStalePackages marks active packages with no updates in the given period as removed.
 func (r *PollerRepo) RemoveStalePackages(ctx context.Context, workspaceID string, staleBefore time.Time) (int64, error) {
 	result := r.db.WithContext(ctx).Model(&Package{}).
-		Where("workspace_id = ? AND status = ? AND updated_at < ?", workspaceID, PackageStatusActive, staleBefore).
+		Where("workspace_id = ? AND status = ?", workspaceID, PackageStatusActive).
+		Where("id NOT IN (SELECT package_id FROM releases WHERE published_at >= ?)", staleBefore).
 		Update("status", PackageStatusRemoved)
 	if result.Error != nil {
 		return 0, fmt.Errorf("PollerRepo.RemoveStalePackages: %w", result.Error)

@@ -37,6 +37,7 @@ export const ROUTES = {
   SETTINGS_SESSIONS: "/settings/sessions",
   SETTINGS_QUEUE: "/settings/queue",
   SETTINGS_NOTIFICATIONS: "/settings/notifications",
+  ADMIN: "/admin",
   ADMIN_SECURITY: "/admin/security",
   ADMIN_USERS: "/admin/users",
   ADMIN_AUDIT_LOGS: "/admin/audit-logs",

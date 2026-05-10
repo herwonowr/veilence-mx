@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, ROUTES, type ColumnBreakpoints } from "@/core"
+import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, ROUTES, type ColumnBreakpoints , usePublicConfigQuery } from "@/core"
 import Link from "next/link"
-import { Card, CardContent, CardHeader, Badge, TableSkeleton, TableError, TableEmptyState, Button, Label, FilterChips, SearchInput, DataTablePagination, SortableHeader, type SkeletonColumn, type ActiveFilter } from "@/ui"
+import { Card, CardContent, CardHeader, Badge, TableSkeleton, TableError, TableEmptyState, Button, Label, FilterChips, SearchInput, DataTablePagination, SortableHeader, ReleaseStatusBadge, ClassificationBadge, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
   Table,
   TableBody,
@@ -20,10 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui"
-import type { RecentRelease } from "@/domains/releases"
+import { formatVersion, type RecentRelease } from "@/domains/releases"
 import type { Classification, Ecosystem, ReleaseStatus } from "@/domains/common"
-import { CheckCircle, Activity } from "lucide-react"
-import { formatEcosystem } from "@/domains/common"
+import { Activity } from "lucide-react"
+import { formatEcosystem, CLASSIFICATIONS } from "@/domains/common"
 import {
   useReactTable,
   getCoreRowModel,
@@ -33,20 +33,13 @@ import {
 } from "@tanstack/react-table"
 import { useRecentReleases } from "@/features/releases/hooks/use-releases"
 
-const classificationVariant = (c: Classification) => {
-  if (c === "malicious") return "destructive" as const
-  if (c === "suspicious") return "default" as const
-  if (c === "baseline") return "outline" as const
-  return "secondary" as const
-}
-
-const VALID_ECOSYSTEMS: Ecosystem[] = ["python", "npm"]
 const VALID_STATUSES: ReleaseStatus[] = ["in_progress", "completed", "error"]
-const VALID_CLASSIFICATIONS: Classification[] = ["benign", "suspicious", "malicious", "baseline"]
 
 export const ReleasesListView = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { enabledEcosystems } = usePublicConfigQuery()
+  const VALID_ECOSYSTEMS = enabledEcosystems as Ecosystem[]
 
   const initialEcosystem = searchParams.get("ecosystem") ?? ""
   const initialStatus = searchParams.get("status") ?? ""
@@ -61,7 +54,7 @@ export const ReleasesListView = () => {
     VALID_STATUSES.includes(initialStatus as ReleaseStatus) ? initialStatus : ""
   )
   const [classificationFilter, setClassificationFilter] = useState(
-    VALID_CLASSIFICATIONS.includes(initialClassification as Classification) ? initialClassification : ""
+    CLASSIFICATIONS.includes(initialClassification as Classification) ? initialClassification : ""
   )
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -115,7 +108,7 @@ export const ReleasesListView = () => {
 
   const activeFilters: ActiveFilter[] = [
     ...(ecosystemFilter
-      ? [{ label: "Ecosystem", value: ecosystemFilter === "python" ? "Python" : "NPM", onRemove: () => setEcosystemFilter("") }]
+      ? [{ label: "Ecosystem", value: formatEcosystem(ecosystemFilter), onRemove: () => setEcosystemFilter("") }]
       : []),
     ...(statusFilter
       ? [{ label: "Analysis Status", value: statusFilter === "in_progress" ? "In Progress" : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1), onRemove: () => setStatusFilter("") }]
@@ -144,7 +137,7 @@ export const ReleasesListView = () => {
         header: ({ column }) => <SortableHeader column={column} title="Package" />,
         cell: ({ row }) => (
           <Link
-            href={`/releases/${row.original.id}`}
+            href={ROUTES.RELEASE_DETAIL(row.original.id)}
             className="font-medium hover:underline text-primary"
           >
             {row.original.packageName}
@@ -162,7 +155,7 @@ export const ReleasesListView = () => {
         accessorKey: "version",
         header: ({ column }) => <SortableHeader column={column} title="Version" />,
         cell: ({ row }) => (
-          <span className="font-mono text-sm">{row.original.version}</span>
+          <span className="font-mono text-sm">{formatVersion(row.original.version)}</span>
         ),
       },
       {
@@ -177,28 +170,13 @@ export const ReleasesListView = () => {
       {
         accessorKey: "status",
         header: ({ column }) => <SortableHeader column={column} title="Analysis Status" />,
-        cell: ({ row }) =>
-          row.original.status === "completed" ? (
-            <span className="flex items-center gap-1 text-sm text-green-600">
-              <CheckCircle className="h-3.5 w-3.5" />
-              Completed
-            </span>
-          ) : (
-            <Badge variant="secondary">{row.original.status}</Badge>
-          ),
+        cell: ({ row }) => <ReleaseStatusBadge status={row.original.status} />,
       },
       {
         accessorKey: "classification",
         header: "Classification",
         enableSorting: false,
-        cell: ({ row }) =>
-          row.original.classification ? (
-            <Badge variant={classificationVariant(row.original.classification)}>
-              {row.original.classification}
-            </Badge>
-          ) : (
-            <span className="text-muted-foreground text-sm">-</span>
-          ),
+        cell: ({ row }) => <ClassificationBadge classification={row.original.classification} />,
       },
     ],
     []
@@ -249,12 +227,13 @@ export const ReleasesListView = () => {
                   onValueChange={(v) => setEcosystemFilter(v === "all" ? "" : (v ?? ""))}
                 >
                   <SelectTrigger id="releases-ecosystem-filter" className="w-32">
-                    <SelectValue>{ecosystemFilter === "python" ? "Python" : ecosystemFilter === "npm" ? "NPM" : "All"}</SelectValue>
+                    <SelectValue>{ecosystemFilter ? formatEcosystem(ecosystemFilter) : "All"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="python">Python</SelectItem>
-                    <SelectItem value="npm">NPM</SelectItem>
+                    {VALID_ECOSYSTEMS.map((eco) => (
+                      <SelectItem key={eco} value={eco}>{formatEcosystem(eco)}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -364,7 +343,7 @@ export const ReleasesListView = () => {
                   title="No releases yet."
                   description="Add packages to start monitoring releases."
                 >
-                  <Link href="/packages">
+                  <Link href={ROUTES.PACKAGES}>
                     <Button variant="outline" size="sm">
                       Go to Packages
                     </Button>

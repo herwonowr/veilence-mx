@@ -6,7 +6,7 @@ import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
 import { apiForgotPassword, passwordResetSchema } from "@/domains/auth"
-import { sanitizeErrorMessage, ROUTES, usePublicConfigQuery } from "@/core"
+import { sanitizeErrorMessage, ROUTES , usePublicConfigQuery } from "@/core"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
   Card,

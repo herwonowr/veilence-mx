@@ -1,6 +1,6 @@
 # Veilence-MX Backend
 
-REST API backend for the Veilence-MX supply chain monitoring platform. Monitors PyPI and NPM registries for new package releases, analyzes code diffs with LLMs to detect suspicious changes, and surfaces alerts for security team triage.
+REST API backend for the Veilence-MX supply chain monitoring platform. Monitors PyPI, NPM, and Go module registries for new package releases, analyzes code diffs with LLMs to detect suspicious changes, and surfaces alerts for security team triage.
 
 ## Tech Stack
 
@@ -30,20 +30,22 @@ backend/
 │   │   ├── contracts.go  #   All repository/external interfaces
 │   │   ├── auth/         #   Authentication + sessions
 │   │   ├── rbac/         #   Role-based access control
-│   │   ├── pkguc/        #   Package management
-│   │   ├── releaseuc/    #   Release tracking
-│   │   ├── alertuc/      #   Alert triage workflow
+│   │   ├── pkg/          #   Package management
+│   │   ├── release/      #   Release tracking
+│   │   ├── alert/        #   Alert triage workflow
 │   │   ├── alertnote/    #   Alert notes/comments
 │   │   ├── analyzer/     #   LLM-powered diff analysis
 │   │   ├── differ/       #   Release diff generation
 │   │   ├── poller/       #   Registry polling for new releases
-│   │   ├── dashboarduc/  #   Dashboard stats + charts
+│   │   ├── dashboard/    #   Dashboard stats + charts
 │   │   ├── notifications/#   Channels, rules, user notifications
-│   │   ├── settinguc/    #   Workspace settings + discovery config
+│   │   ├── setting/      #   Workspace settings + discovery config
 │   │   ├── setup/        #   First-run initialization
 │   │   ├── audit/        #   Audit logging
 │   │   ├── digest/       #   Digest reports
-│   │   └── healthuc/     #   Health/readiness checks
+│   │   ├── sso/          #   SSO (SAML, Google, GitHub OAuth)
+│   │   ├── shared/       #   Shared usecase utilities
+│   │   └── health/       #   Health/readiness checks
 │   ├── controller/
 │   │   └── restapi/      # HTTP handlers, middleware, request/response DTOs
 │   │       ├── router.go #   All route definitions
@@ -64,7 +66,8 @@ backend/
 │   ├── hasher/           #   Password hashing
 │   ├── id/               #   ID generation
 │   ├── metrics/          #   Prometheus metrics
-│   └── sender/           #   Notification dispatch
+│   ├── sender/           #   Notification dispatch
+│   └── saml/             #   SAML assertion parsing
 └── migrations/           # SQL migration files
 ```
 
@@ -134,8 +137,9 @@ Key categories:
 | SSO | `SSO_ENABLED`, `SSO_ENCRYPTION_KEY`, `SSO_SAML_CLOCK_SKEW`, `SSO_STATE_TTL` | Enterprise SSO (SAML, Google, GitHub) |
 | SMTP | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, etc. | Email (optional - tokens logged to console if unset) |
 | Registration | `REGISTRATION_ENABLED`, `ALLOWED_EMAIL_DOMAINS` | User registration controls |
-| Monitoring | `MONITORING_INTERVAL`, `DISCOVERY_INTERVAL`, `POLLER_CONCURRENCY` | Polling pipeline |
+| Monitoring | `MONITORING_INTERVAL`, `DISCOVERY_INTERVAL`, `POLLER_CONCURRENCY`, `DISCOVERY_SCAN_DEPTH`, `DISCOVERY_AUTO_APPROVE`, `ECOSYSTEMS_ENABLED` | Polling pipeline |
 | Analysis | `DIFF_SIZE_LIMIT`, `LLM_MAX_DIFF_LEN`, `LLM_RATE_INTERVAL` | Diff + LLM limits |
+| Workers | `DIFF_WORKER_CONCURRENCY`, `ANALYZE_WORKER_CONCURRENCY`, `DIFF_JOB_TIMEOUT_SECONDS`, `ANALYZE_JOB_TIMEOUT_SECONDS` | Pipeline worker config |
 
 ## Initial Setup Flow
 

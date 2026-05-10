@@ -113,7 +113,7 @@ export const LinkedIdentities = () => {
                 key={provider.id}
                 variant="outline"
                 size="sm"
-                onClick={() => { window.location.href = buildLinkIdentityUrl(provider.id, `${window.location.origin}${ROUTES.SSO_CALLBACK}?redirect=${encodeURIComponent("/account")}`, getStoredAccessToken() ?? undefined) }}
+                onClick={() => { window.location.href = buildLinkIdentityUrl(provider.id, `${window.location.origin}${ROUTES.SSO_CALLBACK}?redirect=${encodeURIComponent(ROUTES.ACCOUNT)}`, getStoredAccessToken() ?? undefined) }}
               >
                 <Link2 className="h-4 w-4 mr-1" />
                 Link {provider.displayName}
