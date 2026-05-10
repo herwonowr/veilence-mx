@@ -395,9 +395,8 @@ func (h *PackageHandlers) ImportPackages(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	const maxImport = 500
-	if len(entries) > maxImport {
-		respondAppError(w, Validation(fmt.Sprintf("too many packages (max %d, got %d)", maxImport, len(entries))))
+	if len(entries) > h.MaxBulkImport {
+		respondAppError(w, Validation(fmt.Sprintf("too many packages (max %d, got %d)", h.MaxBulkImport, len(entries))))
 		return
 	}
 
@@ -548,9 +547,8 @@ func (h *PackageHandlers) BulkApprovePackages(w http.ResponseWriter, r *http.Req
 	var pkgIDs []string
 
 	if len(req.PackageIDs) > 0 {
-		const maxBulkApprove = 1000
-		if len(req.PackageIDs) > maxBulkApprove {
-			respondAppError(w, Validation(fmt.Sprintf("cannot approve more than %d packages at once", maxBulkApprove)))
+		if len(req.PackageIDs) > h.MaxBulkApprove {
+			respondAppError(w, Validation(fmt.Sprintf("cannot approve more than %d packages at once", h.MaxBulkApprove)))
 			return
 		}
 		for _, id := range req.PackageIDs {
@@ -637,5 +635,5 @@ func (h *PackageHandlers) ListStalePackages(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	respondJSON(w, http.StatusOK, response.PackagesFromEntities(packages), &Meta{Page: page, Limit: limit, Total: total})
+	respondJSON(w, http.StatusOK, response.StalePackagesFromEntities(packages), &Meta{Page: page, Limit: limit, Total: total})
 }

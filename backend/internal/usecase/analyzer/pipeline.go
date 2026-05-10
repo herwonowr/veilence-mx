@@ -12,17 +12,22 @@ import (
 
 // Pipeline processes diffs through the LLM providers and creates alerts.
 type Pipeline struct {
-	repo      PipelineRepository
-	providers []LLMProvider
-	notifier  usecase.NotificationDispatcher
+	repo          PipelineRepository
+	providers     []LLMProvider
+	notifier      usecase.NotificationDispatcher
+	diffSizeLimit int
 }
 
 // NewPipeline creates a new analysis pipeline.
-func NewPipeline(repo PipelineRepository, notifier usecase.NotificationDispatcher, providers ...LLMProvider) *Pipeline {
+func NewPipeline(repo PipelineRepository, notifier usecase.NotificationDispatcher, diffSizeLimit int, providers ...LLMProvider) *Pipeline {
+	if diffSizeLimit <= 0 {
+		diffSizeLimit = 150 * 1024
+	}
 	return &Pipeline{
-		repo:      repo,
-		providers: providers,
-		notifier:  notifier,
+		repo:          repo,
+		providers:     providers,
+		notifier:      notifier,
+		diffSizeLimit: diffSizeLimit,
 	}
 }
 
@@ -44,16 +49,15 @@ func (p *Pipeline) ProcessDiff(ctx context.Context, diffID string) error {
 
 	// Safety truncation in case diff content exceeds limit (should already be
 	// truncated by the differ, but guard against edge cases).
-	const maxDiffSize = 100 * 1024 // 100KB
 	diffContent := diff.DiffContent
 	diffTruncated := diff.Truncated
-	if len(diffContent) > maxDiffSize {
-		diffContent = diffContent[:maxDiffSize] + "\n\n--- DIFF TRUNCATED (exceeded 100KB limit) ---\n"
+	if len(diffContent) > p.diffSizeLimit {
+		diffContent = diffContent[:p.diffSizeLimit] + fmt.Sprintf("\n\n--- DIFF TRUNCATED (exceeded %d byte limit) ---\n", p.diffSizeLimit)
 		diffTruncated = true
 		slog.Warn("diff content truncated for analysis",
 			"diff_id", diffID,
 			"original_size", len(diff.DiffContent),
-			"truncated_size", maxDiffSize,
+			"truncated_size", p.diffSizeLimit,
 		)
 	}
 

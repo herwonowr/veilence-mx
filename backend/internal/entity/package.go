@@ -54,6 +54,7 @@ type Package struct {
 	DownloadCountUpdatedAt *time.Time
 	BlockedAt              *time.Time
 	BlockedReason          string
+	LastReleaseAt          *time.Time // Only populated by stale package queries
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
 	Releases               []Release

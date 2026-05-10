@@ -69,9 +69,11 @@ type AuditHandlers struct {
 // PackageHandlers handles package and release CRUD endpoints.
 // All operations delegate to usecase services (clean architecture).
 type PackageHandlers struct {
-	PkgSvc     usecase.PackageService
-	ReleaseSvc usecase.ReleaseService
-	Audit      *audit.Service
+	PkgSvc         usecase.PackageService
+	ReleaseSvc     usecase.ReleaseService
+	Audit          *audit.Service
+	MaxBulkImport  int
+	MaxBulkApprove int
 }
 
 // AlertHandlers handles alert listing, status update, and note endpoints.
@@ -132,6 +134,8 @@ func NewHandlers(
 	rbacRepo usecase.RBACRepository,
 	identityRepo usecase.UserIdentityRepository,
 	ecosystemsEnabled []string,
+	maxBulkImport int,
+	maxBulkApprove int,
 ) *Handlers {
 	h := &Handlers{
 		Auth: &AuthHandlers{
@@ -156,9 +160,11 @@ func NewHandlers(
 			Audit: auditService,
 		},
 		Packages: &PackageHandlers{
-			PkgSvc:     packageService,
-			ReleaseSvc: releaseService,
-			Audit:      auditService,
+			PkgSvc:         packageService,
+			ReleaseSvc:     releaseService,
+			Audit:          auditService,
+			MaxBulkImport:  maxBulkImport,
+			MaxBulkApprove: maxBulkApprove,
 		},
 		Alerts: &AlertHandlers{
 			AlertSvc: alertService,

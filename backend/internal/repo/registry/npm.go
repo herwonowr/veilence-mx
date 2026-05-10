@@ -52,8 +52,9 @@ type npmSearchResponse struct {
 
 // NPMClient implements the Registry interface for npm.
 type NPMClient struct {
-	httpClient *http.Client
-	baseURL    string
+	httpClient      *http.Client
+	baseURL         string
+	maxDownloadSize int
 }
 
 // NPMOption is a functional option for configuring the npm client.
@@ -64,11 +65,17 @@ func WithNPMBaseURL(baseURL string) NPMOption {
 	return func(c *NPMClient) { c.baseURL = baseURL }
 }
 
+// WithNPMMaxDownloadSize sets the maximum tarball download size in bytes.
+func WithNPMMaxDownloadSize(size int) NPMOption {
+	return func(c *NPMClient) { c.maxDownloadSize = size }
+}
+
 // NewNPMClient creates a new npm registry client.
 func NewNPMClient(opts ...NPMOption) *NPMClient {
 	c := &NPMClient{
-		httpClient: newSSRFSafeClient(),
-		baseURL:    "https://registry.npmjs.org",
+		httpClient:      newSSRFSafeClient(),
+		baseURL:         "https://registry.npmjs.org",
+		maxDownloadSize: 200 * 1024 * 1024,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -248,8 +255,7 @@ func (c *NPMClient) DownloadTarball(ctx context.Context, tarballURL string) (str
 	}
 	defer f.Close()
 
-	const maxDownloadSize = 200 * 1024 * 1024 // 200MB
-	written, err := io.Copy(f, io.LimitReader(resp.Body, maxDownloadSize))
+	written, err := io.Copy(f, io.LimitReader(resp.Body, int64(c.maxDownloadSize)))
 	if err != nil {
 		os.RemoveAll(tmpDir)
 		return "", fmt.Errorf("writing tarball: %w", err)
@@ -259,7 +265,7 @@ func (c *NPMClient) DownloadTarball(ctx context.Context, tarballURL string) (str
 	var oneByte [1]byte
 	if _, err := resp.Body.Read(oneByte[:]); err == nil {
 		os.RemoveAll(tmpDir)
-		return "", fmt.Errorf("tarball exceeded maximum download size of %d bytes", maxDownloadSize)
+		return "", fmt.Errorf("tarball exceeded maximum download size of %d bytes", c.maxDownloadSize)
 	}
 
 	_ = written

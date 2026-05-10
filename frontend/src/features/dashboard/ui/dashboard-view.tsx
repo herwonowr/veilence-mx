@@ -398,9 +398,13 @@ const DashboardData = () => {
                         : "Never"}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
-                      <span className={pkg.daysSinceLastRelease > 365 ? "text-destructive font-medium" : ""}>
-                        {pkg.daysSinceLastRelease}
-                      </span>
+                      {pkg.daysSinceLastRelease != null ? (
+                        <span className={pkg.daysSinceLastRelease > 365 ? "text-destructive font-medium" : ""}>
+                          {pkg.daysSinceLastRelease}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

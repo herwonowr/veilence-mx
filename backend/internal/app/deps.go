@@ -6,15 +6,12 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log/slog"
-
 	"net/http"
+	"slices"
 	"time"
 
-	"slices"
-
-	"gorm.io/gorm"
-
 	"github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
 
 	"github.com/veilence/veilence-mx/backend/internal/config"
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi"
@@ -106,15 +103,15 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	// Registry clients - conditionally instantiated based on ECOSYSTEMS_ENABLED
 	var pythonClient usecase.Registry
 	if slices.Contains(cfg.EcosystemsEnabled, "pypi") {
-		pythonClient = registry.NewPyPIClient()
+		pythonClient = registry.NewPyPIClient(registry.WithPyPIMaxDownloadSize(cfg.MaxRegistryDownloadSize))
 	}
 	var npmClient usecase.Registry
 	if slices.Contains(cfg.EcosystemsEnabled, "npm") {
-		npmClient = registry.NewNPMClient()
+		npmClient = registry.NewNPMClient(registry.WithNPMMaxDownloadSize(cfg.MaxRegistryDownloadSize))
 	}
 	var goClient usecase.Registry
 	if slices.Contains(cfg.EcosystemsEnabled, "go") {
-		goClient = registry.NewGoModulesClient()
+		goClient = registry.NewGoModulesClient(registry.WithGoModulesMaxDownloadSize(cfg.MaxRegistryDownloadSize))
 	}
 
 	// SMTP
@@ -159,14 +156,19 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	// Pipeline
 	pollerRepo := persistent.NewPollerRepo(db)
 	pollerService := poller.New(pollerRepo, pythonClient, npmClient, goClient, poller.Config{
-		MonitoringInterval: cfg.MonitoringInterval,
-		DiscoveryInterval:  cfg.DiscoveryInterval,
-		Concurrency:        cfg.PollerConcurrency,
+		MonitoringInterval:   cfg.MonitoringInterval,
+		DiscoveryInterval:    cfg.DiscoveryInterval,
+		Concurrency:          cfg.PollerConcurrency,
+		WorkspaceConcurrency: cfg.PollerWorkspaceConcurrency,
 	}, jobQueue, notificationService)
 
 	differRepo := persistent.NewDifferRepo(db)
 	differService := differ.New(differRepo, pythonClient, npmClient, goClient, differ.Config{
-		DiffSizeLimit: cfg.DiffSizeLimit,
+		DiffSizeLimit:       cfg.DiffSizeLimit,
+		MaxArchiveFileCount: cfg.MaxArchiveFileCount,
+		MaxArchiveSize:      cfg.MaxArchiveSize,
+		MaxFileExtractSize:  cfg.MaxFileExtractSize,
+		MaxFileReadSize:     cfg.MaxFileReadSize,
 	}, jobQueue, notificationService)
 
 	// LLM analyzer - provider selection
@@ -176,7 +178,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		llmConfig := copilotapi.Config{
 			BaseURL:      cfg.LLMApiURL,
 			Model:        cfg.LLMModel,
-			MaxDiffLen:   cfg.LLMMaxDiffLen,
+			MaxDiffSize:  cfg.LLMMaxDiffSize,
 			RateInterval: cfg.LLMRateInterval,
 		}
 		if err := llmConfig.Validate(); err != nil {
@@ -191,7 +193,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 			APIKey:       cfg.LLMApiKey,
 			Model:        cfg.LLMModel,
 			BaseURL:      cfg.LLMApiURL,
-			MaxDiffLen:   cfg.LLMMaxDiffLen,
+			MaxDiffSize:  cfg.LLMMaxDiffSize,
 			RateInterval: cfg.LLMRateInterval,
 		}
 		if err := llmConfig.Validate(); err != nil {
@@ -206,7 +208,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 			APIKey:       cfg.LLMApiKey,
 			Model:        cfg.LLMModel,
 			BaseURL:      cfg.LLMApiURL,
-			MaxDiffLen:   cfg.LLMMaxDiffLen,
+			MaxDiffSize:  cfg.LLMMaxDiffSize,
 			RateInterval: cfg.LLMRateInterval,
 		}
 		if err := llmConfig.Validate(); err != nil {
@@ -220,7 +222,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		llmConfig := ollama.Config{
 			Model:        cfg.LLMModel,
 			BaseURL:      cfg.LLMApiURL,
-			MaxDiffLen:   cfg.LLMMaxDiffLen,
+			MaxDiffSize:  cfg.LLMMaxDiffSize,
 			RateInterval: cfg.LLMRateInterval,
 		}
 		if err := llmConfig.Validate(); err != nil {
@@ -235,7 +237,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	}
 
 	pipelineRepo := persistent.NewPipelineRepo(db)
-	pipeline := analyzer.NewPipeline(pipelineRepo, notificationService, llmAdapter)
+	pipeline := analyzer.NewPipeline(pipelineRepo, notificationService, cfg.DiffSizeLimit, llmAdapter)
 
 	// Queue workers
 	diffJobTimeout := time.Duration(cfg.DiffJobTimeoutSeconds) * time.Second
@@ -437,6 +439,8 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		rbacRepo,
 		identityRepoIface,
 		cfg.EcosystemsEnabled,
+		cfg.MaxBulkImport,
+		cfg.MaxBulkApprove,
 	)
 	router := restapi.NewRouter(h, cfg.FrontendURL, authService, rbacService)
 
@@ -484,14 +488,15 @@ func recoverStuckReleases(ctx context.Context, jobQueue *queue.Queue, db *gorm.D
 			"version":   rel.Version,
 			"ecosystem": string(rel.Package.Ecosystem),
 		}
-		if rel.Status == persistent.ReleaseStatusDiffing {
+		switch rel.Status {
+		case persistent.ReleaseStatusDiffing:
 			db.Model(&rel).Update("status", persistent.ReleaseStatusPending)
 			if _, err := jobQueue.Enqueue(ctx, queue.JobTypeDiff, wsID, rel.ID, meta); err != nil {
 				slog.Error("failed to re-enqueue stuck diffing release", "release_id", rel.ID, "error", err)
 			} else {
 				slog.Info("re-enqueued stuck diffing release", "release_id", rel.ID)
 			}
-		} else if rel.Status == persistent.ReleaseStatusAnalyzing {
+		case persistent.ReleaseStatusAnalyzing:
 			var diff persistent.Diff
 			result := db.Where("release_id = ?", rel.ID).Limit(1).Find(&diff)
 			if result.RowsAffected > 0 {

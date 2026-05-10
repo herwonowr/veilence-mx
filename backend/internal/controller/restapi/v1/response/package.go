@@ -55,6 +55,35 @@ func PackagesFromEntities(ps []entity.Package) []PackageResponse {
 	return result
 }
 
+// StalePackageResponse extends PackageResponse with stale-specific fields.
+type StalePackageResponse struct {
+	PackageResponse
+	LastReleaseAt        *time.Time `json:"lastReleaseAt"`
+	DaysSinceLastRelease *int       `json:"daysSinceLastRelease"`
+}
+
+// StalePackageFromEntity maps a domain Package to a stale package response DTO.
+func StalePackageFromEntity(p *entity.Package) StalePackageResponse {
+	resp := StalePackageResponse{
+		PackageResponse: PackageFromEntity(p),
+	}
+	if p.LastReleaseAt != nil {
+		resp.LastReleaseAt = p.LastReleaseAt
+		days := int(time.Since(*p.LastReleaseAt).Hours() / 24)
+		resp.DaysSinceLastRelease = &days
+	}
+	return resp
+}
+
+// StalePackagesFromEntities maps a slice of domain Packages to stale package response DTOs.
+func StalePackagesFromEntities(ps []entity.Package) []StalePackageResponse {
+	result := make([]StalePackageResponse, len(ps))
+	for i := range ps {
+		result[i] = StalePackageFromEntity(&ps[i])
+	}
+	return result
+}
+
 // ImportErrorResponse is the JSON representation of a single import error.
 type ImportErrorResponse struct {
 	Name  string `json:"name"`

@@ -22,8 +22,7 @@ import (
 
 const (
 	goDefaultBaseURL    = "https://proxy.golang.org"
-	goMaxVersionListLen = 1 * 1024 * 1024   // 1MB
-	goMaxDownloadSize   = 200 * 1024 * 1024 // 200MB
+	goMaxVersionListLen = 1 * 1024 * 1024 // 1MB
 	goMaxVersions       = 10000
 )
 
@@ -39,9 +38,10 @@ type goTopPackagesResponse struct {
 
 // GoModulesClient implements the Registry interface for Go modules via proxy.golang.org.
 type GoModulesClient struct {
-	httpClient *http.Client
-	baseURL    string
-	topURL     string
+	httpClient      *http.Client
+	baseURL         string
+	topURL          string
+	maxDownloadSize int
 }
 
 // GoModulesOption is a functional option for configuring the Go modules client.
@@ -57,12 +57,18 @@ func WithGoModulesTopURL(url string) GoModulesOption {
 	return func(c *GoModulesClient) { c.topURL = url }
 }
 
+// WithGoModulesMaxDownloadSize sets the maximum module archive download size in bytes.
+func WithGoModulesMaxDownloadSize(size int) GoModulesOption {
+	return func(c *GoModulesClient) { c.maxDownloadSize = size }
+}
+
 // NewGoModulesClient creates a new Go modules registry client.
 func NewGoModulesClient(opts ...GoModulesOption) *GoModulesClient {
 	c := &GoModulesClient{
-		httpClient: newSSRFSafeClient(),
-		baseURL:    goDefaultBaseURL,
-		topURL:     "https://raw.githubusercontent.com/herwonowr/top-go-packages/refs/heads/main/top-go-packages.min.json",
+		httpClient:      newSSRFSafeClient(),
+		baseURL:         goDefaultBaseURL,
+		topURL:          "https://raw.githubusercontent.com/herwonowr/top-go-packages/refs/heads/main/top-go-packages.min.json",
+		maxDownloadSize: 200 * 1024 * 1024,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -271,7 +277,7 @@ func (c *GoModulesClient) DownloadTarball(ctx context.Context, tarballURL string
 		return "", fmt.Errorf("creating temp file: %w", err)
 	}
 
-	limitedBody := io.LimitReader(resp.Body, goMaxDownloadSize)
+	limitedBody := io.LimitReader(resp.Body, int64(c.maxDownloadSize))
 	written, err := io.Copy(f, limitedBody)
 	f.Close()
 	if err != nil {
@@ -283,7 +289,7 @@ func (c *GoModulesClient) DownloadTarball(ctx context.Context, tarballURL string
 	var oneByte [1]byte
 	if _, err := resp.Body.Read(oneByte[:]); err == nil {
 		os.RemoveAll(tmpDir)
-		return "", fmt.Errorf("module archive exceeded maximum download size of %d bytes", goMaxDownloadSize)
+		return "", fmt.Errorf("module archive exceeded maximum download size of %d bytes", c.maxDownloadSize)
 	}
 
 	slog.Info("Go module downloaded",

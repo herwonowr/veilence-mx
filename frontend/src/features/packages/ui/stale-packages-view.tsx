@@ -204,6 +204,7 @@ export const StalePackagesView = () => {
         header: ({ column }) => <SortableHeader column={column} title="Days Since" />,
         cell: ({ row }) => {
           const days = row.original.daysSinceLastRelease
+          if (days == null) return <span className="text-muted-foreground">-</span>
           return (
             <span className={days > 365 ? "text-destructive font-medium" : ""}>
               {days}
