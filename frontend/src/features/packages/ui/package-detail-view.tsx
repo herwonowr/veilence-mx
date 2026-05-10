@@ -4,7 +4,7 @@ import { use } from "react"
 import Link from "next/link"
 import { useRouter, notFound } from "next/navigation"
 import { ROUTES } from "@/core"
-import { Card, CardContent, CardHeader, CardTitle, Badge, Skeleton, DetailError, ReleaseStatusBadge } from "@/ui"
+import { Card, CardContent, CardHeader, CardTitle, Badge, Skeleton, DetailError, ReleaseStatusBadge, ClassificationBadge } from "@/ui"
 import {
   Table,
   TableBody,
@@ -18,13 +18,6 @@ import { formatEcosystem } from "@/domains/common"
 import { formatPopularity, formatFreshness } from "@/domains/packages"
 import { formatVersion } from "@/domains/releases"
 import { usePackage, usePackageReleases, useAnalysisHistory } from "@/features/packages/hooks/use-packages"
-import type { Classification } from "@/domains/common"
-
-const classificationColor = (c: Classification) => {
-  if (c === "malicious") return "destructive" as const
-  if (c === "suspicious") return "default" as const
-  return "secondary" as const
-}
 
 export const PackageDetailView = ({
   params,
@@ -213,9 +206,7 @@ export const PackageDetailView = ({
                       >
                         {formatVersion(entry.version)}
                       </Link>
-                      <Badge variant={classificationColor(entry.classification)}>
-                        {entry.classification}
-                      </Badge>
+                      <ClassificationBadge classification={entry.classification} />
                       {entry.classification !== "baseline" && (
                         <span className="text-xs text-muted-foreground">
                           {(entry.confidence * 100).toFixed(0)}% confidence

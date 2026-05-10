@@ -3,19 +3,12 @@
 import { use, useState } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle, Badge, Separator, Skeleton, Button, DetailError, Progress, ReleaseStatusBadge } from "@/ui"
-import type { Classification } from "@/domains/common"
+import { Card, CardContent, CardHeader, CardTitle, Badge, Separator, Skeleton, Button, DetailError, Progress, ReleaseStatusBadge, ClassificationBadge } from "@/ui"
 import { ArrowLeft, FileCode, Plus, Minus, WrapText, RotateCcw, Loader2 } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
 import { formatVersion } from "@/domains/releases"
 import { useCurrentWorkspaceRole, hasMinimumRole, ROUTES } from "@/core"
 import { useRelease, useReanalyzeRelease } from "@/features/releases/hooks/use-releases"
-
-const classificationColor = (c: Classification) => {
-  if (c === "malicious") return "destructive" as const
-  if (c === "suspicious") return "default" as const
-  return "secondary" as const
-}
 
 const confidenceColor = (confidence: number): string => {
   if (confidence >= 0.8) return "[&_[data-slot=progress-indicator]]:bg-green-500"
@@ -141,9 +134,7 @@ export const ReleaseDetailView = ({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Analysis Result
-              <Badge variant={classificationColor(release.analysis.classification)}>
-                {release.analysis.classification}
-              </Badge>
+              <ClassificationBadge classification={release.analysis.classification} />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">

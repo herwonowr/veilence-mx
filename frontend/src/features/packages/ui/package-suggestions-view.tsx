@@ -48,7 +48,6 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table"
-import "@/ui/data/table.types"
 import {
   usePackageSuggestions,
   useApprovePackage,

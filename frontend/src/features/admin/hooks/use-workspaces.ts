@@ -29,8 +29,8 @@ import type {
   Role,
   AuditLog,
   Invitation,
+  AddMemberRequest,
 } from "@/domains/admin"
-import type { AddMemberRequest } from "@/domains/admin"
 import { toast } from "sonner"
 import { sanitizeErrorMessage , usePublicConfigQuery } from "@/core"
 

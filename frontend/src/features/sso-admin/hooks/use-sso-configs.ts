@@ -9,9 +9,9 @@ import {
   apiDeletePlatformSSOConfig,
   apiTestPlatformSSOConfig,
   apiImportSAMLMetadata,
+  ssoKeys,
 } from "@/domains/sso"
 import type { CreateSSOConfigRequest, UpdateSSOConfigRequest } from "@/domains/sso"
-import { ssoKeys } from "@/domains/sso"
 import { toast } from "sonner"
 
 export const usePlatformSSOConfigs = () =>

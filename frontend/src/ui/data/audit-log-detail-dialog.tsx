@@ -7,18 +7,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/ui"
-import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetFooter,
   SheetHeader,
   SheetTitle,
+  Input,
+  Label,
+  Textarea,
 } from "@/ui"
-import { Input } from "@/ui"
-import { Label } from "@/ui"
-import { Textarea } from "@/ui"
 import { useIsMobile } from "@/core"
 
 export interface AuditLogDetailItem {

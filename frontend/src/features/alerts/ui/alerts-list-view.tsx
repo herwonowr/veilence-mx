@@ -30,7 +30,6 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table"
-import "@/ui/data/table.types"
 import { useAlerts, useUpdateAlert } from "@/features/alerts/hooks/use-alerts"
 
 const severityVariant = (s: AlertSeverity) => {

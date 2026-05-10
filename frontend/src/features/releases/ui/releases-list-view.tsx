@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, ROUTES, type ColumnBreakpoints , usePublicConfigQuery } from "@/core"
 import Link from "next/link"
-import { Card, CardContent, CardHeader, Badge, TableSkeleton, TableError, TableEmptyState, Button, Label, FilterChips, SearchInput, DataTablePagination, SortableHeader, ReleaseStatusBadge, type SkeletonColumn, type ActiveFilter } from "@/ui"
+import { Card, CardContent, CardHeader, Badge, TableSkeleton, TableError, TableEmptyState, Button, Label, FilterChips, SearchInput, DataTablePagination, SortableHeader, ReleaseStatusBadge, ClassificationBadge, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
   Table,
   TableBody,
@@ -32,13 +32,6 @@ import {
   type PaginationState,
 } from "@tanstack/react-table"
 import { useRecentReleases } from "@/features/releases/hooks/use-releases"
-
-const classificationVariant = (c: Classification) => {
-  if (c === "malicious") return "destructive" as const
-  if (c === "suspicious") return "default" as const
-  if (c === "baseline") return "outline" as const
-  return "secondary" as const
-}
 
 const VALID_STATUSES: ReleaseStatus[] = ["in_progress", "completed", "error"]
 const VALID_CLASSIFICATIONS: Classification[] = ["benign", "suspicious", "malicious", "baseline"]
@@ -184,14 +177,7 @@ export const ReleasesListView = () => {
         accessorKey: "classification",
         header: "Classification",
         enableSorting: false,
-        cell: ({ row }) =>
-          row.original.classification ? (
-            <Badge variant={classificationVariant(row.original.classification)}>
-              {row.original.classification}
-            </Badge>
-          ) : (
-            <span className="text-muted-foreground text-sm">-</span>
-          ),
+        cell: ({ row }) => <ClassificationBadge classification={row.original.classification} />,
       },
     ],
     []

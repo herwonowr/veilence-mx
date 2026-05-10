@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useLocalStorage, useAuth, ROUTES , usePublicConfigQuery } from "@/core"
-import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Skeleton, TableSkeleton, TableError, Alert, AlertDescription, Label, Switch, TableEmptyState, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, type SkeletonColumn } from "@/ui"
+import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Skeleton, TableSkeleton, TableError, Alert, AlertDescription, Label, Switch, TableEmptyState, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, ReleaseStatusBadge, ClassificationBadge, type SkeletonColumn } from "@/ui"
 import {
   Table,
   TableBody,
@@ -13,8 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/ui"
-import type { Classification } from "@/domains/common"
-import { Package, Activity, AlertTriangle, Shield, Clock, CheckCircle, RefreshCw, Layers, Plus, Mail } from "lucide-react"
+import { Package, Activity, AlertTriangle, Shield, Clock, RefreshCw, Layers, Plus, Mail } from "lucide-react"
 import { DashboardCharts } from "@/features/dashboard/ui/dashboard-charts"
 import { formatEcosystem } from "@/domains/common"
 import { formatVersion } from "@/domains/releases"
@@ -22,13 +21,6 @@ import { useQuery } from "@tanstack/react-query"
 import { apiGetMyInvitations, myInvitationKeys } from "@/domains/admin"
 import { useDashboardStats, useRecentReleases, useChartData, useDashboardStalePackages, useDashboardSettings } from "@/features/dashboard/hooks/use-dashboard"
 import { PendingSuggestionsCard } from "@/features/dashboard/ui/pending-suggestions-card"
-
-const classificationVariant = (c?: Classification) => {
-  if (c === "malicious") return "destructive" as const
-  if (c === "suspicious") return "default" as const
-  if (c === "baseline") return "outline" as const
-  return "secondary" as const
-}
 
 // ─── Onboarding State (no workspace selected) ─────────────────────
 
@@ -333,23 +325,10 @@ const DashboardData = () => {
                   </TableCell>
                   <TableCell className="font-mono text-sm">{formatVersion(release.version)}</TableCell>
                   <TableCell>
-                    {release.status === "completed" ? (
-                      <span className="flex items-center gap-1 text-sm text-green-600">
-                        <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                        Completed
-                      </span>
-                    ) : (
-                      <Badge variant="secondary">{release.status}</Badge>
-                    )}
+                    <ReleaseStatusBadge status={release.status} />
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
-                    {release.classification ? (
-                      <Badge variant={classificationVariant(release.classification)}>
-                        {release.classification}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
+                    <ClassificationBadge classification={release.classification} />
                   </TableCell>
                 </TableRow>
               ))}

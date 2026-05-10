@@ -41,6 +41,7 @@ import type { Ecosystem } from "@/domains/common"
 import { formatPopularity, popularityTooltip, packageSchema } from "@/domains/packages"
 import { Plus, Trash2, RefreshCw, Upload, Ban, ShieldCheck, Radar, Clock } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
+import { formatVersion } from "@/domains/releases"
 import Link from "next/link"
 import {
   useReactTable,
@@ -49,7 +50,6 @@ import {
   type ColumnDef,
   type PaginationState,
 } from "@tanstack/react-table"
-import "@/ui/data/table.types"
 import {
   Tooltip,
   TooltipContent,
@@ -311,7 +311,7 @@ export const PackagesListView = () => {
       {
         accessorKey: "latestVersion",
         header: ({ column }) => <SortableHeader column={column} title="Latest Version" />,
-        cell: ({ row }) => row.original.latestVersion || "-",
+        cell: ({ row }) => row.original.latestVersion ? formatVersion(row.original.latestVersion) : "-",
       },
       {
         id: "downloadCount",

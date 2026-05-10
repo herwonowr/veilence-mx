@@ -47,7 +47,6 @@ import {
   type PaginationState,
   type VisibilityState,
 } from "@tanstack/react-table"
-import "@/ui/data/table.types"
 import { useAuditLogs } from "@/features/admin/hooks/use-workspaces"
 import type { AuditLog } from "@/domains/admin"
 

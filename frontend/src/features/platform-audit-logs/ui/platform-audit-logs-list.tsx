@@ -6,6 +6,7 @@ import {
   useSortParams,
   useFilterParams,
   useResponsiveColumns,
+  cn,
   type ColumnBreakpoints,
 } from "@/core"
 import {
@@ -50,10 +51,8 @@ import {
   type PaginationState,
   type VisibilityState,
 } from "@tanstack/react-table"
-import "@/ui/data/table.types"
 import { usePlatformAuditLogs } from "@/features/platform-audit-logs"
 import type { PlatformAuditLog } from "@/domains/platform-admin"
-import { cn } from "@/core"
 
 const formatStartOfDay = (d: Date): string => {
   const yyyy = d.getFullYear()

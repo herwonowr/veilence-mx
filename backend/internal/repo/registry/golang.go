@@ -135,8 +135,10 @@ func (c *GoModulesClient) GetPackage(ctx context.Context, name string) (*entity.
 		}
 
 		tarballURL := fmt.Sprintf("%s/%s/@v/%s.zip", c.baseURL, encoded, version)
+		// Strip "v" prefix - all ecosystems store bare semver (e.g. "1.12.0")
+		bareVersion := strings.TrimPrefix(version, "v")
 		versions = append(versions, entity.RegistryVersionInfo{
-			Version:     version,
+			Version:     bareVersion,
 			PublishedAt: info.Time,
 			TarballURL:  tarballURL,
 		})
