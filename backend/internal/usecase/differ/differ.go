@@ -21,7 +21,11 @@ import (
 
 // Config holds configuration for the differ.
 type Config struct {
-	DiffSizeLimit int // Maximum diff size in bytes for LLM analysis
+	DiffSizeLimit       int // Maximum diff size in bytes for LLM analysis
+	MaxArchiveFileCount int // Maximum number of files in an archive
+	MaxArchiveSize      int // Maximum aggregate extracted archive size in bytes
+	MaxFileExtractSize  int // Maximum single file extraction size in bytes
+	MaxFileReadSize     int // Maximum file size to read for diffing in bytes
 }
 
 // Differ generates diffs between consecutive package releases.
@@ -39,6 +43,18 @@ type Differ struct {
 func New(repo DifferRepository, python usecase.Registry, npm usecase.Registry, golang usecase.Registry, config Config, q usecase.QueueEnqueuer, notifier usecase.NotificationDispatcher) *Differ {
 	if config.DiffSizeLimit <= 0 {
 		config.DiffSizeLimit = 100 * 1024 // 100KB default
+	}
+	if config.MaxArchiveFileCount <= 0 {
+		config.MaxArchiveFileCount = 50000
+	}
+	if config.MaxArchiveSize <= 0 {
+		config.MaxArchiveSize = 500 * 1024 * 1024
+	}
+	if config.MaxFileExtractSize <= 0 {
+		config.MaxFileExtractSize = 50 * 1024 * 1024
+	}
+	if config.MaxFileReadSize <= 0 {
+		config.MaxFileReadSize = 1024 * 1024
 	}
 	return &Differ{
 		repo:     repo,
@@ -108,7 +124,7 @@ func (d *Differ) ProcessRelease(ctx context.Context, releaseID string) error {
 	defer os.RemoveAll(oldDir)
 
 	// Generate unified diff
-	diffContent, stats, err := generateDiff(oldDir, newDir)
+	diffContent, stats, err := generateDiff(oldDir, newDir, d.config.MaxFileReadSize)
 	if err != nil {
 		d.markError(ctx, release, pkg, "generating diff: "+err.Error())
 		return fmt.Errorf("generating diff: %w", err)
@@ -118,7 +134,7 @@ func (d *Differ) ProcessRelease(ctx context.Context, releaseID string) error {
 	truncated := false
 	originalSize := len(diffContent)
 	if originalSize > d.config.DiffSizeLimit {
-		diffContent = diffContent[:d.config.DiffSizeLimit] + "\n\n--- DIFF TRUNCATED (exceeded 100KB limit) ---\n"
+		diffContent = diffContent[:d.config.DiffSizeLimit] + fmt.Sprintf("\n\n--- DIFF TRUNCATED (exceeded %d byte limit) ---\n", d.config.DiffSizeLimit)
 		truncated = true
 		slog.Warn("diff truncated",
 			"package", pkg.Name,
@@ -208,14 +224,14 @@ type diffStats struct {
 func (d *Differ) extractArchive(archivePath string, ecosystem string) (string, error) {
 	switch ecosystem {
 	case "go":
-		return extractZip(archivePath)
+		return extractZip(archivePath, d.config.MaxArchiveFileCount, d.config.MaxArchiveSize, d.config.MaxFileExtractSize)
 	default:
-		return extractTarball(archivePath)
+		return extractTarball(archivePath, d.config.MaxArchiveFileCount, d.config.MaxArchiveSize, d.config.MaxFileExtractSize)
 	}
 }
 
 // extractZip extracts a .zip file to a temp directory with full zip slip prevention.
-func extractZip(zipPath string) (string, error) {
+func extractZip(zipPath string, maxFileCount, maxArchiveSize, maxFileExtractSize int) (string, error) {
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
 		return "", fmt.Errorf("opening zip: %w", err)
@@ -262,9 +278,9 @@ func extractZip(zipPath string) (string, error) {
 
 		// Enforce file count limit
 		fileCount++
-		if fileCount > 50000 {
+		if fileCount > maxFileCount {
 			os.RemoveAll(destDir)
-			return "", fmt.Errorf("zip contains too many files (exceeded 50000)")
+			return "", fmt.Errorf("zip contains too many files (exceeded %d)", maxFileCount)
 		}
 
 		if mode.IsDir() {
@@ -278,9 +294,9 @@ func extractZip(zipPath string) (string, error) {
 
 		// Regular file - check size limits
 		totalSize += int64(entry.UncompressedSize64)
-		if totalSize > 500*1024*1024 {
+		if totalSize > int64(maxArchiveSize) {
 			os.RemoveAll(destDir)
-			return "", fmt.Errorf("zip aggregate size exceeded 500MB limit")
+			return "", fmt.Errorf("zip aggregate size exceeded %d byte limit", maxArchiveSize)
 		}
 
 		// Ensure parent directory exists
@@ -303,7 +319,7 @@ func extractZip(zipPath string) (string, error) {
 			return "", fmt.Errorf("opening zip entry: %w", err)
 		}
 
-		_, err = io.Copy(outFile, io.LimitReader(rc, 50*1024*1024))
+		_, err = io.Copy(outFile, io.LimitReader(rc, int64(maxFileExtractSize)))
 		rc.Close()
 		outFile.Close()
 		if err != nil {
@@ -316,7 +332,7 @@ func extractZip(zipPath string) (string, error) {
 }
 
 // extractTarball extracts a .tar.gz or .tgz file to a temp directory.
-func extractTarball(path string) (string, error) {
+func extractTarball(path string, maxFileCount, maxArchiveSize, maxFileExtractSize int) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return "", fmt.Errorf("opening tarball: %w", err)
@@ -370,9 +386,9 @@ func extractTarball(path string) (string, error) {
 		switch header.Typeflag {
 		case tar.TypeDir:
 			fileCount++
-			if fileCount > 50000 {
+			if fileCount > maxFileCount {
 				os.RemoveAll(destDir)
-				return "", fmt.Errorf("tarball contains too many files (exceeded 50000)")
+				return "", fmt.Errorf("tarball contains too many files (exceeded %d)", maxFileCount)
 			}
 			if err := os.MkdirAll(target, 0o750); err != nil {
 				os.RemoveAll(destDir)
@@ -380,15 +396,15 @@ func extractTarball(path string) (string, error) {
 			}
 		case tar.TypeReg:
 			fileCount++
-			if fileCount > 50000 {
+			if fileCount > maxFileCount {
 				os.RemoveAll(destDir)
-				return "", fmt.Errorf("tarball contains too many files (exceeded 50000)")
+				return "", fmt.Errorf("tarball contains too many files (exceeded %d)", maxFileCount)
 			}
 
 			totalSize += header.Size
-			if totalSize > 500*1024*1024 {
+			if totalSize > int64(maxArchiveSize) {
 				os.RemoveAll(destDir)
-				return "", fmt.Errorf("tarball aggregate size exceeded 500MB limit")
+				return "", fmt.Errorf("tarball aggregate size exceeded %d byte limit", maxArchiveSize)
 			}
 
 			if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
@@ -400,7 +416,7 @@ func extractTarball(path string) (string, error) {
 				os.RemoveAll(destDir)
 				return "", fmt.Errorf("creating file: %w", err)
 			}
-			if _, err := io.Copy(outFile, io.LimitReader(tr, 50*1024*1024)); err != nil {
+			if _, err := io.Copy(outFile, io.LimitReader(tr, int64(maxFileExtractSize))); err != nil {
 				outFile.Close()
 				os.RemoveAll(destDir)
 				return "", fmt.Errorf("extracting file: %w", err)
@@ -413,13 +429,13 @@ func extractTarball(path string) (string, error) {
 }
 
 // generateDiff generates a unified diff between two directories.
-func generateDiff(oldDir, newDir string) (string, diffStats, error) {
-	oldFiles, err := walkFiles(oldDir)
+func generateDiff(oldDir, newDir string, maxFileReadSize int) (string, diffStats, error) {
+	oldFiles, err := walkFiles(oldDir, maxFileReadSize)
 	if err != nil {
 		return "", diffStats{}, fmt.Errorf("walking old directory: %w", err)
 	}
 
-	newFiles, err := walkFiles(newDir)
+	newFiles, err := walkFiles(newDir, maxFileReadSize)
 	if err != nil {
 		return "", diffStats{}, fmt.Errorf("walking new directory: %w", err)
 	}
@@ -493,7 +509,7 @@ func generateDiff(oldDir, newDir string) (string, diffStats, error) {
 }
 
 // walkFiles reads all files in a directory tree and returns their contents.
-func walkFiles(root string) (map[string]string, error) {
+func walkFiles(root string, maxFileReadSize int) (map[string]string, error) {
 	files := make(map[string]string)
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -504,8 +520,8 @@ func walkFiles(root string) (map[string]string, error) {
 			return nil
 		}
 
-		// Skip binary files (simple heuristic: skip files > 1MB)
-		if info.Size() > 1024*1024 {
+		// Skip binary files (simple heuristic: skip files > maxFileReadSize)
+		if info.Size() > int64(maxFileReadSize) {
 			return nil
 		}
 

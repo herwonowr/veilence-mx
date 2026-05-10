@@ -16,9 +16,10 @@ import (
 
 // Config holds configuration for the poller.
 type Config struct {
-	MonitoringInterval time.Duration
-	DiscoveryInterval  time.Duration
-	Concurrency        int
+	MonitoringInterval   time.Duration
+	DiscoveryInterval    time.Duration
+	Concurrency          int
+	WorkspaceConcurrency int
 }
 
 // settingsCache holds cached settings values with a TTL.
@@ -74,11 +75,6 @@ const SettingsCacheTTL = 1 * time.Minute
 // based on their per-workspace interval settings.
 const BaseTickInterval = 30 * time.Second
 
-// MaxWorkspaceConcurrency limits how many workspaces can be polled concurrently
-// within a single poll cycle. This prevents resource exhaustion when
-// many workspaces are due simultaneously.
-const MaxWorkspaceConcurrency = 5
-
 // JobTypeDiff is the queue job type for diff processing.
 const JobTypeDiff = "diff"
 
@@ -105,6 +101,9 @@ type Poller struct {
 func New(repo PollerRepository, python usecase.Registry, npm usecase.Registry, golang usecase.Registry, config Config, q usecase.QueueEnqueuer, notifier usecase.NotificationDispatcher) *Poller {
 	if config.Concurrency <= 0 {
 		config.Concurrency = 5
+	}
+	if config.WorkspaceConcurrency <= 0 {
+		config.WorkspaceConcurrency = 5
 	}
 	return &Poller{
 		repo:       repo,
@@ -206,8 +205,8 @@ func (p *Poller) runMonitorCycle(ctx context.Context) {
 		return
 	}
 
-	// Monitor due workspaces concurrently, bounded by MaxWorkspaceConcurrency.
-	wsSem := make(chan struct{}, MaxWorkspaceConcurrency)
+	// Monitor due workspaces concurrently, bounded by WorkspaceConcurrency.
+	wsSem := make(chan struct{}, p.config.WorkspaceConcurrency)
 	var wg sync.WaitGroup
 	var totalChecked int64
 

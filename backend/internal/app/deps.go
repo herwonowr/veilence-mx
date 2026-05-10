@@ -106,15 +106,15 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	// Registry clients - conditionally instantiated based on ECOSYSTEMS_ENABLED
 	var pythonClient usecase.Registry
 	if slices.Contains(cfg.EcosystemsEnabled, "pypi") {
-		pythonClient = registry.NewPyPIClient()
+		pythonClient = registry.NewPyPIClient(registry.WithPyPIMaxDownloadSize(cfg.MaxRegistryDownloadSize))
 	}
 	var npmClient usecase.Registry
 	if slices.Contains(cfg.EcosystemsEnabled, "npm") {
-		npmClient = registry.NewNPMClient()
+		npmClient = registry.NewNPMClient(registry.WithNPMMaxDownloadSize(cfg.MaxRegistryDownloadSize))
 	}
 	var goClient usecase.Registry
 	if slices.Contains(cfg.EcosystemsEnabled, "go") {
-		goClient = registry.NewGoModulesClient()
+		goClient = registry.NewGoModulesClient(registry.WithGoModulesMaxDownloadSize(cfg.MaxRegistryDownloadSize))
 	}
 
 	// SMTP
@@ -159,14 +159,19 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	// Pipeline
 	pollerRepo := persistent.NewPollerRepo(db)
 	pollerService := poller.New(pollerRepo, pythonClient, npmClient, goClient, poller.Config{
-		MonitoringInterval: cfg.MonitoringInterval,
-		DiscoveryInterval:  cfg.DiscoveryInterval,
-		Concurrency:        cfg.PollerConcurrency,
+		MonitoringInterval:   cfg.MonitoringInterval,
+		DiscoveryInterval:    cfg.DiscoveryInterval,
+		Concurrency:          cfg.PollerConcurrency,
+		WorkspaceConcurrency: cfg.PollerWorkspaceConcurrency,
 	}, jobQueue, notificationService)
 
 	differRepo := persistent.NewDifferRepo(db)
 	differService := differ.New(differRepo, pythonClient, npmClient, goClient, differ.Config{
-		DiffSizeLimit: cfg.DiffSizeLimit,
+		DiffSizeLimit:       cfg.DiffSizeLimit,
+		MaxArchiveFileCount: cfg.MaxArchiveFileCount,
+		MaxArchiveSize:      cfg.MaxArchiveSize,
+		MaxFileExtractSize:  cfg.MaxFileExtractSize,
+		MaxFileReadSize:     cfg.MaxFileReadSize,
 	}, jobQueue, notificationService)
 
 	// LLM analyzer - provider selection
@@ -235,7 +240,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	}
 
 	pipelineRepo := persistent.NewPipelineRepo(db)
-	pipeline := analyzer.NewPipeline(pipelineRepo, notificationService, llmAdapter)
+	pipeline := analyzer.NewPipeline(pipelineRepo, notificationService, cfg.DiffSizeLimit, llmAdapter)
 
 	// Queue workers
 	diffJobTimeout := time.Duration(cfg.DiffJobTimeoutSeconds) * time.Second
@@ -437,6 +442,8 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		rbacRepo,
 		identityRepoIface,
 		cfg.EcosystemsEnabled,
+		cfg.MaxBulkImport,
+		cfg.MaxBulkApprove,
 	)
 	router := restapi.NewRouter(h, cfg.FrontendURL, authService, rbacService)
 

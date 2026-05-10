@@ -37,16 +37,30 @@ type Config struct {
 	LLMRateInterval time.Duration
 
 	// Pipeline
-	MonitoringInterval       time.Duration
-	DiscoveryInterval        time.Duration
-	PollerConcurrency        int
-	DiffSizeLimit            int
-	QueueMaxRetries          int
-	QueueLockTimeout         time.Duration
-	DiffWorkerConcurrency    int
-	AnalyzeWorkerConcurrency int
-	DiffJobTimeoutSeconds    int
-	AnalyzeJobTimeoutSeconds int
+	MonitoringInterval         time.Duration
+	DiscoveryInterval          time.Duration
+	PollerConcurrency          int
+	PollerWorkspaceConcurrency int
+	DiffSizeLimit              int
+	QueueMaxRetries            int
+	QueueLockTimeout           time.Duration
+	DiffWorkerConcurrency      int
+	AnalyzeWorkerConcurrency   int
+	DiffJobTimeoutSeconds      int
+	AnalyzeJobTimeoutSeconds   int
+
+	// Archive extraction limits
+	MaxArchiveFileCount int
+	MaxArchiveSize      int
+	MaxFileExtractSize  int
+	MaxFileReadSize     int
+
+	// Registry download limits
+	MaxRegistryDownloadSize int
+
+	// Bulk operation limits
+	MaxBulkImport  int
+	MaxBulkApprove int
 
 	// SMTP
 	SMTPHost     string
@@ -115,16 +129,30 @@ func NewConfig() (*Config, error) {
 		LLMRateInterval: envDurationOrDefault("LLM_RATE_INTERVAL", 6*time.Second),
 
 		// Pipeline
-		MonitoringInterval:       envDurationOrDefault("MONITORING_INTERVAL", 1*time.Hour),
-		DiscoveryInterval:        envDurationOrDefault("DISCOVERY_INTERVAL", 24*time.Hour),
-		PollerConcurrency:        envIntOrDefault("POLLER_CONCURRENCY", 5),
-		DiffSizeLimit:            envIntOrDefault("DIFF_SIZE_LIMIT", 102400),
-		QueueMaxRetries:          envIntOrDefault("QUEUE_MAX_RETRIES", 5),
-		QueueLockTimeout:         envDurationOrDefault("QUEUE_LOCK_TIMEOUT", 10*time.Minute),
-		DiffWorkerConcurrency:    envIntOrDefault("DIFF_WORKER_CONCURRENCY", 5),
-		AnalyzeWorkerConcurrency: envIntOrDefault("ANALYZE_WORKER_CONCURRENCY", 3),
-		DiffJobTimeoutSeconds:    envIntOrDefault("DIFF_JOB_TIMEOUT_SECONDS", 600),
-		AnalyzeJobTimeoutSeconds: envIntOrDefault("ANALYZE_JOB_TIMEOUT_SECONDS", 300),
+		MonitoringInterval:         envDurationOrDefault("MONITORING_INTERVAL", 1*time.Hour),
+		DiscoveryInterval:          envDurationOrDefault("DISCOVERY_INTERVAL", 24*time.Hour),
+		PollerConcurrency:          envIntOrDefault("POLLER_CONCURRENCY", 5),
+		PollerWorkspaceConcurrency: envIntOrDefault("POLLER_WORKSPACE_CONCURRENCY", 5),
+		DiffSizeLimit:              envIntOrDefault("DIFF_SIZE_LIMIT", 102400),
+		QueueMaxRetries:            envIntOrDefault("QUEUE_MAX_RETRIES", 5),
+		QueueLockTimeout:           envDurationOrDefault("QUEUE_LOCK_TIMEOUT", 10*time.Minute),
+		DiffWorkerConcurrency:      envIntOrDefault("DIFF_WORKER_CONCURRENCY", 5),
+		AnalyzeWorkerConcurrency:   envIntOrDefault("ANALYZE_WORKER_CONCURRENCY", 3),
+		DiffJobTimeoutSeconds:      envIntOrDefault("DIFF_JOB_TIMEOUT_SECONDS", 600),
+		AnalyzeJobTimeoutSeconds:   envIntOrDefault("ANALYZE_JOB_TIMEOUT_SECONDS", 300),
+
+		// Archive extraction limits
+		MaxArchiveFileCount: envIntOrDefault("MAX_ARCHIVE_FILE_COUNT", 50000),
+		MaxArchiveSize:      envIntOrDefault("MAX_ARCHIVE_SIZE", 524288000),
+		MaxFileExtractSize:  envIntOrDefault("MAX_FILE_EXTRACT_SIZE", 52428800),
+		MaxFileReadSize:     envIntOrDefault("MAX_FILE_READ_SIZE", 1048576),
+
+		// Registry download limits
+		MaxRegistryDownloadSize: envIntOrDefault("MAX_REGISTRY_DOWNLOAD_SIZE", 209715200),
+
+		// Bulk operation limits
+		MaxBulkImport:  envIntOrDefault("MAX_BULK_IMPORT", 500),
+		MaxBulkApprove: envIntOrDefault("MAX_BULK_APPROVE", 1000),
 
 		// SMTP
 		SMTPHost:     os.Getenv("SMTP_HOST"),

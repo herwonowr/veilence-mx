@@ -39,10 +39,11 @@ type pypiTopPackagesResponse struct {
 
 // PyPIClient implements the Registry interface for PyPI.
 type PyPIClient struct {
-	httpClient     *http.Client
-	baseURL        string
-	topURL         string
-	tarballBaseURL string
+	httpClient      *http.Client
+	baseURL         string
+	topURL          string
+	tarballBaseURL  string
+	maxDownloadSize int
 }
 
 // PyPIOption is a functional option for configuring the PyPI client.
@@ -63,13 +64,19 @@ func WithPyPITarballBaseURL(url string) PyPIOption {
 	return func(c *PyPIClient) { c.tarballBaseURL = url }
 }
 
+// WithPyPIMaxDownloadSize sets the maximum tarball download size in bytes.
+func WithPyPIMaxDownloadSize(size int) PyPIOption {
+	return func(c *PyPIClient) { c.maxDownloadSize = size }
+}
+
 // NewPyPIClient creates a new PyPI registry client.
 func NewPyPIClient(opts ...PyPIOption) *PyPIClient {
 	c := &PyPIClient{
-		httpClient:     newSSRFSafeClient(),
-		baseURL:        "https://pypi.org",
-		topURL:         "https://hugovk.github.io/top-pypi-packages/top-pypi-packages-30-days.min.json",
-		tarballBaseURL: "https://files.pythonhosted.org/",
+		httpClient:      newSSRFSafeClient(),
+		baseURL:         "https://pypi.org",
+		topURL:          "https://hugovk.github.io/top-pypi-packages/top-pypi-packages-30-days.min.json",
+		tarballBaseURL:  "https://files.pythonhosted.org/",
+		maxDownloadSize: 200 * 1024 * 1024,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -219,8 +226,7 @@ func (c *PyPIClient) DownloadTarball(ctx context.Context, tarballURL string) (st
 	}
 	defer f.Close()
 
-	const maxDownloadSize = 200 * 1024 * 1024 // 200MB
-	written, err := io.Copy(f, io.LimitReader(resp.Body, maxDownloadSize))
+	written, err := io.Copy(f, io.LimitReader(resp.Body, int64(c.maxDownloadSize)))
 	if err != nil {
 		os.RemoveAll(tmpDir)
 		return "", fmt.Errorf("writing tarball: %w", err)
@@ -230,7 +236,7 @@ func (c *PyPIClient) DownloadTarball(ctx context.Context, tarballURL string) (st
 	var oneByte [1]byte
 	if _, err := resp.Body.Read(oneByte[:]); err == nil {
 		os.RemoveAll(tmpDir)
-		return "", fmt.Errorf("tarball exceeded maximum download size of %d bytes", maxDownloadSize)
+		return "", fmt.Errorf("tarball exceeded maximum download size of %d bytes", c.maxDownloadSize)
 	}
 
 	_ = written
