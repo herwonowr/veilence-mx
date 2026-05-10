@@ -23,16 +23,15 @@ const providerLabel = (provider: string) => {
 }
 
 export const LinkedIdentities = () => {
-  const { data: identitiesRes, isLoading } = useLinkedIdentities()
+  const { data: identitiesRes, isLoading: identitiesLoading } = useLinkedIdentities()
   const unlinkMutation = useUnlinkIdentity()
-  const { data: providersRes } = useSSOProviders()
+  const { data: providersRes, isLoading: providersLoading } = useSSOProviders()
 
   const identities = identitiesRes?.data ?? []
   const providers = providersRes?.data?.providers ?? []
-  const linkedProviderTypes = new Set(identities.map((i) => i.provider))
-  const unlinkableProviders = providers.filter((p) => !linkedProviderTypes.has(p.provider))
 
-  if (isLoading) {
+  // Hide entirely if no providers configured and no existing identities
+  if (identitiesLoading || providersLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -40,16 +39,42 @@ export const LinkedIdentities = () => {
     )
   }
 
+  if (providers.length === 0 && identities.length === 0) {
+    return null
+  }
+
+  const linkedProviderTypes = new Set(identities.map((i) => i.provider))
+  const unlinkableProviders = providers.filter((p) => !linkedProviderTypes.has(p.provider))
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Link2 className="h-5 w-5" />
-          Linked Identities
-        </CardTitle>
-        <CardDescription>
-          Manage your linked SSO identities. Link additional providers to enable SSO login.
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5" />
+              Linked Identities
+            </CardTitle>
+            <CardDescription>
+              Manage your linked SSO identities. Link additional providers to enable SSO login.
+            </CardDescription>
+          </div>
+          {unlinkableProviders.length > 0 && (
+            <div className="flex gap-2">
+              {unlinkableProviders.map((provider) => (
+                <Button
+                  key={provider.id}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { window.location.href = buildLinkIdentityUrl(provider.id, `${window.location.origin}${ROUTES.SSO_CALLBACK}?redirect=${encodeURIComponent(ROUTES.ACCOUNT)}`, getStoredAccessToken() ?? undefined) }}
+                >
+                  <Link2 className="h-4 w-4 mr-1" />
+                  Link {provider.displayName}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {identities.length === 0 ? (
@@ -102,22 +127,6 @@ export const LinkedIdentities = () => {
                   </ConfirmDialog>
                 )}
               </div>
-            ))}
-          </div>
-        )}
-
-        {unlinkableProviders.length > 0 && (
-          <div className="flex gap-2 pt-2">
-            {unlinkableProviders.map((provider) => (
-              <Button
-                key={provider.id}
-                variant="outline"
-                size="sm"
-                onClick={() => { window.location.href = buildLinkIdentityUrl(provider.id, `${window.location.origin}${ROUTES.SSO_CALLBACK}?redirect=${encodeURIComponent(ROUTES.ACCOUNT)}`, getStoredAccessToken() ?? undefined) }}
-              >
-                <Link2 className="h-4 w-4 mr-1" />
-                Link {provider.displayName}
-              </Button>
             ))}
           </div>
         )}

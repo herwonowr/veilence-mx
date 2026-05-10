@@ -405,6 +405,7 @@ const WorkspacesTable = ({ workspaces }: { workspaces: Workspace[] }) => {
 
   return (
     <Card>
+      <CardContent>
       <Table>
         <TableHeader>
           <TableRow>
@@ -451,6 +452,7 @@ const WorkspacesTable = ({ workspaces }: { workspaces: Workspace[] }) => {
           ))}
         </TableBody>
       </Table>
+      </CardContent>
     </Card>
   )
 }

@@ -337,6 +337,7 @@ export const WorkspaceDetailView = () => {
                   { label: "Slug", value: workspace.slug },
                   { label: "Members", value: String(members.length) },
                 ]}
+                confirmText={workspace.name}
                 actionLabel="Delete"
                 onConfirm={handleDelete}
               >

@@ -34,6 +34,7 @@ export const useCreatePlatformSSOConfig = () => {
       apiCreatePlatformSSOConfig(ssoConfig),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ssoKeys.configs() })
+      queryClient.invalidateQueries({ queryKey: ssoKeys.providers() })
       toast.success("SSO configuration created")
     },
     onError: () => {
@@ -54,6 +55,7 @@ export const useUpdatePlatformSSOConfig = () => {
     }) => apiUpdatePlatformSSOConfig(id, ssoConfig),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ssoKeys.configs() })
+      queryClient.invalidateQueries({ queryKey: ssoKeys.providers() })
       queryClient.invalidateQueries({
         queryKey: ssoKeys.config(variables.id),
       })
@@ -71,6 +73,7 @@ export const useDeletePlatformSSOConfig = () => {
     mutationFn: (id: string) => apiDeletePlatformSSOConfig(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ssoKeys.configs() })
+      queryClient.invalidateQueries({ queryKey: ssoKeys.providers() })
       queryClient.invalidateQueries({ queryKey: ssoKeys.identities() })
       toast.success("SSO configuration deleted")
     },

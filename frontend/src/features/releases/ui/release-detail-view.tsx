@@ -52,7 +52,7 @@ export const ReleaseDetailView = ({
 }) => {
   const { id } = use(params)
   const releaseId = id
-  const [wordWrap, setWordWrap] = useState(false)
+  const [wordWrap, setWordWrap] = useState(true)
 
   // Validation: show 404 for empty IDs
   if (!releaseId) {

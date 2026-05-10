@@ -13,6 +13,8 @@ import {
   AlertDialogTrigger,
 } from "@/ui/components/alert-dialog"
 import { Loader2 } from "lucide-react"
+import { Input } from "@/ui/components/input"
+import { Field, FieldLabel } from "@/ui/components/field"
 
 export interface ConfirmDialogDetail {
   label: string
@@ -24,6 +26,10 @@ interface ConfirmDialogBaseProps {
   description: string
   /** Context details rendered as key-value pairs below the description */
   details?: ConfirmDialogDetail[]
+  /** When set, user must type this exact text to enable the action button */
+  confirmText?: string
+  /** Custom label shown above the confirm input */
+  confirmLabel?: string
   actionLabel?: string
   cancelLabel?: string
   onConfirm: () => void | Promise<void>
@@ -54,6 +60,8 @@ export const ConfirmDialog = (props: ConfirmDialogProps) => {
     title,
     description,
     details,
+    confirmText,
+    confirmLabel,
     actionLabel = "Confirm",
     cancelLabel = "Cancel",
     onConfirm,
@@ -62,12 +70,16 @@ export const ConfirmDialog = (props: ConfirmDialogProps) => {
   // Internal state for trigger mode
   const [internalOpen, setInternalOpen] = useState(false)
   const [pending, setPending] = useState(false)
+  const [confirmInput, setConfirmInput] = useState("")
 
   const isControlled = "open" in props && props.open !== undefined
   const open = isControlled ? props.open : internalOpen
   const setOpen = isControlled
-    ? (o: boolean) => props.onOpenChange(o)
-    : setInternalOpen
+    ? (o: boolean) => { if (!o) setConfirmInput(""); props.onOpenChange(o) }
+    : (o: boolean) => { if (!o) setConfirmInput(""); setInternalOpen(o) }
+
+  const requiresConfirmText = !!confirmText
+  const confirmMatches = !requiresConfirmText || confirmInput === confirmText
 
   const handleConfirm = async () => {
     setPending(true)
@@ -99,6 +111,19 @@ export const ConfirmDialog = (props: ConfirmDialogProps) => {
             ))}
           </dl>
         )}
+        {requiresConfirmText && (
+          <Field>
+            <FieldLabel>
+              {confirmLabel ?? <>Type <span className="font-semibold text-foreground">{confirmText}</span> to confirm</>}
+            </FieldLabel>
+            <Input
+              value={confirmInput}
+              onChange={(e) => setConfirmInput(e.target.value)}
+              placeholder={confirmText}
+              autoComplete="off"
+            />
+          </Field>
+        )}
         <AlertDialogFooter>
           {/* autoFocus on Cancel = safer default per design spec */}
           <AlertDialogCancel disabled={pending} autoFocus>
@@ -106,7 +131,7 @@ export const ConfirmDialog = (props: ConfirmDialogProps) => {
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
-            disabled={pending}
+            disabled={pending || !confirmMatches}
             aria-label={`Confirm ${actionLabel.toLowerCase()}`}
           >
             {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
