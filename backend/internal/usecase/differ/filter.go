@@ -79,12 +79,16 @@ var tier4Dirs = map[string]bool{
 
 // tier2Dirs are CI/config directories - included after code if budget allows (case-sensitive).
 var tier2Dirs = map[string]bool{
-	".github":    true,
-	".circleci":  true,
-	".gitlab":    true,
-	".travis":    true,
-	".buildkite": true,
-	".jenkins":   true,
+	".github":     true,
+	".circleci":   true,
+	".gitlab":     true,
+	".travis":     true,
+	".buildkite":  true,
+	".jenkins":    true,
+	".gitea":      true,
+	".forgejo":    true,
+	".woodpecker": true,
+	".drone":      true,
 }
 
 // tier3Extensions are documentation extensions included if budget allows.

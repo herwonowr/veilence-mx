@@ -54,6 +54,10 @@ func TestClassifyFile(t *testing.T) {
 		{".travis yml", ".travis/deploy.sh", Tier2},
 		{".buildkite pipeline", ".buildkite/pipeline.yml", Tier2},
 		{".jenkins pipeline", ".jenkins/Jenkinsfile", Tier2},
+		{".gitea workflow", ".gitea/workflows/ci.yml", Tier2},
+		{".forgejo workflow", ".forgejo/workflows/build.yml", Tier2},
+		{".woodpecker pipeline", ".woodpecker/build.yml", Tier2},
+		{".drone pipeline", ".drone/config.yml", Tier2},
 
 		// Tier 3 docs
 		{"README.md", "README.md", Tier3},
