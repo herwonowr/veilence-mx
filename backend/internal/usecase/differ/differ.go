@@ -11,7 +11,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -124,24 +123,10 @@ func (d *Differ) ProcessRelease(ctx context.Context, releaseID string) error {
 	defer os.RemoveAll(oldDir)
 
 	// Generate unified diff
-	diffContent, stats, err := generateDiff(oldDir, newDir, d.config.MaxFileReadSize)
+	diffContent, stats, err := generateDiff(oldDir, newDir, d.config.MaxFileReadSize, string(pkg.Ecosystem), d.config.DiffSizeLimit)
 	if err != nil {
 		d.markError(ctx, release, pkg, "generating diff: "+err.Error())
 		return fmt.Errorf("generating diff: %w", err)
-	}
-
-	// Truncate diff if too large
-	truncated := false
-	originalSize := len(diffContent)
-	if originalSize > d.config.DiffSizeLimit {
-		diffContent = diffContent[:d.config.DiffSizeLimit] + fmt.Sprintf("\n\n--- DIFF TRUNCATED (exceeded %d byte limit) ---\n", d.config.DiffSizeLimit)
-		truncated = true
-		slog.Warn("diff truncated",
-			"package", pkg.Name,
-			"version", release.Version,
-			"original_size", originalSize,
-			"limit", d.config.DiffSizeLimit,
-		)
 	}
 
 	// Store diff
@@ -152,8 +137,8 @@ func (d *Differ) ProcessRelease(ctx context.Context, releaseID string) error {
 		FileChangesCount: stats.filesChanged,
 		LinesAdded:       stats.linesAdded,
 		LinesRemoved:     stats.linesRemoved,
-		Truncated:        truncated,
-		OriginalSize:     originalSize,
+		Truncated:        stats.truncated,
+		OriginalSize:     len(diffContent),
 	}
 
 	if err := d.repo.CreateDiff(ctx, diff); err != nil {
@@ -218,6 +203,7 @@ type diffStats struct {
 	filesChanged int
 	linesAdded   int
 	linesRemoved int
+	truncated    bool
 }
 
 // extractArchive dispatches to the appropriate archive extractor based on ecosystem.
@@ -428,8 +414,8 @@ func extractTarball(path string, maxFileCount, maxArchiveSize, maxFileExtractSiz
 	return destDir, nil
 }
 
-// generateDiff generates a unified diff between two directories.
-func generateDiff(oldDir, newDir string, maxFileReadSize int) (string, diffStats, error) {
+// generateDiff generates a unified diff between two directories with tiered filtering and budget tracking.
+func generateDiff(oldDir, newDir string, maxFileReadSize int, ecosystem string, sizeLimit int) (string, diffStats, error) {
 	oldFiles, err := walkFiles(oldDir, maxFileReadSize)
 	if err != nil {
 		return "", diffStats{}, fmt.Errorf("walking old directory: %w", err)
@@ -440,69 +426,156 @@ func generateDiff(oldDir, newDir string, maxFileReadSize int) (string, diffStats
 		return "", diffStats{}, fmt.Errorf("walking new directory: %w", err)
 	}
 
-	// Merge all file paths
-	allPaths := make(map[string]bool)
+	// Collect all unique paths
+	allPaths := make([]string, 0)
+	seen := make(map[string]bool)
 	for p := range oldFiles {
-		allPaths[p] = true
+		if !seen[p] {
+			seen[p] = true
+			allPaths = append(allPaths, p)
+		}
 	}
 	for p := range newFiles {
-		allPaths[p] = true
+		if !seen[p] {
+			seen[p] = true
+			allPaths = append(allPaths, p)
+		}
 	}
 
-	sortedPaths := make([]string, 0, len(allPaths))
-	for p := range allPaths {
-		sortedPaths = append(sortedPaths, p)
-	}
-	sort.Strings(sortedPaths)
+	tier1, tier2, tier3, _ := PartitionPaths(allPaths, ecosystem)
 
 	var diffBuilder strings.Builder
 	stats := diffStats{}
 
-	for _, path := range sortedPaths {
+	// Helper to generate a single file's diff into a temp builder
+	generateFileDiff := func(path string) (string, int, int, int) {
 		oldContent, oldExists := oldFiles[path]
 		newContent, newExists := newFiles[path]
 
 		if oldContent == newContent {
-			continue
+			return "", 0, 0, 0
 		}
 
-		stats.filesChanged++
+		var fb strings.Builder
+		added, removed := 0, 0
 
 		if !oldExists {
-			diffBuilder.WriteString(fmt.Sprintf("--- /dev/null\n+++ b/%s\n", path))
+			fb.WriteString(fmt.Sprintf("--- /dev/null\n+++ b/%s\n", path))
 			lines := strings.Split(newContent, "\n")
-			stats.linesAdded += len(lines)
+			added += len(lines)
 			for _, line := range lines {
-				diffBuilder.WriteString("+" + line + "\n")
+				fb.WriteString("+" + line + "\n")
 			}
 		} else if !newExists {
-			diffBuilder.WriteString(fmt.Sprintf("--- a/%s\n+++ /dev/null\n", path))
+			fb.WriteString(fmt.Sprintf("--- a/%s\n+++ /dev/null\n", path))
 			lines := strings.Split(oldContent, "\n")
-			stats.linesRemoved += len(lines)
+			removed += len(lines)
 			for _, line := range lines {
-				diffBuilder.WriteString("-" + line + "\n")
+				fb.WriteString("-" + line + "\n")
 			}
 		} else {
-			diffBuilder.WriteString(fmt.Sprintf("--- a/%s\n+++ b/%s\n", path, path))
+			fb.WriteString(fmt.Sprintf("--- a/%s\n+++ b/%s\n", path, path))
 			oldLines := strings.Split(oldContent, "\n")
 			newLines := strings.Split(newContent, "\n")
 
 			hunks := computeUnifiedHunks(oldLines, newLines, 3)
 			for _, h := range hunks {
-				diffBuilder.WriteString(fmt.Sprintf("@@ -%d,%d +%d,%d @@\n", h.oldStart+1, h.oldCount, h.newStart+1, h.newCount))
+				fb.WriteString(fmt.Sprintf("@@ -%d,%d +%d,%d @@\n", h.oldStart+1, h.oldCount, h.newStart+1, h.newCount))
 				for _, op := range h.lines {
-					diffBuilder.WriteString(op.text)
-					diffBuilder.WriteString("\n")
+					fb.WriteString(op.text)
+					fb.WriteString("\n")
 					switch op.kind {
 					case opAdd:
-						stats.linesAdded++
+						added++
 					case opDel:
-						stats.linesRemoved++
+						removed++
 					}
 				}
 			}
 		}
-		diffBuilder.WriteString("\n")
+		fb.WriteString("\n")
+
+		if added == 0 && removed == 0 {
+			return "", 0, 0, 0
+		}
+		return fb.String(), 1, added, removed
+	}
+
+	// Pass 1: Tier 1 files
+	firstFile := true
+	for _, path := range tier1 {
+		fileDiff, changed, added, removed := generateFileDiff(path)
+		if changed == 0 {
+			continue
+		}
+
+		if diffBuilder.Len()+len(fileDiff) > sizeLimit {
+			if firstFile {
+				// First file exception: include it anyway
+				diffBuilder.WriteString(fileDiff)
+				stats.filesChanged += changed
+				stats.linesAdded += added
+				stats.linesRemoved += removed
+				stats.truncated = true
+				break
+			}
+			stats.truncated = true
+			break
+		}
+
+		diffBuilder.WriteString(fileDiff)
+		stats.filesChanged += changed
+		stats.linesAdded += added
+		stats.linesRemoved += removed
+		firstFile = false
+	}
+
+	// Pass 2: Tier 2 files (CI/config dirs like .github) - only if not truncated
+	if !stats.truncated {
+		for _, path := range tier2 {
+			fileDiff, changed, added, removed := generateFileDiff(path)
+			if changed == 0 {
+				continue
+			}
+
+			if diffBuilder.Len()+len(fileDiff) > sizeLimit {
+				stats.truncated = true
+				break
+			}
+
+			diffBuilder.WriteString(fileDiff)
+			stats.filesChanged += changed
+			stats.linesAdded += added
+			stats.linesRemoved += removed
+		}
+	}
+
+	// Pass 3: Tier 3 files (docs) - only if not truncated and under 80% budget
+	if !stats.truncated && diffBuilder.Len() < sizeLimit*80/100 {
+		for _, path := range tier3 {
+			fileDiff, changed, added, removed := generateFileDiff(path)
+			if changed == 0 {
+				continue
+			}
+
+			if diffBuilder.Len()+len(fileDiff) > sizeLimit {
+				stats.truncated = true
+				break
+			}
+
+			diffBuilder.WriteString(fileDiff)
+			stats.filesChanged += changed
+			stats.linesAdded += added
+			stats.linesRemoved += removed
+		}
+	}
+
+	if stats.truncated {
+		slog.Warn("diff truncated due to size limit",
+			"current_size", diffBuilder.Len(),
+			"limit", sizeLimit,
+		)
+		diffBuilder.WriteString("\n--- DIFF TRUNCATED (exceeded size limit, more files not shown - recommend manual audit) ---\n")
 	}
 
 	return diffBuilder.String(), stats, nil
