@@ -36,9 +36,6 @@ type PollerRepository interface {
 	// CreatePackage persists a new package.
 	CreatePackage(ctx context.Context, pkg *entity.Package) error
 
-	// UpdatePackageRank updates a package's rank.
-	UpdatePackageRank(ctx context.Context, packageID string, rank int) error
-
 	// UpdatePackageDiscoveryMetrics updates a suggested/removed package's metrics.
 	UpdatePackageDiscoveryMetrics(ctx context.Context, packageID string, updates map[string]interface{}) error
 

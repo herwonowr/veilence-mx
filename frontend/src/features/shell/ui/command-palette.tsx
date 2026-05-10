@@ -41,7 +41,7 @@ interface CommandItem {
 const commandItems: CommandItem[] = [
   // Navigation
   { id: "dashboard", label: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard, group: "Navigation", keywords: ["home", "overview", "stats"] },
-  { id: "packages", label: "Packages", href: ROUTES.PACKAGES, icon: Package, group: "Navigation", keywords: ["python", "npm", "dependencies"] },
+  { id: "packages", label: "Packages", href: ROUTES.PACKAGES, icon: Package, group: "Navigation", keywords: ["python", "npm", "go", "golang", "dependencies"] },
   { id: "releases", label: "Releases", href: ROUTES.RELEASES, icon: Activity, group: "Navigation", keywords: ["versions", "updates"] },
   { id: "alerts", label: "Alerts", href: ROUTES.ALERTS, icon: ShieldAlert, group: "Navigation", keywords: ["notifications", "warnings", "threats"] },
   { id: "notifications", label: "Notifications", href: ROUTES.NOTIFICATIONS, icon: BellDot, group: "Navigation", keywords: ["inbox", "messages", "updates"] },

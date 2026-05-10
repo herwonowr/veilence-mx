@@ -32,6 +32,7 @@ const classificationConfig = {
 const ecosystemConfig = {
   python: { label: "Python", color: "var(--chart-1)" },
   npm: { label: "NPM", color: "var(--chart-3)" },
+  go: { label: "Go", color: "var(--chart-5)" },
 } satisfies ChartConfig
 
 const severityConfig = {

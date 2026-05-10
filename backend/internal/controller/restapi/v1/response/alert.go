@@ -6,12 +6,20 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/entity"
 )
 
+// nilIfEmpty returns a pointer to s if non-empty, or nil.
+func nilIfEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
 // AlertResponse is the JSON representation of a security alert.
 type AlertResponse struct {
 	ID          string    `json:"id"`
 	WorkspaceID string    `json:"workspaceId"`
-	AnalysisID  string    `json:"analysisId"`
-	ReleaseID   string    `json:"releaseId"`
+	AnalysisID  *string   `json:"analysisId"`
+	ReleaseID   *string   `json:"releaseId"`
 	PackageID   string    `json:"packageId"`
 	Severity    string    `json:"severity"`
 	Status      string    `json:"status"`
@@ -25,8 +33,8 @@ func AlertFromEntity(a *entity.Alert) AlertResponse {
 	return AlertResponse{
 		ID:          a.ID,
 		WorkspaceID: a.WorkspaceID,
-		AnalysisID:  a.AnalysisID,
-		ReleaseID:   a.ReleaseID,
+		AnalysisID:  nilIfEmpty(a.AnalysisID),
+		ReleaseID:   nilIfEmpty(a.ReleaseID),
 		PackageID:   a.PackageID,
 		Severity:    string(a.Severity),
 		Status:      string(a.Status),

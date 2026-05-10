@@ -87,6 +87,7 @@ type Poller struct {
 	repo     PollerRepository
 	python   usecase.Registry
 	npm      usecase.Registry
+	golang   usecase.Registry
 	config   Config
 	queue    usecase.QueueEnqueuer
 	notifier usecase.NotificationDispatcher
@@ -101,7 +102,7 @@ type Poller struct {
 }
 
 // New creates a new Poller instance.
-func New(repo PollerRepository, python usecase.Registry, npm usecase.Registry, config Config, q usecase.QueueEnqueuer, notifier usecase.NotificationDispatcher) *Poller {
+func New(repo PollerRepository, python usecase.Registry, npm usecase.Registry, golang usecase.Registry, config Config, q usecase.QueueEnqueuer, notifier usecase.NotificationDispatcher) *Poller {
 	if config.Concurrency <= 0 {
 		config.Concurrency = 5
 	}
@@ -109,6 +110,7 @@ func New(repo PollerRepository, python usecase.Registry, npm usecase.Registry, c
 		repo:       repo,
 		python:     python,
 		npm:        npm,
+		golang:     golang,
 		config:     config,
 		queue:      q,
 		notifier:   notifier,
@@ -263,6 +265,8 @@ func (p *Poller) registryForEcosystem(ecosystem entity.Ecosystem) usecase.Regist
 		return p.python
 	case entity.EcosystemNPM:
 		return p.npm
+	case entity.EcosystemGo:
+		return p.golang
 	default:
 		return nil
 	}
@@ -323,6 +327,7 @@ func (p *Poller) checkPackageForNewReleases(ctx context.Context, reg usecase.Reg
 		}
 
 		release := &entity.Release{
+			WorkspaceID: pkg.WorkspaceID,
 			PackageID:   pkg.ID,
 			Version:     v.Version,
 			PublishedAt: v.PublishedAt,
@@ -410,6 +415,9 @@ func (p *Poller) runDiscoveryCycle(ctx context.Context) {
 		if p.npm != nil {
 			p.discoverPackages(ctx, p.npm, scanDepth, workspaceID, autoApprove)
 		}
+		if p.golang != nil {
+			p.discoverPackages(ctx, p.golang, scanDepth, workspaceID, autoApprove)
+		}
 
 		// Auto-remove stale packages if configured
 		staleMonths := p.getStaleAutoRemoveMonths(workspaceID)
@@ -456,7 +464,6 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID strin
 	}
 
 	for _, ranking := range rankings {
-		rank := ranking.Rank
 		existing, _ := p.repo.FindPackageByWorkspaceAndName(ctx, workspaceID, ranking.Name, ecosystem)
 
 		if existing == nil {
@@ -467,7 +474,6 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID strin
 				Ecosystem:              ecosystem,
 				Source:                 entity.PackageSourceDiscovered,
 				Status:                 newStatus,
-				Rank:                   &rank,
 				DownloadCount:          ranking.DownloadCount,
 				DownloadCountUpdatedAt: &now,
 			}
@@ -480,16 +486,14 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID strin
 			// Existing package - handle based on status
 			switch existing.Status {
 			case entity.PackageStatusActive:
-				// Update rank; collect download data for batch update
-				p.repo.UpdatePackageRank(ctx, existing.ID, rank)
+				// Collect download data for batch update
 				downloadUpdates = append(downloadUpdates, entity.PackageDownloadUpdate{
 					PackageID:     existing.ID,
 					DownloadCount: ranking.DownloadCount,
 				})
 			case entity.PackageStatusSuggested:
-				// Already pending review - update rank and download data
+				// Already pending review - update download data
 				p.repo.UpdatePackageDiscoveryMetrics(ctx, existing.ID, map[string]interface{}{
-					"rank":           &rank,
 					"download_count": ranking.DownloadCount,
 
 					"download_count_updated_at": now,
@@ -501,7 +505,6 @@ func (p *Poller) upsertDiscoveredPackages(ctx context.Context, workspaceID strin
 				// Re-suggest for admin review (or auto-approve if enabled)
 				p.repo.UpdatePackageDiscoveryMetrics(ctx, existing.ID, map[string]interface{}{
 					"status":         string(newStatus),
-					"rank":           &rank,
 					"download_count": ranking.DownloadCount,
 
 					"download_count_updated_at": now,

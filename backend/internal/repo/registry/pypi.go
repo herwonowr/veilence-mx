@@ -63,7 +63,7 @@ func WithPyPITopURL(url string) PyPIOption {
 // NewPyPIClient creates a new PyPI registry client.
 func NewPyPIClient(opts ...PyPIOption) *PyPIClient {
 	c := &PyPIClient{
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		httpClient: newSSRFSafeClient(),
 		baseURL:    "https://pypi.org",
 		topURL:     "https://hugovk.github.io/top-pypi-packages/top-pypi-packages-30-days.min.json",
 	}
@@ -98,7 +98,7 @@ func (c *PyPIClient) GetPackage(ctx context.Context, name string) (*entity.Regis
 	}
 
 	var pypiResp pypiPackageResponse
-	if err := json.NewDecoder(resp.Body).Decode(&pypiResp); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 10*1024*1024)).Decode(&pypiResp); err != nil {
 		return nil, fmt.Errorf("decoding response for %s: %w", name, err)
 	}
 
@@ -153,7 +153,7 @@ func (c *PyPIClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pa
 	}
 
 	var topResp pypiTopPackagesResponse
-	if err := json.NewDecoder(resp.Body).Decode(&topResp); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 10*1024*1024)).Decode(&topResp); err != nil {
 		return nil, fmt.Errorf("decoding top packages response: %w", err)
 	}
 
@@ -165,7 +165,6 @@ func (c *PyPIClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pa
 		rankings = append(rankings, entity.PackageRanking{
 			Name:          row.Project,
 			DownloadCount: row.DownloadCount,
-			Rank:          i + 1,
 		})
 	}
 
@@ -175,6 +174,10 @@ func (c *PyPIClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pa
 
 // DownloadTarball downloads a tarball and returns the path to the temp file.
 func (c *PyPIClient) DownloadTarball(ctx context.Context, tarballURL string) (string, error) {
+	if err := validateTarballURL(tarballURL, "https://files.pythonhosted.org/"); err != nil {
+		return "", fmt.Errorf("validating tarball URL: %w", err)
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, tarballURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("creating tarball request: %w", err)

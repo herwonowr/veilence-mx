@@ -222,7 +222,7 @@ func alertToDomain(m *Alert) *entity.Alert {
 	return &entity.Alert{
 		ID:          m.ID,
 		WorkspaceID: m.WorkspaceID,
-		AnalysisID:  m.AnalysisID,
+		AnalysisID:  derefStr(m.AnalysisID),
 		ReleaseID:   derefStr(m.ReleaseID),
 		PackageID:   m.PackageID,
 		Severity:    entity.AlertSeverity(m.Severity),
@@ -237,7 +237,7 @@ func alertToModel(d *entity.Alert) *Alert {
 	return &Alert{
 		ID:          d.ID,
 		WorkspaceID: d.WorkspaceID,
-		AnalysisID:  d.AnalysisID,
+		AnalysisID:  strToNullableUUID(d.AnalysisID),
 		ReleaseID:   strToNullableUUID(d.ReleaseID),
 		PackageID:   d.PackageID,
 		Severity:    AlertSeverity(d.Severity),

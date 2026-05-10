@@ -15,13 +15,30 @@ import (
 // UseCase implements usecase.PackageService using a PackageRepository
 // and usecase.AuditLogger for logging security-relevant actions.
 type UseCase struct {
-	repo  usecase.PackageRepository
-	audit usecase.AuditLogger
+	repo       usecase.PackageRepository
+	audit      usecase.AuditLogger
+	registries map[entity.Ecosystem]usecase.Registry
 }
 
 // New creates a new package UseCase.
-func New(repo usecase.PackageRepository, audit usecase.AuditLogger) *UseCase {
-	return &UseCase{repo: repo, audit: audit}
+func New(repo usecase.PackageRepository, audit usecase.AuditLogger, registries map[entity.Ecosystem]usecase.Registry) *UseCase {
+	return &UseCase{repo: repo, audit: audit, registries: registries}
+}
+
+// validatePackageExists checks that a package exists on its ecosystem registry.
+func (uc *UseCase) validatePackageExists(ctx context.Context, name string, ecosystem entity.Ecosystem) error {
+	if name == "" || len(name) > 200 {
+		return &entity.ValidationError{Message: "invalid package name"}
+	}
+	reg, ok := uc.registries[ecosystem]
+	if !ok {
+		return nil
+	}
+	_, err := reg.GetPackage(ctx, name)
+	if err != nil {
+		return &entity.ValidationError{Message: fmt.Sprintf("package %q not found on %s registry", name, ecosystem)}
+	}
+	return nil
 }
 
 // ListPackages returns a paginated list of packages for a workspace with optional filters.
@@ -47,6 +64,10 @@ func (uc *UseCase) GetPackage(ctx context.Context, workspaceID, pkgID string) (*
 
 // CreatePackage adds a new manual package to monitoring within the given workspace.
 func (uc *UseCase) CreatePackage(ctx context.Context, workspaceID string, name string, ecosystem entity.Ecosystem) (*entity.Package, error) {
+	if err := uc.validatePackageExists(ctx, name, ecosystem); err != nil {
+		return nil, err
+	}
+
 	exists, err := uc.repo.ExistsByWorkspaceAndName(ctx, workspaceID, name, ecosystem)
 	if err != nil {
 		return nil, fmt.Errorf("checking existence: %w", err)
@@ -75,6 +96,9 @@ func (uc *UseCase) CreatePackage(ctx context.Context, workspaceID string, name s
 
 // ImportPackages bulk-imports packages into monitoring for the given org.
 func (uc *UseCase) ImportPackages(ctx context.Context, workspaceID string, entries []entity.ImportEntry) (*entity.ImportResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+
 	result := &entity.ImportResult{}
 
 	for _, entry := range entries {
@@ -86,6 +110,11 @@ func (uc *UseCase) ImportPackages(ctx context.Context, workspaceID string, entri
 		}
 		if exists {
 			result.Skipped++
+			continue
+		}
+
+		if err := uc.validatePackageExists(ctx, entry.Name, entry.Ecosystem); err != nil {
+			result.Errors = append(result.Errors, entity.ImportErrorEntry{Name: entry.Name, Error: fmt.Sprintf("not found on %s registry", entry.Ecosystem)})
 			continue
 		}
 

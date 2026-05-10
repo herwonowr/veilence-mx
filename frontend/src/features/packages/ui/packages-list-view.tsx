@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, useCurrentWorkspaceRole, hasMinimumRole, ROUTES, type ColumnBreakpoints } from "@/core"
+import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, useCurrentWorkspaceRole, hasMinimumRole, usePublicConfigQuery, ROUTES, type ColumnBreakpoints } from "@/core"
 import { Button, Badge, Input, Textarea, Card, CardContent, CardHeader, TableSkeleton, TableError, TableEmptyState, FilterChips, SearchInput, Field, FieldLabel, FieldError, Label, DataTablePagination, SortableHeader, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
   Table,
@@ -93,13 +93,14 @@ const sourceVariant = (source: PackageSource): "default" | "secondary" | "outlin
   }
 }
 
-const VALID_ECOSYSTEMS: Ecosystem[] = ["python", "npm"]
 const VALID_STATUSES: PackageStatus[] = ["active", "suggested", "blocked", "removed"]
 const VALID_SOURCES: PackageSource[] = ["manual", "discovered", "imported"]
 
 export const PackagesListView = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { enabledEcosystems } = usePublicConfigQuery()
+  const VALID_ECOSYSTEMS = enabledEcosystems as Ecosystem[]
 
   const initialEcosystem = searchParams.get("ecosystem") ?? ""
   const initialStatus = searchParams.get("status") ?? ""
@@ -195,7 +196,7 @@ export const PackagesListView = () => {
 
   const activeFilters: ActiveFilter[] = [
     ...(ecosystemFilter
-      ? [{ label: "Ecosystem", value: ecosystemFilter === "python" ? "Python" : "NPM", onRemove: () => setEcosystemFilter("") }]
+      ? [{ label: "Ecosystem", value: formatEcosystem(ecosystemFilter), onRemove: () => setEcosystemFilter("") }]
       : []),
     ...(statusFilter
       ? [{ label: "Status", value: statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1), onRemove: () => setStatusFilter("") }]
@@ -529,11 +530,12 @@ export const PackagesListView = () => {
                         onValueChange={(v) => { if (v) setNewEcosystem(v as Ecosystem) }}
                       >
                         <SelectTrigger id="package-ecosystem">
-                          <SelectValue>{newEcosystem === "python" ? "Python" : "NPM"}</SelectValue>
+                          <SelectValue>{formatEcosystem(newEcosystem)}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="python">Python</SelectItem>
-                          <SelectItem value="npm">NPM</SelectItem>
+                          {VALID_ECOSYSTEMS.map((eco) => (
+                            <SelectItem key={eco} value={eco}>{formatEcosystem(eco)}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </Field>
@@ -586,12 +588,13 @@ export const PackagesListView = () => {
                   onValueChange={(v) => setEcosystemFilter(v === "all" ? "" : (v ?? ""))}
                 >
                   <SelectTrigger id="packages-ecosystem-filter" className="w-32">
-                    <SelectValue>{ecosystemFilter === "python" ? "Python" : ecosystemFilter === "npm" ? "NPM" : "All"}</SelectValue>
+                    <SelectValue>{ecosystemFilter ? formatEcosystem(ecosystemFilter) : "All"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="python">Python</SelectItem>
-                    <SelectItem value="npm">NPM</SelectItem>
+                    {VALID_ECOSYSTEMS.map((eco) => (
+                      <SelectItem key={eco} value={eco}>{formatEcosystem(eco)}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

@@ -163,7 +163,7 @@ func (r *PackageRepo) RemovePackage(ctx context.Context, workspaceID, pkgID stri
 
 		// Collect release IDs for this package
 		var releaseIDs []string
-		tx.Model(&Release{}).Where("package_id = ?", pkgID).Pluck("id", &releaseIDs)
+		tx.Model(&Release{}).Where("package_id = ? AND workspace_id = ?", pkgID, workspaceID).Pluck("id", &releaseIDs)
 
 		// Collect diff IDs for these releases
 		var diffIDs []string
@@ -173,7 +173,7 @@ func (r *PackageRepo) RemovePackage(ctx context.Context, workspaceID, pkgID stri
 
 		// Alert notes (via alerts for this package)
 		var alertIDs []string
-		tx.Model(&Alert{}).Where("package_id = ?", pkgID).Pluck("id", &alertIDs)
+		tx.Model(&Alert{}).Where("package_id = ? AND workspace_id = ?", pkgID, workspaceID).Pluck("id", &alertIDs)
 		if len(alertIDs) > 0 {
 			if err := tx.Where("alert_id IN ?", alertIDs).Delete(&AlertNote{}).Error; err != nil {
 				return fmt.Errorf("removing package: deleting alert notes: %w", err)
@@ -181,7 +181,7 @@ func (r *PackageRepo) RemovePackage(ctx context.Context, workspaceID, pkgID stri
 		}
 
 		// Alerts
-		if err := tx.Where("package_id = ?", pkgID).Delete(&Alert{}).Error; err != nil {
+		if err := tx.Where("package_id = ? AND workspace_id = ?", pkgID, workspaceID).Delete(&Alert{}).Error; err != nil {
 			return fmt.Errorf("removing package: deleting alerts: %w", err)
 		}
 
@@ -200,7 +200,7 @@ func (r *PackageRepo) RemovePackage(ctx context.Context, workspaceID, pkgID stri
 		}
 
 		// Releases
-		if err := tx.Where("package_id = ?", pkgID).Delete(&Release{}).Error; err != nil {
+		if err := tx.Where("package_id = ? AND workspace_id = ?", pkgID, workspaceID).Delete(&Release{}).Error; err != nil {
 			return fmt.Errorf("removing package: deleting releases: %w", err)
 		}
 
@@ -255,7 +255,7 @@ func (r *PackageRepo) FindSuggestionsByWorkspaceID(ctx context.Context, workspac
 	}
 
 	if sortClause == "" {
-		sortClause = "rank ASC, name ASC"
+		sortClause = "download_count DESC, name ASC"
 	}
 
 	var ms []Package
@@ -388,7 +388,6 @@ func packageToDomain(m *Package) *entity.Package {
 		Description:            m.Description,
 		Source:                 entity.PackageSource(m.Source),
 		Status:                 entity.PackageStatus(m.Status),
-		Rank:                   m.Rank,
 		DownloadCount:          m.DownloadCount,
 		DownloadCountUpdatedAt: m.DownloadCountUpdatedAt,
 		BlockedAt:              m.BlockedAt,
@@ -408,7 +407,6 @@ func packageToModel(d *entity.Package) *Package {
 		Description:            d.Description,
 		Source:                 PackageSource(d.Source),
 		Status:                 PackageStatus(d.Status),
-		Rank:                   d.Rank,
 		DownloadCount:          d.DownloadCount,
 		DownloadCountUpdatedAt: d.DownloadCountUpdatedAt,
 		BlockedAt:              d.BlockedAt,

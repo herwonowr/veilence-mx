@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/ui"
 import { formatEcosystem } from "@/domains/common"
-import { formatPopularity } from "@/domains/packages"
+import { formatPopularity, popularityLabel } from "@/domains/packages"
 import type { StalePackage } from "@/domains/packages"
 import { ArrowLeft, Clock } from "lucide-react"
 import {
@@ -105,7 +105,7 @@ export const StalePackagesView = () => {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger render={<span>Popularity</span>} />
-              <TooltipContent>Downloads/mo (Python) · Score (NPM)</TooltipContent>
+              <TooltipContent>{popularityLabel()}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         ),

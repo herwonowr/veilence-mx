@@ -17,11 +17,14 @@ import {
   SelectItem,
 } from "@/ui"
 import { XIcon, PlusIcon } from "lucide-react"
+import { formatEcosystem } from "@/domains/common"
+import type { Ecosystem } from "@/domains/common"
 import type { AddedPackage } from "@/features/onboarding/hooks/use-onboarding"
+import { usePublicConfigQuery } from "@/core"
 
 interface AddPackagesStepProps {
   addedPackages: AddedPackage[]
-  onAddPackage: (name: string, ecosystem: "python" | "npm") => void
+  onAddPackage: (name: string, ecosystem: Ecosystem) => void
   onRemovePackage: (id: string) => void
   onNext: () => void
   onSkip: () => void
@@ -37,7 +40,9 @@ export const AddPackagesStep = ({
   onBack,
 }: AddPackagesStepProps) => {
   const [name, setName] = useState("")
-  const [ecosystem, setEcosystem] = useState<"python" | "npm">("python")
+  const [ecosystem, setEcosystem] = useState<Ecosystem>("python")
+  const { enabledEcosystems } = usePublicConfigQuery()
+  const VALID_ECOSYSTEMS = enabledEcosystems as Ecosystem[]
   const [error, setError] = useState("")
 
   const handleAdd = useCallback(
@@ -82,16 +87,17 @@ export const AddPackagesStep = ({
             <FieldLabel htmlFor="onb-pkg-eco">Ecosystem</FieldLabel>
             <Select
               value={ecosystem}
-              onValueChange={(val) => setEcosystem(val as "python" | "npm")}
+              onValueChange={(val) => setEcosystem(val as Ecosystem)}
             >
               <SelectTrigger id="onb-pkg-eco" className="w-full sm:w-28">
                 <SelectValue>
-                  {ecosystem === "python" ? "Python" : "NPM"}
+                  {formatEcosystem(ecosystem)}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="python">Python</SelectItem>
-                <SelectItem value="npm">NPM</SelectItem>
+                {VALID_ECOSYSTEMS.map((eco) => (
+                  <SelectItem key={eco} value={eco}>{formatEcosystem(eco)}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Field>
@@ -111,7 +117,7 @@ export const AddPackagesStep = ({
             {addedPackages.map((pkg) => (
               <Badge key={pkg.id} variant="secondary" className="gap-1 pr-1">
                 <span className="text-[10px] uppercase text-muted-foreground">
-                  {pkg.ecosystem === "python" ? "pypi" : "npm"}
+                  {formatEcosystem(pkg.ecosystem)}
                 </span>
                 {pkg.name}
                 <button

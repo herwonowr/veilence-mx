@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+
+	"github.com/veilence/veilence-mx/backend/pkg/id"
 )
 
 // --- Package Models ---
@@ -16,6 +18,7 @@ type Ecosystem string
 const (
 	EcosystemPython Ecosystem = "python"
 	EcosystemNPM    Ecosystem = "npm"
+	EcosystemGo     Ecosystem = "go"
 )
 
 // PackageSource describes how a package was added to monitoring (GORM model).
@@ -39,7 +42,7 @@ const (
 
 // Package is the GORM model for monitored packages.
 type Package struct {
-	ID                     string        `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID                     string        `gorm:"type:uuid;primarykey" json:"id"`
 	WorkspaceID            string        `gorm:"type:uuid;not null;index" json:"workspaceId"`
 	Name                   string        `gorm:"not null" json:"name"`
 	Ecosystem              Ecosystem     `gorm:"column:ecosystem;not null;type:varchar(10)" json:"ecosystem"`
@@ -47,7 +50,6 @@ type Package struct {
 	Description            string        `gorm:"type:text" json:"description"`
 	Source                 PackageSource `gorm:"not null;default:'manual';type:varchar(20)" json:"source"`
 	Status                 PackageStatus `gorm:"not null;default:'active';type:varchar(20);index" json:"status"`
-	Rank                   *int          `json:"rank,omitempty"`
 	DownloadCount          int64         `gorm:"not null;default:0" json:"downloadCount"`
 	DownloadCountUpdatedAt *time.Time    `json:"downloadCountUpdatedAt,omitempty"`
 	BlockedAt              *time.Time    `json:"blockedAt,omitempty"`
@@ -74,7 +76,8 @@ const (
 
 // Release is the GORM model for package releases.
 type Release struct {
-	ID           string        `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID           string        `gorm:"type:uuid;primarykey" json:"id"`
+	WorkspaceID  string        `gorm:"type:uuid;not null;index" json:"workspaceId"`
 	PackageID    string        `gorm:"type:uuid;not null;index" json:"packageId"`
 	Package      Package       `gorm:"foreignKey:PackageID" json:"-"`
 	Version      string        `gorm:"not null;type:varchar(100)" json:"version"`
@@ -93,7 +96,7 @@ func (Release) TableName() string { return "releases" }
 
 // Diff is the GORM model for release diffs.
 type Diff struct {
-	ID               string     `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID               string     `gorm:"type:uuid;primarykey" json:"id"`
 	ReleaseID        string     `gorm:"type:uuid;not null;index" json:"releaseId"`
 	Release          Release    `gorm:"foreignKey:ReleaseID" json:"-"`
 	PrevReleaseID    string     `gorm:"type:uuid;not null" json:"prevReleaseId"`
@@ -119,6 +122,7 @@ const (
 	ClassificationBenign     Classification = "benign"
 	ClassificationSuspicious Classification = "suspicious"
 	ClassificationMalicious  Classification = "malicious"
+	ClassificationBaseline   Classification = "baseline"
 )
 
 // AnalyzerType represents which analysis backend was used (GORM model).
@@ -133,7 +137,7 @@ const (
 
 // Analysis is the GORM model for LLM analysis results.
 type Analysis struct {
-	ID             string         `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID             string         `gorm:"type:uuid;primarykey" json:"id"`
 	DiffID         string         `gorm:"type:uuid;not null;index" json:"diffId"`
 	Diff           Diff           `gorm:"foreignKey:DiffID" json:"-"`
 	Classification Classification `gorm:"not null;type:varchar(20)" json:"classification"`
@@ -170,9 +174,9 @@ const (
 
 // Alert is the GORM model for security alerts.
 type Alert struct {
-	ID          string        `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID          string        `gorm:"type:uuid;primarykey" json:"id"`
 	WorkspaceID string        `gorm:"type:uuid;not null;index" json:"workspaceId"`
-	AnalysisID  string        `gorm:"type:uuid;not null;index" json:"analysisId"`
+	AnalysisID  *string       `gorm:"type:uuid;index" json:"analysisId"`
 	Analysis    Analysis      `gorm:"foreignKey:AnalysisID" json:"-"`
 	ReleaseID   *string       `gorm:"type:uuid;index" json:"releaseId"`
 	Release     Release       `gorm:"foreignKey:ReleaseID" json:"-"`
@@ -189,7 +193,7 @@ func (Alert) TableName() string { return "alerts" }
 
 // AlertNote is the GORM model for alert notes/comments.
 type AlertNote struct {
-	ID          string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID          string    `gorm:"type:uuid;primarykey" json:"id"`
 	AlertID     string    `gorm:"type:uuid;not null;index" json:"alertId"`
 	Alert       Alert     `gorm:"foreignKey:AlertID" json:"-"`
 	WorkspaceID string    `gorm:"type:uuid;not null;index" json:"workspaceId"`
@@ -206,7 +210,7 @@ func (AlertNote) TableName() string { return "alert_notes" }
 
 // User is the GORM model for system users.
 type User struct {
-	ID                 string         `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID                 string         `gorm:"type:uuid;primarykey" json:"id"`
 	Email              string         `gorm:"uniqueIndex;not null;type:varchar(255)" json:"email"`
 	PasswordHash       string         `gorm:"type:varchar(255)" json:"-"`
 	FirstName          string         `gorm:"type:varchar(100)" json:"firstName"`
@@ -229,7 +233,7 @@ func (User) TableName() string { return "users" }
 
 // RefreshToken is the GORM model for refresh tokens.
 type RefreshToken struct {
-	ID        string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID        string    `gorm:"type:uuid;primarykey" json:"id"`
 	UserID    string    `gorm:"type:uuid;not null;index" json:"userId"`
 	TokenHash string    `gorm:"uniqueIndex;not null;column:token_hash;type:varchar(255)" json:"-"`
 	ExpiresAt time.Time `gorm:"not null" json:"expiresAt"`
@@ -242,7 +246,7 @@ func (RefreshToken) TableName() string { return "refresh_tokens" }
 
 // APIKey is the GORM model for API keys.
 type APIKey struct {
-	ID          string         `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID          string         `gorm:"type:uuid;primarykey" json:"id"`
 	UserID      string         `gorm:"type:uuid;not null;index" json:"userId"`
 	WorkspaceID string         `gorm:"type:uuid;not null;index" json:"workspaceId"`
 	Name        string         `gorm:"not null;type:varchar(100)" json:"name"`
@@ -262,7 +266,7 @@ func (APIKey) TableName() string { return "api_keys" }
 
 // Workspace is the GORM model for tenant workspaces.
 type Workspace struct {
-	ID          string         `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID          string         `gorm:"type:uuid;primarykey" json:"id"`
 	Name        string         `gorm:"not null;type:varchar(100)" json:"name"`
 	Slug        string         `gorm:"not null;type:varchar(100)" json:"slug"`
 	Description string         `gorm:"type:text" json:"description"`
@@ -279,7 +283,7 @@ func (Workspace) TableName() string { return "workspaces" }
 
 // WorkspaceMember is the GORM model for workspace memberships.
 type WorkspaceMember struct {
-	ID          string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID          string    `gorm:"type:uuid;primarykey" json:"id"`
 	WorkspaceID string    `gorm:"type:uuid;not null;uniqueIndex:idx_workspace_user" json:"workspaceId"`
 	UserID      string    `gorm:"type:uuid;not null;uniqueIndex:idx_workspace_user" json:"userId"`
 	RoleID      string    `gorm:"type:uuid;not null" json:"roleId"`
@@ -296,7 +300,7 @@ func (WorkspaceMember) TableName() string { return "workspace_members" }
 
 // Role is the GORM model for roles.
 type Role struct {
-	ID          string       `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID          string       `gorm:"type:uuid;primarykey" json:"id"`
 	WorkspaceID string       `gorm:"type:uuid;not null;index" json:"workspaceId"`
 	Name        string       `gorm:"not null;type:varchar(50)" json:"name"`
 	Description string       `gorm:"type:text" json:"description"`
@@ -310,7 +314,7 @@ func (Role) TableName() string { return "roles" }
 
 // Permission is the GORM model for permissions.
 type Permission struct {
-	ID       string `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID       string `gorm:"type:uuid;primarykey" json:"id"`
 	Resource string `gorm:"not null;type:varchar(50)" json:"resource"`
 	Action   string `gorm:"not null;type:varchar(50)" json:"action"`
 }
@@ -329,7 +333,7 @@ const (
 
 // Invitation is the GORM model for workspace invitations.
 type Invitation struct {
-	ID          string     `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID          string     `gorm:"type:uuid;primarykey" json:"id"`
 	WorkspaceID string     `gorm:"type:uuid;not null;index" json:"workspaceId"`
 	Email       string     `gorm:"not null;type:varchar(255)" json:"email"`
 	RoleID      string     `gorm:"type:uuid;not null" json:"roleId"`
@@ -347,7 +351,7 @@ func (Invitation) TableName() string { return "invitations" }
 
 // AuditLog is the GORM model for audit log entries.
 type AuditLog struct {
-	ID            string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID            string    `gorm:"type:uuid;primarykey" json:"id"`
 	UserID        *string   `gorm:"type:uuid;index" json:"userId"`
 	UserEmail     string    `gorm:"type:varchar(255)" json:"userEmail"`
 	WorkspaceID   *string   `gorm:"type:uuid;index" json:"workspaceId"`
@@ -367,7 +371,7 @@ func (AuditLog) TableName() string { return "audit_logs" }
 
 // Setting is the GORM model for system settings.
 type Setting struct {
-	ID          string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID          string    `gorm:"type:uuid;primarykey" json:"id"`
 	WorkspaceID *string   `gorm:"type:uuid;index;uniqueIndex:idx_settings_workspace_key" json:"workspaceId"`
 	Key         string    `gorm:"not null;type:varchar(100);uniqueIndex:idx_settings_workspace_key" json:"key"`
 	Value       string    `gorm:"type:text" json:"value"`
@@ -390,7 +394,7 @@ const (
 
 // NotificationChannel is the GORM model for notification channels.
 type NotificationChannel struct {
-	ID          string                  `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID          string                  `gorm:"type:uuid;primarykey" json:"id"`
 	WorkspaceID string                  `gorm:"type:uuid;not null;index" json:"workspaceId"`
 	Name        string                  `gorm:"not null;type:varchar(100)" json:"name"`
 	Type        NotificationChannelType `gorm:"not null;type:varchar(20)" json:"type"`
@@ -404,7 +408,7 @@ func (NotificationChannel) TableName() string { return "notification_channels" }
 
 // NotificationRule is the GORM model for notification rules.
 type NotificationRule struct {
-	ID          string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID          string    `gorm:"type:uuid;primarykey" json:"id"`
 	WorkspaceID string    `gorm:"type:uuid;not null;index" json:"workspaceId"`
 	ChannelID   string    `gorm:"type:uuid;not null;index" json:"channelId"`
 	Severity    string    `gorm:"type:varchar(20)" json:"severity"`
@@ -417,7 +421,7 @@ func (NotificationRule) TableName() string { return "notification_rules" }
 
 // Notification is the GORM model for in-app notifications.
 type Notification struct {
-	ID            string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID            string    `gorm:"type:uuid;primarykey" json:"id"`
 	WorkspaceID   string    `gorm:"type:uuid;not null;index" json:"workspaceId"`
 	UserID        *string   `gorm:"type:uuid;index" json:"userId"`
 	ChannelID     *string   `gorm:"type:uuid;index" json:"channelId"`
@@ -438,7 +442,7 @@ func (Notification) TableName() string { return "notifications" }
 
 // PasswordResetToken is the GORM model for password reset tokens.
 type PasswordResetToken struct {
-	ID        string     `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID        string     `gorm:"type:uuid;primarykey" json:"id"`
 	UserID    string     `gorm:"type:uuid;not null;index" json:"userId"`
 	TokenHash string     `gorm:"not null;uniqueIndex" json:"-"`
 	ExpiresAt time.Time  `gorm:"not null" json:"expiresAt"`
@@ -450,7 +454,7 @@ func (PasswordResetToken) TableName() string { return "password_reset_tokens" }
 
 // EmailVerificationToken is the GORM model for email verification tokens.
 type EmailVerificationToken struct {
-	ID        string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID        string    `gorm:"type:uuid;primarykey" json:"id"`
 	UserID    string    `gorm:"type:uuid;not null;index" json:"userId"`
 	TokenHash string    `gorm:"not null;uniqueIndex" json:"-"`
 	ExpiresAt time.Time `gorm:"not null" json:"expiresAt"`
@@ -463,7 +467,7 @@ func (EmailVerificationToken) TableName() string { return "email_verification_to
 
 // Session is the GORM model for user sessions.
 type Session struct {
-	ID           string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID           string    `gorm:"type:uuid;primarykey" json:"id"`
 	UserID       string    `gorm:"type:uuid;not null;index" json:"userId"`
 	TokenHash    string    `gorm:"not null;uniqueIndex;type:varchar(255)" json:"-"`
 	IPAddress    string    `gorm:"type:varchar(45)" json:"ipAddress"`
@@ -480,7 +484,7 @@ func (Session) TableName() string { return "sessions" }
 
 // SSOConfig is the GORM model for platform-level SSO configurations.
 type SSOConfig struct {
-	ID                   string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID                   string    `gorm:"type:uuid;primarykey" json:"id"`
 	Provider             string    `gorm:"not null;type:varchar(20)" json:"provider"`
 	DisplayName          string    `gorm:"type:varchar(100);not null;default:''" json:"displayName"`
 	IsEnabled            bool      `gorm:"not null;default:false" json:"isEnabled"`
@@ -504,7 +508,7 @@ func (SSOConfig) TableName() string { return "sso_configs" }
 
 // UserIdentity is the GORM model for linked external user identities.
 type UserIdentity struct {
-	ID             string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID             string    `gorm:"type:uuid;primarykey" json:"id"`
 	UserID         string    `gorm:"type:uuid;not null;index" json:"userId"`
 	Provider       string    `gorm:"not null;type:varchar(20)" json:"provider"`
 	ProviderUserID string    `gorm:"not null;type:varchar(255)" json:"providerUserId"`
@@ -517,7 +521,7 @@ func (UserIdentity) TableName() string { return "user_identities" }
 
 // SSOState is the GORM model for pending SSO authentication state (CSRF).
 type SSOState struct {
-	ID            string    `gorm:"type:uuid;primarykey;default:gen_random_uuid()"`
+	ID            string    `gorm:"type:uuid;primarykey"`
 	ConfigID      string    `gorm:"type:uuid;not null"`
 	State         string    `gorm:"not null;uniqueIndex;type:varchar(255)"`
 	UserID        *string   `gorm:"type:uuid"`
@@ -531,6 +535,183 @@ type SSOState struct {
 }
 
 func (SSOState) TableName() string { return "sso_states" }
+
+// --- BeforeCreate hooks (UUIDv7 via pkg/id) ---
+
+func (m *Package) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *Release) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *Diff) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *Analysis) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *Alert) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *AlertNote) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *User) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *RefreshToken) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *APIKey) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *Workspace) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *WorkspaceMember) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *Role) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *Permission) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *Invitation) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *AuditLog) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *Setting) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *NotificationChannel) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *NotificationRule) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *Notification) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *PasswordResetToken) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *EmailVerificationToken) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *Session) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *SSOConfig) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *UserIdentity) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
+func (m *SSOState) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
 
 // AllModels is the complete list of GORM models for auto-migration and testing.
 var AllModels = []any{

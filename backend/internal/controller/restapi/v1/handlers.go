@@ -87,6 +87,7 @@ type SettingsHandlers struct {
 	Poller     *poller.Poller
 	Python     usecase.Registry
 	NPM        usecase.Registry
+	Golang     usecase.Registry
 	Audit      *audit.Service
 }
 
@@ -116,6 +117,7 @@ func NewHandlers(
 	pollerService *poller.Poller,
 	pythonClient usecase.Registry,
 	npmClient usecase.Registry,
+	golangClient usecase.Registry,
 	jobQueue *queue.Queue,
 	alertNoteService usecase.AlertNoteService,
 	packageService usecase.PackageService,
@@ -129,6 +131,7 @@ func NewHandlers(
 	frontendURL string,
 	rbacRepo usecase.RBACRepository,
 	identityRepo usecase.UserIdentityRepository,
+	ecosystemsEnabled []string,
 ) *Handlers {
 	h := &Handlers{
 		Auth: &AuthHandlers{
@@ -167,6 +170,7 @@ func NewHandlers(
 			Poller:     pollerService,
 			Python:     pythonClient,
 			NPM:        npmClient,
+			Golang:     golangClient,
 			Audit:      auditService,
 		},
 		Dashboard: &DashboardHandlers{
@@ -184,9 +188,10 @@ func NewHandlers(
 			Setup: setupService,
 		},
 		Config: &ConfigHandlers{
-			Setup:      setupService,
-			Auth:       authService,
-			SSOEnabled: ssoService != nil,
+			Setup:             setupService,
+			Auth:              authService,
+			SSOEnabled:        ssoService != nil,
+			EcosystemsEnabled: ecosystemsEnabled,
 		},
 		AdminUsers: &AdminUserHandlers{
 			Auth:         authService,

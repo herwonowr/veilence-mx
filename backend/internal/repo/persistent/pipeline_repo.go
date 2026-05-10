@@ -41,6 +41,7 @@ func (r *PipelineRepo) FindDiffWithRelease(ctx context.Context, diffID string) (
 
 	release := &entity.Release{
 		ID:           model.Release.ID,
+		WorkspaceID:  model.Release.WorkspaceID,
 		PackageID:    model.Release.PackageID,
 		Version:      model.Release.Version,
 		PublishedAt:  model.Release.PublishedAt,
@@ -69,6 +70,7 @@ func (r *PipelineRepo) FindReleaseByID(ctx context.Context, id string) (*entity.
 	}
 	return &entity.Release{
 		ID:          model.ID,
+		WorkspaceID: model.WorkspaceID,
 		PackageID:   model.PackageID,
 		Version:     model.Version,
 		PublishedAt: model.PublishedAt,
@@ -102,7 +104,7 @@ func (r *PipelineRepo) CreateAnalysis(ctx context.Context, analysis *entity.Anal
 func (r *PipelineRepo) CreateAlert(ctx context.Context, alert *entity.Alert) error {
 	model := Alert{
 		WorkspaceID: alert.WorkspaceID,
-		AnalysisID:  alert.AnalysisID,
+		AnalysisID:  strToNullableUUID(alert.AnalysisID),
 		ReleaseID:   strToNullableUUID(alert.ReleaseID),
 		PackageID:   alert.PackageID,
 		Severity:    AlertSeverity(alert.Severity),

@@ -26,6 +26,7 @@ var InProgressStatuses = []ReleaseStatus{ReleaseStatusPending, ReleaseStatusDiff
 // Release represents a specific version release of a package.
 type Release struct {
 	ID           string
+	WorkspaceID  string
 	PackageID    string
 	Version      string
 	PublishedAt  time.Time

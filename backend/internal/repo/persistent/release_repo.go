@@ -196,6 +196,7 @@ func (r *ReleaseRepo) UpdateStatus(ctx context.Context, id string, status entity
 func releaseToDomain(m *Release) *entity.Release {
 	return &entity.Release{
 		ID:           m.ID,
+		WorkspaceID:  m.WorkspaceID,
 		PackageID:    m.PackageID,
 		Version:      m.Version,
 		PublishedAt:  m.PublishedAt,

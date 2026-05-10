@@ -9,9 +9,10 @@ import (
 
 // ConfigHandlers handles public config endpoints.
 type ConfigHandlers struct {
-	Setup      *setup.Service
-	Auth       *auth.Service
-	SSOEnabled bool
+	Setup             *setup.Service
+	Auth              *auth.Service
+	SSOEnabled        bool
+	EcosystemsEnabled []string
 }
 
 // GetPublicConfig handles GET /api/config/public - returns platform configuration
@@ -28,5 +29,6 @@ func (h *ConfigHandlers) GetPublicConfig(w http.ResponseWriter, r *http.Request)
 		"setupRequired":             setupRequired,
 		"hasEmailDomainRestriction": h.Auth.HasEmailDomainRestriction(),
 		"ssoEnabled":                h.SSOEnabled,
+		"enabledEcosystems":         h.EcosystemsEnabled,
 	}, nil)
 }

@@ -22,6 +22,7 @@ type Config struct {
 	// Optional with defaults
 	RedisURL    string
 	Port        string
+	MetricsPort string
 	FrontendURL string
 	BackendURL  string
 	AppEnv      string
@@ -57,6 +58,9 @@ type Config struct {
 	StaleAutoRemoveMonths        int
 	PackageCountWarningThreshold int
 	RequireEmailVerification     bool
+
+	// Ecosystems
+	EcosystemsEnabled []string
 
 	// Registration control
 	RegistrationEnabled bool
@@ -95,6 +99,7 @@ func NewConfig() (*Config, error) {
 		// Optional with defaults
 		RedisURL:    envOrDefault("REDIS_URL", "redis://localhost:6379/0"),
 		Port:        envOrDefault("SERVER_PORT", "8080"),
+		MetricsPort: envOrDefault("METRICS_PORT", "9090"),
 		FrontendURL: envOrDefault("FRONTEND_URL", "http://localhost:3000"),
 		BackendURL:  envOrDefault("BACKEND_URL", "http://localhost:8080"),
 		AppEnv:      envOrDefault("APP_ENV", "production"),
@@ -164,6 +169,26 @@ func NewConfig() (*Config, error) {
 				cfg.AllowedEmailDomains = append(cfg.AllowedEmailDomains, trimmed)
 			}
 		}
+	}
+
+	// Parse comma-separated enabled ecosystems
+	if ecosystems := os.Getenv("ECOSYSTEMS_ENABLED"); ecosystems != "" {
+		seen := make(map[string]bool)
+		for _, e := range strings.Split(ecosystems, ",") {
+			if trimmed := strings.ToLower(strings.TrimSpace(e)); trimmed != "" {
+				if !seen[trimmed] {
+					seen[trimmed] = true
+					switch trimmed {
+					case "npm", "pypi", "go":
+						cfg.EcosystemsEnabled = append(cfg.EcosystemsEnabled, trimmed)
+					default:
+						return nil, fmt.Errorf("unknown ecosystem in ECOSYSTEMS_ENABLED: %q (valid: npm, pypi, go)", trimmed)
+					}
+				}
+			}
+		}
+	} else {
+		cfg.EcosystemsEnabled = []string{"npm", "pypi"}
 	}
 
 	if err := cfg.Validate(); err != nil {

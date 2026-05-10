@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"time"
 
+	"slices"
+
 	"gorm.io/gorm"
 
 	"github.com/redis/go-redis/v9"
@@ -101,9 +103,19 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	}
 	recoverStuckReleases(ctx, jobQueue, db)
 
-	// Registry clients
-	pythonClient := registry.NewPyPIClient()
-	npmClient := registry.NewNPMClient()
+	// Registry clients - conditionally instantiated based on ECOSYSTEMS_ENABLED
+	var pythonClient usecase.Registry
+	if slices.Contains(cfg.EcosystemsEnabled, "pypi") {
+		pythonClient = registry.NewPyPIClient()
+	}
+	var npmClient usecase.Registry
+	if slices.Contains(cfg.EcosystemsEnabled, "npm") {
+		npmClient = registry.NewNPMClient()
+	}
+	var goClient usecase.Registry
+	if slices.Contains(cfg.EcosystemsEnabled, "go") {
+		goClient = registry.NewGoModulesClient()
+	}
 
 	// SMTP
 	smtpConfig := notifications.SMTPConfig{
@@ -144,14 +156,14 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 
 	// Pipeline
 	pollerRepo := persistent.NewPollerRepo(db)
-	pollerService := poller.New(pollerRepo, pythonClient, npmClient, poller.Config{
+	pollerService := poller.New(pollerRepo, pythonClient, npmClient, goClient, poller.Config{
 		MonitoringInterval: cfg.MonitoringInterval,
 		DiscoveryInterval:  cfg.DiscoveryInterval,
 		Concurrency:        cfg.PollerConcurrency,
 	}, jobQueue, notificationService)
 
 	differRepo := persistent.NewDifferRepo(db)
-	differService := differ.New(differRepo, pythonClient, npmClient, differ.Config{
+	differService := differ.New(differRepo, pythonClient, npmClient, goClient, differ.Config{
 		DiffSizeLimit: cfg.DiffSizeLimit,
 	}, jobQueue, notificationService)
 
@@ -298,7 +310,17 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	alertRepo := persistent.NewAlertRepo(db)
 	alertNoteService := alertnoteuc.New(alertNoteRepo, alertRepo, userRepo)
 	packageRepo := persistent.NewPackageRepo(db)
-	packageService := pkguc.New(packageRepo, auditService)
+	registries := make(map[entity.Ecosystem]usecase.Registry)
+	if pythonClient != nil {
+		registries[entity.EcosystemPython] = pythonClient
+	}
+	if npmClient != nil {
+		registries[entity.EcosystemNPM] = npmClient
+	}
+	if goClient != nil {
+		registries[entity.EcosystemGo] = goClient
+	}
+	packageService := pkguc.New(packageRepo, auditService, registries)
 	releaseRepo := persistent.NewReleaseRepo(db)
 	diffRepo := persistent.NewDiffRepo(db)
 	analysisRepo := persistent.NewAnalysisRepo(db)
@@ -331,13 +353,13 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 
 		samlProvider := pkgsaml.NewProvider(cfg.BackendURL, cfg.SSOSAMLClockSkew)
 		oauthExchanger := newOAuthExchangerAdapter(oauth.NewExchanger(oauth.ExchangerConfig{
-			CallbackBaseURL:    cfg.BackendURL,
-			GoogleTokenURL:     cfg.OAuthGoogleTokenURL,
-			GoogleUserInfoURL:  cfg.OAuthGoogleUserInfoURL,
-			GitHubTokenURL:     cfg.OAuthGitHubTokenURL,
-			GitHubUserInfoURL:  cfg.OAuthGitHubUserInfoURL,
-			GitHubEmailsURL:    cfg.OAuthGitHubEmailsURL,
-			GitHubOrgsURL:      cfg.OAuthGitHubOrgsURL,
+			CallbackBaseURL:   cfg.BackendURL,
+			GoogleTokenURL:    cfg.OAuthGoogleTokenURL,
+			GoogleUserInfoURL: cfg.OAuthGoogleUserInfoURL,
+			GitHubTokenURL:    cfg.OAuthGitHubTokenURL,
+			GitHubUserInfoURL: cfg.OAuthGitHubUserInfoURL,
+			GitHubEmailsURL:   cfg.OAuthGitHubEmailsURL,
+			GitHubOrgsURL:     cfg.OAuthGitHubOrgsURL,
 		}))
 
 		ssoService = sso.NewService(
@@ -393,6 +415,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		pollerService,
 		pythonClient,
 		npmClient,
+		goClient,
 		jobQueue,
 		alertNoteService,
 		packageService,
@@ -406,6 +429,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		cfg.FrontendURL,
 		rbacRepo,
 		identityRepoIface,
+		cfg.EcosystemsEnabled,
 	)
 	router := restapi.NewRouter(h, cfg.FrontendURL, authService, rbacService)
 

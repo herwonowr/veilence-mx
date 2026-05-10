@@ -2,7 +2,7 @@ import { z } from "zod"
 
 export const invitationSchema = z.object({
   email: z.email("Please enter a valid email address"),
-  roleId: z.number().positive("Please select a role"),
+  roleId: z.string().min(1, "Please select a role"),
 })
 
 export const workspaceSchema = z.object({

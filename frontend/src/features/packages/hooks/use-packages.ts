@@ -175,7 +175,7 @@ export const useBulkImportPackages = () => {
       format,
       content,
     }: {
-      format: "requirements_txt" | "package_json" | "list"
+      format: "requirements_txt" | "package_json" | "go_mod" | "list"
       content: string
     }) => bulkImportPackages(format, content),
     onSuccess: (result) => {

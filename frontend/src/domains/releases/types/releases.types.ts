@@ -50,6 +50,7 @@ export interface ReleaseDetail extends Release {
     blockedAt: string | null
     blockedReason: string | null
     downloadCount: number
+    workspaceId: string
     downloadCountUpdatedAt: string | null
     createdAt: string
     updatedAt: string

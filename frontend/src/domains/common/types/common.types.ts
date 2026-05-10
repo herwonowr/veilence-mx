@@ -1,7 +1,7 @@
 // Re-export ApiResponse from core (source of truth for the HTTP layer shape)
 export type { ApiResponse } from "@/core/http"
 
-export type Ecosystem = "python" | "npm"
+export type Ecosystem = "python" | "npm" | "go"
 export type Classification = "benign" | "suspicious" | "malicious" | "baseline"
 export type AnalyzerType = "copilot" | "openai" | "anthropic" | "ollama"
 export type AlertSeverity = "low" | "medium" | "high" | "critical"

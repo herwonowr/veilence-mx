@@ -69,7 +69,7 @@ func WithNPMBaseURL(baseURL string) NPMOption {
 // NewNPMClient creates a new npm registry client.
 func NewNPMClient(opts ...NPMOption) *NPMClient {
 	c := &NPMClient{
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		httpClient: newSSRFSafeClient(),
 		baseURL:    "https://registry.npmjs.org",
 	}
 	for _, opt := range opts {
@@ -112,7 +112,7 @@ func (c *NPMClient) GetPackage(ctx context.Context, name string) (*entity.Regist
 	}
 
 	var npmResp npmPackageResponse
-	if err := json.NewDecoder(resp.Body).Decode(&npmResp); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 10*1024*1024)).Decode(&npmResp); err != nil {
 		return nil, fmt.Errorf("decoding response for %s: %w", name, err)
 	}
 
@@ -179,7 +179,7 @@ func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pac
 		}
 
 		var searchResp npmSearchResponse
-		if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 10*1024*1024)).Decode(&searchResp); err != nil {
 			resp.Body.Close()
 			return nil, fmt.Errorf("decoding search response: %w", err)
 		}
@@ -189,7 +189,6 @@ func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pac
 			allRankings = append(allRankings, entity.PackageRanking{
 				Name:          obj.Package.Name,
 				DownloadCount: obj.Downloads.Monthly,
-				Rank:          fetched + len(allRankings) - len(allRankings) + len(allRankings) + 1,
 			})
 		}
 
@@ -199,10 +198,10 @@ func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pac
 		}
 	}
 
-	// Fix rank values after collection
-	for i := range allRankings {
-		allRankings[i].Rank = i + 1
-	}
+	// Sort by download count descending
+	sort.Slice(allRankings, func(i, j int) bool {
+		return allRankings[i].DownloadCount > allRankings[j].DownloadCount
+	})
 
 	slog.Info("fetched top npm packages", "count", len(allRankings))
 	return allRankings, nil
@@ -210,6 +209,10 @@ func (c *NPMClient) GetTopPackages(ctx context.Context, limit int) ([]entity.Pac
 
 // DownloadTarball downloads a tarball and returns the path to the temp file.
 func (c *NPMClient) DownloadTarball(ctx context.Context, tarballURL string) (string, error) {
+	if err := validateTarballURL(tarballURL, c.baseURL); err != nil {
+		return "", fmt.Errorf("validating tarball URL: %w", err)
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, tarballURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("creating tarball request: %w", err)

@@ -75,7 +75,7 @@ export const discoverPackages = async (
 }
 
 export const bulkImportPackages = async (
-  format: "requirements_txt" | "package_json" | "list",
+  format: "requirements_txt" | "package_json" | "go_mod" | "list",
   content: string
 ): Promise<ApiResponse<BulkImportResult>> =>
   fetchApi<BulkImportResult>("/api/packages/bulk-import", {

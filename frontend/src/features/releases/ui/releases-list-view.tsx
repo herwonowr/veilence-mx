@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, ROUTES, type ColumnBreakpoints } from "@/core"
+import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, usePublicConfigQuery, ROUTES, type ColumnBreakpoints } from "@/core"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, Badge, TableSkeleton, TableError, TableEmptyState, Button, Label, FilterChips, SearchInput, DataTablePagination, SortableHeader, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
@@ -40,13 +40,14 @@ const classificationVariant = (c: Classification) => {
   return "secondary" as const
 }
 
-const VALID_ECOSYSTEMS: Ecosystem[] = ["python", "npm"]
 const VALID_STATUSES: ReleaseStatus[] = ["in_progress", "completed", "error"]
 const VALID_CLASSIFICATIONS: Classification[] = ["benign", "suspicious", "malicious", "baseline"]
 
 export const ReleasesListView = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { enabledEcosystems } = usePublicConfigQuery()
+  const VALID_ECOSYSTEMS = enabledEcosystems as Ecosystem[]
 
   const initialEcosystem = searchParams.get("ecosystem") ?? ""
   const initialStatus = searchParams.get("status") ?? ""
@@ -115,7 +116,7 @@ export const ReleasesListView = () => {
 
   const activeFilters: ActiveFilter[] = [
     ...(ecosystemFilter
-      ? [{ label: "Ecosystem", value: ecosystemFilter === "python" ? "Python" : "NPM", onRemove: () => setEcosystemFilter("") }]
+      ? [{ label: "Ecosystem", value: formatEcosystem(ecosystemFilter), onRemove: () => setEcosystemFilter("") }]
       : []),
     ...(statusFilter
       ? [{ label: "Analysis Status", value: statusFilter === "in_progress" ? "In Progress" : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1), onRemove: () => setStatusFilter("") }]
@@ -249,12 +250,13 @@ export const ReleasesListView = () => {
                   onValueChange={(v) => setEcosystemFilter(v === "all" ? "" : (v ?? ""))}
                 >
                   <SelectTrigger id="releases-ecosystem-filter" className="w-32">
-                    <SelectValue>{ecosystemFilter === "python" ? "Python" : ecosystemFilter === "npm" ? "NPM" : "All"}</SelectValue>
+                    <SelectValue>{ecosystemFilter ? formatEcosystem(ecosystemFilter) : "All"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="python">Python</SelectItem>
-                    <SelectItem value="npm">NPM</SelectItem>
+                    {VALID_ECOSYSTEMS.map((eco) => (
+                      <SelectItem key={eco} value={eco}>{formatEcosystem(eco)}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

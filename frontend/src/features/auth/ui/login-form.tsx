@@ -17,9 +17,7 @@ import {
 } from "@/ui"
 import { Loader2, Eye, EyeOff, MailCheck, CheckCircle2, Shield } from "lucide-react"
 import { ZodError } from "zod"
-// Cross-feature import: SSO provider data is owned by the sso feature but needed
-// for the login UI. Cannot move to domains/ because it uses React Query hooks.
-import { useSSOProviders } from "@/features/sso"
+import { useSSOProviders } from "@/features/auth/hooks/use-sso-providers"
 import type { SSOProviderInfo } from "@/domains/sso"
 
 const MAX_FAILED_ATTEMPTS = 5

@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Badg
 import { ArrowLeft, Upload, FileText, Loader2, AlertCircle, CheckCircle2, CloudUpload } from "lucide-react"
 import { useBulkImportPackages, usePackages } from "@/features/packages/hooks/use-packages"
 import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
+import { formatEcosystem } from "@/domains/common"
 import { bulkImportEntrySchema } from "@/domains/packages"
 
-type ImportFormat = "requirements_txt" | "package_json" | "list"
+type ImportFormat = "requirements_txt" | "package_json" | "go_mod" | "list"
 
 type ParsedEntry = {
   name: string
@@ -40,12 +41,48 @@ const parsePackageJson = (text: string): { name: string; ecosystem: string }[] =
   }
 }
 
+const parseGoMod = (text: string): { name: string; ecosystem: string }[] => {
+  const entries: { name: string; ecosystem: string }[] = []
+  const requireBlockRegex = /require\s*\(([\s\S]*?)\)/g
+  let match = requireBlockRegex.exec(text)
+  while (match) {
+    const block = match[1]
+    for (const line of block.split("\n")) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith("//")) continue
+      const modulePath = trimmed.split(/\s+/)[0]
+      if (modulePath && modulePath.includes("/")) {
+        entries.push({ name: modulePath, ecosystem: "go" })
+      }
+    }
+    match = requireBlockRegex.exec(text)
+  }
+  // Also handle single-line require statements: require github.com/foo/bar v1.0.0
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith("require ") && !trimmed.startsWith("require (")) {
+      const parts = trimmed.replace("require ", "").trim().split(/\s+/)
+      const modulePath = parts[0]
+      if (modulePath && modulePath.includes("/")) {
+        entries.push({ name: modulePath, ecosystem: "go" })
+      }
+    }
+  }
+  return entries
+}
+
 const detectFormat = (text: string, fileName?: string): ImportFormat => {
+  if (fileName === "go.mod" || fileName?.endsWith(".mod")) {
+    return "go_mod"
+  }
   if (fileName?.endsWith(".json") || fileName === "package.json") {
     return "package_json"
   }
   if (text.trim().startsWith("{")) {
     return "package_json"
+  }
+  if (text.trim().startsWith("module ")) {
+    return "go_mod"
   }
   return "requirements_txt"
 }
@@ -127,13 +164,19 @@ export const PackageImportView = () => {
       setDetectedFormat(format)
 
       const packages =
-        format === "package_json" ? parsePackageJson(text) : parseRequirementsTxt(text)
+        format === "package_json"
+          ? parsePackageJson(text)
+          : format === "go_mod"
+            ? parseGoMod(text)
+            : parseRequirementsTxt(text)
 
       if (packages.length === 0) {
         setParseError(
           format === "package_json"
             ? 'Could not parse any packages from this JSON. Ensure it has a "dependencies" or "devDependencies" field.'
-            : "Could not parse any packages. Use requirements.txt format (one package per line) or a package.json file."
+            : format === "go_mod"
+              ? "Could not parse any packages from this go.mod file. Ensure it has a require block."
+              : "Could not parse any packages. Use requirements.txt format (one package per line), package.json, or go.mod file."
         )
         return
       }
@@ -293,7 +336,7 @@ export const PackageImportView = () => {
         </nav>
         <h1 className="text-3xl font-bold">Bulk Import</h1>
         <p className="mt-1 text-muted-foreground">
-          Import packages from requirements.txt or package.json files.
+          Import packages from requirements.txt, package.json, or go.mod files.
         </p>
       </div>
 
@@ -334,7 +377,7 @@ export const PackageImportView = () => {
               Upload File
             </CardTitle>
             <CardDescription>
-              Upload a requirements.txt (Python) or package.json (NPM) file.
+              Upload a requirements.txt (Python), package.json (NPM), or go.mod (Go) file.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -369,14 +412,14 @@ export const PackageImportView = () => {
                   <FileText className="h-10 w-10 text-muted-foreground mb-3" />
                   <p className="text-sm font-medium">Click or drag to upload</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    .txt, .json files accepted
+                    .txt, .json, .mod files accepted
                   </p>
                 </>
               )}
               <input
                 id="file-upload"
                 type="file"
-                accept=".txt,.json"
+                accept=".txt,.json,.mod"
                 className="sr-only"
                 onChange={handleFileUpload}
               />
@@ -398,7 +441,7 @@ export const PackageImportView = () => {
           <CardContent className="space-y-3">
             <Textarea
               className="min-h-40 font-mono"
-              placeholder={`# requirements.txt format:\nrequests>=2.28.0\nflask==3.0.0\nnumpy\n\n# Or paste package.json content`}
+              placeholder={`# requirements.txt format:\nrequests>=2.28.0\nflask==3.0.0\n\n# Or paste package.json or go.mod content`}
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
               onPaste={handlePaste}
@@ -447,7 +490,7 @@ export const PackageImportView = () => {
                   {existsCount > 0 && `, ${existsCount} already monitored`}.
                   {" "}Detected format:{" "}
                   <Badge variant="outline" className="ml-1">
-                    {detectedFormat === "package_json" ? "package.json" : "requirements.txt"}
+                    {detectedFormat === "package_json" ? "package.json" : detectedFormat === "go_mod" ? "go.mod" : "requirements.txt"}
                   </Badge>
                 </CardDescription>
               </div>
@@ -501,7 +544,7 @@ export const PackageImportView = () => {
                   />
                   <span className="text-sm font-mono truncate">{entry.name}</span>
                   <Badge variant="outline" className="shrink-0 text-xs">
-                    {entry.ecosystem === "npm" ? "NPM" : entry.ecosystem === "python" ? "Python" : entry.ecosystem}
+                    {formatEcosystem(entry.ecosystem)}
                   </Badge>
                   <StatusBadge status={entry.status} />
                 </label>

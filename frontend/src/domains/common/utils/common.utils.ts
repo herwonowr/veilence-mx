@@ -6,6 +6,8 @@ export const formatEcosystem = (ecosystem: Ecosystem | string): string => {
       return "Python"
     case "npm":
       return "NPM"
+    case "go":
+      return "Go"
     default:
       return ecosystem
   }

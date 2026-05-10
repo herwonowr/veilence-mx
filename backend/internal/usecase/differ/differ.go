@@ -2,6 +2,7 @@ package differ
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"compress/gzip"
 	"context"
 	"errors"
@@ -28,13 +29,14 @@ type Differ struct {
 	repo     DifferRepository
 	python   usecase.Registry
 	npm      usecase.Registry
+	golang   usecase.Registry
 	config   Config
 	queue    usecase.QueueEnqueuer
 	notifier usecase.NotificationDispatcher
 }
 
 // New creates a new Differ instance.
-func New(repo DifferRepository, python usecase.Registry, npm usecase.Registry, config Config, q usecase.QueueEnqueuer, notifier usecase.NotificationDispatcher) *Differ {
+func New(repo DifferRepository, python usecase.Registry, npm usecase.Registry, golang usecase.Registry, config Config, q usecase.QueueEnqueuer, notifier usecase.NotificationDispatcher) *Differ {
 	if config.DiffSizeLimit <= 0 {
 		config.DiffSizeLimit = 100 * 1024 // 100KB default
 	}
@@ -42,6 +44,7 @@ func New(repo DifferRepository, python usecase.Registry, npm usecase.Registry, c
 		repo:     repo,
 		python:   python,
 		npm:      npm,
+		golang:   golang,
 		config:   config,
 		queue:    q,
 		notifier: notifier,
@@ -89,15 +92,15 @@ func (d *Differ) ProcessRelease(ctx context.Context, releaseID string) error {
 	}
 	defer os.RemoveAll(filepath.Dir(oldPath))
 
-	// Extract tarballs
-	newDir, err := extractTarball(newPath)
+	// Extract archives
+	newDir, err := d.extractArchive(newPath, string(pkg.Ecosystem))
 	if err != nil {
 		d.markError(ctx, release, pkg, "extracting new tarball: "+err.Error())
 		return fmt.Errorf("extracting new tarball: %w", err)
 	}
 	defer os.RemoveAll(newDir)
 
-	oldDir, err := extractTarball(oldPath)
+	oldDir, err := d.extractArchive(oldPath, string(pkg.Ecosystem))
 	if err != nil {
 		d.markError(ctx, release, pkg, "extracting previous tarball: "+err.Error())
 		return fmt.Errorf("extracting previous tarball: %w", err)
@@ -170,6 +173,8 @@ func (d *Differ) getRegistry(name string) usecase.Registry {
 		return d.python
 	case "npm":
 		return d.npm
+	case "go":
+		return d.golang
 	default:
 		return nil
 	}
@@ -195,6 +200,117 @@ type diffStats struct {
 	linesRemoved int
 }
 
+// extractArchive dispatches to the appropriate archive extractor based on ecosystem.
+func (d *Differ) extractArchive(archivePath string, ecosystem string) (string, error) {
+	switch ecosystem {
+	case "go":
+		return extractZip(archivePath)
+	default:
+		return extractTarball(archivePath)
+	}
+}
+
+// extractZip extracts a .zip file to a temp directory with full zip slip prevention.
+func extractZip(zipPath string) (string, error) {
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return "", fmt.Errorf("opening zip: %w", err)
+	}
+	defer r.Close()
+
+	destDir, err := os.MkdirTemp("", "veilence-extract-*")
+	if err != nil {
+		return "", fmt.Errorf("creating extraction directory: %w", err)
+	}
+
+	cleanDest := filepath.Clean(destDir) + string(os.PathSeparator)
+	var totalSize int64
+	var fileCount int
+
+	for _, entry := range r.File {
+		// Step 1: Clean the path
+		cleanName := filepath.Clean(entry.Name)
+
+		// Step 2: Reject entries containing ".."
+		if strings.Contains(cleanName, "..") {
+			continue
+		}
+
+		// Step 3: Reject absolute paths
+		if filepath.IsAbs(cleanName) {
+			continue
+		}
+
+		// Step 4: Construct target and prefix-check
+		target := filepath.Join(destDir, cleanName)
+		if !strings.HasPrefix(target, cleanDest) {
+			continue
+		}
+
+		// Step 5: Reject symlinks - only extract regular files and directories
+		mode := entry.Mode()
+		if mode&os.ModeSymlink != 0 {
+			continue
+		}
+		if !mode.IsRegular() && !mode.IsDir() {
+			continue
+		}
+
+		// Enforce file count limit
+		fileCount++
+		if fileCount > 10000 {
+			os.RemoveAll(destDir)
+			return "", fmt.Errorf("zip contains too many files (exceeded 10000)")
+		}
+
+		if mode.IsDir() {
+			// Step 6: Restrictive permissions for directories
+			if err := os.MkdirAll(target, 0o750); err != nil {
+				os.RemoveAll(destDir)
+				return "", fmt.Errorf("creating directory: %w", err)
+			}
+			continue
+		}
+
+		// Regular file - check size limits
+		totalSize += int64(entry.UncompressedSize64)
+		if totalSize > 500*1024*1024 {
+			os.RemoveAll(destDir)
+			return "", fmt.Errorf("zip aggregate size exceeded 500MB limit")
+		}
+
+		// Ensure parent directory exists
+		if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
+			os.RemoveAll(destDir)
+			return "", fmt.Errorf("creating parent directory: %w", err)
+		}
+
+		// Step 6: Restrictive permissions for files
+		outFile, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o640)
+		if err != nil {
+			os.RemoveAll(destDir)
+			return "", fmt.Errorf("creating file: %w", err)
+		}
+
+		rc, err := entry.Open()
+		if err != nil {
+			outFile.Close()
+			os.RemoveAll(destDir)
+			return "", fmt.Errorf("opening zip entry: %w", err)
+		}
+
+		_, err = io.Copy(outFile, io.LimitReader(rc, 50*1024*1024))
+		rc.Close()
+		outFile.Close()
+		if err != nil {
+			os.RemoveAll(destDir)
+			return "", fmt.Errorf("extracting file: %w", err)
+		}
+	}
+
+	return destDir, nil
+}
+
 // extractTarball extracts a .tar.gz or .tgz file to a temp directory.
 func extractTarball(path string) (string, error) {
 	f, err := os.Open(path)
@@ -214,6 +330,10 @@ func extractTarball(path string) (string, error) {
 		return "", fmt.Errorf("creating extraction directory: %w", err)
 	}
 
+	cleanDest := filepath.Clean(destDir) + string(os.PathSeparator)
+	var totalSize int64
+	var fileCount int
+
 	tr := tar.NewReader(gz)
 	for {
 		header, err := tr.Next()
@@ -221,6 +341,7 @@ func extractTarball(path string) (string, error) {
 			break
 		}
 		if err != nil {
+			os.RemoveAll(destDir)
 			return "", fmt.Errorf("reading tar entry: %w", err)
 		}
 
@@ -230,29 +351,55 @@ func extractTarball(path string) (string, error) {
 			continue
 		}
 
-		target := filepath.Join(destDir, cleanName)
-
-		// Ensure the target is within destDir
-		if !strings.HasPrefix(target, filepath.Clean(destDir)+string(os.PathSeparator)) {
+		if filepath.IsAbs(cleanName) {
 			continue
 		}
 
+		target := filepath.Join(destDir, cleanName)
+
+		// Ensure the target is within destDir
+		if !strings.HasPrefix(target, cleanDest) {
+			continue
+		}
+
+		// Reject symlinks - only extract regular files and directories
 		switch header.Typeflag {
 		case tar.TypeDir:
+			fileCount++
+			if fileCount > 10000 {
+				os.RemoveAll(destDir)
+				return "", fmt.Errorf("tarball contains too many files (exceeded 10000)")
+			}
 			if err := os.MkdirAll(target, 0o750); err != nil {
-				return "", fmt.Errorf("creating directory %s: %w", target, err)
+				os.RemoveAll(destDir)
+				return "", fmt.Errorf("creating directory: %w", err)
 			}
 		case tar.TypeReg:
+			fileCount++
+			if fileCount > 10000 {
+				os.RemoveAll(destDir)
+				return "", fmt.Errorf("tarball contains too many files (exceeded 10000)")
+			}
+
+			totalSize += header.Size
+			if totalSize > 500*1024*1024 {
+				os.RemoveAll(destDir)
+				return "", fmt.Errorf("tarball aggregate size exceeded 500MB limit")
+			}
+
 			if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
+				os.RemoveAll(destDir)
 				return "", fmt.Errorf("creating parent directory: %w", err)
 			}
 			outFile, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(header.Mode)&0o750)
 			if err != nil {
-				return "", fmt.Errorf("creating file %s: %w", target, err)
+				os.RemoveAll(destDir)
+				return "", fmt.Errorf("creating file: %w", err)
 			}
 			if _, err := io.Copy(outFile, io.LimitReader(tr, 50*1024*1024)); err != nil {
 				outFile.Close()
-				return "", fmt.Errorf("extracting file %s: %w", target, err)
+				os.RemoveAll(destDir)
+				return "", fmt.Errorf("extracting file: %w", err)
 			}
 			outFile.Close()
 		}
