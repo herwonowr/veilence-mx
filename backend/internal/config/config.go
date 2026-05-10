@@ -33,7 +33,7 @@ type Config struct {
 	// LLM
 	LLMProvider     string
 	LLMApiKey       string
-	LLMMaxDiffLen   int
+	LLMMaxDiffSize  int
 	LLMRateInterval time.Duration
 
 	// Pipeline
@@ -125,7 +125,7 @@ func NewConfig() (*Config, error) {
 		// LLM
 		LLMProvider:     os.Getenv("LLM_PROVIDER"),
 		LLMApiKey:       os.Getenv("LLM_API_KEY"),
-		LLMMaxDiffLen:   envIntOrDefault("LLM_MAX_DIFF_LEN", 20000),
+		LLMMaxDiffSize:  envIntOrDefault("LLM_MAX_DIFF_SIZE", 150*1024),
 		LLMRateInterval: envDurationOrDefault("LLM_RATE_INTERVAL", 6*time.Second),
 
 		// Pipeline
@@ -133,7 +133,7 @@ func NewConfig() (*Config, error) {
 		DiscoveryInterval:          envDurationOrDefault("DISCOVERY_INTERVAL", 24*time.Hour),
 		PollerConcurrency:          envIntOrDefault("POLLER_CONCURRENCY", 5),
 		PollerWorkspaceConcurrency: envIntOrDefault("POLLER_WORKSPACE_CONCURRENCY", 5),
-		DiffSizeLimit:              envIntOrDefault("DIFF_SIZE_LIMIT", 102400),
+		DiffSizeLimit:              envIntOrDefault("DIFF_SIZE_LIMIT", 150*1024),
 		QueueMaxRetries:            envIntOrDefault("QUEUE_MAX_RETRIES", 5),
 		QueueLockTimeout:           envDurationOrDefault("QUEUE_LOCK_TIMEOUT", 10*time.Minute),
 		DiffWorkerConcurrency:      envIntOrDefault("DIFF_WORKER_CONCURRENCY", 5),
@@ -143,12 +143,12 @@ func NewConfig() (*Config, error) {
 
 		// Archive extraction limits
 		MaxArchiveFileCount: envIntOrDefault("MAX_ARCHIVE_FILE_COUNT", 50000),
-		MaxArchiveSize:      envIntOrDefault("MAX_ARCHIVE_SIZE", 524288000),
-		MaxFileExtractSize:  envIntOrDefault("MAX_FILE_EXTRACT_SIZE", 52428800),
-		MaxFileReadSize:     envIntOrDefault("MAX_FILE_READ_SIZE", 1048576),
+		MaxArchiveSize:      envIntOrDefault("MAX_ARCHIVE_SIZE", 500*1024*1024),
+		MaxFileExtractSize:  envIntOrDefault("MAX_FILE_EXTRACT_SIZE", 50*1024*1024),
+		MaxFileReadSize:     envIntOrDefault("MAX_FILE_READ_SIZE", 1*1024*1024),
 
 		// Registry download limits
-		MaxRegistryDownloadSize: envIntOrDefault("MAX_REGISTRY_DOWNLOAD_SIZE", 209715200),
+		MaxRegistryDownloadSize: envIntOrDefault("MAX_REGISTRY_DOWNLOAD_SIZE", 200*1024*1024),
 
 		// Bulk operation limits
 		MaxBulkImport:  envIntOrDefault("MAX_BULK_IMPORT", 500),
@@ -265,8 +265,8 @@ func (c *Config) Validate() error {
 			errs = append(errs, fmt.Sprintf("LLM_API_KEY is required when using %s provider", c.LLMProvider))
 		}
 	}
-	if c.LLMMaxDiffLen <= 0 {
-		errs = append(errs, "LLM_MAX_DIFF_LEN must be > 0")
+	if c.LLMMaxDiffSize <= 0 {
+		errs = append(errs, "LLM_MAX_DIFF_SIZE must be > 0")
 	}
 	if c.LLMRateInterval <= 0 {
 		errs = append(errs, "LLM_RATE_INTERVAL must be > 0")

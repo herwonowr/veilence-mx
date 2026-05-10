@@ -21,7 +21,7 @@ type Pipeline struct {
 // NewPipeline creates a new analysis pipeline.
 func NewPipeline(repo PipelineRepository, notifier usecase.NotificationDispatcher, diffSizeLimit int, providers ...LLMProvider) *Pipeline {
 	if diffSizeLimit <= 0 {
-		diffSizeLimit = 100 * 1024
+		diffSizeLimit = 150 * 1024
 	}
 	return &Pipeline{
 		repo:          repo,

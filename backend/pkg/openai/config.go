@@ -13,8 +13,8 @@ type Config struct {
 	Model string
 	// BaseURL is the API base URL (defaults to "https://api.openai.com/v1").
 	BaseURL string
-	// MaxDiffLen limits diff size in characters (required, must be > 0).
-	MaxDiffLen int
+	// MaxDiffSize limits diff size in bytes (required, must be > 0).
+	MaxDiffSize int
 	// RateInterval is the minimum time between requests (required, must be > 0).
 	RateInterval time.Duration
 }
@@ -30,8 +30,8 @@ func (c Config) Validate() error {
 	if c.BaseURL == "" {
 		return fmt.Errorf("OpenAI base URL is required (set LLM_API_URL env var)")
 	}
-	if c.MaxDiffLen <= 0 {
-		return fmt.Errorf("OpenAI max diff length must be > 0")
+	if c.MaxDiffSize <= 0 {
+		return fmt.Errorf("OpenAI max diff size must be > 0")
 	}
 	if c.RateInterval <= 0 {
 		return fmt.Errorf("OpenAI rate interval must be > 0")

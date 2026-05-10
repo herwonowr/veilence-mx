@@ -6,15 +6,12 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log/slog"
-
 	"net/http"
+	"slices"
 	"time"
 
-	"slices"
-
-	"gorm.io/gorm"
-
 	"github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
 
 	"github.com/veilence/veilence-mx/backend/internal/config"
 	"github.com/veilence/veilence-mx/backend/internal/controller/restapi"
@@ -181,7 +178,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		llmConfig := copilotapi.Config{
 			BaseURL:      cfg.LLMApiURL,
 			Model:        cfg.LLMModel,
-			MaxDiffLen:   cfg.LLMMaxDiffLen,
+			MaxDiffSize:  cfg.LLMMaxDiffSize,
 			RateInterval: cfg.LLMRateInterval,
 		}
 		if err := llmConfig.Validate(); err != nil {
@@ -196,7 +193,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 			APIKey:       cfg.LLMApiKey,
 			Model:        cfg.LLMModel,
 			BaseURL:      cfg.LLMApiURL,
-			MaxDiffLen:   cfg.LLMMaxDiffLen,
+			MaxDiffSize:  cfg.LLMMaxDiffSize,
 			RateInterval: cfg.LLMRateInterval,
 		}
 		if err := llmConfig.Validate(); err != nil {
@@ -211,7 +208,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 			APIKey:       cfg.LLMApiKey,
 			Model:        cfg.LLMModel,
 			BaseURL:      cfg.LLMApiURL,
-			MaxDiffLen:   cfg.LLMMaxDiffLen,
+			MaxDiffSize:  cfg.LLMMaxDiffSize,
 			RateInterval: cfg.LLMRateInterval,
 		}
 		if err := llmConfig.Validate(); err != nil {
@@ -225,7 +222,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		llmConfig := ollama.Config{
 			Model:        cfg.LLMModel,
 			BaseURL:      cfg.LLMApiURL,
-			MaxDiffLen:   cfg.LLMMaxDiffLen,
+			MaxDiffSize:  cfg.LLMMaxDiffSize,
 			RateInterval: cfg.LLMRateInterval,
 		}
 		if err := llmConfig.Validate(); err != nil {
@@ -491,14 +488,15 @@ func recoverStuckReleases(ctx context.Context, jobQueue *queue.Queue, db *gorm.D
 			"version":   rel.Version,
 			"ecosystem": string(rel.Package.Ecosystem),
 		}
-		if rel.Status == persistent.ReleaseStatusDiffing {
+		switch rel.Status {
+		case persistent.ReleaseStatusDiffing:
 			db.Model(&rel).Update("status", persistent.ReleaseStatusPending)
 			if _, err := jobQueue.Enqueue(ctx, queue.JobTypeDiff, wsID, rel.ID, meta); err != nil {
 				slog.Error("failed to re-enqueue stuck diffing release", "release_id", rel.ID, "error", err)
 			} else {
 				slog.Info("re-enqueued stuck diffing release", "release_id", rel.ID)
 			}
-		} else if rel.Status == persistent.ReleaseStatusAnalyzing {
+		case persistent.ReleaseStatusAnalyzing:
 			var diff persistent.Diff
 			result := db.Where("release_id = ?", rel.ID).Limit(1).Find(&diff)
 			if result.RowsAffected > 0 {

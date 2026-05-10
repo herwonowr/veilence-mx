@@ -48,10 +48,26 @@ var tier4Basenames = map[string]bool{
 	"package-lock.json": true, "yarn.lock": true, "pnpm-lock.yaml": true,
 	"pipfile.lock": true, "poetry.lock": true, "composer.lock": true,
 	"cargo.lock": true, "gemfile.lock": true,
-	// Config/dotfiles
+	// Config/dotfiles - linter, editor, CI config (inert in published packages)
 	".gitignore": true, ".gitattributes": true, ".editorconfig": true,
-	".prettierrc": true, ".prettierignore": true, ".eslintignore": true,
-	".npmignore": true, ".dockerignore": true,
+	".prettierrc": true, ".prettierignore": true, ".prettierrc.json": true, ".prettierrc.yml": true, ".prettierrc.yaml": true,
+	".eslintrc": true, ".eslintrc.json": true, ".eslintrc.yml": true, ".eslintrc.yaml": true, ".eslintignore": true,
+	".npmignore": true, ".npmrc": true, ".dockerignore": true,
+	".golangci.yml": true, ".golangci.yaml": true,
+	".gitpod.yml": true, ".codeclimate.yml": true,
+	".travis.yml": true, ".stylelintrc": true, ".stylelintrc.json": true,
+	".babelrc": true, ".babelrc.json": true,
+	".browserslistrc": true, ".nvmrc": true, ".node-version": true, ".python-version": true, ".ruby-version": true,
+	".flowconfig": true, ".watchmanconfig": true,
+	".yamllint.yml": true, ".yamllint.yaml": true,
+	".markdownlint.json": true, ".markdownlint.yml": true, ".markdownlintignore": true,
+	".commitlintrc.json": true, ".commitlintrc.yml": true,
+	".lintstagedrc": true, ".lintstagedrc.json": true, ".lintstagedrc.yml": true,
+	".releaserc": true, ".releaserc.json": true, ".releaserc.yml": true,
+	".coveragerc": true, ".nycrc": true, ".nycrc.json": true,
+	".dependabot.yml": true,
+	"codecov.yml":     true, ".codecov.yml": true,
+	"renovate.json": true, ".renovaterc": true, ".renovaterc.json": true,
 }
 
 // tier4Dirs are directory names that cause exclusion (case-sensitive).
@@ -63,7 +79,12 @@ var tier4Dirs = map[string]bool{
 
 // tier2Dirs are CI/config directories - included after code if budget allows (case-sensitive).
 var tier2Dirs = map[string]bool{
-	".github": true,
+	".github":    true,
+	".circleci":  true,
+	".gitlab":    true,
+	".travis":    true,
+	".buildkite": true,
+	".jenkins":   true,
 }
 
 // tier3Extensions are documentation extensions included if budget allows.

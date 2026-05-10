@@ -28,6 +28,15 @@ func TestClassifyFile(t *testing.T) {
 		{"poetry.lock", "poetry.lock", Tier4},
 		{".editorconfig", ".editorconfig", Tier4},
 		{".prettierrc", ".prettierrc", Tier4},
+		{".golangci.yml", ".golangci.yml", Tier4},
+		{".eslintrc.json", ".eslintrc.json", Tier4},
+		{".travis.yml", ".travis.yml", Tier4},
+		{".nvmrc", ".nvmrc", Tier4},
+		{".gitpod.yml", ".gitpod.yml", Tier4},
+		{"codecov.yml", "codecov.yml", Tier4},
+		{"renovate.json", "renovate.json", Tier4},
+		{".coveragerc", ".coveragerc", Tier4},
+		{".babelrc", ".babelrc", Tier4},
 
 		// Tier 4 directories
 		{"pycache root", "__pycache__/foo.pyc", Tier4},
@@ -40,6 +49,11 @@ func TestClassifyFile(t *testing.T) {
 		{".github issue template", ".github/ISSUE_TEMPLATE/bug.md", Tier2},
 		{".github dependabot", ".github/dependabot.yml", Tier2},
 		{".github actions", ".github/actions/setup/action.yml", Tier2},
+		{".circleci config", ".circleci/config.yml", Tier2},
+		{".gitlab ci", ".gitlab/ci/build.yml", Tier2},
+		{".travis yml", ".travis/deploy.sh", Tier2},
+		{".buildkite pipeline", ".buildkite/pipeline.yml", Tier2},
+		{".jenkins pipeline", ".jenkins/Jenkinsfile", Tier2},
 
 		// Tier 3 docs
 		{"README.md", "README.md", Tier3},

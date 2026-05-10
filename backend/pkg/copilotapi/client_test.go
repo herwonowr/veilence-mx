@@ -30,7 +30,7 @@ func TestClient_Analyze_Success(t *testing.T) {
 	client := New(Config{
 		BaseURL:      server.URL,
 		Model:        "test-model",
-		MaxDiffLen:   10000,
+		MaxDiffSize:  10000,
 		RateInterval: 1 * time.Millisecond,
 	})
 	defer client.Close()
@@ -67,7 +67,7 @@ func TestClient_Analyze_RateLimitRetry(t *testing.T) {
 	client := New(Config{
 		BaseURL:      server.URL,
 		Model:        "test-model",
-		MaxDiffLen:   10000,
+		MaxDiffSize:  10000,
 		RateInterval: 1 * time.Millisecond,
 	})
 	defer client.Close()
@@ -98,7 +98,7 @@ func TestClient_Analyze_ServerError(t *testing.T) {
 	client := New(Config{
 		BaseURL:      server.URL,
 		Model:        "test-model",
-		MaxDiffLen:   10000,
+		MaxDiffSize:  10000,
 		RateInterval: 1 * time.Millisecond,
 	})
 	defer client.Close()
@@ -119,7 +119,7 @@ func TestClient_Analyze_EmptyResponse(t *testing.T) {
 	client := New(Config{
 		BaseURL:      server.URL,
 		Model:        "test-model",
-		MaxDiffLen:   10000,
+		MaxDiffSize:  10000,
 		RateInterval: 1 * time.Millisecond,
 	})
 	defer client.Close()
@@ -146,7 +146,7 @@ func TestClient_Analyze_DiffTruncation(t *testing.T) {
 	client := New(Config{
 		BaseURL:      server.URL,
 		Model:        "test-model",
-		MaxDiffLen:   10, // Very small limit
+		MaxDiffSize:  10, // Very small limit
 		RateInterval: 1 * time.Millisecond,
 	})
 	defer client.Close()
@@ -164,7 +164,7 @@ func TestClient_Type(t *testing.T) {
 	client := New(Config{
 		BaseURL:      "http://localhost",
 		Model:        "test",
-		MaxDiffLen:   1000,
+		MaxDiffSize:  1000,
 		RateInterval: time.Second,
 	})
 	if client.Type() != "copilot" {
@@ -178,11 +178,11 @@ func TestConfig_Validate(t *testing.T) {
 		config  Config
 		wantErr bool
 	}{
-		{"valid", Config{BaseURL: "http://localhost", Model: "m", MaxDiffLen: 100, RateInterval: time.Second}, false},
-		{"missing url", Config{Model: "m", MaxDiffLen: 100, RateInterval: time.Second}, true},
-		{"missing model", Config{BaseURL: "http://localhost", MaxDiffLen: 100, RateInterval: time.Second}, true},
-		{"zero diff len", Config{BaseURL: "http://localhost", Model: "m", MaxDiffLen: 0, RateInterval: time.Second}, true},
-		{"zero rate", Config{BaseURL: "http://localhost", Model: "m", MaxDiffLen: 100, RateInterval: 0}, true},
+		{"valid", Config{BaseURL: "http://localhost", Model: "m", MaxDiffSize: 100, RateInterval: time.Second}, false},
+		{"missing url", Config{Model: "m", MaxDiffSize: 100, RateInterval: time.Second}, true},
+		{"missing model", Config{BaseURL: "http://localhost", MaxDiffSize: 100, RateInterval: time.Second}, true},
+		{"zero diff len", Config{BaseURL: "http://localhost", Model: "m", MaxDiffSize: 0, RateInterval: time.Second}, true},
+		{"zero rate", Config{BaseURL: "http://localhost", Model: "m", MaxDiffSize: 100, RateInterval: 0}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

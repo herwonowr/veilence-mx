@@ -12,8 +12,8 @@ type Config struct {
 	BaseURL string
 	// Model is the model to use (required).
 	Model string
-	// MaxDiffLen limits diff size in characters (required, must be > 0).
-	MaxDiffLen int
+	// MaxDiffSize limits diff size in bytes (required, must be > 0).
+	MaxDiffSize int
 	// RateInterval is the minimum time between requests (required, must be > 0).
 	RateInterval time.Duration
 }
@@ -26,8 +26,8 @@ func (c Config) Validate() error {
 	if c.Model == "" {
 		return fmt.Errorf("LLM model is required (set LLM_MODEL env var)")
 	}
-	if c.MaxDiffLen <= 0 {
-		return fmt.Errorf("LLM max diff length must be > 0 (set LLM_MAX_DIFF_LEN env var)")
+	if c.MaxDiffSize <= 0 {
+		return fmt.Errorf("LLM max diff size must be > 0 (set LLM_MAX_DIFF_SIZE env var)")
 	}
 	if c.RateInterval <= 0 {
 		return fmt.Errorf("LLM rate interval must be > 0 (set LLM_RATE_INTERVAL env var)")

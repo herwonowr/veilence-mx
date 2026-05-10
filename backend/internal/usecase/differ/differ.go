@@ -41,7 +41,7 @@ type Differ struct {
 // New creates a new Differ instance.
 func New(repo DifferRepository, python usecase.Registry, npm usecase.Registry, golang usecase.Registry, config Config, q usecase.QueueEnqueuer, notifier usecase.NotificationDispatcher) *Differ {
 	if config.DiffSizeLimit <= 0 {
-		config.DiffSizeLimit = 100 * 1024 // 100KB default
+		config.DiffSizeLimit = 150 * 1024 // 150KB default
 	}
 	if config.MaxArchiveFileCount <= 0 {
 		config.MaxArchiveFileCount = 50000

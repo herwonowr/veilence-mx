@@ -18,7 +18,7 @@ type Client struct {
 	httpClient  *http.Client
 	baseURL     string
 	model       string
-	maxDiffLen  int
+	maxDiffSize int
 	rateLimiter *time.Ticker
 }
 
@@ -29,7 +29,7 @@ func New(cfg Config) *Client {
 		httpClient:  &http.Client{Timeout: 300 * time.Second},
 		baseURL:     cfg.BaseURL,
 		model:       cfg.Model,
-		maxDiffLen:  cfg.MaxDiffLen,
+		maxDiffSize: cfg.MaxDiffSize,
 		rateLimiter: time.NewTicker(cfg.RateInterval),
 	}
 }
@@ -75,8 +75,8 @@ func (c *Client) Analyze(ctx context.Context, diff string, packageName string, e
 	}
 
 	// Truncate diff if needed
-	if len(diff) > c.maxDiffLen {
-		diff = diff[:c.maxDiffLen]
+	if len(diff) > c.maxDiffSize {
+		diff = diff[:c.maxDiffSize]
 		truncated = true
 	}
 
