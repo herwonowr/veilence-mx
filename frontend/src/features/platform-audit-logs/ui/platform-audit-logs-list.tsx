@@ -110,7 +110,6 @@ const PlatformAuditLogsContent = () => {
   const columnBreakpoints: ColumnBreakpoints = useMemo(() => ({
     userAgent: "desktop",
     correlationId: "desktop",
-    resourceId: "desktop",
   }), [])
   const responsiveVisibility = useResponsiveColumns(columnBreakpoints)
   const [userColumnVisibility, setUserColumnVisibility] = useState<VisibilityState>({
@@ -241,15 +240,6 @@ const PlatformAuditLogsContent = () => {
           <Badge variant="secondary" className="w-fit capitalize">
             {row.original.resource.replace(/_/g, " ")}
           </Badge>
-        ),
-      },
-      {
-        accessorKey: "resourceId",
-        header: "Resource ID",
-        cell: ({ row }) => (
-          <span className="font-mono text-xs text-muted-foreground">
-            {row.original.resourceId ? row.original.resourceId.slice(0, 8) : "-"}
-          </span>
         ),
       },
       {
