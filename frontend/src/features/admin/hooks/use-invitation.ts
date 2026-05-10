@@ -6,7 +6,7 @@ import {
   apiAcceptInvitation,
   apiDeclineInvitationByToken,
 } from "@/domains/admin"
-import { usePublicConfigQuery } from "@/features/config"
+import { usePublicConfigQuery } from "@/core"
 
 export const invitationKeys = {
   all: ["invitation"] as const,

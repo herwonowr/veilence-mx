@@ -58,9 +58,7 @@ type PackageRepository interface {
 	RejectPackage(ctx context.Context, workspaceID, pkgID string) error
 	BulkApprovePackages(ctx context.Context, workspaceID string, pkgIDs []string) (int, error)
 	BulkApproveAllSuggestions(ctx context.Context, workspaceID string) (int, error)
-	UpdateDownloadCounts(ctx context.Context, workspaceID string, updates []entity.PackageDownloadUpdate) error
-	FindStaleByWorkspaceID(ctx context.Context, workspaceID string, staleBefore time.Time) ([]entity.Package, error)
-	RemoveStaleByWorkspaceID(ctx context.Context, workspaceID string, staleBefore time.Time) (int, error)
+	FindStaleByWorkspaceID(ctx context.Context, workspaceID string, staleBefore time.Time, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
 }
 
 // ReleaseRepository defines persistence operations for Release entities.
@@ -83,17 +81,14 @@ type DiffRepository interface {
 type AnalysisRepository interface {
 	FindByDiffID(ctx context.Context, diffID string) ([]entity.Analysis, error)
 	FindByDiffIDs(ctx context.Context, diffIDs []string) ([]entity.Analysis, error)
-	Create(ctx context.Context, analysis *entity.Analysis) error
 }
 
 // AlertRepository defines persistence operations for Alert entities.
 type AlertRepository interface {
 	FindByIDAndWorkspaceID(ctx context.Context, id, workspaceID string) (*entity.Alert, error)
 	FindByIDWithPackage(ctx context.Context, id, workspaceID string) (*entity.Alert, *entity.Package, error)
-	FindByWorkspaceID(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.Alert, int64, error)
 	FindByWorkspaceIDWithPackage(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.AlertFilters) ([]entity.AlertWithPackage, int64, error)
 	Create(ctx context.Context, alert *entity.Alert) error
-	Update(ctx context.Context, alert *entity.Alert) error
 	UpdateStatus(ctx context.Context, id, workspaceID string, status entity.AlertStatus) error
 	CountByWorkspaceAndStatus(ctx context.Context, workspaceID string) (map[entity.AlertStatus]int64, error)
 }
@@ -222,8 +217,7 @@ type PackageService interface {
 	BulkApprovePackages(ctx context.Context, workspaceID string, pkgIDs []string) (int, error)
 	BulkApproveAllSuggestions(ctx context.Context, workspaceID string) (int, error)
 	ListSuggestions(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
-	ListStalePackages(ctx context.Context, workspaceID string, staleBefore time.Time) ([]entity.Package, error)
-	RemoveStalePackages(ctx context.Context, workspaceID string, months int) (int, error)
+	ListStalePackages(ctx context.Context, workspaceID string, staleBefore time.Time, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error)
 	CountPackages(ctx context.Context, workspaceID string) (int64, error)
 }
 

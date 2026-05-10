@@ -8,8 +8,7 @@ import {
   myInvitationKeys,
 } from "@/domains/admin"
 import { toast } from "sonner"
-import { sanitizeErrorMessage } from "@/core"
-import { usePublicConfigQuery } from "@/features/config"
+import { sanitizeErrorMessage , usePublicConfigQuery } from "@/core"
 
 export const useMyInvitations = () => {
   const { registrationEnabled } = usePublicConfigQuery()

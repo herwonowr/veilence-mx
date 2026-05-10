@@ -23,3 +23,4 @@ export { useResponsiveColumns, type ColumnBreakpoints } from "@/core/hooks/use-r
 export { useFilterParams } from "@/core/hooks/use-filter-params"
 export { useLocalStorage } from "@/core/hooks/use-local-storage"
 export { useCurrentWorkspaceRole, hasMinimumRole, getRoleLevel, workspaceRoleKeys, type WorkspaceRole } from "@/core/hooks/use-workspace-role"
+export { usePublicConfigQuery, publicConfigKeys, type PublicConfig } from "@/core/hooks/use-public-config-query"

@@ -1,27 +1,5 @@
 import { fetchApi, getStoredRefreshToken, type ApiResponse } from "@/core"
-import type { User, MeResponse, LoginResponse, ProfileUpdateRequest, PasswordChangeRequest, Session } from "@/domains/auth/types/auth.types"
-
-export const apiLogin = async (
-  email: string,
-  password: string
-): Promise<ApiResponse<LoginResponse>> =>
-  fetchApi<LoginResponse>("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-    skipAuth: true,
-  })
-
-export const apiRegister = async (data: {
-  email: string
-  password: string
-  firstName: string
-  lastName: string
-}): Promise<ApiResponse<LoginResponse>> =>
-  fetchApi<LoginResponse>("/api/auth/register", {
-    method: "POST",
-    body: JSON.stringify(data),
-    skipAuth: true,
-  })
+import type { User, LoginResponse, ProfileUpdateRequest, PasswordChangeRequest, Session } from "@/domains/auth/types/auth.types"
 
 export const apiRefreshToken = async (
   refreshToken: string
@@ -31,17 +9,6 @@ export const apiRefreshToken = async (
     body: JSON.stringify({ refreshToken }),
     skipAuth: true,
   })
-
-export const apiLogout = async (
-  refreshToken: string
-): Promise<ApiResponse<null>> =>
-  fetchApi<null>("/api/auth/logout", {
-    method: "POST",
-    body: JSON.stringify({ refreshToken }),
-  })
-
-export const apiGetMe = async (): Promise<ApiResponse<MeResponse>> =>
-  fetchApi<MeResponse>("/api/auth/me")
 
 export const apiUpdateProfile = async (
   data: ProfileUpdateRequest

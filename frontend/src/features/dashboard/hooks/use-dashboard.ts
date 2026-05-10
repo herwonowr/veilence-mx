@@ -76,7 +76,7 @@ export const useDashboardStalePackages = (
 ) =>
   useQuery({
     queryKey: dashboardKeys.stalePackages(months),
-    queryFn: () => getStalePackages(months),
+    queryFn: () => getStalePackages({ months }),
     staleTime: 60 * 1000,
     ...options,
   })

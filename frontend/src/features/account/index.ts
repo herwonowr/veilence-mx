@@ -7,12 +7,6 @@ export {
   apiKeyKeys,
 } from "@/features/account/hooks/use-api-keys"
 
-/**
- * useCurrentWorkspaceRole has been moved to features/auth for shared access.
- * Re-export here for backward compatibility.
- */
-export { useCurrentWorkspaceRole } from "@/core"
-
 export {
   useUpdateProfile,
   useChangePassword,

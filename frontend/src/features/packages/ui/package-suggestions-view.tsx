@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
-import { useDebouncedValue, useSortParams, useFilterParams, useCurrentWorkspaceRole, hasMinimumRole, ROUTES } from "@/core"
-import { usePublicConfigQuery } from "@/features/config"
+import { useDebouncedValue, useSortParams, useFilterParams, useCurrentWorkspaceRole, hasMinimumRole, ROUTES , usePublicConfigQuery } from "@/core"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, Button, Badge, TableSkeleton, TableError, TableEmptyState, DataTablePagination, SearchInput, SortableHeader, Label, type SkeletonColumn } from "@/ui"
 import {

@@ -4,10 +4,9 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input, Field, FieldLabel, FieldDescription, FieldError, Checkbox, Label, RadioGroup, RadioGroupItem, Alert, AlertDescription, NpmIcon, PypiIcon, GoIcon } from "@/ui"
 import { Save, RefreshCw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangle, Loader2 } from "lucide-react"
 import { settingsSchema } from "@/domains/settings"
-import { usePublicConfigQuery } from "@/features/config"
 import { ZodError } from "zod"
 import { useSettings, useUpdateSettings, useDiscoverNow, usePackageCountSummary } from "@/features/settings/hooks/use-settings"
-import { useCurrentWorkspaceRole, hasMinimumRole, ROUTES } from "@/core"
+import { useCurrentWorkspaceRole, hasMinimumRole, ROUTES , usePublicConfigQuery } from "@/core"
 import Link from "next/link"
 
 const ECOSYSTEMS = [

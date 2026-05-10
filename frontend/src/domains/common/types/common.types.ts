@@ -9,10 +9,4 @@ export type AlertStatus = "new" | "acknowledged" | "resolved"
 // Backend statuses: pending, diffing, analyzing, completed, error.
 // "in_progress" is a frontend-only grouping used in UI filters to represent diffing + analyzing.
 export type ReleaseStatus = "pending" | "diffing" | "analyzing" | "completed" | "error" | "in_progress"
-export interface PaginationMeta {
-  page: number
-  limit: number
-  total: number
-}
-
-
+// Backend statuses: pending, diffing, analyzing, completed, error.

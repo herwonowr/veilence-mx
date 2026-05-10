@@ -2,8 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ROUTES } from "@/core"
-import { usePublicConfigQuery } from "@/features/config"
+import { ROUTES , usePublicConfigQuery } from "@/core"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"

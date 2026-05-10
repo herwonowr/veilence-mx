@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, useCurrentWorkspaceRole, hasMinimumRole, ROUTES, type ColumnBreakpoints } from "@/core"
-import { usePublicConfigQuery } from "@/features/config"
+import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, useCurrentWorkspaceRole, hasMinimumRole, ROUTES, type ColumnBreakpoints , usePublicConfigQuery } from "@/core"
 import { Button, Badge, Input, Textarea, Card, CardContent, CardHeader, TableSkeleton, TableError, TableEmptyState, FilterChips, SearchInput, Field, FieldLabel, FieldError, Label, DataTablePagination, SortableHeader, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
   Table,
@@ -40,7 +39,7 @@ import {
 import type { Package, PackageSource, PackageStatus } from "@/domains/packages"
 import type { Ecosystem } from "@/domains/common"
 import { formatPopularity, popularityTooltip, packageSchema } from "@/domains/packages"
-import { Plus, Trash2, RefreshCw, Upload, Ban, ShieldCheck, Radar } from "lucide-react"
+import { Plus, Trash2, RefreshCw, Upload, Ban, ShieldCheck, Radar, Clock } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
 import Link from "next/link"
 import {
@@ -472,6 +471,12 @@ export const PackagesListView = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold">Packages</h1>
+          <Link href={ROUTES.PACKAGES_STALE}>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Clock className="h-4 w-4" />
+              Stale Packages
+            </Button>
+          </Link>
           <Link href={ROUTES.PACKAGES_SUGGESTIONS}>
             <Button variant="outline" size="sm" className="gap-1.5">
               <Radar className="h-4 w-4" />

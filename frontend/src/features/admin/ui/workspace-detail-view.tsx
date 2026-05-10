@@ -2,8 +2,7 @@
 
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useAuth, ROUTES, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
-import { usePublicConfigQuery } from "@/features/config"
+import { useAuth, ROUTES, useCurrentWorkspaceRole, hasMinimumRole , usePublicConfigQuery } from "@/core"
 import { workspaceUpdateSchema } from "@/domains/admin"
 import {
   Button,

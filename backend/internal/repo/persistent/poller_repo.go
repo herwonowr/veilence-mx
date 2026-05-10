@@ -211,7 +211,8 @@ func (r *PollerRepo) UpdateDownloadCounts(ctx context.Context, workspaceID strin
 // RemoveStalePackages marks active packages with no updates in the given period as removed.
 func (r *PollerRepo) RemoveStalePackages(ctx context.Context, workspaceID string, staleBefore time.Time) (int64, error) {
 	result := r.db.WithContext(ctx).Model(&Package{}).
-		Where("workspace_id = ? AND status = ? AND updated_at < ?", workspaceID, PackageStatusActive, staleBefore).
+		Where("workspace_id = ? AND status = ?", workspaceID, PackageStatusActive).
+		Where("id NOT IN (SELECT package_id FROM releases WHERE published_at >= ?)", staleBefore).
 		Update("status", PackageStatusRemoved)
 	if result.Error != nil {
 		return 0, fmt.Errorf("PollerRepo.RemoveStalePackages: %w", result.Error)

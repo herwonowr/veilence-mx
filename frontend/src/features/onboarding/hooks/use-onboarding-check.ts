@@ -1,8 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { useAuth } from "@/core"
-import { usePublicConfigQuery } from "@/features/config"
+import { useAuth , usePublicConfigQuery } from "@/core"
 import { apiGetMyInvitations } from "@/domains/admin"
 
 export const onboardingKeys = {

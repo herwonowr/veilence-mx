@@ -47,7 +47,7 @@ export const StalePackagesView = () => {
     isLoading,
     isError,
     refetch,
-  } = useStalePackages(months)
+  } = useStalePackages({ months })
 
   const stalePackages = staleRes?.data ?? []
 

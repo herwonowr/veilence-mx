@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useAuth, ROUTES, useDebouncedValue } from "@/core"
-import { usePublicConfigQuery } from "@/features/config"
+import { useAuth, ROUTES, useDebouncedValue , usePublicConfigQuery } from "@/core"
 import { apiCreateWorkspace, workspaceSchema } from "@/domains/admin"
 import type { Workspace } from "@/domains/admin"
 import {

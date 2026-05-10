@@ -612,11 +612,30 @@ func (h *PackageHandlers) ListStalePackages(w http.ResponseWriter, r *http.Reque
 
 	staleBefore := time.Now().AddDate(0, -months, 0)
 
-	packages, err := h.PkgSvc.ListStalePackages(r.Context(), workspaceID, staleBefore)
+	page, limit := parsePagination(r)
+	sortOrder := parseSort(r, map[string]string{
+		"name":          "name",
+		"ecosystem":     "ecosystem",
+		"latestVersion": "latest_version",
+		"downloadCount": "download_count",
+		"source":        "source",
+		"createdAt":     "created_at",
+	}, "download_count DESC, name ASC")
+
+	var filters entity.PackageFilters
+	if eco := r.URL.Query().Get("ecosystem"); eco != "" {
+		e := entity.Ecosystem(eco)
+		filters.Ecosystem = &e
+	}
+	if search := r.URL.Query().Get("search"); search != "" {
+		filters.Search = &search
+	}
+
+	packages, total, err := h.PkgSvc.ListStalePackages(r.Context(), workspaceID, staleBefore, page, limit, sortOrder, filters)
 	if err != nil {
 		respondAppError(w, Internal("failed to list stale packages"))
 		return
 	}
 
-	respondJSON(w, http.StatusOK, response.PackagesFromEntities(packages), nil)
+	respondJSON(w, http.StatusOK, response.PackagesFromEntities(packages), &Meta{Page: page, Limit: limit, Total: total})
 }

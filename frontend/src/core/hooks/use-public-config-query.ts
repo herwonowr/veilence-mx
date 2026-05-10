@@ -2,7 +2,15 @@
 
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { apiGetPublicConfig } from "@/domains/config"
+import { fetchApi, type ApiResponse } from "@/core/http"
+
+export interface PublicConfig {
+  registrationEnabled: boolean
+  setupRequired: boolean
+  hasEmailDomainRestriction: boolean
+  ssoEnabled: boolean
+  enabledEcosystems: string[]
+}
 
 export const publicConfigKeys = {
   all: ["public-config"] as const,
@@ -18,7 +26,8 @@ const normalizeEcosystem = (raw: string): string => {
 export const usePublicConfigQuery = () => {
   const query = useQuery({
     queryKey: publicConfigKeys.all,
-    queryFn: () => apiGetPublicConfig(),
+    queryFn: (): Promise<ApiResponse<PublicConfig>> =>
+      fetchApi<PublicConfig>("/api/config/public", { skipAuth: true }),
     staleTime: 5 * 60 * 1000,
   })
 

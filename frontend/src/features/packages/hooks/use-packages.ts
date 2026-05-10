@@ -41,8 +41,8 @@ export const packageKeys = {
     [...packageKeys.all, "analysis-history", packageId] as const,
   suggestions: (params?: Record<string, unknown>) =>
     [...packageKeys.all, "suggestions", params] as const,
-  stale: (months?: number) =>
-    [...packageKeys.all, "stale", months] as const,
+  stale: (params?: Record<string, unknown>) =>
+    [...packageKeys.all, "stale", params] as const,
   suggestionCount: () =>
     [...packageKeys.all, "suggestion-count"] as const,
 }
@@ -264,12 +264,20 @@ export const useBulkApprovePackages = () => {
 }
 
 export const useStalePackages = (
-  months = 6,
+  params?: {
+    months?: number
+    ecosystem?: string
+    search?: string
+    page?: number
+    limit?: number
+    sortBy?: string
+    sortDir?: string
+  },
   options?: Partial<UseQueryOptions<ApiResponse<StalePackage[]>>>
 ) =>
   useQuery({
-    queryKey: packageKeys.stale(months),
-    queryFn: () => getStalePackages(months),
+    queryKey: packageKeys.stale(params as Record<string, unknown>),
+    queryFn: () => getStalePackages(params),
     ...options,
   })
 

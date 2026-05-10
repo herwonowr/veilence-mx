@@ -301,12 +301,12 @@ func (uc *UseCase) ListSuggestions(ctx context.Context, workspaceID string, page
 }
 
 // ListStalePackages returns active packages with no releases since staleBefore.
-func (uc *UseCase) ListStalePackages(ctx context.Context, workspaceID string, staleBefore time.Time) ([]entity.Package, error) {
-	packages, err := uc.repo.FindStaleByWorkspaceID(ctx, workspaceID, staleBefore)
+func (uc *UseCase) ListStalePackages(ctx context.Context, workspaceID string, staleBefore time.Time, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
+	packages, total, err := uc.repo.FindStaleByWorkspaceID(ctx, workspaceID, staleBefore, page, limit, sortClause, filters)
 	if err != nil {
-		return nil, fmt.Errorf("%w", err)
+		return nil, 0, fmt.Errorf("%w", err)
 	}
-	return packages, nil
+	return packages, total, nil
 }
 
 // CountPackages returns the total number of packages in a workspace (all ecosystems).
@@ -318,24 +318,3 @@ func (uc *UseCase) CountPackages(ctx context.Context, workspaceID string) (int64
 	return count, nil
 }
 
-// RemoveStalePackages removes active packages that have had no updates for
-// the given number of months. Returns the number of packages removed.
-// A value of 0 means auto-removal is disabled.
-func (uc *UseCase) RemoveStalePackages(ctx context.Context, workspaceID string, months int) (int, error) {
-	if months <= 0 {
-		return 0, nil
-	}
-
-	staleBefore := time.Now().AddDate(0, -months, 0)
-	count, err := uc.repo.RemoveStaleByWorkspaceID(ctx, workspaceID, staleBefore)
-	if err != nil {
-		return 0, fmt.Errorf("%w", err)
-	}
-
-	if count > 0 {
-		uc.audit.LogAction(ctx, "auto_remove_stale", "package", "",
-			fmt.Sprintf("auto-removed %d stale packages (no updates in %d months)", count, months))
-	}
-
-	return count, nil
-}

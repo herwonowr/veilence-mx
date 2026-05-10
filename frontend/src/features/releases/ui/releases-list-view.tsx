@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, ROUTES, type ColumnBreakpoints } from "@/core"
-import { usePublicConfigQuery } from "@/features/config"
+import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, ROUTES, type ColumnBreakpoints , usePublicConfigQuery } from "@/core"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, Badge, TableSkeleton, TableError, TableEmptyState, Button, Label, FilterChips, SearchInput, DataTablePagination, SortableHeader, ReleaseStatusBadge, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {

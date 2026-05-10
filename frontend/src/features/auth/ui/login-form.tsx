@@ -5,8 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
-import { useAuth, sanitizeErrorMessage, ROUTES, config } from "@/core"
-import { usePublicConfigQuery } from "@/features/config"
+import { useAuth, sanitizeErrorMessage, ROUTES, config , usePublicConfigQuery } from "@/core"
 import { loginSchema, apiSendVerificationEmailByEmail } from "@/domains/auth"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
@@ -18,7 +17,7 @@ import {
 } from "@/ui"
 import { Loader2, Eye, EyeOff, MailCheck, CheckCircle2, Shield } from "lucide-react"
 import { ZodError } from "zod"
-import { useSSOProviders } from "@/features/auth/hooks/use-sso-providers"
+import { useSSOProviders } from "@/features/sso"
 import type { SSOProviderInfo } from "@/domains/sso"
 
 const MAX_FAILED_ATTEMPTS = 5

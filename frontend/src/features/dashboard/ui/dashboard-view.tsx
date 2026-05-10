@@ -3,8 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useLocalStorage, useAuth, ROUTES } from "@/core"
-import { usePublicConfigQuery } from "@/features/config"
+import { useLocalStorage, useAuth, ROUTES , usePublicConfigQuery } from "@/core"
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Skeleton, TableSkeleton, TableError, Alert, AlertDescription, Label, Switch, TableEmptyState, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, type SkeletonColumn } from "@/ui"
 import {
   Table,
@@ -375,60 +374,76 @@ const DashboardData = () => {
         </CardContent>
       </Card>
 
-      {stalePackages.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-muted-foreground" />
-              Stale Packages ({stalePackages.length})
-            </CardTitle>
-            <Link href={ROUTES.PACKAGES_STALE}>
-              <Button variant="outline" size="sm">View All</Button>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Package</TableHead>
-                    <TableHead className="hidden md:table-cell">Ecosystem</TableHead>
-                    <TableHead>Last Release</TableHead>
-                    <TableHead>Days Since</TableHead>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-muted-foreground" />
+            Stale Packages ({stalePackages.length})
+          </CardTitle>
+          <Link href={ROUTES.PACKAGES_STALE}>
+            <Button variant="outline" size="sm">View All</Button>
+          </Link>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Package</TableHead>
+                  <TableHead className="hidden md:table-cell">Ecosystem</TableHead>
+                  <TableHead>Last Release</TableHead>
+                  <TableHead className="hidden lg:table-cell">Days Since</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stalePackages.slice(0, 5).map((pkg) => (
+                  <TableRow
+                    key={pkg.id}
+                    clickable
+                    onClick={() => router.push(ROUTES.PACKAGE_DETAIL(pkg.id))}
+                  >
+                    <TableCell className="font-medium">
+                      <Link
+                        href={ROUTES.PACKAGE_DETAIL(pkg.id)}
+                        className="hover:underline text-primary"
+                      >
+                        {pkg.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <Badge variant="outline">{formatEcosystem(pkg.ecosystem)}</Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {pkg.lastReleaseAt
+                        ? new Date(pkg.lastReleaseAt).toLocaleDateString()
+                        : "Never"}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      <span className={pkg.daysSinceLastRelease > 365 ? "text-destructive font-medium" : ""}>
+                        {pkg.daysSinceLastRelease}
+                      </span>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {stalePackages.slice(0, 5).map((pkg) => (
-                    <TableRow key={pkg.id}>
-                      <TableCell className="font-medium">
-                        <Link
-                          href={ROUTES.PACKAGE_DETAIL(pkg.id)}
-                          className="hover:underline text-primary"
-                        >
-                          {pkg.name}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Badge variant="outline">{formatEcosystem(pkg.ecosystem)}</Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {pkg.lastReleaseAt
-                          ? new Date(pkg.lastReleaseAt).toLocaleDateString()
-                          : "Never"}
-                      </TableCell>
-                      <TableCell>
-                        <span className={pkg.daysSinceLastRelease > 365 ? "text-destructive font-medium" : ""}>
-                          {pkg.daysSinceLastRelease}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                ))}
+                {stalePackages.length === 0 && (
+                  <TableEmptyState
+                    colSpan={4}
+                    icon={<Clock className="h-8 w-8" />}
+                    title="No stale packages."
+                    description="All monitored packages have had recent releases."
+                  >
+                    <Link href={ROUTES.PACKAGES}>
+                      <Button variant="outline" size="sm">
+                        Go to Packages
+                      </Button>
+                    </Link>
+                  </TableEmptyState>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

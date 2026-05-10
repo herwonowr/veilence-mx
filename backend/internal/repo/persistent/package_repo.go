@@ -329,51 +329,44 @@ func (r *PackageRepo) BulkApproveAllSuggestions(ctx context.Context, workspaceID
 	return int(result.RowsAffected), nil
 }
 
-func (r *PackageRepo) UpdateDownloadCounts(ctx context.Context, workspaceID string, updates []entity.PackageDownloadUpdate) error {
-	if len(updates) == 0 {
-		return nil
-	}
-	now := time.Now()
-	for _, u := range updates {
-		result := r.db.WithContext(ctx).
-			Model(&Package{}).
-			Where("id = ? AND workspace_id = ?", u.PackageID, workspaceID).
-			Updates(map[string]any{
-				"download_count":            u.DownloadCount,
-				"download_count_updated_at": now,
-			})
-		if result.Error != nil {
-			return fmt.Errorf("updating download count for package %s: %w", u.PackageID, result.Error)
-		}
-	}
-	return nil
-}
+func (r *PackageRepo) FindStaleByWorkspaceID(ctx context.Context, workspaceID string, staleBefore time.Time, page, limit int, sortClause string, filters entity.PackageFilters) ([]entity.Package, int64, error) {
+	var total int64
+	query := r.db.WithContext(ctx).Model(&Package{}).
+		Where("workspace_id = ? AND status = ?", workspaceID, PackageStatusActive).
+		Where("id NOT IN (SELECT package_id FROM releases WHERE published_at >= ?)", staleBefore)
 
-func (r *PackageRepo) FindStaleByWorkspaceID(ctx context.Context, workspaceID string, staleBefore time.Time) ([]entity.Package, error) {
+	// Apply filters
+	if filters.Ecosystem != nil {
+		query = query.Where("ecosystem = ?", string(*filters.Ecosystem))
+	}
+	if filters.Search != nil && *filters.Search != "" {
+		escaped := strings.ReplaceAll(strings.ReplaceAll(*filters.Search, "%", "\\%"), "_", "\\_")
+		query = query.Where("LOWER(name) LIKE LOWER(?)", "%"+escaped+"%")
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("counting stale packages: %w", err)
+	}
+
+	if sortClause == "" {
+		sortClause = "download_count DESC, name ASC"
+	}
+
 	var ms []Package
-	err := r.db.WithContext(ctx).
-		Where("workspace_id = ? AND status = ? AND (download_count_updated_at < ? OR download_count_updated_at IS NULL)", workspaceID, PackageStatusActive, staleBefore).
+	err := query.
+		Order(sortClause).
+		Offset((page - 1) * limit).
+		Limit(limit).
 		Find(&ms).Error
 	if err != nil {
-		return nil, fmt.Errorf("finding stale packages: %w", err)
+		return nil, 0, fmt.Errorf("listing stale packages: %w", err)
 	}
 
 	result := make([]entity.Package, len(ms))
 	for i := range ms {
 		result[i] = *packageToDomain(&ms[i])
 	}
-	return result, nil
-}
-
-func (r *PackageRepo) RemoveStaleByWorkspaceID(ctx context.Context, workspaceID string, staleBefore time.Time) (int, error) {
-	result := r.db.WithContext(ctx).
-		Model(&Package{}).
-		Where("workspace_id = ? AND status = ? AND updated_at < ?", workspaceID, PackageStatusActive, staleBefore).
-		Update("status", PackageStatusRemoved)
-	if result.Error != nil {
-		return 0, fmt.Errorf("removing stale packages: %w", result.Error)
-	}
-	return int(result.RowsAffected), nil
+	return result, total, nil
 }
 
 // --- Converters ---
