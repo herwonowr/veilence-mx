@@ -111,5 +111,8 @@ func (h *SettingsHandlers) DiscoverPackages(w http.ResponseWriter, r *http.Reque
 	h.Audit.LogAction(r.Context(), "discover", "package", "",
 		fmt.Sprintf("triggered discovery for workspace (scan_depth=%d)", scanDepth))
 
+	// Trigger monitoring so newly discovered/auto-approved packages get checked immediately
+	h.Poller.TriggerMonitoring(workspaceID)
+
 	respondJSON(w, http.StatusOK, map[string]string{"message": "discovery triggered"}, nil)
 }

@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle, Badge, Separator, Skeleton, B
 import type { Classification } from "@/domains/common"
 import { ArrowLeft, FileCode, Plus, Minus, WrapText, RotateCcw, Loader2 } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
-import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
+import { formatVersion } from "@/domains/releases"
+import { useCurrentWorkspaceRole, hasMinimumRole, ROUTES } from "@/core"
 import { useRelease, useReanalyzeRelease } from "@/features/releases/hooks/use-releases"
 
 const classificationColor = (c: Classification) => {
@@ -75,7 +76,7 @@ export const ReleaseDetailView = ({
     <DetailError
       message="Failed to load release details. The release may not exist or the server is unavailable."
       onRetry={() => refetch()}
-      backHref="/releases"
+      backHref={ROUTES.RELEASES}
       backLabel="Releases"
     />
   )
@@ -97,7 +98,7 @@ export const ReleaseDetailView = ({
       <div>
         {release.package && (
           <Link
-            href={`/packages/${release.package.id}`}
+            href={ROUTES.PACKAGE_DETAIL(release.package.id)}
             className="w-fit text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
@@ -106,7 +107,7 @@ export const ReleaseDetailView = ({
         )}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-3xl font-bold">
-            {release.package?.name} <span className="text-muted-foreground font-normal">v{release.version}</span>
+            {release.package?.name} <span className="text-muted-foreground font-normal">{formatVersion(release.version)}</span>
           </h1>
           {/* Re-analyze button */}
           {canReanalyze && release.status === "completed" && !release.isBaseline && (

@@ -37,12 +37,16 @@ type Config struct {
 	LLMRateInterval time.Duration
 
 	// Pipeline
-	MonitoringInterval time.Duration
-	DiscoveryInterval  time.Duration
-	PollerConcurrency  int
-	DiffSizeLimit      int
-	QueueMaxRetries    int
-	QueueLockTimeout   time.Duration
+	MonitoringInterval       time.Duration
+	DiscoveryInterval        time.Duration
+	PollerConcurrency        int
+	DiffSizeLimit            int
+	QueueMaxRetries          int
+	QueueLockTimeout         time.Duration
+	DiffWorkerConcurrency    int
+	AnalyzeWorkerConcurrency int
+	DiffJobTimeoutSeconds    int
+	AnalyzeJobTimeoutSeconds int
 
 	// SMTP
 	SMTPHost     string
@@ -111,12 +115,16 @@ func NewConfig() (*Config, error) {
 		LLMRateInterval: envDurationOrDefault("LLM_RATE_INTERVAL", 6*time.Second),
 
 		// Pipeline
-		MonitoringInterval: envDurationOrDefault("MONITORING_INTERVAL", 1*time.Hour),
-		DiscoveryInterval:  envDurationOrDefault("DISCOVERY_INTERVAL", 24*time.Hour),
-		PollerConcurrency:  envIntOrDefault("POLLER_CONCURRENCY", 5),
-		DiffSizeLimit:      envIntOrDefault("DIFF_SIZE_LIMIT", 102400),
-		QueueMaxRetries:    envIntOrDefault("QUEUE_MAX_RETRIES", 5),
-		QueueLockTimeout:   envDurationOrDefault("QUEUE_LOCK_TIMEOUT", 10*time.Minute),
+		MonitoringInterval:       envDurationOrDefault("MONITORING_INTERVAL", 1*time.Hour),
+		DiscoveryInterval:        envDurationOrDefault("DISCOVERY_INTERVAL", 24*time.Hour),
+		PollerConcurrency:        envIntOrDefault("POLLER_CONCURRENCY", 5),
+		DiffSizeLimit:            envIntOrDefault("DIFF_SIZE_LIMIT", 102400),
+		QueueMaxRetries:          envIntOrDefault("QUEUE_MAX_RETRIES", 5),
+		QueueLockTimeout:         envDurationOrDefault("QUEUE_LOCK_TIMEOUT", 10*time.Minute),
+		DiffWorkerConcurrency:    envIntOrDefault("DIFF_WORKER_CONCURRENCY", 5),
+		AnalyzeWorkerConcurrency: envIntOrDefault("ANALYZE_WORKER_CONCURRENCY", 3),
+		DiffJobTimeoutSeconds:    envIntOrDefault("DIFF_JOB_TIMEOUT_SECONDS", 600),
+		AnalyzeJobTimeoutSeconds: envIntOrDefault("ANALYZE_JOB_TIMEOUT_SECONDS", 300),
 
 		// SMTP
 		SMTPHost:     os.Getenv("SMTP_HOST"),

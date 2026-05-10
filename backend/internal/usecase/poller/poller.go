@@ -136,6 +136,16 @@ func (p *Poller) TriggerDiscovery(workspaceID string) {
 	slog.Info("discovery triggered for workspace", "workspace_id", workspaceID)
 }
 
+// TriggerMonitoring resets the monitoring timer for a workspace, making it due
+// on the next tick. Called after package approval so new packages are checked immediately.
+func (p *Poller) TriggerMonitoring(workspaceID string) {
+	key := workspaceID + ":monitor"
+	p.lastPollMu.Lock()
+	delete(p.lastPollAt, key)
+	p.lastPollMu.Unlock()
+	slog.Info("monitoring triggered for workspace", "workspace_id", workspaceID)
+}
+
 // Start begins the monitoring and discovery loops.
 func (p *Poller) Start(ctx context.Context) {
 	slog.Info("starting poller",

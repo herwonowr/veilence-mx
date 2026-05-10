@@ -19,9 +19,10 @@ import {
   SelectValue,
 } from "@/ui"
 import { formatEcosystem } from "@/domains/common"
-import { formatPopularity, popularityLabel } from "@/domains/packages"
+import { formatPopularity, popularityTooltip } from "@/domains/packages"
 import type { StalePackage } from "@/domains/packages"
 import { ArrowLeft, Clock } from "lucide-react"
+import { ROUTES } from "@/core"
 import {
   Tooltip,
   TooltipContent,
@@ -65,7 +66,7 @@ export const StalePackagesView = () => {
         header: "Name",
         cell: ({ row }) => (
           <Link
-            href={`/packages/${row.original.id}`}
+            href={ROUTES.PACKAGE_DETAIL(row.original.id)}
             className="font-medium hover:underline"
           >
             {row.original.name}
@@ -101,20 +102,27 @@ export const StalePackagesView = () => {
       },
       {
         id: "popularity",
-        header: () => (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger render={<span>Popularity</span>} />
-              <TooltipContent>{popularityLabel()}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ),
+        header: () => {
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger render={<span>Popularity</span>} />
+                <TooltipContent className="whitespace-pre-line">{"NPM & Python: Monthly downloads\nGolang: GitHub stars"}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )
+        },
         cell: ({ row }) => {
           const pkg = row.original
+          const text = formatPopularity(pkg.ecosystem, pkg.downloadCount)
+          const tooltip = popularityTooltip(pkg.ecosystem, pkg.downloadCount, pkg.downloadCountUpdatedAt)
           return (
-            <span className="text-sm tabular-nums">
-              {formatPopularity(pkg.ecosystem, pkg.downloadCount)}
-            </span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger render={<span className="text-sm tabular-nums">{text}</span>} />
+                <TooltipContent>{tooltip}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )
         },
       },
@@ -133,7 +141,7 @@ export const StalePackagesView = () => {
     <div className="space-y-6">
       <div>
         <Link
-          href="/packages"
+          href={ROUTES.PACKAGES}
           className="w-fit text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
         >
           <ArrowLeft className="h-3.5 w-3.5" />

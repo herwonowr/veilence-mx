@@ -16,6 +16,7 @@ import {
 import { ArrowLeft, Activity, Package as PackageIcon, Ban, Info } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
 import { formatPopularity, formatFreshness } from "@/domains/packages"
+import { formatVersion } from "@/domains/releases"
 import { usePackage, usePackageReleases, useAnalysisHistory } from "@/features/packages/hooks/use-packages"
 import type { Classification } from "@/domains/common"
 
@@ -51,7 +52,7 @@ export const PackageDetailView = ({
     <DetailError
       message="Failed to load package details. The package may not exist or the server is unavailable."
       onRetry={() => refetch()}
-      backHref="/packages"
+      backHref={ROUTES.PACKAGES}
       backLabel="Packages"
     />
   )
@@ -72,7 +73,7 @@ export const PackageDetailView = ({
     <div className="space-y-6">
       <div>
         <Link
-          href="/packages"
+          href={ROUTES.PACKAGES}
           className="w-fit text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -93,7 +94,7 @@ export const PackageDetailView = ({
           {pkg.status === "suggested" && (
             <Badge variant="outline">Suggested</Badge>
           )}
-          <span className="font-mono text-sm text-muted-foreground">v{pkg.latestVersion}</span>
+          <span className="font-mono text-sm text-muted-foreground">{formatVersion(pkg.latestVersion)}</span>
           <span className="text-sm text-muted-foreground">
             {formatPopularity(pkg.ecosystem, pkg.downloadCount)}
           </span>
@@ -149,10 +150,10 @@ export const PackageDetailView = ({
                 >
                   <TableCell className="font-mono font-medium">
                     <Link
-                      href={`/releases/${release.id}`}
+                      href={ROUTES.RELEASE_DETAIL(release.id)}
                       className="hover:underline text-primary"
                     >
-                      {release.version}
+                      {formatVersion(release.version)}
                     </Link>
                   </TableCell>
                   <TableCell className="text-sm">
@@ -207,10 +208,10 @@ export const PackageDetailView = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
-                        href={`/releases/${entry.releaseId}`}
+                        href={ROUTES.RELEASE_DETAIL(entry.releaseId)}
                         className="font-mono text-sm font-medium hover:underline text-primary"
                       >
-                        v{entry.version}
+                        {formatVersion(entry.version)}
                       </Link>
                       <Badge variant={classificationColor(entry.classification)}>
                         {entry.classification}

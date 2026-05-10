@@ -161,7 +161,7 @@ const AlertsContent = () => {
         header: ({ column }) => <SortableHeader column={column} title="Package" />,
         cell: ({ row }) => (
           <Link
-            href={`/packages/${row.original.packageId}`}
+            href={ROUTES.PACKAGE_DETAIL(row.original.packageId)}
             className="font-medium hover:underline"
             onClick={(e) => e.stopPropagation()}
           >
@@ -220,7 +220,7 @@ const AlertsContent = () => {
               </Button>
             )}
             {(row.original.releaseId ?? row.original.analysisId) ? (
-              <Link href={`/releases/${row.original.releaseId ?? row.original.analysisId}`}>
+              <Link href={ROUTES.RELEASE_DETAIL(row.original.releaseId ?? row.original.analysisId ?? "")}>
                 <Button variant="ghost" size="sm" aria-label={`View release for alert ${row.original.id}`}>
                   View Release
                 </Button>
@@ -385,7 +385,7 @@ const AlertsContent = () => {
                     title="All clear!"
                     description="No alerts found. Your packages are looking safe."
                   >
-                    <Link href="/packages">
+                    <Link href={ROUTES.PACKAGES}>
                       <Button variant="outline" size="sm">
                         View Packages
                       </Button>

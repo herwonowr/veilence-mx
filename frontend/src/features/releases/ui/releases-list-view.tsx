@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, usePublicConfigQuery, ROUTES, type ColumnBreakpoints } from "@/core"
+import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, ROUTES, type ColumnBreakpoints } from "@/core"
+import { usePublicConfigQuery } from "@/features/config"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, Badge, TableSkeleton, TableError, TableEmptyState, Button, Label, FilterChips, SearchInput, DataTablePagination, SortableHeader, ReleaseStatusBadge, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
@@ -20,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui"
-import type { RecentRelease } from "@/domains/releases"
+import { formatVersion, type RecentRelease } from "@/domains/releases"
 import type { Classification, Ecosystem, ReleaseStatus } from "@/domains/common"
 import { Activity } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
@@ -145,7 +146,7 @@ export const ReleasesListView = () => {
         header: ({ column }) => <SortableHeader column={column} title="Package" />,
         cell: ({ row }) => (
           <Link
-            href={`/releases/${row.original.id}`}
+            href={ROUTES.RELEASE_DETAIL(row.original.id)}
             className="font-medium hover:underline text-primary"
           >
             {row.original.packageName}
@@ -163,7 +164,7 @@ export const ReleasesListView = () => {
         accessorKey: "version",
         header: ({ column }) => <SortableHeader column={column} title="Version" />,
         cell: ({ row }) => (
-          <span className="font-mono text-sm">{row.original.version}</span>
+          <span className="font-mono text-sm">{formatVersion(row.original.version)}</span>
         ),
       },
       {
@@ -358,7 +359,7 @@ export const ReleasesListView = () => {
                   title="No releases yet."
                   description="Add packages to start monitoring releases."
                 >
-                  <Link href="/packages">
+                  <Link href={ROUTES.PACKAGES}>
                     <Button variant="outline" size="sm">
                       Go to Packages
                     </Button>

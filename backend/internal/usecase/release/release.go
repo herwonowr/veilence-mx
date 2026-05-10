@@ -222,3 +222,12 @@ func (uc *UseCase) GetAnalysisHistory(ctx context.Context, workspaceID, packageI
 
 	return result, nil
 }
+
+// GetPipelineStatus returns counts of releases by processing status for the workspace.
+func (uc *UseCase) GetPipelineStatus(ctx context.Context, workspaceID string) (*entity.PipelineStatus, error) {
+	status, err := uc.releases.CountByWorkspaceAndStatus(ctx, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("getting pipeline status: %w", err)
+	}
+	return status, nil
+}

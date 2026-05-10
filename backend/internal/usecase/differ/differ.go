@@ -190,8 +190,8 @@ func (d *Differ) markError(ctx context.Context, release *entity.Release, pkg *en
 		d.notifier.DispatchEvent(ctx, pkg.WorkspaceID, entity.NotificationEvent{
 			Severity:      "medium",
 			EventType:     entity.NotifEventDiffError,
-			Title:         fmt.Sprintf("Diff failed: %s v%s", pkg.Name, release.Version),
-			Message:       fmt.Sprintf("Failed to generate diff for %s v%s (%s): %s", pkg.Name, release.Version, pkg.Ecosystem, msg),
+			Title:         fmt.Sprintf("Diff failed: %s %s", pkg.Name, entity.FormatVersion(release.Version)),
+			Message:       fmt.Sprintf("Failed to generate diff for %s %s (%s): %s", pkg.Name, entity.FormatVersion(release.Version), pkg.Ecosystem, msg),
 			ReferenceID:   release.ID,
 			ReferenceType: "release",
 		})

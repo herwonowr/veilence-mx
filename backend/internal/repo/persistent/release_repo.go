@@ -191,6 +191,41 @@ func (r *ReleaseRepo) UpdateStatus(ctx context.Context, id string, status entity
 	return nil
 }
 
+func (r *ReleaseRepo) CountByWorkspaceAndStatus(ctx context.Context, workspaceID string) (*entity.PipelineStatus, error) {
+	type statusCount struct {
+		Status string
+		Count  int64
+	}
+	var rows []statusCount
+	err := r.db.WithContext(ctx).
+		Model(&Release{}).
+		Select("releases.status, COUNT(*) as count").
+		Joins("JOIN packages ON packages.id = releases.package_id").
+		Where("packages.workspace_id = ? AND packages.status = ?", workspaceID, PackageStatusActive).
+		Group("releases.status").
+		Find(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("counting releases by status: %w", err)
+	}
+
+	result := &entity.PipelineStatus{}
+	for _, row := range rows {
+		switch entity.ReleaseStatus(row.Status) {
+		case entity.ReleaseStatusPending:
+			result.Pending = row.Count
+		case entity.ReleaseStatusDiffing:
+			result.Diffing = row.Count
+		case entity.ReleaseStatusAnalyzing:
+			result.Analyzing = row.Count
+		case entity.ReleaseStatusCompleted:
+			result.Completed = row.Count
+		case entity.ReleaseStatusError:
+			result.Error = row.Count
+		}
+	}
+	return result, nil
+}
+
 // --- Converters ---
 
 func releaseToDomain(m *Release) *entity.Release {

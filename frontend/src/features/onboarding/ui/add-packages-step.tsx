@@ -20,7 +20,7 @@ import { XIcon, PlusIcon } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
 import type { Ecosystem } from "@/domains/common"
 import type { AddedPackage } from "@/features/onboarding/hooks/use-onboarding"
-import { usePublicConfigQuery } from "@/core"
+import { usePublicConfigQuery } from "@/features/config"
 
 interface AddPackagesStepProps {
   addedPackages: AddedPackage[]

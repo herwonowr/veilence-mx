@@ -15,14 +15,15 @@ import (
 // UseCase implements usecase.PackageService using a PackageRepository
 // and usecase.AuditLogger for logging security-relevant actions.
 type UseCase struct {
-	repo       usecase.PackageRepository
-	audit      usecase.AuditLogger
-	registries map[entity.Ecosystem]usecase.Registry
+	repo              usecase.PackageRepository
+	audit             usecase.AuditLogger
+	registries        map[entity.Ecosystem]usecase.Registry
+	monitoringTrigger usecase.MonitoringTrigger
 }
 
 // New creates a new package UseCase.
-func New(repo usecase.PackageRepository, audit usecase.AuditLogger, registries map[entity.Ecosystem]usecase.Registry) *UseCase {
-	return &UseCase{repo: repo, audit: audit, registries: registries}
+func New(repo usecase.PackageRepository, audit usecase.AuditLogger, registries map[entity.Ecosystem]usecase.Registry, monitoringTrigger usecase.MonitoringTrigger) *UseCase {
+	return &UseCase{repo: repo, audit: audit, registries: registries, monitoringTrigger: monitoringTrigger}
 }
 
 // validatePackageExists checks that a package exists on its ecosystem registry.
@@ -225,6 +226,10 @@ func (uc *UseCase) ApprovePackage(ctx context.Context, workspaceID, pkgID string
 	uc.audit.LogAction(ctx, "approve", "package", pkgID,
 		fmt.Sprintf("approved suggested package %q (%s) for monitoring", pkg.Name, pkg.Ecosystem))
 
+	if uc.monitoringTrigger != nil {
+		uc.monitoringTrigger.TriggerMonitoring(workspaceID)
+	}
+
 	return pkg, nil
 }
 
@@ -262,6 +267,10 @@ func (uc *UseCase) BulkApprovePackages(ctx context.Context, workspaceID string, 
 	uc.audit.LogAction(ctx, "bulk_approve", "package", "",
 		fmt.Sprintf("bulk approved %d suggested packages", count))
 
+	if count > 0 && uc.monitoringTrigger != nil {
+		uc.monitoringTrigger.TriggerMonitoring(workspaceID)
+	}
+
 	return count, nil
 }
 
@@ -274,6 +283,10 @@ func (uc *UseCase) BulkApproveAllSuggestions(ctx context.Context, workspaceID st
 
 	uc.audit.LogAction(ctx, "bulk_approve_all", "package", "",
 		fmt.Sprintf("bulk approved all %d suggested packages", count))
+
+	if count > 0 && uc.monitoringTrigger != nil {
+		uc.monitoringTrigger.TriggerMonitoring(workspaceID)
+	}
 
 	return count, nil
 }

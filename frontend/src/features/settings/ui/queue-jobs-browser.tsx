@@ -34,6 +34,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import type { QueueJob, QueueJobStatus, QueueJobType, QueueStats } from "@/domains/queue"
+import { formatVersion } from "@/domains/releases"
 import { useQueueJobs, useRetryDeadJobs, useRetryDeadJob } from "@/features/settings/hooks/use-queue"
 import { QueueJobDetailDialog } from "@/features/settings/ui/queue-job-detail-dialog"
 
@@ -372,7 +373,7 @@ const PendingTable = ({
               <TableCell className="font-mono text-xs">{job.id}</TableCell>
               <TableCell className="text-xs">
                 {job.metadata?.package ? (
-                  <span>{job.metadata.package}{job.metadata.version && <span className="text-muted-foreground"> @{job.metadata.version}</span>}</span>
+                  <span>{job.metadata.package}{job.metadata.version && <span className="text-muted-foreground"> @{formatVersion(job.metadata.version)}</span>}</span>
                 ) : (
                   <span className="font-mono text-muted-foreground">#{job.referenceId}</span>
                 )}
@@ -455,7 +456,7 @@ const ProcessingTable = ({
               <TableCell className="font-mono text-xs">{job.id}</TableCell>
               <TableCell className="text-xs">
                 {job.metadata?.package ? (
-                  <span>{job.metadata.package}{job.metadata.version && <span className="text-muted-foreground"> @{job.metadata.version}</span>}</span>
+                  <span>{job.metadata.package}{job.metadata.version && <span className="text-muted-foreground"> @{formatVersion(job.metadata.version)}</span>}</span>
                 ) : (
                   <span className="font-mono text-muted-foreground">#{job.referenceId}</span>
                 )}

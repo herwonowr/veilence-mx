@@ -4,10 +4,10 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input, Field, FieldLabel, FieldDescription, FieldError, Checkbox, Label, RadioGroup, RadioGroupItem, Alert, AlertDescription, NpmIcon, PypiIcon, GoIcon } from "@/ui"
 import { Save, RefreshCw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangle, Loader2 } from "lucide-react"
 import { settingsSchema } from "@/domains/settings"
-import { usePublicConfigQuery } from "@/core/hooks/use-public-config-query"
+import { usePublicConfigQuery } from "@/features/config"
 import { ZodError } from "zod"
 import { useSettings, useUpdateSettings, useDiscoverNow, usePackageCountSummary } from "@/features/settings/hooks/use-settings"
-import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
+import { useCurrentWorkspaceRole, hasMinimumRole, ROUTES } from "@/core"
 import Link from "next/link"
 
 const ECOSYSTEMS = [
@@ -230,7 +230,7 @@ export const SettingsView = () => {
                 Currently monitoring <strong>{packageSummary.activeCount}</strong> package{packageSummary.activeCount !== 1 ? "s" : ""}.
               </span>
               {packageSummary.suggestionsCount > 0 ? (
-                <Link href="/packages/suggestions" className="text-primary hover:underline">
+                <Link href={ROUTES.PACKAGES_SUGGESTIONS} className="text-primary hover:underline">
                   <strong>{packageSummary.suggestionsCount}</strong> suggestion{packageSummary.suggestionsCount !== 1 ? "s" : ""} pending review.
                 </Link>
               ) : (

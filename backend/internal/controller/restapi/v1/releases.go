@@ -110,3 +110,17 @@ func (h *PackageHandlers) GetAnalysisHistory(w http.ResponseWriter, r *http.Requ
 
 	respondJSON(w, http.StatusOK, response.AnalysisHistoryFromEntities(entries), nil)
 }
+
+// GetPipelineStatus returns counts of releases by processing status for the current workspace.
+// GET /api/releases/pipeline-status
+func (h *PackageHandlers) GetPipelineStatus(w http.ResponseWriter, r *http.Request) {
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+
+	status, err := h.ReleaseSvc.GetPipelineStatus(r.Context(), workspaceID)
+	if err != nil {
+		respondAppError(w, Internal("failed to get pipeline status"))
+		return
+	}
+
+	respondJSON(w, http.StatusOK, response.PipelineStatusFromEntity(status), nil)
+}

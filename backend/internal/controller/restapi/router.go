@@ -201,6 +201,7 @@ func NewRouter(h *v1.Handlers, frontendURL string, authService *auth.Service, rb
 
 				// Releases
 				r.Route("/releases", func(r chi.Router) {
+					r.With(middleware.RequirePermission(rbacService, "releases", "read")).Get("/pipeline-status", h.Packages.GetPipelineStatus)
 					r.With(middleware.RequirePermission(rbacService, "releases", "read")).Get("/{id}", h.Packages.GetRelease)
 					r.With(middleware.RequirePermission(rbacService, "settings", "write")).Post("/{id}/reanalyze", h.Packages.ReanalyzeRelease)
 				})

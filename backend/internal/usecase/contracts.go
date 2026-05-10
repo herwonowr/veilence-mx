@@ -70,6 +70,7 @@ type ReleaseRepository interface {
 	FindByWorkspaceIDWithDetails(ctx context.Context, workspaceID string, page, limit int, sortClause string, filters entity.ReleaseFilters) ([]entity.ReleaseWithDetails, int64, error)
 	FindByPackageIDAll(ctx context.Context, packageID string) ([]entity.Release, error)
 	UpdateStatus(ctx context.Context, id string, status entity.ReleaseStatus) error
+	CountByWorkspaceAndStatus(ctx context.Context, workspaceID string) (*entity.PipelineStatus, error)
 }
 
 // DiffRepository defines persistence operations for Diff entities.
@@ -247,6 +248,7 @@ type ReleaseService interface {
 	GetRelease(ctx context.Context, workspaceID, releaseID string) (*entity.ReleaseDetail, error)
 	ReanalyzeRelease(ctx context.Context, workspaceID, releaseID string) (string, string, error)
 	GetAnalysisHistory(ctx context.Context, workspaceID, packageID string) ([]entity.AnalysisHistoryEntry, error)
+	GetPipelineStatus(ctx context.Context, workspaceID string) (*entity.PipelineStatus, error)
 }
 
 // SettingService defines the business logic operations for settings.
@@ -542,6 +544,11 @@ type OAuthUserInfo struct {
 	AvatarURL      string
 	Organizations  []string // GitHub orgs
 	HostedDomain   string   // Google Workspace domain
+}
+
+// MonitoringTrigger allows triggering an immediate monitoring cycle for a workspace.
+type MonitoringTrigger interface {
+	TriggerMonitoring(workspaceID string)
 }
 
 // DigestRepository defines the persistence operations needed by the digest scheduler.

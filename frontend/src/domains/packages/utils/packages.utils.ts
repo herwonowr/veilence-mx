@@ -50,10 +50,21 @@ export const formatPopularity = (
 }
 
 /**
- * Returns a human-readable label for the popularity column header tooltip.
+ * Returns a full tooltip string for the popularity cell including the metric
+ * name and freshness timestamp.
+ * e.g. "94.9K GitHub stars - Updated 21m ago" or "12.5M monthly downloads - Updated 2h ago"
  */
-export const popularityLabel = (ecosystem?: Ecosystem | string): string =>
-  ecosystem === "go" ? "GitHub stars" : "Monthly downloads"
+export const popularityTooltip = (
+  ecosystem: Ecosystem | string,
+  downloadCount: number | undefined | null,
+  downloadCountUpdatedAt: string | null,
+): string => {
+  if (downloadCount == null) return "No data available"
+  const formatted = formatCountWithSuffix(downloadCount, "")
+  const metric = ecosystem === "go" ? "GitHub stars" : "monthly downloads"
+  const freshness = formatFreshness(downloadCountUpdatedAt)
+  return `${formatted} ${metric} - ${freshness}`
+}
 
 /**
  * Format a date string as relative freshness text.

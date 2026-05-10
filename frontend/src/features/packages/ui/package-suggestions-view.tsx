@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
-import { useDebouncedValue, useSortParams, useFilterParams, useCurrentWorkspaceRole, hasMinimumRole, usePublicConfigQuery } from "@/core"
+import { useDebouncedValue, useSortParams, useFilterParams, useCurrentWorkspaceRole, hasMinimumRole, ROUTES } from "@/core"
+import { usePublicConfigQuery } from "@/features/config"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, Button, Badge, TableSkeleton, TableError, TableEmptyState, DataTablePagination, SearchInput, SortableHeader, Label, type SkeletonColumn } from "@/ui"
 import {
@@ -32,7 +33,7 @@ import {
 } from "@/ui"
 import { formatEcosystem } from "@/domains/common"
 import type { Ecosystem } from "@/domains/common"
-import { formatPopularity, popularityLabel } from "@/domains/packages"
+import { formatPopularity, popularityTooltip } from "@/domains/packages"
 import type { Package } from "@/domains/packages"
 import { ArrowLeft, Check, X, CheckCheck, Radar, HelpCircle } from "lucide-react"
 import {
@@ -175,25 +176,32 @@ export const PackageSuggestionsView = () => {
       {
         id: "downloadCount",
         accessorKey: "downloadCount",
-        header: ({ column }) => (
-          <div className="flex items-center gap-1">
-            <SortableHeader column={column} title="Popularity" />
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger render={<span><HelpCircle className="h-3.5 w-3.5 text-muted-foreground" /></span>} />
-                <TooltipContent>
-                  <p className="text-xs">{popularityLabel(ecosystemFilter || undefined)}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        ),
+        header: ({ column }) => {
+          return (
+            <div className="flex items-center gap-1">
+              <SortableHeader column={column} title="Popularity" />
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger render={<span><HelpCircle className="h-3.5 w-3.5 text-muted-foreground" /></span>} />
+                  <TooltipContent className="whitespace-pre-line">
+                    <p className="text-xs">{"NPM & Python: Monthly downloads\nGolang: GitHub stars"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )
+        },
         cell: ({ row }) => {
           const pkg = row.original
+          const text = formatPopularity(pkg.ecosystem, pkg.downloadCount)
+          const tooltip = popularityTooltip(pkg.ecosystem, pkg.downloadCount, pkg.downloadCountUpdatedAt)
           return (
-            <span className="text-sm tabular-nums">
-              {formatPopularity(pkg.ecosystem, pkg.downloadCount)}
-            </span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger render={<span className="text-sm tabular-nums">{text}</span>} />
+                <TooltipContent>{tooltip}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )
         },
       },
@@ -232,7 +240,7 @@ export const PackageSuggestionsView = () => {
         },
       },
     ],
-    [handleApprove, handleReject, approveMutation.isPending, rejectMutation.isPending, canApprove, ecosystemFilter]
+    [handleApprove, handleReject, approveMutation.isPending, rejectMutation.isPending, canApprove]
   )
 
   const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize))
@@ -254,7 +262,7 @@ export const PackageSuggestionsView = () => {
     <div className="space-y-6">
       <div>
         <Link
-          href="/packages"
+          href={ROUTES.PACKAGES}
           className="w-fit text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
         >
           <ArrowLeft className="h-3.5 w-3.5" />

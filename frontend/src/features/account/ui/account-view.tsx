@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useAuth } from "@/core"
+import { useAuth, ROUTES } from "@/core"
 import {
   profileSchema,
   passwordChangeSchema,
@@ -395,7 +395,7 @@ const ApiKeysSection = () => {
             </>
           )}
         </div>
-        <Link href="/settings/api-keys">
+        <Link href={ROUTES.SETTINGS_API_KEYS}>
           <Button variant="outline" size="sm">
             Manage API Keys
             <ArrowRight className="ml-2 size-4" />
@@ -435,7 +435,7 @@ const SessionsSection = () => {
             </Badge>
           )}
         </div>
-        <Link href="/settings/sessions">
+        <Link href={ROUTES.SETTINGS_SESSIONS}>
           <Button variant="outline" size="sm">
             Manage Sessions
             <ArrowRight className="ml-2 size-4" />

@@ -3,7 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useLocalStorage, useAuth, ROUTES, usePublicConfigQuery } from "@/core"
+import { useLocalStorage, useAuth, ROUTES } from "@/core"
+import { usePublicConfigQuery } from "@/features/config"
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Skeleton, TableSkeleton, TableError, Alert, AlertDescription, Label, Switch, TableEmptyState, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, type SkeletonColumn } from "@/ui"
 import {
   Table,
@@ -17,6 +18,7 @@ import type { Classification } from "@/domains/common"
 import { Package, Activity, AlertTriangle, Shield, Clock, CheckCircle, RefreshCw, Layers, Plus, Mail } from "lucide-react"
 import { DashboardCharts } from "@/features/dashboard/ui/dashboard-charts"
 import { formatEcosystem } from "@/domains/common"
+import { formatVersion } from "@/domains/releases"
 import { useQuery } from "@tanstack/react-query"
 import { apiGetMyInvitations, myInvitationKeys } from "@/domains/admin"
 import { useDashboardStats, useRecentReleases, useChartData, useDashboardStalePackages, useDashboardSettings } from "@/features/dashboard/hooks/use-dashboard"
@@ -87,7 +89,7 @@ const DashboardOnboarding = ({ hasAnyWorkspace, user }: OnboardingProps) => {
             <p className="text-sm text-muted-foreground mb-3">
               You have pending workspace invitations waiting for your response.
             </p>
-            <Link href="/workspaces/invitations">
+            <Link href={ROUTES.WORKSPACES_INVITATIONS}>
               <Button variant="outline" size="sm">
                 <Mail className="mr-2 h-4 w-4" />
                 View Invitations
@@ -157,7 +159,7 @@ const DashboardData = () => {
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <div className="flex flex-wrap items-center gap-4">
           {registrationEnabled && pendingCount > 0 && (
-            <Link href="/workspaces/invitations" className="flex items-center gap-2">
+            <Link href={ROUTES.WORKSPACES_INVITATIONS} className="flex items-center gap-2">
               <Button variant="outline" size="sm">
                 <Mail className="mr-2 h-4 w-4" />
                 Pending Invitations
@@ -213,7 +215,7 @@ const DashboardData = () => {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Link href="/packages" className="group/stat-link">
+        <Link href={ROUTES.PACKAGES} className="group/stat-link">
           <Card className="cursor-pointer transition-all hover:border-l-2! group-hover/stat-link:border-l-2! h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Packages</CardTitle>
@@ -225,7 +227,7 @@ const DashboardData = () => {
           </Card>
         </Link>
 
-        <Link href="/releases" className="group/stat-link">
+        <Link href={ROUTES.RELEASES} className="group/stat-link">
           <Card className="cursor-pointer transition-all hover:border-l-2! group-hover/stat-link:border-l-2! h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Releases</CardTitle>
@@ -237,7 +239,7 @@ const DashboardData = () => {
           </Card>
         </Link>
 
-        <Link href="/releases?status=in_progress" className="group/stat-link">
+        <Link href={`${ROUTES.RELEASES}?status=in_progress`} className="group/stat-link">
           <Card className="cursor-pointer transition-all hover:border-l-2! group-hover/stat-link:border-l-2! h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Pending</CardTitle>
@@ -249,7 +251,7 @@ const DashboardData = () => {
           </Card>
         </Link>
 
-        <Link href="/alerts?status=new" className="group/stat-link">
+        <Link href={`${ROUTES.ALERTS}?status=new`} className="group/stat-link">
           <Card className="cursor-pointer transition-all hover:border-l-2! group-hover/stat-link:border-l-2! h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Active Alerts</CardTitle>
@@ -261,7 +263,7 @@ const DashboardData = () => {
           </Card>
         </Link>
 
-        <Link href="/releases?classification=malicious" className="group/stat-link">
+        <Link href={`${ROUTES.RELEASES}?classification=malicious`} className="group/stat-link">
           <Card className="cursor-pointer transition-all hover:border-l-2! group-hover/stat-link:border-l-2! h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Malicious</CardTitle>
@@ -321,7 +323,7 @@ const DashboardData = () => {
                 >
                   <TableCell className="font-medium">
                     <Link
-                      href={`/releases/${release.id}`}
+                      href={ROUTES.RELEASE_DETAIL(release.id)}
                       className="hover:underline text-primary"
                     >
                       {release.packageName}
@@ -330,7 +332,7 @@ const DashboardData = () => {
                   <TableCell className="hidden md:table-cell">
                     <Badge variant="outline">{formatEcosystem(release.packageEcosystem)}</Badge>
                   </TableCell>
-                  <TableCell className="font-mono text-sm">{release.version}</TableCell>
+                  <TableCell className="font-mono text-sm">{formatVersion(release.version)}</TableCell>
                   <TableCell>
                     {release.status === "completed" ? (
                       <span className="flex items-center gap-1 text-sm text-green-600">
@@ -359,7 +361,7 @@ const DashboardData = () => {
                   title="No releases yet."
                   description="Add packages to start monitoring releases."
                 >
-                  <Link href="/packages">
+                  <Link href={ROUTES.PACKAGES}>
                     <Button variant="outline" size="sm">
                       Go to Packages
                     </Button>
@@ -380,7 +382,7 @@ const DashboardData = () => {
               <Clock className="h-5 w-5 text-muted-foreground" />
               Stale Packages ({stalePackages.length})
             </CardTitle>
-            <Link href="/packages/stale">
+            <Link href={ROUTES.PACKAGES_STALE}>
               <Button variant="outline" size="sm">View All</Button>
             </Link>
           </CardHeader>
@@ -400,7 +402,7 @@ const DashboardData = () => {
                     <TableRow key={pkg.id}>
                       <TableCell className="font-medium">
                         <Link
-                          href={`/packages/${pkg.id}`}
+                          href={ROUTES.PACKAGE_DETAIL(pkg.id)}
                           className="hover:underline text-primary"
                         >
                           {pkg.name}

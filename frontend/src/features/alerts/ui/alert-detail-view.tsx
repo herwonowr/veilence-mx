@@ -6,7 +6,7 @@ import { notFound } from "next/navigation"
 import { Card, CardContent, Badge, Button, Skeleton, DetailError } from "@/ui"
 import { ArrowLeft, ExternalLink } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
-import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
+import { useCurrentWorkspaceRole, hasMinimumRole, ROUTES } from "@/core"
 import { useAlert, useUpdateAlert } from "@/features/alerts/hooks/use-alerts"
 import { AlertNotesTimeline } from "@/features/alerts/ui/alert-notes-timeline"
 import type { AlertSeverity } from "@/domains/common"
@@ -41,7 +41,7 @@ export const AlertDetailView = ({
     <DetailError
       message="Failed to load alert details. The alert may not exist or the server is unavailable."
       onRetry={() => refetch()}
-      backHref="/alerts"
+      backHref={ROUTES.ALERTS}
       backLabel="Alerts"
     />
   )
@@ -50,7 +50,7 @@ export const AlertDetailView = ({
     <div className="space-y-6">
       <div>
         <Link
-          href="/alerts"
+          href={ROUTES.ALERTS}
           className="w-fit text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -98,7 +98,7 @@ export const AlertDetailView = ({
             <div>
               <p className="text-sm font-medium text-muted-foreground">Package</p>
               <Link
-                href={`/packages/${alert.packageId}`}
+                href={ROUTES.PACKAGE_DETAIL(alert.packageId)}
                 className="text-primary hover:underline font-medium"
               >
                 {alert.packageName}
@@ -112,7 +112,7 @@ export const AlertDetailView = ({
             <div>
               {(alert.releaseId ?? alert.analysisId) ? (
                 <Link
-                  href={`/releases/${alert.releaseId ?? alert.analysisId}`}
+                  href={ROUTES.RELEASE_DETAIL(alert.releaseId ?? alert.analysisId ?? "")}
                   className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />

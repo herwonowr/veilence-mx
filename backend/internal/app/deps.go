@@ -147,12 +147,14 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	webhookSender := sender.NewHTTPWebhookSender()
 	slackSender := sender.NewHTTPSlackSender()
 
+	// RBAC repo (single instance - also satisfies workspace lister interface for notifications)
+	rbacRepo := persistent.NewRBACRepo(db)
+
 	// Notification service
 	notificationChannelRepo := persistent.NewNotificationChannelRepo(db)
 	notificationRuleRepo := persistent.NewNotificationRuleRepo(db)
 	notificationRepo := persistent.NewNotificationRepo(db)
-	workspaceLister := persistent.NewRBACRepo(db)
-	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, workspaceLister, smtpConfig, emailNotifSender, webhookSender, slackSender)
+	notificationService := notifications.NewService(notificationChannelRepo, notificationRuleRepo, notificationRepo, rbacRepo, smtpConfig, emailNotifSender, webhookSender, slackSender)
 
 	// Pipeline
 	pollerRepo := persistent.NewPollerRepo(db)
@@ -236,17 +238,23 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	pipeline := analyzer.NewPipeline(pipelineRepo, notificationService, llmAdapter)
 
 	// Queue workers
+	diffJobTimeout := time.Duration(cfg.DiffJobTimeoutSeconds) * time.Second
 	diffWorker := queue.NewWorker(jobQueue, queue.JobTypeDiff, func(ctx context.Context, job *queue.Job) error {
-		return differService.ProcessRelease(ctx, job.ReferenceID)
+		jobCtx, cancel := context.WithTimeout(ctx, diffJobTimeout)
+		defer cancel()
+		return differService.ProcessRelease(jobCtx, job.ReferenceID)
 	}, queue.WorkerConfig{
 		PollInterval: 2 * time.Second,
-		Concurrency:  2,
+		Concurrency:  cfg.DiffWorkerConcurrency,
 	})
+	analyzeJobTimeout := time.Duration(cfg.AnalyzeJobTimeoutSeconds) * time.Second
 	analyzeWorker := queue.NewWorker(jobQueue, queue.JobTypeAnalyze, func(ctx context.Context, job *queue.Job) error {
-		return pipeline.ProcessDiff(ctx, job.ReferenceID)
+		jobCtx, cancel := context.WithTimeout(ctx, analyzeJobTimeout)
+		defer cancel()
+		return pipeline.ProcessDiff(jobCtx, job.ReferenceID)
 	}, queue.WorkerConfig{
 		PollInterval: 2 * time.Second,
-		Concurrency:  1,
+		Concurrency:  cfg.AnalyzeWorkerConcurrency,
 	})
 
 	// Auth
@@ -293,7 +301,6 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	authService := auth.NewService(userRepo, refreshTokenRepo, apiKeyRepo, passwordResetTokenRepo, emailVerificationTokenRepo, sessionRepo, authEmailSender, cfg.RequireEmailVerification, rateLimiter, tokenProvider, passwordHasher, cfg.RegistrationEnabled, cfg.AllowedEmailDomains)
 	slog.Info("auth service initialized", "require_email_verification", cfg.RequireEmailVerification, "email_sender_configured", authEmailSender != nil, "registration_enabled", cfg.RegistrationEnabled)
 	auditLogRepo := persistent.NewAuditLogRepo(db)
-	rbacRepo := persistent.NewRBACRepo(db)
 	if err := rbac.SeedPermissions(ctx, rbacRepo); err != nil {
 		return nil, fmt.Errorf("seeding permissions: %w", err)
 	}
@@ -320,7 +327,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 	if goClient != nil {
 		registries[entity.EcosystemGo] = goClient
 	}
-	packageService := pkguc.New(packageRepo, auditService, registries)
+	packageService := pkguc.New(packageRepo, auditService, registries, pollerService)
 	releaseRepo := persistent.NewReleaseRepo(db)
 	diffRepo := persistent.NewDiffRepo(db)
 	analysisRepo := persistent.NewAnalysisRepo(db)

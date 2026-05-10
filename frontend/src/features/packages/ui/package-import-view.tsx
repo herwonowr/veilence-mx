@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Badge, Textarea, Checkbox, Progress, Alert, AlertDescription, ScrollArea } from "@/ui"
 import { ArrowLeft, Upload, FileText, Loader2, AlertCircle, CheckCircle2, CloudUpload } from "lucide-react"
 import { useBulkImportPackages, usePackages } from "@/features/packages/hooks/use-packages"
-import { useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
+import { useCurrentWorkspaceRole, hasMinimumRole, ROUTES } from "@/core"
 import { formatEcosystem } from "@/domains/common"
 import { bulkImportEntrySchema } from "@/domains/packages"
 
@@ -323,7 +323,7 @@ export const PackageImportView = () => {
           <ol className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <li>
               <Link
-                href="/packages"
+                href={ROUTES.PACKAGES}
                 className="w-fit flex items-center gap-1 hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />

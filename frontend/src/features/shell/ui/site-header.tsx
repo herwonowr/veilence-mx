@@ -3,6 +3,7 @@
 import React from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
+import { ROUTES } from "@/core"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -14,21 +15,21 @@ import {
 import { Separator, Button, SidebarTrigger, ThemeToggle, Kbd } from "@/ui"
 
 const pageTitles: Record<string, string> = {
-  "/": "Dashboard",
-  "/packages": "Packages",
-  "/alerts": "Alerts",
-  "/releases": "Releases",
-  "/settings": "Settings",
-  "/workspaces": "Workspaces",
-  "/account": "Account",
-  "/admin": "Admin",
-  "/admin/users": "Users",
-  "/admin/audit-logs": "Audit Logs",
-  "/admin/security": "Security",
-  "/settings/api-keys": "API Keys",
-  "/settings/sessions": "Sessions",
-  "/settings/notifications": "Channels",
-  "/settings/queue": "Queue Monitor",
+  [ROUTES.DASHBOARD]: "Dashboard",
+  [ROUTES.PACKAGES]: "Packages",
+  [ROUTES.ALERTS]: "Alerts",
+  [ROUTES.RELEASES]: "Releases",
+  [ROUTES.SETTINGS]: "Settings",
+  [ROUTES.WORKSPACES]: "Workspaces",
+  [ROUTES.ACCOUNT]: "Account",
+  [ROUTES.ADMIN]: "Admin",
+  [ROUTES.ADMIN_USERS]: "Users",
+  [ROUTES.ADMIN_AUDIT_LOGS]: "Audit Logs",
+  [ROUTES.ADMIN_SECURITY]: "Security",
+  [ROUTES.SETTINGS_API_KEYS]: "API Keys",
+  [ROUTES.SETTINGS_SESSIONS]: "Sessions",
+  [ROUTES.SETTINGS_NOTIFICATIONS]: "Channels",
+  [ROUTES.SETTINGS_QUEUE]: "Queue Monitor",
 }
 
 /** Capitalize and humanize a URL segment (e.g. "api-keys" -> "API Keys") */

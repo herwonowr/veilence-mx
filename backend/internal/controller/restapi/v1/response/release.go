@@ -196,3 +196,23 @@ type ReanalyzeResponse struct {
 	Message string `json:"message"`
 	JobID   string `json:"jobId"`
 }
+
+// PipelineStatusResponse is the JSON representation of release pipeline status counts.
+type PipelineStatusResponse struct {
+	Pending   int64 `json:"pending"`
+	Diffing   int64 `json:"diffing"`
+	Analyzing int64 `json:"analyzing"`
+	Completed int64 `json:"completed"`
+	Error     int64 `json:"error"`
+}
+
+// PipelineStatusFromEntity maps a domain PipelineStatus to a response DTO.
+func PipelineStatusFromEntity(s *entity.PipelineStatus) PipelineStatusResponse {
+	return PipelineStatusResponse{
+		Pending:   s.Pending,
+		Diffing:   s.Diffing,
+		Analyzing: s.Analyzing,
+		Completed: s.Completed,
+		Error:     s.Error,
+	}
+}

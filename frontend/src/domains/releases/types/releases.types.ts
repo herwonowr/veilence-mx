@@ -67,3 +67,11 @@ export interface ReanalyzeReleaseResponse {
   message: string
   jobId: string
 }
+
+export interface PipelineStatus {
+  pending: number
+  diffing: number
+  analyzing: number
+  completed: number
+  error: number
+}
