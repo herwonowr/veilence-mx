@@ -12,6 +12,7 @@ var validClassifications = map[string]bool{
 // ValidateResult ensures the LLM result has valid classification and confidence values.
 // Invalid classifications default to "suspicious" (fail-safe).
 // Confidence is clamped to [0.0, 1.0].
+// Empty reasoning gets a default message.
 func ValidateResult(result *Result) {
 	if !validClassifications[result.Classification] {
 		slog.Warn("invalid LLM classification, defaulting to suspicious",
@@ -26,5 +27,8 @@ func ValidateResult(result *Result) {
 	}
 	if result.Confidence > 1 {
 		result.Confidence = 1
+	}
+	if result.Reasoning == "" {
+		result.Reasoning = "No reasoning provided by LLM."
 	}
 }
