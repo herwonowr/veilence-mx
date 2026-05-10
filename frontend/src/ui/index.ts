@@ -7,9 +7,9 @@ export { TableSkeleton, type SkeletonColumn } from "@/ui/feedback/table-skeleton
 export { TableError } from "@/ui/feedback/table-error"
 export { DetailError } from "@/ui/feedback/detail-error"
 export { ConfirmDialog, type ConfirmDialogDetail } from "@/ui/feedback/confirm-dialog"
-export { ReleaseStatusBadge, RELEASE_STATUSES } from "@/ui/feedback/release-status-badge"
-export type { ReleaseStatusValue } from "@/ui/feedback/release-status-badge"
+export { ReleaseStatusBadge } from "@/ui/feedback/release-status-badge"
 export { ClassificationBadge } from "@/ui/feedback/classification-badge"
+export { SeverityBadge } from "@/ui/feedback/severity-badge"
 export { Toaster } from "@/ui/feedback/toaster"
 
 // Data

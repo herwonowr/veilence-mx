@@ -23,7 +23,7 @@ import {
 import { formatVersion, type RecentRelease } from "@/domains/releases"
 import type { Classification, Ecosystem, ReleaseStatus } from "@/domains/common"
 import { Activity } from "lucide-react"
-import { formatEcosystem } from "@/domains/common"
+import { formatEcosystem, CLASSIFICATIONS } from "@/domains/common"
 import {
   useReactTable,
   getCoreRowModel,
@@ -34,7 +34,6 @@ import {
 import { useRecentReleases } from "@/features/releases/hooks/use-releases"
 
 const VALID_STATUSES: ReleaseStatus[] = ["in_progress", "completed", "error"]
-const VALID_CLASSIFICATIONS: Classification[] = ["benign", "suspicious", "malicious", "baseline"]
 
 export const ReleasesListView = () => {
   const router = useRouter()
@@ -55,7 +54,7 @@ export const ReleasesListView = () => {
     VALID_STATUSES.includes(initialStatus as ReleaseStatus) ? initialStatus : ""
   )
   const [classificationFilter, setClassificationFilter] = useState(
-    VALID_CLASSIFICATIONS.includes(initialClassification as Classification) ? initialClassification : ""
+    CLASSIFICATIONS.includes(initialClassification as Classification) ? initialClassification : ""
   )
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,

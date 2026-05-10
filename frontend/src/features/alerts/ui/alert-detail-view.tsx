@@ -3,20 +3,12 @@
 import { use } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Card, CardContent, Badge, Button, Skeleton, DetailError } from "@/ui"
+import { Card, CardContent, Badge, Button, Skeleton, DetailError, SeverityBadge } from "@/ui"
 import { ArrowLeft, ExternalLink } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
 import { useCurrentWorkspaceRole, hasMinimumRole, ROUTES } from "@/core"
 import { useAlert, useUpdateAlert } from "@/features/alerts/hooks/use-alerts"
 import { AlertNotesTimeline } from "@/features/alerts/ui/alert-notes-timeline"
-import type { AlertSeverity } from "@/domains/common"
-
-const severityVariant = (s: AlertSeverity) => {
-  if (s === "critical") return "destructive" as const
-  if (s === "high") return "destructive" as const
-  if (s === "medium") return "default" as const
-  return "secondary" as const
-}
 
 export const AlertDetailView = ({
   params,
@@ -87,9 +79,7 @@ export const AlertDetailView = ({
         <Card>
           <CardContent className="pt-6 space-y-4">
             <div className="flex flex-wrap items-center gap-3">
-              <Badge variant={severityVariant(alert.severity)} className="text-sm">
-                {alert.severity}
-              </Badge>
+              <SeverityBadge severity={alert.severity} />
               <Badge variant="outline">{alert.status}</Badge>
               <span className="text-sm text-muted-foreground">
                 {new Date(alert.createdAt).toLocaleString()}
