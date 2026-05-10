@@ -635,5 +635,5 @@ func (h *PackageHandlers) ListStalePackages(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	respondJSON(w, http.StatusOK, response.PackagesFromEntities(packages), &Meta{Page: page, Limit: limit, Total: total})
+	respondJSON(w, http.StatusOK, response.StalePackagesFromEntities(packages), &Meta{Page: page, Limit: limit, Total: total})
 }

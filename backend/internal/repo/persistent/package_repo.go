@@ -354,6 +354,7 @@ func (r *PackageRepo) FindStaleByWorkspaceID(ctx context.Context, workspaceID st
 
 	var ms []Package
 	err := query.
+		Select("packages.*, (SELECT MAX(published_at) FROM releases WHERE package_id = packages.id) AS last_release_at").
 		Order(sortClause).
 		Offset((page - 1) * limit).
 		Limit(limit).
@@ -385,6 +386,7 @@ func packageToDomain(m *Package) *entity.Package {
 		DownloadCountUpdatedAt: m.DownloadCountUpdatedAt,
 		BlockedAt:              m.BlockedAt,
 		BlockedReason:          m.BlockedReason,
+		LastReleaseAt:          m.LastReleaseAt,
 		CreatedAt:              m.CreatedAt,
 		UpdatedAt:              m.UpdatedAt,
 	}

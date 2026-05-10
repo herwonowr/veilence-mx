@@ -24,7 +24,7 @@ export interface Package {
 // not by the standard package endpoints.
 export interface StalePackage extends Package {
   lastReleaseAt: string | null
-  daysSinceLastRelease: number
+  daysSinceLastRelease: number | null
 }
 
 export interface BulkImportError {

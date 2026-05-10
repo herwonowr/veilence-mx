@@ -54,6 +54,7 @@ type Package struct {
 	DownloadCountUpdatedAt *time.Time    `json:"downloadCountUpdatedAt,omitempty"`
 	BlockedAt              *time.Time    `json:"blockedAt,omitempty"`
 	BlockedReason          string        `gorm:"type:text" json:"blockedReason,omitempty"`
+	LastReleaseAt          *time.Time    `gorm:"column:last_release_at;->" json:"-"`
 	CreatedAt              time.Time     `json:"createdAt"`
 	UpdatedAt              time.Time     `json:"updatedAt"`
 	Releases               []Release     `gorm:"foreignKey:PackageID" json:"releases,omitempty"`
