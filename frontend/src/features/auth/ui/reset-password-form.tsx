@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ROUTES , usePublicConfigQuery } from "@/core"
+import { ROUTES , usePublicConfigQuery, parseFieldErrors } from "@/core"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
@@ -16,7 +16,6 @@ import {
   CardTitle,
 } from "@/ui"
 import { Loader2, ArrowLeft, AlertTriangle } from "lucide-react"
-import { ZodError } from "zod"
 import { toast } from "sonner"
 
 const ResetPasswordFormInner = () => {
@@ -35,9 +34,16 @@ const ResetPasswordFormInner = () => {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [formSubmitted, setFormSubmitted] = useState(false)
   const [serverError, setServerError] = useState("")
   const [tokenInvalid, setTokenInvalid] = useState(!token)
   const [loading, setLoading] = useState(false)
+
+  const validate = (fields: { password: string; confirmPassword: string }) => {
+    if (!formSubmitted) return
+    const result = newPasswordSchema.safeParse(fields)
+    setErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
 
   if (tokenInvalid) {
     return (
@@ -76,6 +82,7 @@ const ResetPasswordFormInner = () => {
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setFormSubmitted(true)
     setErrors({})
     setServerError("")
 
@@ -86,14 +93,8 @@ const ResetPasswordFormInner = () => {
       toast.success("Password reset successfully. You can now sign in.")
       router.push(ROUTES.LOGIN)
     } catch (err) {
-      if (err instanceof ZodError) {
-        const fieldErrors: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") {
-            fieldErrors[key] = issue.message
-          }
-        }
+      const fieldErrors = parseFieldErrors(err)
+      if (Object.keys(fieldErrors).length > 0) {
         setErrors(fieldErrors)
       } else {
         const message = err instanceof Error
@@ -134,7 +135,7 @@ const ResetPasswordFormInner = () => {
                 type="password"
                 placeholder="At least 8 characters"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); validate({ password: e.target.value, confirmPassword }) }}
                 autoComplete="new-password"
               />
               {errors.password && <FieldError>{errors.password}</FieldError>}
@@ -146,7 +147,7 @@ const ResetPasswordFormInner = () => {
                 type="password"
                 placeholder="Confirm new password"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => { setConfirmPassword(e.target.value); validate({ password, confirmPassword: e.target.value }) }}
                 autoComplete="new-password"
               />
               {errors.confirmPassword && <FieldError>{errors.confirmPassword}</FieldError>}

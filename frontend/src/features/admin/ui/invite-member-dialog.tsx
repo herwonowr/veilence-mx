@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { sanitizeErrorMessage } from "@/core"
+import { sanitizeErrorMessage, parseFieldErrors } from "@/core"
 import { invitationSchema } from "@/domains/admin"
 import type { Role } from "@/domains/admin"
 import {
@@ -30,7 +30,6 @@ import {
   SelectValue,
 } from "@/ui"
 import { UserPlus, Loader2 } from "lucide-react"
-import { ZodError } from "zod"
 import { useInviteMember } from "@/features/admin"
 
 interface InviteMemberDialogProps {
@@ -49,24 +48,25 @@ export const InviteMemberDialog = ({
   const [roleId, setRoleId] = useState<string | null>(null)
   const [error, setError] = useState("")
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [formSubmitted, setFormSubmitted] = useState(false)
 
   const inviteMutation = useInviteMember()
 
+  const validate = (fields: { email: string; roleId?: string }) => {
+    if (!formSubmitted) return
+    const result = invitationSchema.safeParse(fields)
+    setFieldErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
+
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setFormSubmitted(true)
     setError("")
     setFieldErrors({})
     try {
       invitationSchema.parse({ email, roleId: roleId ?? undefined })
     } catch (err) {
-      if (err instanceof ZodError) {
-        const errs: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") errs[key] = issue.message
-        }
-        setFieldErrors(errs)
-      }
+      setFieldErrors(parseFieldErrors(err))
       return
     }
     if (!roleId) return
@@ -76,6 +76,7 @@ export const InviteMemberDialog = ({
         data: { email, roleId },
       })
       setOpen(false)
+      setFormSubmitted(false)
       setEmail("")
       setRoleId(null)
     } catch (err) {
@@ -117,7 +118,7 @@ export const InviteMemberDialog = ({
                 type="email"
                 placeholder="user@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); validate({ email: e.target.value, roleId: roleId ?? undefined }) }}
               />
               {fieldErrors.email && <FieldError>{fieldErrors.email}</FieldError>}
             </Field>
@@ -125,7 +126,7 @@ export const InviteMemberDialog = ({
               <FieldLabel>Role</FieldLabel>
               <Select
                 value={roleId != null ? String(roleId) : undefined}
-                onValueChange={(v) => setRoleId(v || null)}
+                onValueChange={(v) => { setRoleId(v || null); validate({ email, roleId: v || undefined }) }}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue>{roleId != null ? capitalize(roles.find(r => r.id === roleId)?.name ?? "") : "Select a role"}</SelectValue>

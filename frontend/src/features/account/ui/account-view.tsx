@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useAuth, ROUTES } from "@/core"
+import { useAuth, ROUTES, parseFieldErrors } from "@/core"
 import {
   profileSchema,
   passwordChangeSchema,
@@ -29,7 +29,6 @@ import {
 } from "@/features/account/hooks/use-profile"
 import { useApiKeys } from "@/features/account/hooks/use-api-keys"
 import { useSessions } from "@/features/account/hooks/use-sessions"
-import { ZodError } from "zod"
 
 export const AccountView = () => {
 
@@ -85,14 +84,7 @@ const ProfileSection = () => {
       await updateProfile.mutateAsync(data)
       await refreshUser()
     } catch (err) {
-      if (err instanceof ZodError) {
-        const fieldErrors: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") fieldErrors[key] = issue.message
-        }
-        setErrors(fieldErrors)
-      }
+      setErrors(parseFieldErrors(err))
     }
   }
 
@@ -226,9 +218,18 @@ const PasswordSection = () => {
   const [showNew, setShowNew] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [submitted, setSubmitted] = useState(false)
+
+  // After first submit, re-validate on every change
+  const validate = (fields: { currentPassword: string; newPassword: string; confirmPassword: string }) => {
+    if (!submitted) return
+    const result = passwordChangeSchema.safeParse(fields)
+    setErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setSubmitted(true)
     setErrors({})
     try {
       const data = passwordChangeSchema.parse({
@@ -243,15 +244,9 @@ const PasswordSection = () => {
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
+      setSubmitted(false)
     } catch (err) {
-      if (err instanceof ZodError) {
-        const fieldErrors: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") fieldErrors[key] = issue.message
-        }
-        setErrors(fieldErrors)
-      }
+      setErrors(parseFieldErrors(err))
     }
   }
 
@@ -276,7 +271,7 @@ const PasswordSection = () => {
                   id="currentPassword"
                   type={showCurrent ? "text" : "password"}
                   value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  onChange={(e) => { setCurrentPassword(e.target.value); validate({ currentPassword: e.target.value, newPassword, confirmPassword }) }}
                   autoComplete="current-password"
                   placeholder="Enter current password"
                 />
@@ -302,7 +297,7 @@ const PasswordSection = () => {
                   type={showNew ? "text" : "password"}
                   placeholder="At least 8 characters"
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={(e) => { setNewPassword(e.target.value); validate({ currentPassword, newPassword: e.target.value, confirmPassword }) }}
                   autoComplete="new-password"
                 />
                 {errors.newPassword && <FieldError>{errors.newPassword}</FieldError>}
@@ -326,7 +321,7 @@ const PasswordSection = () => {
                   id="confirmPassword"
                   type={showConfirm ? "text" : "password"}
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => { setConfirmPassword(e.target.value); validate({ currentPassword, newPassword, confirmPassword: e.target.value }) }}
                   autoComplete="new-password"
                   placeholder="Re-enter new password"
                 />

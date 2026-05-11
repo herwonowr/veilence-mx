@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useAuth, ROUTES, useDebouncedValue , usePublicConfigQuery } from "@/core"
+import { useAuth, ROUTES, useDebouncedValue , usePublicConfigQuery, parseFieldErrors } from "@/core"
 import { apiCreateWorkspace, workspaceSchema } from "@/domains/admin"
 import type { Workspace } from "@/domains/admin"
 import {
@@ -44,7 +44,6 @@ import { Layers, Plus, Loader2, Users, Package, Mail, LayoutGrid, Table2, Search
 import Link from "next/link"
 import { useWorkspaces } from "@/features/admin/hooks/use-workspaces"
 import { useMyInvitations } from "@/features/admin/hooks/use-my-invitations"
-import { ZodError } from "zod"
 
 type ViewMode = "grid" | "table"
 
@@ -102,7 +101,13 @@ export const WorkspacesListView = () => {
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState("")
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [formSubmitted, setFormSubmitted] = useState(false)
 
+  const validate = (fields: { name: string; slug: string; description: string }) => {
+    if (!formSubmitted) return
+    const result = workspaceSchema.safeParse(fields)
+    setFieldErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
   const handleViewModeChange = useCallback((mode: ViewMode) => {
     setViewMode(mode)
     localStorage.setItem(VIEW_MODE_KEY, mode)
@@ -123,25 +128,21 @@ export const WorkspacesListView = () => {
 
   const handleNameChange = (value: string) => {
     setName(value)
-    setSlug(generateSlug(value))
+    const newSlug = generateSlug(value)
+    setSlug(newSlug)
+    validate({ name: value, slug: newSlug, description })
   }
 
   const handleCreate = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setFormSubmitted(true)
     setError("")
     setFieldErrors({})
 
     try {
       workspaceSchema.parse({ name, slug, description })
     } catch (err) {
-      if (err instanceof ZodError) {
-        const errs: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") errs[key] = issue.message
-        }
-        setFieldErrors(errs)
-      }
+      setFieldErrors(parseFieldErrors(err))
       return
     }
 
@@ -152,6 +153,7 @@ export const WorkspacesListView = () => {
       setCurrentWorkspace(data)
       await refreshWorkspaces()
       setDialogOpen(false)
+      setFormSubmitted(false)
       setName("")
       setSlug("")
       setDescription("")
@@ -224,7 +226,7 @@ export const WorkspacesListView = () => {
                     id="workspace-slug"
                     placeholder="acme-corp"
                     value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
+                    onChange={(e) => { setSlug(e.target.value); validate({ name, slug: e.target.value, description }) }}
                   />
                   {fieldErrors.slug && <FieldError>{fieldErrors.slug}</FieldError>}
                   <FieldDescription>
@@ -237,7 +239,7 @@ export const WorkspacesListView = () => {
                     id="workspace-description"
                     placeholder="Optional description"
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    onChange={(e) => { setDescription(e.target.value); validate({ name, slug, description: e.target.value }) }}
                   />
                   {fieldErrors.description && <FieldError>{fieldErrors.description}</FieldError>}
                 </Field>
@@ -405,6 +407,7 @@ const WorkspacesTable = ({ workspaces }: { workspaces: Workspace[] }) => {
 
   return (
     <Card>
+      <CardContent>
       <Table>
         <TableHeader>
           <TableRow>
@@ -451,6 +454,7 @@ const WorkspacesTable = ({ workspaces }: { workspaces: Workspace[] }) => {
           ))}
         </TableBody>
       </Table>
+      </CardContent>
     </Card>
   )
 }

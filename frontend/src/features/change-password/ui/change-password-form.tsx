@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
-import { useAuth, sanitizeErrorMessage, ROUTES } from "@/core"
+import { useAuth, sanitizeErrorMessage, ROUTES, parseFieldErrors } from "@/core"
 import { apiChangePassword, passwordChangeSchema, getPasswordStrength } from "@/domains/auth"
 import {
   Button,
@@ -23,7 +23,6 @@ import {
   CardTitle,
 } from "@/ui"
 import { Loader2, Eye, EyeOff } from "lucide-react"
-import { ZodError } from "zod"
 
 export const ChangePasswordForm = () => {
   const router = useRouter()
@@ -43,6 +42,7 @@ export const ChangePasswordForm = () => {
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [formSubmitted, setFormSubmitted] = useState(false)
   const [serverError, setServerError] = useState("")
   const [loading, setLoading] = useState(false)
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
@@ -51,8 +51,15 @@ export const ChangePasswordForm = () => {
 
   const passwordStrength = useMemo(() => getPasswordStrength(newPassword), [newPassword])
 
+  const validate = (fields: { currentPassword: string; newPassword: string; confirmPassword: string }) => {
+    if (!formSubmitted) return
+    const result = passwordChangeSchema.safeParse(fields)
+    setErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
+
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setFormSubmitted(true)
     setErrors({})
     setServerError("")
 
@@ -69,22 +76,14 @@ export const ChangePasswordForm = () => {
         confirmPassword,
       })
     } catch (err) {
-      if (err instanceof ZodError) {
-        const fieldErrors: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") {
-            fieldErrors[key] = issue.message
-          }
-        }
-        setErrors(fieldErrors)
-      }
+      setErrors(parseFieldErrors(err))
       return
     }
 
     try {
       setLoading(true)
       await apiChangePassword({ currentPassword, newPassword })
+      setFormSubmitted(false)
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
@@ -140,7 +139,7 @@ export const ChangePasswordForm = () => {
                   type={showCurrentPassword ? "text" : "password"}
                   placeholder="Current password"
                   value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  onChange={(e) => { setCurrentPassword(e.target.value); validate({ currentPassword: e.target.value, newPassword, confirmPassword }) }}
                   autoComplete="current-password"
                 />
                 {errors.currentPassword && (
@@ -174,7 +173,7 @@ export const ChangePasswordForm = () => {
                   type={showNewPassword ? "text" : "password"}
                   placeholder="At least 8 characters"
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={(e) => { setNewPassword(e.target.value); validate({ currentPassword, newPassword: e.target.value, confirmPassword }) }}
                   autoComplete="new-password"
                 />
                 {errors.newPassword && (
@@ -225,7 +224,7 @@ export const ChangePasswordForm = () => {
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="Confirm new password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => { setConfirmPassword(e.target.value); validate({ currentPassword, newPassword, confirmPassword: e.target.value }) }}
                   autoComplete="new-password"
                 />
                 {errors.confirmPassword && (

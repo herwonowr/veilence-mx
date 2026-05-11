@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, useCurrentWorkspaceRole, hasMinimumRole, ROUTES, type ColumnBreakpoints , usePublicConfigQuery } from "@/core"
+import { useDebouncedValue, useSortParams, useFilterParams, useResponsiveColumns, useCurrentWorkspaceRole, hasMinimumRole, ROUTES, type ColumnBreakpoints , usePublicConfigQuery, parseFieldErrors } from "@/core"
 import { Button, Badge, Input, Textarea, Card, CardContent, CardHeader, TableSkeleton, TableError, TableEmptyState, FilterChips, SearchInput, Field, FieldLabel, FieldError, Label, DataTablePagination, SortableHeader, type SkeletonColumn, type ActiveFilter } from "@/ui"
 import {
   Table,
@@ -56,7 +56,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/ui"
-import { ZodError } from "zod"
 import {
   usePackages,
   useCreatePackage,
@@ -143,7 +142,13 @@ export const PackagesListView = () => {
   const [blockReason, setBlockReason] = useState("")
   const [unblockTarget, setUnblockTarget] = useState<{ id: string; name: string } | null>(null)
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({})
+  const [createFormSubmitted, setCreateFormSubmitted] = useState(false)
 
+  const validateCreate = (fields: { name: string; ecosystem: string }) => {
+    if (!createFormSubmitted) return
+    const result = packageSchema.safeParse(fields)
+    setCreateErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
   const packageColumnBreakpoints: ColumnBreakpoints = useMemo(() => ({
     downloadCount: "desktop",
     source: "tablet",
@@ -211,21 +216,16 @@ export const PackagesListView = () => {
   ]
 
   const handleCreate = async () => {
+    setCreateFormSubmitted(true)
     setCreateErrors({})
     try {
       const data = packageSchema.parse({ name: newName, ecosystem: newEcosystem })
       await createMutation.mutateAsync({ name: data.name, ecosystem: data.ecosystem })
       setDialogOpen(false)
+      setCreateFormSubmitted(false)
       setNewName("")
     } catch (err) {
-      if (err instanceof ZodError) {
-        const fieldErrors: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") fieldErrors[key] = issue.message
-        }
-        setCreateErrors(fieldErrors)
-      }
+      setCreateErrors(parseFieldErrors(err))
     }
   }
 
@@ -523,7 +523,7 @@ export const PackagesListView = () => {
                       <Input
                         id="package-name"
                         value={newName}
-                        onChange={(e) => setNewName(e.target.value)}
+                        onChange={(e) => { setNewName(e.target.value); validateCreate({ name: e.target.value, ecosystem: newEcosystem }) }}
                         placeholder="e.g., requests"
                       />
                       {createErrors.name && (
@@ -536,7 +536,7 @@ export const PackagesListView = () => {
                       </FieldLabel>
                       <Select
                         value={newEcosystem}
-                        onValueChange={(v) => { if (v) setNewEcosystem(v as Ecosystem) }}
+                        onValueChange={(v) => { if (v) { setNewEcosystem(v as Ecosystem); validateCreate({ name: newName, ecosystem: v }) } }}
                       >
                         <SelectTrigger id="package-ecosystem">
                           <SelectValue>{formatEcosystem(newEcosystem)}</SelectValue>

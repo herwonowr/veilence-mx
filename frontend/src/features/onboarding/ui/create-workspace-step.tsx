@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react"
 import { workspaceSchema } from "@/domains/admin"
+import { parseFieldErrors } from "@/core"
 import { Button, Input, Textarea, Field, FieldLabel, FieldError } from "@/ui"
 import type { WorkspaceFormData } from "@/features/onboarding/hooks/use-onboarding"
 
@@ -19,20 +20,21 @@ export const CreateWorkspaceStep = ({
   onBack,
 }: CreateWorkspaceStepProps) => {
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [formSubmitted, setFormSubmitted] = useState(false)
+
+  const validate = (fields: { name: string; slug: string; description: string }) => {
+    if (!formSubmitted) return
+    const result = workspaceSchema.safeParse(fields)
+    setErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
 
   const handleSubmit = useCallback(
     (e: React.SyntheticEvent<HTMLFormElement>) => {
       e.preventDefault()
+      setFormSubmitted(true)
       const result = workspaceSchema.safeParse(formData)
       if (!result.success) {
-        const fieldErrors: Record<string, string> = {}
-        for (const issue of result.error.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") {
-            fieldErrors[key] = issue.message
-          }
-        }
-        setErrors(fieldErrors)
+        setErrors(parseFieldErrors(result.error))
         return
       }
       setErrors({})
@@ -55,7 +57,7 @@ export const CreateWorkspaceStep = ({
         <Input
           placeholder="Acme Corp"
           value={formData.name}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onUpdateField("name", e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => { onUpdateField("name", e.target.value); validate({ name: e.target.value, slug: formData.slug, description: formData.description }) }}
         />
         {errors.name && <FieldError>{errors.name}</FieldError>}
       </Field>
@@ -65,7 +67,7 @@ export const CreateWorkspaceStep = ({
         <Input
           placeholder="acme-corp"
           value={formData.slug}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onUpdateField("slug", e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => { onUpdateField("slug", e.target.value); validate({ name: formData.name, slug: e.target.value, description: formData.description }) }}
         />
         {errors.slug && <FieldError>{errors.slug}</FieldError>}
         <p className="text-xs text-muted-foreground">

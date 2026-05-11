@@ -47,8 +47,7 @@ import {
 } from "@/ui"
 import { Key, Plus, Trash2, Copy, Check, Loader2, CalendarIcon } from "lucide-react"
 import { useApiKeys, useCreateApiKey, useDeleteApiKey, useCurrentWorkspaceRole } from "@/features/account/hooks/use-api-keys"
-import { cn, hasMinimumRole } from "@/core"
-import { ZodError } from "zod"
+import { cn, hasMinimumRole, parseFieldErrors } from "@/core"
 
 const ROLE_OPTIONS: { value: APIKeyRole; label: string; description: string }[] = [
   { value: "admin", label: "Admin", description: "Administrative access (cannot delete workspace)" },
@@ -108,7 +107,13 @@ export const ApiKeysView = () => {
   const [dateOpen, setDateOpen] = useState(false)
   const [createError, setCreateError] = useState("")
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [createFormSubmitted, setCreateFormSubmitted] = useState(false)
 
+  const validateCreate = (fields: { name: string; role: string; expiresAt?: string }) => {
+    if (!createFormSubmitted) return
+    const result = apiKeySchema.safeParse(fields)
+    setFieldErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
   // Elevated role warning dialog
   const [pendingRole, setPendingRole] = useState<APIKeyRole | null>(null)
 
@@ -149,6 +154,7 @@ export const ApiKeysView = () => {
 
   const handleCreate = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setCreateFormSubmitted(true)
     setCreateError("")
     setFieldErrors({})
     try {
@@ -165,19 +171,16 @@ export const ApiKeysView = () => {
       setNewKeyValue(data.key)
       setCreateDialogOpen(false)
       setShowKeyDialogOpen(true)
+      setCreateFormSubmitted(false)
       setKeyName("")
       setKeyRole("viewer")
       setExpiresAt(undefined)
       setSelectedHour(23)
       setSelectedMinute(55)
     } catch (err) {
-      if (err instanceof ZodError) {
-        const errs: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") errs[key] = issue.message
-        }
-        setFieldErrors(errs)
+      const fieldErrs = parseFieldErrors(err)
+      if (Object.keys(fieldErrs).length > 0) {
+        setFieldErrors(fieldErrs)
       } else {
         setCreateError(
           err instanceof Error ? err.message : "Failed to create API key"
@@ -231,7 +234,7 @@ export const ApiKeysView = () => {
                       id="key-name"
                       placeholder="e.g. CI/CD Pipeline"
                       value={keyName}
-                      onChange={(e) => setKeyName(e.target.value)}
+                      onChange={(e) => { setKeyName(e.target.value); validateCreate({ name: e.target.value, role: keyRole, expiresAt: expiresAt ? expiresAt.toISOString() : undefined }) }}
                     />
                     {fieldErrors.name && <FieldError>{fieldErrors.name}</FieldError>}
                   </Field>

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
-import { sanitizeErrorMessage, ROUTES , usePublicConfigQuery, publicConfigKeys } from "@/core"
+import { sanitizeErrorMessage, ROUTES , usePublicConfigQuery, publicConfigKeys, parseFieldErrors } from "@/core"
 import { useSetup } from "@/features/setup/hooks/use-setup"
 import {
   Button,
@@ -25,7 +25,7 @@ import {
   CardTitle,
 } from "@/ui"
 import { Loader2, Eye, EyeOff, Rocket } from "lucide-react"
-import { z, ZodError } from "zod"
+import { z } from "zod"
 import { getPasswordStrength } from "@/domains/auth"
 
 const setupSchema = z
@@ -87,29 +87,42 @@ export const SetupWizard = () => {
   const [workspaceSlug, setWorkspaceSlug] = useState("")
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [formSubmitted, setFormSubmitted] = useState(false)
   const [serverError, setServerError] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const passwordStrength = useMemo(() => getPasswordStrength(password), [password])
 
+  const validate = useCallback((fields: { firstName: string; lastName: string; email: string; password: string; confirmPassword: string; workspaceName: string; workspaceSlug: string }) => {
+    if (!formSubmitted) return
+    const result = setupSchema.safeParse(fields)
+    setErrors(result.success ? {} : parseFieldErrors(result.error))
+  }, [formSubmitted])
+
+  const allFields = useMemo(() => ({ firstName, lastName, email, password, confirmPassword, workspaceName, workspaceSlug }), [firstName, lastName, email, password, confirmPassword, workspaceName, workspaceSlug])
+
   const handleWorkspaceNameChange = useCallback(
     (value: string) => {
       setWorkspaceName(value)
+      const newSlug = slugManuallyEdited ? workspaceSlug : toSlug(value)
       if (!slugManuallyEdited) {
-        setWorkspaceSlug(toSlug(value))
+        setWorkspaceSlug(newSlug)
       }
+      validate({ ...allFields, workspaceName: value, workspaceSlug: newSlug })
     },
-    [slugManuallyEdited]
+    [slugManuallyEdited, allFields, workspaceSlug, validate]
   )
 
   const handleSlugChange = useCallback((value: string) => {
     setSlugManuallyEdited(true)
     setWorkspaceSlug(value)
-  }, [])
+    validate({ ...allFields, workspaceSlug: value })
+  }, [allFields, validate])
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setFormSubmitted(true)
     setErrors({})
     setServerError("")
 
@@ -124,16 +137,7 @@ export const SetupWizard = () => {
         workspaceSlug,
       })
     } catch (err) {
-      if (err instanceof ZodError) {
-        const fieldErrors: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") {
-            fieldErrors[key] = issue.message
-          }
-        }
-        setErrors(fieldErrors)
-      }
+      setErrors(parseFieldErrors(err))
       return
     }
 
@@ -147,6 +151,7 @@ export const SetupWizard = () => {
         workspaceSlug,
       })
       if (result) {
+        setFormSubmitted(false)
         setPassword("")
         setConfirmPassword("")
         try { sessionStorage.setItem("vmx_just_setup", "true") } catch {}
@@ -207,7 +212,7 @@ export const SetupWizard = () => {
                 id="firstName"
                 placeholder="First name"
                 value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
+                onChange={(e) => { setFirstName(e.target.value); validate({ ...allFields, firstName: e.target.value }) }}
                 autoComplete="given-name"
               />
               {errors.firstName && (
@@ -220,7 +225,7 @@ export const SetupWizard = () => {
                 id="lastName"
                 placeholder="Last name"
                 value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
+                onChange={(e) => { setLastName(e.target.value); validate({ ...allFields, lastName: e.target.value }) }}
                 autoComplete="family-name"
               />
               {errors.lastName && (
@@ -235,7 +240,7 @@ export const SetupWizard = () => {
                 type="email"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); validate({ ...allFields, email: e.target.value }) }}
                 autoComplete="email"
               />
               {errors.email && <FieldError>{errors.email}</FieldError>}
@@ -249,7 +254,7 @@ export const SetupWizard = () => {
                   type={showPassword ? "text" : "password"}
                   placeholder="At least 8 characters"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); validate({ ...allFields, password: e.target.value }) }}
                   autoComplete="new-password"
                 />
                 {errors.password && (
@@ -298,7 +303,7 @@ export const SetupWizard = () => {
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="Confirm password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => { setConfirmPassword(e.target.value); validate({ ...allFields, confirmPassword: e.target.value }) }}
                   autoComplete="new-password"
                 />
                 {errors.confirmPassword && (

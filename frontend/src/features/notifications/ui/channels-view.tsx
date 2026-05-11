@@ -29,8 +29,7 @@ import {
   Pencil,
   Zap,
 } from "lucide-react"
-import { useAuth, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
-import { ZodError } from "zod"
+import { useAuth, useCurrentWorkspaceRole, hasMinimumRole, parseFieldErrors } from "@/core"
 import {
   useChannels,
   useCreateChannel,
@@ -208,6 +207,13 @@ const ChannelsSection = ({
   const [editName, setEditName] = useState("")
   const [editConfig, setEditConfig] = useState("")
   const [channelFieldErrors, setChannelFieldErrors] = useState<Record<string, string>>({})
+  const [channelFormSubmitted, setChannelFormSubmitted] = useState(false)
+
+  const validateChannel = (fields: { name: string; type?: string }) => {
+    if (!channelFormSubmitted) return
+    const result = channelSchema.safeParse(fields)
+    setChannelFieldErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
 
   const createMutation = useCreateChannel(workspaceId)
   const updateMutation = useUpdateChannel(workspaceId)
@@ -215,18 +221,12 @@ const ChannelsSection = ({
   const testMutation = useTestChannel(workspaceId)
 
   const handleCreate = () => {
+    setChannelFormSubmitted(true)
     setChannelFieldErrors({})
     try {
       channelSchema.parse({ name: channelName, type: channelType || undefined })
     } catch (err) {
-      if (err instanceof ZodError) {
-        const errs: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") errs[key] = issue.message
-        }
-        setChannelFieldErrors(errs)
-      }
+      setChannelFieldErrors(parseFieldErrors(err))
       return
     }
     if (!isConfigValid(channelType, channelConfig)) return
@@ -235,6 +235,7 @@ const ChannelsSection = ({
       {
         onSuccess: () => {
           setCreateOpen(false)
+          setChannelFormSubmitted(false)
           setChannelName("")
           setChannelType("")
           setChannelConfig("")
@@ -314,7 +315,7 @@ const ChannelsSection = ({
                   id="channel-create-name"
                   placeholder="e.g., Team Slack"
                   value={channelName}
-                  onChange={(e) => setChannelName(e.target.value)}
+                  onChange={(e) => { setChannelName(e.target.value); validateChannel({ name: e.target.value, type: channelType || undefined }) }}
                 />
                 {channelFieldErrors.name && <p className="text-xs text-destructive mt-1">{channelFieldErrors.name}</p>}
               </Field>
@@ -663,23 +664,24 @@ const RulesSection = ({
   const [ruleChannel, setRuleChannel] = useState<string | null>(null)
   const [ruleSeverity, setRuleSeverity] = useState("")
   const [ruleFieldErrors, setRuleFieldErrors] = useState<Record<string, string>>({})
+  const [ruleFormSubmitted, setRuleFormSubmitted] = useState(false)
+
+  const validateRule = (fields: { channelId: string; severity?: string }) => {
+    if (!ruleFormSubmitted) return
+    const result = notificationRuleSchema.safeParse(fields)
+    setRuleFieldErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
 
   const createMutation = useCreateRule(workspaceId)
   const deleteMutation = useDeleteRule(workspaceId)
 
   const handleCreate = () => {
+    setRuleFormSubmitted(true)
     setRuleFieldErrors({})
     try {
       notificationRuleSchema.parse({ channelId: ruleChannel ?? "", severity: ruleSeverity || undefined })
     } catch (err) {
-      if (err instanceof ZodError) {
-        const errs: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") errs[key] = issue.message
-        }
-        setRuleFieldErrors(errs)
-      }
+      setRuleFieldErrors(parseFieldErrors(err))
       return
     }
     createMutation.mutate(
@@ -687,6 +689,7 @@ const RulesSection = ({
       {
         onSuccess: () => {
           setCreateOpen(false)
+          setRuleFormSubmitted(false)
           setRuleChannel(null)
           setRuleSeverity("")
         },
@@ -739,7 +742,7 @@ const RulesSection = ({
                 <Select
                   value={ruleSeverity}
                   onValueChange={(v) => {
-                    if (v) setRuleSeverity(v)
+                    if (v) { setRuleSeverity(v); validateRule({ channelId: ruleChannel ?? "", severity: v }) }
                   }}
                 >
                   <SelectTrigger className="w-full">

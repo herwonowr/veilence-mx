@@ -6,7 +6,7 @@ import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
 import { apiForgotPassword, passwordResetSchema } from "@/domains/auth"
-import { sanitizeErrorMessage, ROUTES , usePublicConfigQuery } from "@/core"
+import { sanitizeErrorMessage, ROUTES , usePublicConfigQuery, parseFieldErrors } from "@/core"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
   Card,
@@ -16,7 +16,6 @@ import {
   CardTitle,
 } from "@/ui"
 import { Loader2, ArrowLeft, CheckCircle2 } from "lucide-react"
-import { ZodError } from "zod"
 
 export const ForgotPasswordForm = () => {
   const router = useRouter()
@@ -34,9 +33,17 @@ export const ForgotPasswordForm = () => {
   const [serverError, setServerError] = useState("")
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [formSubmitted, setFormSubmitted] = useState(false)
+
+  const validate = (fields: { email: string }) => {
+    if (!formSubmitted) return
+    const result = passwordResetSchema.safeParse(fields)
+    setErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setFormSubmitted(true)
     setErrors({})
     setServerError("")
 
@@ -44,16 +51,11 @@ export const ForgotPasswordForm = () => {
       const data = passwordResetSchema.parse({ email })
       setLoading(true)
       await apiForgotPassword(data.email)
+      setFormSubmitted(false)
       setSubmitted(true)
     } catch (err) {
-      if (err instanceof ZodError) {
-        const fieldErrors: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") {
-            fieldErrors[key] = issue.message
-          }
-        }
+      const fieldErrors = parseFieldErrors(err)
+      if (Object.keys(fieldErrors).length > 0) {
         setErrors(fieldErrors)
       } else {
         setServerError(sanitizeErrorMessage(err, "Failed to send reset email"))
@@ -84,6 +86,7 @@ export const ForgotPasswordForm = () => {
                 className="w-full"
                 onClick={() => {
                   setSubmitted(false)
+                  setFormSubmitted(false)
                   setEmail("")
                 }}
               >
@@ -130,7 +133,7 @@ export const ForgotPasswordForm = () => {
                 type="email"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); validate({ email: e.target.value }) }}
                 autoComplete="email"
               />
               {errors.email && <FieldError>{errors.email}</FieldError>}
