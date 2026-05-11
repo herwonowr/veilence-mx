@@ -4,7 +4,7 @@
 export { config } from "@/core/config"
 export { fetchApi, getStoredAccessToken, getStoredRefreshToken, storeTokens, clearTokens, getStoredWorkspaceId, storeWorkspaceId, clearWorkspaceId, setSuperAdminHint, type ApiResponse } from "@/core/http"
 export { sanitizeErrorMessage } from "@/core/error-sanitizer"
-export { cn } from "@/core/utils"
+export { cn, parseFieldErrors } from "@/core/utils"
 
 // Providers
 export { AuthProvider, useAuth } from "@/core/providers/auth-provider"

@@ -4,9 +4,8 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input, Field, FieldLabel, FieldDescription, FieldError, Checkbox, Label, RadioGroup, RadioGroupItem, Alert, AlertDescription, NpmIcon, PypiIcon, GoIcon } from "@/ui"
 import { Save, RefreshCw, Mail, AlertCircle, Radar, Activity, Info, AlertTriangle, Loader2 } from "lucide-react"
 import { settingsSchema } from "@/domains/settings"
-import { ZodError } from "zod"
 import { useSettings, useUpdateSettings, useDiscoverNow, usePackageCountSummary } from "@/features/settings/hooks/use-settings"
-import { useCurrentWorkspaceRole, hasMinimumRole, ROUTES , usePublicConfigQuery } from "@/core"
+import { useCurrentWorkspaceRole, hasMinimumRole, ROUTES , usePublicConfigQuery, parseFieldErrors } from "@/core"
 import Link from "next/link"
 
 const ECOSYSTEMS = [
@@ -21,7 +20,13 @@ export const SettingsView = () => {
   const [localSettings, setLocalSettings] = useState<Record<string, string>>({})
   const [prevSettingsKey, setPrevSettingsKey] = useState<string | null>(null)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+  const [formSubmitted, setFormSubmitted] = useState(false)
 
+  const validate = (settings: Record<string, string>) => {
+    if (!formSubmitted) return
+    const result = settingsSchema.safeParse(settings)
+    setValidationErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
   const { enabledEcosystems } = usePublicConfigQuery()
   const { data: settingsRes } = useSettings()
   const updateMutation = useUpdateSettings()
@@ -56,23 +61,19 @@ export const SettingsView = () => {
   }, [isDirty])
 
   const updateSetting = (key: string, value: string) => {
+    const updated = { ...localSettings, [key]: value }
     setLocalSettings((prev) => ({ ...prev, [key]: value }))
+    validate(updated)
   }
 
   const handleSave = useCallback(() => {
+    setFormSubmitted(true)
     setValidationErrors({})
     try {
       settingsSchema.parse(localSettings)
       updateMutation.mutate(localSettings)
     } catch (err) {
-      if (err instanceof ZodError) {
-        const fieldErrors: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") fieldErrors[key] = issue.message
-        }
-        setValidationErrors(fieldErrors)
-      }
+      setValidationErrors(parseFieldErrors(err))
     }
   }, [localSettings, updateMutation])
 

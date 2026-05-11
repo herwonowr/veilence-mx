@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/ui"
 import { MessageSquare, Send, Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
-import { useAuth, useCurrentWorkspaceRole, hasMinimumRole } from "@/core"
+import { useAuth, useCurrentWorkspaceRole, hasMinimumRole, parseFieldErrors } from "@/core"
 import {
   useAlertNotes,
   useCreateAlertNote,
@@ -19,7 +19,6 @@ import {
 } from "@/features/alerts/hooks/use-alerts"
 import { toAlertNoteViewModels, alertNoteSchema } from "@/domains/alerts"
 import type { AlertNoteViewModel } from "@/domains/alerts"
-import { ZodError } from "zod"
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 
@@ -189,10 +188,9 @@ export const AlertNotesTimeline = ({ alertId }: { alertId: string }) => {
     try {
       alertNoteSchema.parse({ content: noteContent.trim() })
     } catch (err) {
-      if (err instanceof ZodError) {
-        const msg = err.issues[0]?.message ?? "Invalid note"
-        setNoteError(msg)
-      }
+      const fieldErrors = parseFieldErrors(err)
+      const msg = fieldErrors.content ?? "Invalid note"
+      setNoteError(msg)
       return
     }
     await createNoteMutation.mutateAsync(noteContent.trim())
@@ -225,10 +223,9 @@ export const AlertNotesTimeline = ({ alertId }: { alertId: string }) => {
     try {
       alertNoteSchema.parse({ content: trimmed })
     } catch (err) {
-      if (err instanceof ZodError) {
-        const msg = err.issues[0]?.message ?? "Invalid note"
-        setEditError(msg)
-      }
+      const fieldErrors = parseFieldErrors(err)
+      const msg = fieldErrors.content ?? "Invalid note"
+      setEditError(msg)
       return
     }
     await updateNoteMutation.mutateAsync({ noteId: editingNoteId, content: trimmed })

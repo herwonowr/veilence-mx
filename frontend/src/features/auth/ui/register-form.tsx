@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
-import { useAuth, ROUTES , usePublicConfigQuery } from "@/core"
+import { useAuth, ROUTES , usePublicConfigQuery, parseFieldErrors } from "@/core"
 import { registerSchema, getPasswordStrength } from "@/domains/auth"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
@@ -16,7 +16,6 @@ import {
   CardTitle,
 } from "@/ui"
 import { Loader2, Eye, EyeOff, MailCheck, Info } from "lucide-react"
-import { ZodError } from "zod"
 
 export const RegisterForm = () => {
   const { register } = useAuth()
@@ -41,6 +40,7 @@ export const RegisterForm = () => {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [formSubmitted, setFormSubmitted] = useState(false)
   const [serverError, setServerError] = useState("")
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -49,8 +49,15 @@ export const RegisterForm = () => {
 
   const passwordStrength = useMemo(() => getPasswordStrength(password), [password])
 
+  const validate = (fields: { firstName: string; lastName: string; email: string; password: string; confirmPassword: string }) => {
+    if (!formSubmitted) return
+    const result = registerSchema.safeParse(fields)
+    setErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
+
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setFormSubmitted(true)
     setErrors({})
     setServerError("")
 
@@ -73,19 +80,14 @@ export const RegisterForm = () => {
       // it returns a code instructing the user to log in manually.
       if (result?.code === "registration_complete_login_required" || result?.code === "email_verification_required") {
         try { sessionStorage.setItem("vmx_just_registered", "true") } catch {}
+        setFormSubmitted(false)
         setRegistrationSuccess(true)
         return
       }
       router.push(`${ROUTES.WORKSPACES}?create=true`)
     } catch (err) {
-      if (err instanceof ZodError) {
-        const fieldErrors: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") {
-            fieldErrors[key] = issue.message
-          }
-        }
+      const fieldErrors = parseFieldErrors(err)
+      if (Object.keys(fieldErrors).length > 0) {
         setErrors(fieldErrors)
       } else {
         setServerError(
@@ -159,7 +161,7 @@ export const RegisterForm = () => {
                 id="firstName"
                 placeholder="First name"
                 value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
+                onChange={(e) => { setFirstName(e.target.value); validate({ firstName: e.target.value, lastName, email, password, confirmPassword }) }}
                 autoComplete="given-name"
               />
               {errors.firstName && <FieldError>{errors.firstName}</FieldError>}
@@ -170,7 +172,7 @@ export const RegisterForm = () => {
                 id="lastName"
                 placeholder="Last name"
                 value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
+                onChange={(e) => { setLastName(e.target.value); validate({ firstName, lastName: e.target.value, email, password, confirmPassword }) }}
                 autoComplete="family-name"
               />
               {errors.lastName && <FieldError>{errors.lastName}</FieldError>}
@@ -182,7 +184,7 @@ export const RegisterForm = () => {
                 type="email"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); validate({ firstName, lastName, email: e.target.value, password, confirmPassword }) }}
                 autoComplete="email"
               />
               {errors.email && <FieldError>{errors.email}</FieldError>}
@@ -195,7 +197,7 @@ export const RegisterForm = () => {
                   type={showPassword ? "text" : "password"}
                   placeholder="At least 8 characters"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); validate({ firstName, lastName, email, password: e.target.value, confirmPassword }) }}
                   autoComplete="new-password"
                 />
                 {errors.password && <FieldError>{errors.password}</FieldError>}
@@ -236,7 +238,7 @@ export const RegisterForm = () => {
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="Confirm your password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => { setConfirmPassword(e.target.value); validate({ firstName, lastName, email, password, confirmPassword: e.target.value }) }}
                   autoComplete="new-password"
                 />
                 {errors.confirmPassword && <FieldError>{errors.confirmPassword}</FieldError>}

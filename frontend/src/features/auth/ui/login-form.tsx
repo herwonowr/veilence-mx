@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import veilenceLogo from "@/../public/veilence-mx.svg"
 import Link from "next/link"
-import { useAuth, sanitizeErrorMessage, ROUTES, config , usePublicConfigQuery } from "@/core"
+import { useAuth, sanitizeErrorMessage, ROUTES, config , usePublicConfigQuery, parseFieldErrors } from "@/core"
 import { loginSchema, apiSendVerificationEmailByEmail } from "@/domains/auth"
 import { Button, Input, Field, FieldLabel, FieldError, Alert, AlertDescription } from "@/ui"
 import {
@@ -16,7 +16,7 @@ import {
   CardTitle,
 } from "@/ui"
 import { Loader2, Eye, EyeOff, MailCheck, CheckCircle2, Shield } from "lucide-react"
-import { ZodError } from "zod"
+
 import { useSSOProviders } from "@/features/sso"
 import type { SSOProviderInfo } from "@/domains/sso"
 
@@ -190,6 +190,7 @@ const LoginFormInner = ({ onLoginSuccess }: { onLoginSuccess?: () => void }) => 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [formSubmitted, setFormSubmitted] = useState(false)
   const [serverError, setServerError] = useState("")
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -198,6 +199,12 @@ const LoginFormInner = ({ onLoginSuccess }: { onLoginSuccess?: () => void }) => 
   const [emailVerificationRequired, setEmailVerificationRequired] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
   const [resendSuccess, setResendSuccess] = useState(false)
+
+  const validate = (fields: { email: string; password: string }) => {
+    if (!formSubmitted) return
+    const result = loginSchema.safeParse(fields)
+    setErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
 
   const [failedAttempts, setFailedAttempts] = useState(() => getStoredAttempts().count)
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(
@@ -261,6 +268,7 @@ const LoginFormInner = ({ onLoginSuccess }: { onLoginSuccess?: () => void }) => 
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setFormSubmitted(true)
     setErrors({})
     setServerError("")
     setEmailVerificationRequired(false)
@@ -277,6 +285,7 @@ const LoginFormInner = ({ onLoginSuccess }: { onLoginSuccess?: () => void }) => 
       // Successful login - reset throttle state
       setFailedAttempts(0)
       setLockoutUntil(null)
+      setFormSubmitted(false)
       clearAttempts()
 
       if (result?.mustChangePassword) {
@@ -287,14 +296,8 @@ const LoginFormInner = ({ onLoginSuccess }: { onLoginSuccess?: () => void }) => 
         router.push(redirect)
       }
     } catch (err) {
-      if (err instanceof ZodError) {
-        const fieldErrors: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") {
-            fieldErrors[key] = issue.message
-          }
-        }
+      const fieldErrors = parseFieldErrors(err)
+      if (Object.keys(fieldErrors).length > 0) {
         setErrors(fieldErrors)
       } else {
         const rawMessage = err instanceof Error ? err.message : ""
@@ -404,7 +407,7 @@ const LoginFormInner = ({ onLoginSuccess }: { onLoginSuccess?: () => void }) => 
                   type="email"
                   placeholder="you@example.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); validate({ email: e.target.value, password }) }}
                   autoComplete="email"
                 />
                 {errors.email && <FieldError>{errors.email}</FieldError>}
@@ -417,7 +420,7 @@ const LoginFormInner = ({ onLoginSuccess }: { onLoginSuccess?: () => void }) => 
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => { setPassword(e.target.value); validate({ email, password: e.target.value }) }}
                     autoComplete="current-password"
                   />
                   {errors.password && <FieldError>{errors.password}</FieldError>}

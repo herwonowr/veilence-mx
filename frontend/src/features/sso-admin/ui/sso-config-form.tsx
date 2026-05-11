@@ -25,7 +25,7 @@ import {
   AlertDescription,
 } from "@/ui"
 import { Save, Loader2 } from "lucide-react"
-import { sanitizeErrorMessage } from "@/core"
+import { sanitizeErrorMessage, parseFieldErrors } from "@/core"
 import type { SSOConfig, SSOProvider, CreateSSOConfigRequest, UpdateSSOConfigRequest } from "@/domains/sso"
 import {
   samlConfigSchema,
@@ -36,7 +36,6 @@ import {
 import { SAMLConfigForm } from "@/features/sso-admin/ui/saml-config-form"
 import { OAuthConfigForm } from "@/features/sso-admin/ui/oauth-config-form"
 import { SAMLSPInfo } from "@/features/sso-admin/ui/saml-sp-info"
-import { ZodError } from "zod"
 
 interface SSOConfigFormProps {
   existingConfig?: SSOConfig | null
@@ -107,10 +106,30 @@ export const SSOConfigForm = ({
   )
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [formSubmitted, setFormSubmitted] = useState(false)
   const [serverError, setServerError] = useState("")
+
+  const validate = () => {
+    if (!formSubmitted) return
+    const formData = {
+      displayName,
+      isEnabled,
+      autoCreateUser,
+      allowedDomains,
+      ...(provider === "saml"
+        ? { provider: "saml" as const, samlEntityId, samlSsoUrl, samlCertificate, samlAttrEmail, samlAttrFirstName, samlAttrLastName }
+        : { provider, oauthClientId, oauthClientSecret, googleHostedDomain, githubOrgs }),
+    }
+    const schema = isEditing
+      ? (provider === "saml" ? samlConfigUpdateSchema : oauthConfigUpdateSchema)
+      : (provider === "saml" ? samlConfigSchema : oauthConfigSchema)
+    const result = schema.safeParse(formData)
+    setErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
 
   const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setFormSubmitted(true)
     setErrors({})
     setServerError("")
 
@@ -153,16 +172,7 @@ export const SSOConfigForm = ({
         }
       }
     } catch (err) {
-      if (err instanceof ZodError) {
-        const fieldErrors: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") {
-            fieldErrors[key] = issue.message
-          }
-        }
-        setErrors(fieldErrors)
-      }
+      setErrors(parseFieldErrors(err))
       return
     }
 
@@ -253,7 +263,7 @@ export const SSOConfigForm = ({
             <FieldLabel>Display Name</FieldLabel>
             <Input
               value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
+              onChange={(e) => { setDisplayName(e.target.value); validate() }}
               placeholder="e.g. Company Google, Corporate SAML"
               disabled={!isEnabled}
             />
@@ -285,7 +295,7 @@ export const SSOConfigForm = ({
             <FieldLabel>Allowed Domains (comma-separated)</FieldLabel>
             <Input
               value={allowedDomains}
-              onChange={(e) => setAllowedDomains(e.target.value)}
+              onChange={(e) => { setAllowedDomains(e.target.value); validate() }}
               placeholder="example.com, corp.example.com"
               disabled={!isEnabled}
             />

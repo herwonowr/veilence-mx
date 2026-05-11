@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useAuth, ROUTES, useCurrentWorkspaceRole, hasMinimumRole , usePublicConfigQuery } from "@/core"
+import { useAuth, ROUTES, useCurrentWorkspaceRole, hasMinimumRole , usePublicConfigQuery, parseFieldErrors } from "@/core"
 import { workspaceUpdateSchema } from "@/domains/admin"
 import {
   Button,
@@ -35,7 +35,6 @@ import {
   ScrollText,
 } from "lucide-react"
 import Link from "next/link"
-import { ZodError } from "zod"
 import {
   useWorkspace,
   useWorkspaceMembers,
@@ -90,7 +89,13 @@ export const WorkspaceDetailView = () => {
   const [editDescription, setEditDescription] = useState("")
   const [prevWorkspaceId, setPrevWorkspaceId] = useState<string | null>(null)
   const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({})
+  const [editFormSubmitted, setEditFormSubmitted] = useState(false)
 
+  const validateEdit = (fields: { name: string; description: string }) => {
+    if (!editFormSubmitted) return
+    const result = workspaceUpdateSchema.safeParse(fields)
+    setEditFieldErrors(result.success ? {} : parseFieldErrors(result.error))
+  }
   // React-recommended "store previous props" pattern for syncing derived state
   if (workspace && prevWorkspaceId !== workspace.id) {
     setPrevWorkspaceId(workspace.id)
@@ -102,18 +107,12 @@ export const WorkspaceDetailView = () => {
   const deleteMutation = useDeleteWorkspace()
 
   const handleSave = async () => {
+    setEditFormSubmitted(true)
     setEditFieldErrors({})
     try {
       workspaceUpdateSchema.parse({ name: editName, description: editDescription })
     } catch (err) {
-      if (err instanceof ZodError) {
-        const errs: Record<string, string> = {}
-        for (const issue of err.issues) {
-          const key = issue.path[0]
-          if (typeof key === "string") errs[key] = issue.message
-        }
-        setEditFieldErrors(errs)
-      }
+      setEditFieldErrors(parseFieldErrors(err))
       return
     }
     await updateMutation.mutateAsync({
@@ -290,7 +289,7 @@ export const WorkspaceDetailView = () => {
                 <Input
                   id="edit-name"
                   value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
+                  onChange={(e) => { setEditName(e.target.value); validateEdit({ name: e.target.value, description: editDescription }) }}
                 />
                 {editFieldErrors.name && <FieldError>{editFieldErrors.name}</FieldError>}
               </Field>
@@ -299,7 +298,7 @@ export const WorkspaceDetailView = () => {
                 <Input
                   id="edit-description"
                   value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
+                  onChange={(e) => { setEditDescription(e.target.value); validateEdit({ name: editName, description: e.target.value }) }}
                 />
                 {editFieldErrors.description && <FieldError>{editFieldErrors.description}</FieldError>}
               </Field>
