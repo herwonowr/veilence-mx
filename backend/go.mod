@@ -3,6 +3,7 @@ module github.com/veilence/veilence-mx/backend
 go 1.25.7
 
 require (
+	github.com/aws/aws-sdk-go-v2 v1.41.7
 	github.com/crewjam/saml v0.5.1
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/cors v1.2.2
@@ -21,6 +22,7 @@ require (
 )
 
 require (
+	github.com/aws/smithy-go v1.25.1 // indirect
 	github.com/beevik/etree v1.5.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

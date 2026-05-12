@@ -81,6 +81,12 @@ services:
       LLM_PROVIDER: copilot
       LLM_API_URL: http://host.docker.internal:4141
       LLM_MODEL: claude-sonnet-4.6
+      # LLM_PROVIDER: bedrock
+      # LLM_MODEL: anthropic.claude-sonnet-4-20250514
+      # AWS_REGION: us-east-1
+      # AWS_ACCESS_KEY_ID: your-access-key-id
+      # AWS_SECRET_ACCESS_KEY: your-secret-access-key
+      # AWS_SESSION_TOKEN: optional-session-token
       REQUIRE_EMAIL_VERIFICATION: "true"
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"

@@ -28,6 +28,8 @@ const (
 	AnalyzerTypeAnthropic AnalyzerType = "anthropic"
 	// AnalyzerTypeOllama uses a local Ollama instance.
 	AnalyzerTypeOllama AnalyzerType = "ollama"
+	// AnalyzerTypeBedrock uses AWS Bedrock.
+	AnalyzerTypeBedrock AnalyzerType = "bedrock"
 )
 
 // Analysis represents the LLM analysis of a diff.
