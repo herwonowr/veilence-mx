@@ -129,7 +129,7 @@ func (c *Client) Analyze(ctx context.Context, diff string, packageName string, e
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			respBody, _ := io.ReadAll(resp.Body)
+			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 			resp.Body.Close()
 			return nil, fmt.Errorf("ollama returned %d: %s", resp.StatusCode, string(respBody))
 		}

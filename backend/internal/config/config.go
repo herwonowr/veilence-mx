@@ -36,6 +36,12 @@ type Config struct {
 	LLMMaxDiffSize  int
 	LLMRateInterval time.Duration
 
+	// AWS (for Bedrock provider)
+	AWSRegion          string
+	AWSAccessKeyID     string
+	AWSSecretAccessKey string
+	AWSSessionToken    string
+
 	// Pipeline
 	MonitoringInterval         time.Duration
 	DiscoveryInterval          time.Duration
@@ -127,6 +133,12 @@ func NewConfig() (*Config, error) {
 		LLMApiKey:       os.Getenv("LLM_API_KEY"),
 		LLMMaxDiffSize:  envIntOrDefault("LLM_MAX_DIFF_SIZE", 150*1024),
 		LLMRateInterval: envDurationOrDefault("LLM_RATE_INTERVAL", 6*time.Second),
+
+		// AWS (for Bedrock provider)
+		AWSRegion:          os.Getenv("AWS_REGION"),
+		AWSAccessKeyID:     os.Getenv("AWS_ACCESS_KEY_ID"),
+		AWSSecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		AWSSessionToken:    os.Getenv("AWS_SESSION_TOKEN"),
 
 		// Pipeline
 		MonitoringInterval:         envDurationOrDefault("MONITORING_INTERVAL", 1*time.Hour),
@@ -251,11 +263,11 @@ func (c *Config) Validate() error {
 		errs = append(errs, "JWT_SECRET must be set to a secure value in production")
 	}
 	if c.LLMProvider == "" {
-		errs = append(errs, "LLM_PROVIDER is required (valid: copilot, openai, anthropic, ollama)")
-	} else if c.LLMProvider != "copilot" && c.LLMProvider != "openai" && c.LLMProvider != "anthropic" && c.LLMProvider != "ollama" {
-		errs = append(errs, fmt.Sprintf("unknown LLM_PROVIDER: %s (valid: copilot, openai, anthropic, ollama)", c.LLMProvider))
+		errs = append(errs, "LLM_PROVIDER is required (valid: copilot, openai, anthropic, ollama, bedrock)")
+	} else if c.LLMProvider != "copilot" && c.LLMProvider != "openai" && c.LLMProvider != "anthropic" && c.LLMProvider != "ollama" && c.LLMProvider != "bedrock" {
+		errs = append(errs, fmt.Sprintf("unknown LLM_PROVIDER: %s (valid: copilot, openai, anthropic, ollama, bedrock)", c.LLMProvider))
 	} else {
-		if c.LLMApiURL == "" {
+		if c.LLMProvider != "bedrock" && c.LLMApiURL == "" {
 			errs = append(errs, "LLM_API_URL is required")
 		}
 		if c.LLMModel == "" {
@@ -263,6 +275,17 @@ func (c *Config) Validate() error {
 		}
 		if (c.LLMProvider == "openai" || c.LLMProvider == "anthropic") && c.LLMApiKey == "" {
 			errs = append(errs, fmt.Sprintf("LLM_API_KEY is required when using %s provider", c.LLMProvider))
+		}
+		if c.LLMProvider == "bedrock" {
+			if c.AWSRegion == "" {
+				errs = append(errs, "AWS_REGION is required when using bedrock provider")
+			}
+			if c.AWSAccessKeyID == "" {
+				errs = append(errs, "AWS_ACCESS_KEY_ID is required when using bedrock provider")
+			}
+			if c.AWSSecretAccessKey == "" {
+				errs = append(errs, "AWS_SECRET_ACCESS_KEY is required when using bedrock provider")
+			}
 		}
 	}
 	if c.LLMMaxDiffSize <= 0 {

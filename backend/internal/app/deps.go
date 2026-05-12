@@ -39,6 +39,7 @@ import (
 	"github.com/veilence/veilence-mx/backend/internal/usecase/setup"
 	"github.com/veilence/veilence-mx/backend/internal/usecase/sso"
 	"github.com/veilence/veilence-mx/backend/pkg/anthropic"
+	"github.com/veilence/veilence-mx/backend/pkg/bedrock"
 	"github.com/veilence/veilence-mx/backend/pkg/copilotapi"
 	"github.com/veilence/veilence-mx/backend/pkg/crypto"
 	"github.com/veilence/veilence-mx/backend/pkg/hasher"
@@ -231,6 +232,23 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		client := ollama.New(llmConfig)
 		llmAdapter = &ollamaAdapter{client: client}
 		slog.Info("LLM provider: ollama", "url", llmConfig.BaseURL, "model", llmConfig.Model)
+
+	case "bedrock":
+		llmConfig := bedrock.Config{
+			Region:         cfg.AWSRegion,
+			AccessKeyID:    cfg.AWSAccessKeyID,
+			SecretAccessKey: cfg.AWSSecretAccessKey,
+			SessionToken:   cfg.AWSSessionToken,
+			Model:          cfg.LLMModel,
+			MaxDiffSize:    cfg.LLMMaxDiffSize,
+			RateInterval:   cfg.LLMRateInterval,
+		}
+		if err := llmConfig.Validate(); err != nil {
+			return nil, fmt.Errorf("bedrock LLM config error: %w", err)
+		}
+		client := bedrock.New(llmConfig)
+		llmAdapter = &bedrockAdapter{client: client}
+		slog.Info("LLM provider: bedrock", "model", llmConfig.Model, "region", llmConfig.Region)
 
 	default:
 		return nil, fmt.Errorf("unknown LLM provider: %s", cfg.LLMProvider)
@@ -561,6 +579,7 @@ type copilotAdapter = genericLLMAdapter
 type openaiAdapter = genericLLMAdapter
 type anthropicAdapter = genericLLMAdapter
 type ollamaAdapter = genericLLMAdapter
+type bedrockAdapter = genericLLMAdapter
 
 // tokenProviderAdapter adapts pkg/token.JWTProvider to satisfy usecase.TokenProvider.
 type tokenProviderAdapter struct {
