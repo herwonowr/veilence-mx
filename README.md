@@ -135,6 +135,7 @@ Packages are monitored in two modes: Top-N (automatically tracks the most popula
 - ✅ OpenAI
 - ✅ Anthropic
 - ✅ Ollama (local)
+- ✅ AWS Bedrock
 
 ### UI
 - ✅ Command palette (Cmd+K / Ctrl+K)
@@ -156,7 +157,7 @@ Packages are monitored in two modes: Top-N (automatically tracks the most popula
 
 - **Backend:** Go 1.23+, Chi v5, GORM, PostgreSQL 16, Redis 7
 - **Frontend:** Next.js 16 (App Router), React 19, TypeScript, TailwindCSS v4, shadcn/ui
-- **LLM:** copilot-api (default), OpenAI, Anthropic, Ollama
+- **LLM:** copilot-api (default), OpenAI, Anthropic, Ollama, AWS Bedrock
 - **Auth:** JWT (access + refresh), RBAC (Owner/Admin/Member/Viewer), SSO (SAML, Google, GitHub)
 - **Notifications:** Email (SMTP), Slack webhooks, custom webhooks
 
@@ -165,7 +166,7 @@ Packages are monitored in two modes: Top-N (automatically tracks the most popula
 - Go 1.23+
 - Node.js 22+
 - Docker and Docker Compose (for PostgreSQL + Redis)
-- GitHub Copilot subscription (for copilot provider), or OpenAI/Anthropic API key, or local Ollama instance
+- GitHub Copilot subscription (for copilot provider), or OpenAI/Anthropic API key, or local Ollama instance, or AWS credentials (for Bedrock)
 - GitHub CLI (`gh`) authenticated - only needed for copilot provider
 
 ## Quick Start
