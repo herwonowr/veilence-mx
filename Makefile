@@ -1,4 +1,4 @@
-.PHONY: dev dev-backend dev-frontend build lint db-up db-down db-destroy docker-up docker-down docker-destroy docker-build
+.PHONY: dev dev-backend dev-frontend build lint db-up db-down db-destroy docker-up docker-down docker-destroy docker-build ncu ncu-upgrade
 
 # Infrastructure
 db-up:
@@ -41,6 +41,7 @@ build-backend:
 	cd backend && go build ./...
 
 lint-backend:
+	cd backend && go fmt ./...
 	cd backend && go vet ./...
 	cd backend && staticcheck ./...
 
@@ -63,3 +64,10 @@ dev: db-up
 build: build-backend build-frontend
 
 lint: lint-backend lint-frontend
+
+# Dependency updates
+ncu:
+	cd frontend && npm run ncu
+
+ncu-upgrade:
+	cd frontend && npm run ncu:upgrade
