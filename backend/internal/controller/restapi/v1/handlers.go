@@ -71,6 +71,7 @@ type AuditHandlers struct {
 type PackageHandlers struct {
 	PkgSvc         usecase.PackageService
 	ReleaseSvc     usecase.ReleaseService
+	HashRepo       usecase.ReleaseHashRepository
 	Audit          *audit.Service
 	MaxBulkImport  int
 	MaxBulkApprove int
@@ -133,6 +134,7 @@ func NewHandlers(
 	frontendURL string,
 	rbacRepo usecase.RBACRepository,
 	identityRepo usecase.UserIdentityRepository,
+	hashRepo usecase.ReleaseHashRepository,
 	ecosystemsEnabled []string,
 	maxBulkImport int,
 	maxBulkApprove int,
@@ -162,6 +164,7 @@ func NewHandlers(
 		Packages: &PackageHandlers{
 			PkgSvc:         packageService,
 			ReleaseSvc:     releaseService,
+			HashRepo:       hashRepo,
 			Audit:          auditService,
 			MaxBulkImport:  maxBulkImport,
 			MaxBulkApprove: maxBulkApprove,

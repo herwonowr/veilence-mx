@@ -5,6 +5,8 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -36,10 +38,11 @@ type Differ struct {
 	config   Config
 	queue    usecase.QueueEnqueuer
 	notifier usecase.NotificationDispatcher
+	hashRepo usecase.ReleaseHashRepository
 }
 
 // New creates a new Differ instance.
-func New(repo DifferRepository, python usecase.Registry, npm usecase.Registry, golang usecase.Registry, config Config, q usecase.QueueEnqueuer, notifier usecase.NotificationDispatcher) *Differ {
+func New(repo DifferRepository, python usecase.Registry, npm usecase.Registry, golang usecase.Registry, config Config, q usecase.QueueEnqueuer, notifier usecase.NotificationDispatcher, hashRepo usecase.ReleaseHashRepository) *Differ {
 	if config.DiffSizeLimit <= 0 {
 		config.DiffSizeLimit = 150 * 1024 // 150KB default
 	}
@@ -63,6 +66,7 @@ func New(repo DifferRepository, python usecase.Registry, npm usecase.Registry, g
 		config:   config,
 		queue:    q,
 		notifier: notifier,
+		hashRepo: hashRepo,
 	}
 }
 
@@ -99,6 +103,24 @@ func (d *Differ) ProcessRelease(ctx context.Context, releaseID string) error {
 		return fmt.Errorf("downloading new tarball: %w", err)
 	}
 	defer os.RemoveAll(filepath.Dir(newPath))
+
+	// Compute SHA-256 for Go module zips
+	if pkg.Ecosystem == entity.EcosystemGo && d.hashRepo != nil {
+		hash, hashErr := computeFileSHA256(newPath)
+		if hashErr != nil {
+			slog.Warn("failed to compute Go zip hash", "release", release.ID, "error", hashErr)
+		} else {
+			filename := fmt.Sprintf("%s.zip", release.Version)
+			if err := d.hashRepo.CreateBatch(ctx, []entity.ReleaseHash{{
+				ReleaseID: release.ID,
+				Filename:  filename,
+				Algorithm: "sha256",
+				Hash:      hash,
+			}}); err != nil {
+				slog.Warn("failed to store Go zip hash", "release", release.ID, "error", err)
+			}
+		}
+	}
 
 	oldPath, err := reg.DownloadTarball(ctx, prevRelease.TarballURL)
 	if err != nil {
@@ -197,6 +219,20 @@ func (d *Differ) markError(ctx context.Context, release *entity.Release, pkg *en
 			ReferenceType: "release",
 		})
 	}
+}
+
+// computeFileSHA256 computes the SHA-256 hash of a file using streaming io.Copy.
+func computeFileSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 type diffStats struct {

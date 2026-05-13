@@ -156,12 +156,13 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 
 	// Pipeline
 	pollerRepo := persistent.NewPollerRepo(db)
+	hashRepo := persistent.NewReleaseHashRepo(db)
 	pollerService := poller.New(pollerRepo, pythonClient, npmClient, goClient, poller.Config{
 		MonitoringInterval:   cfg.MonitoringInterval,
 		DiscoveryInterval:    cfg.DiscoveryInterval,
 		Concurrency:          cfg.PollerConcurrency,
 		WorkspaceConcurrency: cfg.PollerWorkspaceConcurrency,
-	}, jobQueue, notificationService)
+	}, jobQueue, notificationService, hashRepo)
 
 	differRepo := persistent.NewDifferRepo(db)
 	differService := differ.New(differRepo, pythonClient, npmClient, goClient, differ.Config{
@@ -170,7 +171,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		MaxArchiveSize:      cfg.MaxArchiveSize,
 		MaxFileExtractSize:  cfg.MaxFileExtractSize,
 		MaxFileReadSize:     cfg.MaxFileReadSize,
-	}, jobQueue, notificationService)
+	}, jobQueue, notificationService, hashRepo)
 
 	// LLM analyzer - provider selection
 	var llmAdapter analyzer.LLMProvider
@@ -457,6 +458,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 		cfg.FrontendURL,
 		rbacRepo,
 		identityRepoIface,
+		hashRepo,
 		cfg.EcosystemsEnabled,
 		cfg.MaxBulkImport,
 		cfg.MaxBulkApprove,

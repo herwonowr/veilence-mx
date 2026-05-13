@@ -536,6 +536,21 @@ type SSOState struct {
 
 func (SSOState) TableName() string { return "sso_states" }
 
+// --- ReleaseHash Models ---
+
+// ReleaseHash is the GORM model for release file hashes (IoC).
+type ReleaseHash struct {
+	ID        string    `gorm:"type:uuid;primarykey" json:"id"`
+	ReleaseID string    `gorm:"type:uuid;not null" json:"releaseId"`
+	Release   Release   `gorm:"foreignKey:ReleaseID" json:"-"`
+	Filename  string    `gorm:"not null;type:varchar(500)" json:"filename"`
+	Algorithm string    `gorm:"not null;type:varchar(10)" json:"algorithm"`
+	Hash      string    `gorm:"not null;type:varchar(128)" json:"hash"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+func (ReleaseHash) TableName() string { return "release_hashes" }
+
 // --- BeforeCreate hooks (UUIDv7 via pkg/id) ---
 
 func (m *Package) BeforeCreate(tx *gorm.DB) error {
@@ -713,6 +728,13 @@ func (m *SSOState) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
+func (m *ReleaseHash) BeforeCreate(tx *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = id.New()
+	}
+	return nil
+}
+
 // AllModels is the complete list of GORM models for auto-migration and testing.
 var AllModels = []any{
 	&User{}, &RefreshToken{}, &APIKey{},
@@ -725,4 +747,5 @@ var AllModels = []any{
 	&PasswordResetToken{}, &EmailVerificationToken{},
 	&Session{},
 	&SSOConfig{}, &UserIdentity{}, &SSOState{},
+	&ReleaseHash{},
 }

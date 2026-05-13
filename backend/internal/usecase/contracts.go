@@ -201,6 +201,14 @@ type DashboardRepository interface {
 	GetUnanalyzedDiffIDs(ctx context.Context, workspaceID string) ([]string, error)
 }
 
+// ReleaseHashRepository defines persistence operations for ReleaseHash entities.
+type ReleaseHashRepository interface {
+	CreateBatch(ctx context.Context, hashes []entity.ReleaseHash) error
+	FindByReleaseID(ctx context.Context, releaseID string) ([]entity.ReleaseHash, error)
+	CountByReleaseID(ctx context.Context, releaseID string) (int64, error)
+	CountByReleaseIDs(ctx context.Context, releaseIDs []string) (map[string]int64, error)
+}
+
 // --- Service Interfaces ---
 
 // PackageService defines the business logic operations for package lifecycle management.

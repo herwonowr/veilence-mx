@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -87,6 +89,7 @@ type Poller struct {
 	config   Config
 	queue    usecase.QueueEnqueuer
 	notifier usecase.NotificationDispatcher
+	hashRepo usecase.ReleaseHashRepository
 	mu       sync.Mutex
 	settings *settingsCache
 
@@ -98,7 +101,7 @@ type Poller struct {
 }
 
 // New creates a new Poller instance.
-func New(repo PollerRepository, python usecase.Registry, npm usecase.Registry, golang usecase.Registry, config Config, q usecase.QueueEnqueuer, notifier usecase.NotificationDispatcher) *Poller {
+func New(repo PollerRepository, python usecase.Registry, npm usecase.Registry, golang usecase.Registry, config Config, q usecase.QueueEnqueuer, notifier usecase.NotificationDispatcher, hashRepo usecase.ReleaseHashRepository) *Poller {
 	if config.Concurrency <= 0 {
 		config.Concurrency = 5
 	}
@@ -113,6 +116,7 @@ func New(repo PollerRepository, python usecase.Registry, npm usecase.Registry, g
 		config:     config,
 		queue:      q,
 		notifier:   notifier,
+		hashRepo:   hashRepo,
 		settings:   newSettingsCache(SettingsCacheTTL),
 		lastPollAt: make(map[string]time.Time),
 	}
@@ -347,6 +351,16 @@ func (p *Poller) checkPackageForNewReleases(ctx context.Context, reg usecase.Reg
 		if err := p.repo.CreateRelease(ctx, release); err != nil {
 			slog.Error("failed to create release", "package", pkg.Name, "version", v.Version, "error", err)
 			continue
+		}
+
+		// Store release hashes from registry API
+		if len(v.Hashes) > 0 && p.hashRepo != nil {
+			validHashes := validateAndFilterHashes(v.Hashes, release.ID)
+			if len(validHashes) > 0 {
+				if err := p.hashRepo.CreateBatch(ctx, validHashes); err != nil {
+					slog.Warn("failed to store release hashes", "release", release.ID, "error", err)
+				}
+			}
 		}
 
 		slog.Info("new release detected", "package", pkg.Name, "version", v.Version, "ecosystem", reg.Name())
@@ -697,4 +711,58 @@ func (p *Poller) getSetting(key, defaultValue string, workspaceID string) string
 // are fast, non-blocking operations.
 func ctx_bg() context.Context {
 	return context.Background()
+}
+
+// hashHexPattern matches lowercase hex strings.
+var hashHexPattern = regexp.MustCompile(`^[0-9a-f]+$`)
+
+// validHashLengths maps algorithm names to expected hex-encoded hash lengths.
+var validHashLengths = map[string]int{
+	"sha1":   40,
+	"sha256": 64,
+	"sha512": 128,
+}
+
+// validateAndFilterHashes validates registry file hashes and returns only valid ones.
+// Invalid hashes are logged as warnings and skipped.
+func validateAndFilterHashes(fileHashes []entity.RegistryFileHash, releaseID string) []entity.ReleaseHash {
+	var result []entity.ReleaseHash
+	for _, h := range fileHashes {
+		// Validate algorithm
+		expectedLen, ok := validHashLengths[h.Algorithm]
+		if !ok {
+			slog.Warn("skipping hash with invalid algorithm", "release", releaseID, "algorithm", h.Algorithm)
+			continue
+		}
+
+		// Validate hash length
+		if len(h.Hash) != expectedLen {
+			slog.Warn("skipping hash with wrong length", "release", releaseID, "algorithm", h.Algorithm, "expected", expectedLen, "got", len(h.Hash))
+			continue
+		}
+
+		// Validate hex format
+		if !hashHexPattern.MatchString(h.Hash) {
+			slog.Warn("skipping hash with non-hex chars", "release", releaseID, "algorithm", h.Algorithm)
+			continue
+		}
+
+		// Validate filename
+		if h.Filename == "" || len(h.Filename) > 500 {
+			slog.Warn("skipping hash with invalid filename", "release", releaseID, "filename", h.Filename)
+			continue
+		}
+		if strings.ContainsAny(h.Filename, "/\\") {
+			slog.Warn("skipping hash with path separators in filename", "release", releaseID, "filename", h.Filename)
+			continue
+		}
+
+		result = append(result, entity.ReleaseHash{
+			ReleaseID: releaseID,
+			Filename:  h.Filename,
+			Algorithm: h.Algorithm,
+			Hash:      h.Hash,
+		})
+	}
+	return result
 }

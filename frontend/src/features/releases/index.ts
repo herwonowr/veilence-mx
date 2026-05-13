@@ -3,6 +3,7 @@
 export {
   useRecentReleases,
   useRelease,
+  useReleaseHashes,
   useReanalyzeRelease,
   releaseKeys,
 } from "@/features/releases/hooks/use-releases"

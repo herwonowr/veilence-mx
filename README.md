@@ -10,12 +10,10 @@ Packages are monitored in two modes: Top-N (automatically tracks the most popula
 
 ## Screenshots
 
-| | | |
-|---|---|---|
-| ![Dashboard](assets/veilence-mx-2.png) | ![Packages](assets/veilence-mx-3.png) | ![Release Analysis](assets/veilence-mx-6.png) |
-| Dashboard | Packages | Release Analysis |
-| ![Alerts](assets/veilence-mx-7.png) | ![Notifications](assets/veilence-mx-9.png) | ![Settings](assets/veilence-mx-13.png) |
-| Alerts | Notifications | Settings |
+| | |
+|---|---|
+| ![Light](assets/veilence-mx-light.png) | ![Dark](assets/veilence-mx-dark.png) | ![Release Analysis](assets/veilence-mx-6.png) |
+| Light Mode | Dark Mode |
 
 ## Features
 
@@ -39,6 +37,7 @@ Packages are monitored in two modes: Top-N (automatically tracks the most popula
 - ✅ Re-analyze individual or all releases
 - ✅ Status tracking (pending, diffing, analyzing, completed, error)
 - ✅ Immediate monitoring trigger on package approval
+- ✅ Release file hashes (IoC)
 
 ### Alerts
 - ✅ Automatic alert creation for suspicious and malicious releases

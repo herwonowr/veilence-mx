@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/veilence/veilence-mx/backend/internal/entity"
@@ -25,9 +26,11 @@ type pypiPackageResponse struct {
 }
 
 type pypiReleaseFile struct {
-	URL         string `json:"url"`
-	PackageType string `json:"packagetype"`
-	UploadTime  string `json:"upload_time_iso_8601"`
+	URL         string            `json:"url"`
+	Filename    string            `json:"filename"`
+	PackageType string            `json:"packagetype"`
+	UploadTime  string            `json:"upload_time_iso_8601"`
+	Digests     map[string]string `json:"digests"`
 }
 
 type pypiTopPackagesResponse struct {
@@ -120,21 +123,42 @@ func (c *PyPIClient) GetPackage(ctx context.Context, name string) (*entity.Regis
 
 	versions := make([]entity.RegistryVersionInfo, 0, len(pypiResp.Releases))
 	for version, files := range pypiResp.Releases {
+		// First pass: find sdist for tarball URL and publish time
+		var tarballURL string
+		var publishedAt time.Time
 		for _, f := range files {
 			if f.PackageType == "sdist" {
-				publishedAt := time.Time{}
+				tarballURL = f.URL
 				if f.UploadTime != "" {
 					if t, parseErr := time.Parse(time.RFC3339, f.UploadTime); parseErr == nil {
 						publishedAt = t
 					}
 				}
-				versions = append(versions, entity.RegistryVersionInfo{
-					Version:     version,
-					PublishedAt: publishedAt,
-					TarballURL:  f.URL,
-				})
 				break
 			}
+		}
+
+		// Second pass: collect .whl hashes (bdist_wheel)
+		var hashes []entity.RegistryFileHash
+		for _, f := range files {
+			if f.PackageType == "bdist_wheel" {
+				if sha256Hash, ok := f.Digests["sha256"]; ok && sha256Hash != "" {
+					hashes = append(hashes, entity.RegistryFileHash{
+						Filename:  f.Filename,
+						Algorithm: "sha256",
+						Hash:      strings.ToLower(sha256Hash),
+					})
+				}
+			}
+		}
+
+		if tarballURL != "" {
+			versions = append(versions, entity.RegistryVersionInfo{
+				Version:     version,
+				PublishedAt: publishedAt,
+				TarballURL:  tarballURL,
+				Hashes:      hashes,
+			})
 		}
 	}
 

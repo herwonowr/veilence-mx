@@ -3,12 +3,12 @@
 import { use, useState } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle, Badge, Separator, Skeleton, Button, DetailError, Progress, ReleaseStatusBadge, ClassificationBadge } from "@/ui"
-import { ArrowLeft, FileCode, Plus, Minus, WrapText, RotateCcw, Loader2 } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle, Badge, Separator, Skeleton, Button, DetailError, Progress, ReleaseStatusBadge, ClassificationBadge, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Textarea } from "@/ui"
+import { ArrowLeft, FileCode, Plus, Minus, WrapText, RotateCcw, Loader2, Hash, Copy, Check } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
 import { formatVersion } from "@/domains/releases"
 import { useCurrentWorkspaceRole, hasMinimumRole, ROUTES } from "@/core"
-import { useRelease, useReanalyzeRelease } from "@/features/releases/hooks/use-releases"
+import { useRelease, useReanalyzeRelease, useReleaseHashes } from "@/features/releases/hooks/use-releases"
 
 const confidenceColor = (confidence: number): string => {
   if (confidence >= 0.8) return "[&_[data-slot=progress-indicator]]:bg-green-500"
@@ -53,6 +53,7 @@ export const ReleaseDetailView = ({
   const { id } = use(params)
   const releaseId = id
   const [wordWrap, setWordWrap] = useState(true)
+  const [copied, setCopied] = useState(false)
 
   // Validation: show 404 for empty IDs
   if (!releaseId) {
@@ -60,10 +61,15 @@ export const ReleaseDetailView = ({
   }
 
   const { data: releaseRes, isError, refetch } = useRelease(releaseId)
+  const { data: hashesRes } = useReleaseHashes(releaseId)
   const reanalyzeMutation = useReanalyzeRelease(releaseId)
   const { role: currentRole } = useCurrentWorkspaceRole()
   const canReanalyze = hasMinimumRole(currentRole, "admin")
   const release = releaseRes?.data ?? null
+  const hashes = hashesRes?.data ?? []
+  const hashesContent = hashes
+    .map((h) => `${h.filename} = ${h.algorithm}:${h.hash}`)
+    .join("\n")
 
   if (isError) return (
     <DetailError
@@ -102,23 +108,64 @@ export const ReleaseDetailView = ({
           <h1 className="text-3xl font-bold">
             {release.package?.name} <span className="text-muted-foreground font-normal">{formatVersion(release.version)}</span>
           </h1>
-          {/* Re-analyze button */}
-          {canReanalyze && release.status === "completed" && !release.isBaseline && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => reanalyzeMutation.mutate()}
-              disabled={reanalyzeMutation.isPending}
-              aria-label="Re-analyze this release"
-            >
-              {reanalyzeMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RotateCcw className="mr-2 h-4 w-4" />
-              )}
-              Re-analyze
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {/* View Hashes dialog */}
+            {hashes.length > 0 && (
+              <Dialog>
+                <DialogTrigger render={
+                  <Button variant="outline" size="sm">
+                    <Hash className="mr-2 h-4 w-4" />
+                    View Hashes
+                  </Button>
+                } />
+                <DialogContent className="sm:max-w-xl">
+                  <DialogHeader>
+                    <DialogTitle>Release Hashes - {release.package?.name} {release.version}</DialogTitle>
+                  </DialogHeader>
+                  <Textarea
+                    readOnly
+                    className="h-48 font-mono text-xs resize-none bg-muted"
+                    value={hashesContent}
+                  />
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(hashesContent)
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 2000)
+                      }}
+                    >
+                      {copied ? (
+                        <Check className="mr-2 h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="mr-2 h-4 w-4" />
+                      )}
+                      {copied ? "Copied" : "Copy"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+            {/* Re-analyze button */}
+            {canReanalyze && release.status === "completed" && !release.isBaseline && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => reanalyzeMutation.mutate()}
+                disabled={reanalyzeMutation.isPending}
+                aria-label="Re-analyze this release"
+              >
+                {reanalyzeMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                )}
+                Re-analyze
+              </Button>
+            )}
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-2">
           <Badge variant="outline">{formatEcosystem(release.package?.ecosystem ?? "")}</Badge>

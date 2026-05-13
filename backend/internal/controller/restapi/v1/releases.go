@@ -32,7 +32,7 @@ func (h *PackageHandlers) ListPackageReleases(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	respondJSON(w, http.StatusOK, response.ReleasesFromEntities(releases), &Meta{Page: page, Limit: limit, Total: total})
+	respondJSON(w, http.StatusOK, h.enrichReleasesWithHashCount(r, releases), &Meta{Page: page, Limit: limit, Total: total})
 }
 
 // GetRelease returns a single release with its diff and analysis, scoped to the current workspace.
@@ -55,7 +55,15 @@ func (h *PackageHandlers) GetRelease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON(w, http.StatusOK, response.ReleaseDetailFromEntity(detail), nil)
+	resp := response.ReleaseDetailFromEntity(detail)
+	if h.HashRepo != nil {
+		count, err := h.HashRepo.CountByReleaseID(r.Context(), id)
+		if err == nil {
+			resp.HashCount = count
+		}
+	}
+
+	respondJSON(w, http.StatusOK, resp, nil)
 }
 
 // ReanalyzeRelease re-queues a single release for analysis.
@@ -109,6 +117,57 @@ func (h *PackageHandlers) GetAnalysisHistory(w http.ResponseWriter, r *http.Requ
 	}
 
 	respondJSON(w, http.StatusOK, response.AnalysisHistoryFromEntities(entries), nil)
+}
+
+// enrichReleasesWithHashCount adds hash counts to release response DTOs.
+func (h *PackageHandlers) enrichReleasesWithHashCount(r *http.Request, releases []entity.Release) []response.ReleaseResponse {
+	result := response.ReleasesFromEntities(releases)
+	if h.HashRepo == nil || len(result) == 0 {
+		return result
+	}
+	ids := make([]string, len(result))
+	for i := range result {
+		ids[i] = result[i].ID
+	}
+	counts, err := h.HashRepo.CountByReleaseIDs(r.Context(), ids)
+	if err != nil {
+		return result
+	}
+	for i := range result {
+		result[i].HashCount = counts[result[i].ID]
+	}
+	return result
+}
+
+// GetReleaseHashes returns file hashes (IoC) for a specific release.
+// GET /api/releases/{id}/hashes
+func (h *PackageHandlers) GetReleaseHashes(w http.ResponseWriter, r *http.Request) {
+	workspaceID := rbac.WorkspaceIDFromContext(r.Context())
+
+	id, ok := parseUUID(r, "id")
+	if !ok {
+		respondAppError(w, BadRequest("invalid release ID"))
+		return
+	}
+
+	// Verify release belongs to requesting workspace (workspace scoping)
+	_, err := h.ReleaseSvc.GetRelease(r.Context(), workspaceID, id)
+	if err != nil {
+		if errors.Is(err, entity.ErrNotFound) {
+			respondAppError(w, NotFound("release"))
+			return
+		}
+		respondAppError(w, Internal("failed to verify release"))
+		return
+	}
+
+	hashes, err := h.HashRepo.FindByReleaseID(r.Context(), id)
+	if err != nil {
+		respondAppError(w, Internal("failed to get release hashes"))
+		return
+	}
+
+	respondJSON(w, http.StatusOK, response.ReleaseHashesFromEntities(hashes), nil)
 }
 
 // GetPipelineStatus returns counts of releases by processing status for the current workspace.

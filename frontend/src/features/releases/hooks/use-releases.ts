@@ -7,7 +7,7 @@ import {
   type UseQueryOptions,
 } from "@tanstack/react-query"
 import { getRecentReleases } from "@/domains/dashboard"
-import { getRelease, reanalyzeRelease } from "@/domains/releases"
+import { getRelease, reanalyzeRelease, getReleaseHashes } from "@/domains/releases"
 import type { ApiResponse } from "@/domains/common"
 import type { RecentRelease } from "@/domains/dashboard"
 import type { ReleaseDetail } from "@/domains/releases"
@@ -19,6 +19,7 @@ export const releaseKeys = {
   list: (params?: Record<string, unknown>) =>
     [...releaseKeys.all, "list", params] as const,
   detail: (id: string) => [...releaseKeys.all, "detail", id] as const,
+  hashes: (id: string) => [...releaseKeys.all, "hashes", id] as const,
 }
 
 export const useRecentReleases = (
@@ -51,6 +52,13 @@ export const useRelease = (
     queryFn: () => getRelease(id),
     enabled: !!id,
     ...options,
+  })
+
+export const useReleaseHashes = (releaseId: string) =>
+  useQuery({
+    queryKey: releaseKeys.hashes(releaseId),
+    queryFn: () => getReleaseHashes(releaseId),
+    enabled: !!releaseId,
   })
 
 export const useReanalyzeRelease = (releaseId: string) => {
