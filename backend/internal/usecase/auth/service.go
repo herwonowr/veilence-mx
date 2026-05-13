@@ -150,18 +150,13 @@ func normalizeEmail(email string) string {
 // validateEmailDomain checks the email domain against the allowed domains list.
 // Expects already-normalized email input.
 func (s *Service) validateEmailDomain(email string) error {
-	if len(s.allowedEmailDomains) == 0 {
-		return nil // no restriction
+	if entity.EmailDomainAllowed(email, s.allowedEmailDomains) {
+		return nil
 	}
+	// Distinguish invalid email vs domain not allowed.
 	parts := strings.SplitN(email, "@", 2)
-	if len(parts) != 2 {
+	if len(parts) != 2 || parts[1] == "" {
 		return ErrInvalidEmail
-	}
-	domain := strings.ToLower(parts[1])
-	for _, allowed := range s.allowedEmailDomains {
-		if domain == strings.ToLower(strings.TrimSpace(allowed)) {
-			return nil
-		}
 	}
 	return ErrEmailDomainNotAllowed
 }

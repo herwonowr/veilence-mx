@@ -235,13 +235,13 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 
 	case "bedrock":
 		llmConfig := bedrock.Config{
-			Region:         cfg.AWSRegion,
-			AccessKeyID:    cfg.AWSAccessKeyID,
+			Region:          cfg.AWSRegion,
+			AccessKeyID:     cfg.AWSAccessKeyID,
 			SecretAccessKey: cfg.AWSSecretAccessKey,
-			SessionToken:   cfg.AWSSessionToken,
-			Model:          cfg.LLMModel,
-			MaxDiffSize:    cfg.LLMMaxDiffSize,
-			RateInterval:   cfg.LLMRateInterval,
+			SessionToken:    cfg.AWSSessionToken,
+			Model:           cfg.LLMModel,
+			MaxDiffSize:     cfg.LLMMaxDiffSize,
+			RateInterval:    cfg.LLMRateInterval,
 		}
 		if err := llmConfig.Validate(); err != nil {
 			return nil, fmt.Errorf("bedrock LLM config error: %w", err)
@@ -407,6 +407,7 @@ func BuildDependencies(ctx context.Context, cfg *config.Config) (*Dependencies, 
 			sso.WithMetadataFetcher(pkgsaml.NewMetadataFetcher()),
 			sso.WithRegistrationEnabled(cfg.RegistrationEnabled),
 			sso.WithOAuthAuthURLs(cfg.OAuthGoogleAuthURL, cfg.OAuthGitHubAuthURL),
+			sso.WithAllowedEmailDomains(cfg.AllowedEmailDomains),
 		)
 
 		// Load or generate SP signing key and configure the SAML provider.

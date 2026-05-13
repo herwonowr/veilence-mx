@@ -74,6 +74,8 @@ type Service struct {
 	spKeyOnce sync.Once
 	// spKeyErr stores the error from the first EnsureSPSigningKey call.
 	spKeyErr error
+	// allowedEmailDomains is the platform-level ceiling for email domains (from ALLOWED_EMAIL_DOMAINS).
+	allowedEmailDomains []string
 }
 
 // NewService creates a new SSO service.
@@ -130,6 +132,11 @@ func WithMetadataFetcher(mf usecase.SAMLMetadataFetcher) ServiceOption {
 // WithRegistrationEnabled sets the registration enabled flag (from env config).
 func WithRegistrationEnabled(enabled bool) ServiceOption {
 	return func(s *Service) { s.registrationEnabled = enabled }
+}
+
+// WithAllowedEmailDomains sets the platform-level allowed email domains.
+func WithAllowedEmailDomains(domains []string) ServiceOption {
+	return func(s *Service) { s.allowedEmailDomains = domains }
 }
 
 // WithOAuthAuthURLs sets custom OAuth authorization endpoint URLs.
@@ -364,12 +371,21 @@ func (s *Service) HandleOAuthCallback(ctx context.Context, code, state, ipAddres
 
 // resolveAndIssueJWT implements the user resolution order from the spec.
 func (s *Service) resolveAndIssueJWT(ctx context.Context, email, firstName, lastName string, provider entity.SSOProvider, providerUserID string, config *entity.SSOConfig, state *entity.SSOState, ipAddress, userAgent string) (*SSOCallbackResult, error) {
-	// Domain restriction check
-	if len(config.AllowedDomains) > 0 && !emailInDomains(email, config.AllowedDomains) {
+	// Global domain restriction (platform-level ceiling)
+	if !entity.EmailDomainAllowed(email, s.allowedEmailDomains) {
+		if s.auditLogger != nil {
+			s.auditLogger.LogActionWithUser(ctx, "", email, "sso.login_failed", "auth", "",
+				fmt.Sprintf("email=%s provider=%s reason=global domain not allowed", email, provider))
+		}
+		return &SSOCallbackResult{CallbackURL: state.CallbackURL, IsError: true, ErrorCode: "domain_not_allowed", ErrorMsg: "Email domain is not allowed"}, nil
+	}
+
+	// Per-config domain restriction
+	if !entity.EmailDomainAllowed(email, config.AllowedDomains) {
 		if s.auditLogger != nil {
 			s.auditLogger.LogActionWithUser(ctx, "", email, "sso.login_failed", "auth", "", fmt.Sprintf("email=%s provider=%s reason=domain not allowed", email, provider))
 		}
-		return &SSOCallbackResult{CallbackURL: state.CallbackURL, IsError: true, ErrorCode: "domain_not_allowed"}, nil
+		return &SSOCallbackResult{CallbackURL: state.CallbackURL, IsError: true, ErrorCode: "domain_not_allowed", ErrorMsg: "Email domain is not allowed"}, nil
 	}
 
 	// 3a. Lookup by provider+providerUserID
@@ -695,6 +711,10 @@ func (s *Service) CreateSSOConfig(ctx context.Context, config *entity.SSOConfig)
 		return nil, fmt.Errorf("CreateSSOConfig: %w", err)
 	}
 
+	if err := s.validateConfigDomainsSubset(config.AllowedDomains); err != nil {
+		return nil, fmt.Errorf("CreateSSOConfig: %w", err)
+	}
+
 	// Enforce one config per provider.
 	existing, err := s.configRepo.FindByProvider(ctx, config.Provider)
 	if err != nil && !errors.Is(err, entity.ErrNotFound) {
@@ -720,6 +740,10 @@ func (s *Service) UpdateSSOConfig(ctx context.Context, id string, config *entity
 	config.ID = id
 	config.SetDefaults()
 	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("UpdateSSOConfig: %w", err)
+	}
+
+	if err := s.validateConfigDomainsSubset(config.AllowedDomains); err != nil {
 		return nil, fmt.Errorf("UpdateSSOConfig: %w", err)
 	}
 
@@ -1087,19 +1111,22 @@ func (s *Service) ResolveCallbackFromState(ctx context.Context, state string) (s
 	return ssoState.CallbackURL, nil
 }
 
-// emailInDomains checks if an email address belongs to one of the allowed domains.
-func emailInDomains(email string, domains []string) bool {
-	parts := strings.SplitN(email, "@", 2)
-	if len(parts) != 2 {
-		return false
+// validateConfigDomainsSubset checks that all config domains are within the global allowed domains.
+func (s *Service) validateConfigDomainsSubset(configDomains []string) error {
+	if len(s.allowedEmailDomains) == 0 {
+		return nil // no global restriction
 	}
-	domain := strings.ToLower(parts[1])
-	for _, d := range domains {
-		if domain == strings.ToLower(strings.TrimSpace(d)) {
-			return true
+	globalSet := make(map[string]bool, len(s.allowedEmailDomains))
+	for _, d := range s.allowedEmailDomains {
+		globalSet[entity.NormalizeDomain(d)] = true
+	}
+	for _, d := range configDomains {
+		if !globalSet[entity.NormalizeDomain(d)] {
+			return fmt.Errorf("SSO allowed domain %q is not in platform allowed domains (ALLOWED_EMAIL_DOMAINS): %w",
+				d, entity.ErrValidation)
 		}
 	}
-	return false
+	return nil
 }
 
 // isOrgMember checks if any user org matches any allowed org.
