@@ -710,18 +710,8 @@ func normalizeEmailRBAC(email string) string {
 
 // validateEmailDomainRBAC checks the email domain against the allowed domains list.
 func (s *Service) validateEmailDomainRBAC(email string) error {
-	if len(s.allowedEmailDomains) == 0 {
+	if entity.EmailDomainAllowed(email, s.allowedEmailDomains) {
 		return nil
-	}
-	parts := strings.SplitN(email, "@", 2)
-	if len(parts) != 2 {
-		return errors.New("invalid email address")
-	}
-	domain := strings.ToLower(parts[1])
-	for _, allowed := range s.allowedEmailDomains {
-		if domain == strings.ToLower(strings.TrimSpace(allowed)) {
-			return nil
-		}
 	}
 	return errors.New("email domain is not allowed")
 }

@@ -372,7 +372,7 @@ func (s *Service) HandleOAuthCallback(ctx context.Context, code, state, ipAddres
 // resolveAndIssueJWT implements the user resolution order from the spec.
 func (s *Service) resolveAndIssueJWT(ctx context.Context, email, firstName, lastName string, provider entity.SSOProvider, providerUserID string, config *entity.SSOConfig, state *entity.SSOState, ipAddress, userAgent string) (*SSOCallbackResult, error) {
 	// Global domain restriction (platform-level ceiling)
-	if len(s.allowedEmailDomains) > 0 && !emailInDomains(email, s.allowedEmailDomains) {
+	if !entity.EmailDomainAllowed(email, s.allowedEmailDomains) {
 		if s.auditLogger != nil {
 			s.auditLogger.LogActionWithUser(ctx, "", email, "sso.login_failed", "auth", "",
 				fmt.Sprintf("email=%s provider=%s reason=global domain not allowed", email, provider))
@@ -381,7 +381,7 @@ func (s *Service) resolveAndIssueJWT(ctx context.Context, email, firstName, last
 	}
 
 	// Per-config domain restriction
-	if len(config.AllowedDomains) > 0 && !emailInDomains(email, config.AllowedDomains) {
+	if !entity.EmailDomainAllowed(email, config.AllowedDomains) {
 		if s.auditLogger != nil {
 			s.auditLogger.LogActionWithUser(ctx, "", email, "sso.login_failed", "auth", "", fmt.Sprintf("email=%s provider=%s reason=domain not allowed", email, provider))
 		}
@@ -1118,30 +1118,15 @@ func (s *Service) validateConfigDomainsSubset(configDomains []string) error {
 	}
 	globalSet := make(map[string]bool, len(s.allowedEmailDomains))
 	for _, d := range s.allowedEmailDomains {
-		globalSet[strings.ToLower(strings.TrimRight(strings.TrimSpace(d), "."))] = true
+		globalSet[entity.NormalizeDomain(d)] = true
 	}
 	for _, d := range configDomains {
-		if !globalSet[strings.ToLower(strings.TrimRight(strings.TrimSpace(d), "."))] {
+		if !globalSet[entity.NormalizeDomain(d)] {
 			return fmt.Errorf("SSO allowed domain %q is not in platform allowed domains (ALLOWED_EMAIL_DOMAINS): %w",
 				d, entity.ErrValidation)
 		}
 	}
 	return nil
-}
-
-// emailInDomains checks if an email address belongs to one of the allowed domains.
-func emailInDomains(email string, domains []string) bool {
-	parts := strings.SplitN(email, "@", 2)
-	if len(parts) != 2 {
-		return false
-	}
-	domain := strings.ToLower(strings.TrimRight(parts[1], "."))
-	for _, d := range domains {
-		if strings.ToLower(strings.TrimRight(strings.TrimSpace(d), ".")) == domain {
-			return true
-		}
-	}
-	return false
 }
 
 // isOrgMember checks if any user org matches any allowed org.
