@@ -1,6 +1,6 @@
 import { fetchApi } from "@/core"
 import type { ApiResponse } from "@/domains/common"
-import type { ReleaseDetail, ReanalyzeReleaseResponse, PipelineStatus } from "@/domains/releases/types/releases.types"
+import type { ReleaseDetail, ReanalyzeReleaseResponse, PipelineStatus, ReleaseHash } from "@/domains/releases/types/releases.types"
 
 export const getRelease = async (
   id: string
@@ -16,4 +16,9 @@ export const reanalyzeRelease = async (
 
 export const getPipelineStatus = async (): Promise<ApiResponse<PipelineStatus>> =>
   fetchApi<PipelineStatus>(`/api/releases/pipeline-status`)
+
+export const getReleaseHashes = async (
+  releaseId: string
+): Promise<ApiResponse<ReleaseHash[]>> =>
+  fetchApi<ReleaseHash[]>(`/api/releases/${releaseId}/hashes`)
 

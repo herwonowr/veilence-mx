@@ -2,6 +2,8 @@ package registry
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -28,7 +31,9 @@ type npmPackageResponse struct {
 type npmVersionDetails struct {
 	Version string `json:"version"`
 	Dist    struct {
-		Tarball string `json:"tarball"`
+		Tarball   string `json:"tarball"`
+		Integrity string `json:"integrity"`
+		Shasum    string `json:"shasum"`
 	} `json:"dist"`
 }
 
@@ -139,10 +144,56 @@ func (c *NPMClient) GetPackage(ctx context.Context, name string) (*entity.Regist
 				publishedAt = t
 			}
 		}
+
+		// Extract filename from tarball URL
+		var hashes []entity.RegistryFileHash
+		filename := ""
+		if details.Dist.Tarball != "" {
+			if parsedURL, parseErr := url.Parse(details.Dist.Tarball); parseErr == nil {
+				filename = path.Base(parsedURL.Path)
+			}
+		}
+
+		if filename != "" {
+			// Parse SRI integrity hash
+			if details.Dist.Integrity != "" {
+				sri := details.Dist.Integrity
+				// Handle space-separated multiple hashes - take the first one
+				if idx := strings.Index(sri, " "); idx >= 0 {
+					sri = sri[:idx]
+				}
+				parts := strings.SplitN(sri, "-", 2)
+				if len(parts) == 2 {
+					algo := parts[0]
+					b64Hash := parts[1]
+					decoded, decErr := base64.StdEncoding.DecodeString(b64Hash)
+					if decErr != nil {
+						slog.Warn("failed to decode SRI base64", "package", name, "version", version, "error", decErr)
+					} else {
+						hashes = append(hashes, entity.RegistryFileHash{
+							Filename:  filename,
+							Algorithm: algo,
+							Hash:      hex.EncodeToString(decoded),
+						})
+					}
+				}
+			}
+
+			// Parse shasum (SHA-1 hex)
+			if details.Dist.Shasum != "" {
+				hashes = append(hashes, entity.RegistryFileHash{
+					Filename:  filename,
+					Algorithm: "sha1",
+					Hash:      strings.ToLower(details.Dist.Shasum),
+				})
+			}
+		}
+
 		versions = append(versions, entity.RegistryVersionInfo{
 			Version:     version,
 			PublishedAt: publishedAt,
 			TarballURL:  details.Dist.Tarball,
+			Hashes:      hashes,
 		})
 	}
 

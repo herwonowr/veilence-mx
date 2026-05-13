@@ -88,6 +88,16 @@ type PipelineStatus struct {
 	Error     int64
 }
 
+// ReleaseHash represents a file hash (IoC) associated with a release.
+type ReleaseHash struct {
+	ID        string
+	ReleaseID string
+	Filename  string
+	Algorithm string // "sha1", "sha256", "sha512"
+	Hash      string // hex-encoded
+	CreatedAt time.Time
+}
+
 // FormatVersion returns version with "v" prefix, avoiding double "v" for Go modules.
 func FormatVersion(version string) string {
 	if strings.HasPrefix(version, "v") {

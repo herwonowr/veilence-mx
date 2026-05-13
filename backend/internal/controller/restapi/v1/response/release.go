@@ -15,6 +15,7 @@ type ReleaseResponse struct {
 	TarballURL   string    `json:"tarballUrl"`
 	Status       string    `json:"status"`
 	ErrorMessage string    `json:"errorMessage,omitempty"`
+	HashCount    int64     `json:"hashCount"`
 	CreatedAt    time.Time `json:"createdAt"`
 }
 
@@ -195,6 +196,37 @@ func AnalysisHistoryFromEntities(entries []entity.AnalysisHistoryEntry) []Analys
 type ReanalyzeResponse struct {
 	Message string `json:"message"`
 	JobID   string `json:"jobId"`
+}
+
+// ReleaseHashResponse is the JSON representation of a release file hash (IoC).
+type ReleaseHashResponse struct {
+	ID        string    `json:"id"`
+	ReleaseID string    `json:"releaseId"`
+	Filename  string    `json:"filename"`
+	Algorithm string    `json:"algorithm"`
+	Hash      string    `json:"hash"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// ReleaseHashFromEntity maps a domain ReleaseHash to a response DTO.
+func ReleaseHashFromEntity(h *entity.ReleaseHash) ReleaseHashResponse {
+	return ReleaseHashResponse{
+		ID:        h.ID,
+		ReleaseID: h.ReleaseID,
+		Filename:  h.Filename,
+		Algorithm: h.Algorithm,
+		Hash:      h.Hash,
+		CreatedAt: h.CreatedAt,
+	}
+}
+
+// ReleaseHashesFromEntities maps a slice of domain ReleaseHash to response DTOs.
+func ReleaseHashesFromEntities(hashes []entity.ReleaseHash) []ReleaseHashResponse {
+	result := make([]ReleaseHashResponse, len(hashes))
+	for i := range hashes {
+		result[i] = ReleaseHashFromEntity(&hashes[i])
+	}
+	return result
 }
 
 // PipelineStatusResponse is the JSON representation of release pipeline status counts.

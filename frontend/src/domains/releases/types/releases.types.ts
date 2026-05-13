@@ -8,6 +8,7 @@ export interface Release {
   tarballUrl: string
   status: ReleaseStatus
   errorMessage?: string
+  hashCount: number
   createdAt: string
 }
 
@@ -61,6 +62,15 @@ export interface RecentRelease extends Release {
   packageName: string
   packageEcosystem: string
   classification?: Classification
+}
+
+export interface ReleaseHash {
+  id: string
+  releaseId: string
+  filename: string
+  algorithm: string
+  hash: string
+  createdAt: string
 }
 
 export interface ReanalyzeReleaseResponse {

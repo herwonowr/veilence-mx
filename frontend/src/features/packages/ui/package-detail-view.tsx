@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/ui"
-import { ArrowLeft, Activity, Package as PackageIcon, Ban, Info } from "lucide-react"
+import { ArrowLeft, Activity, Package as PackageIcon, Ban, Info, Hash } from "lucide-react"
 import { formatEcosystem } from "@/domains/common"
 import { formatPopularity, formatFreshness } from "@/domains/packages"
 import { formatVersion } from "@/domains/releases"
@@ -131,6 +131,7 @@ export const PackageDetailView = ({
               <TableRow>
                 <TableHead>Version</TableHead>
                 <TableHead>Published</TableHead>
+                <TableHead>Hashes</TableHead>
                 <TableHead>Analysis Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -153,13 +154,20 @@ export const PackageDetailView = ({
                     {new Date(release.publishedAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
+                    {release.hashCount > 0 ? (
+                      <Badge variant="outline"><Hash className="mr-1 h-3 w-3" />{release.hashCount} files</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <ReleaseStatusBadge status={release.status} />
                   </TableCell>
                 </TableRow>
               ))}
               {releases.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-8">
+                  <TableCell colSpan={4} className="text-center py-8">
                     <div className="flex flex-col items-center gap-2">
                       <PackageIcon className="h-8 w-8 text-muted-foreground" />
                       <p className="text-muted-foreground">No releases tracked yet.</p>
